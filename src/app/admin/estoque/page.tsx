@@ -82,6 +82,7 @@ export default function EstoquePage() {
   
   // Formulário de entrada
   const [quantidade, setQuantidade] = useState('');
+  const [tipoEntrada, setTipoEntrada] = useState<'unidade' | 'caixa'>('unidade');
   const [fornecedor, setFornecedor] = useState('');
   const [documentoRef, setDocumentoRef] = useState('');
   const [observacao, setObservacao] = useState('');
@@ -149,6 +150,7 @@ export default function EstoquePage() {
   const handleEntrada = (produto: any) => {
     setProdutoSelecionado(produto);
     setQuantidade('');
+    setTipoEntrada('unidade');
     setFornecedor('');
     setDocumentoRef('');
     setObservacao('');
@@ -170,12 +172,21 @@ export default function EstoquePage() {
       return;
     }
 
+    // Validar se o produto tem unidadesPorCaixa quando for entrada por caixa
+    if (tipoEntrada === 'caixa' && !produtoSelecionado.unidadesPorCaixa) {
+      toast({ variant: 'destructive', title: 'Este produto não tem unidades por caixa cadastrada' });
+      return;
+    }
+
     setSaving(true);
     const dbInstance = db();
     if (!dbInstance || !empresaId) return;
 
     try {
-      const qtd = parseFloat(quantidade);
+      const qtdInformada = parseFloat(quantidade);
+      const unidadesPorCaixa = produtoSelecionado.unidadesPorCaixa || 1;
+      // Calcula a quantidade real em unidades
+      const qtd = tipoEntrada === 'caixa' ? qtdInformada * unidadesPorCaixa : qtdInformada;
       const estoqueAnterior = produtoSelecionado.estoqueAtual || 0;
       const estoqueNovo = estoqueAnterior + qtd;
 
@@ -191,6 +202,9 @@ export default function EstoquePage() {
         produtoNome: produtoSelecionado.nome,
         tipo: 'entrada',
         quantidade: qtd,
+        quantidadeInformada: qtdInformada,
+        tipoEntrada: tipoEntrada,
+        unidadesPorCaixa: tipoEntrada === 'caixa' ? unidadesPorCaixa : null,
         estoqueAnterior,
         estoqueNovo,
         fornecedor: fornecedor || null,
@@ -201,7 +215,10 @@ export default function EstoquePage() {
         criadoEm: Timestamp.now(),
       });
 
-      toast({ title: `✓ Entrada de ${qtd} unidades registrada` });
+      const mensagem = tipoEntrada === 'caixa' 
+        ? `✓ Entrada de ${qtdInformada} caixas (${qtd} unidades) registrada`
+        : `✓ Entrada de ${qtd} unidades registrada`;
+      toast({ title: mensagem });
       setDialogEntrada(false);
       setProdutoSelecionado(null);
     } catch (error) {
@@ -557,23 +574,63 @@ export default function EstoquePage() {
             <div className="space-y-4 py-4">
               <div className="bg-muted rounded-lg p-3">
                 <p className="font-medium">{produtoSelecionado?.nome}</p>
-                <p className="text-sm text-muted-foreground">
-                  Estoque atual: <span className="font-bold">{produtoSelecionado?.estoqueAtual || 0}</span> {produtoSelecionado?.unidade || 'un'}
-                </p>
+                <div className="flex items-center justify-between mt-1">
+                  <p className="text-sm text-muted-foreground">
+                    Estoque atual: <span className="font-bold">{produtoSelecionado?.estoqueAtual || 0}</span> {produtoSelecionado?.unidade || 'un'}
+                  </p>
+                  {produtoSelecionado?.unidadesPorCaixa > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      1 caixa = {produtoSelecionado.unidadesPorCaixa} un
+                    </p>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="quantidade">Quantidade *</Label>
-                <Input
-                  id="quantidade"
-                  type="number"
-                  min="1"
-                  step="1"
-                  placeholder="Ex: 10"
-                  value={quantidade}
-                  onChange={(e) => setQuantidade(e.target.value)}
-                />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="tipoEntrada">Tipo de Entrada</Label>
+                  <Select value={tipoEntrada} onValueChange={(v: 'unidade' | 'caixa') => setTipoEntrada(v)}>
+                    <SelectTrigger id="tipoEntrada">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="unidade">Unidade</SelectItem>
+                      <SelectItem value="caixa" disabled={!produtoSelecionado?.unidadesPorCaixa}>
+                        Caixa
+                        {!produtoSelecionado?.unidadesPorCaixa && ' (não config.)'}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quantidade">
+                    Quantidade {tipoEntrada === 'caixa' ? '(caixas)' : '(unidades)'} *
+                  </Label>
+                  <Input
+                    id="quantidade"
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder={tipoEntrada === 'caixa' ? 'Ex: 5' : 'Ex: 10'}
+                    value={quantidade}
+                    onChange={(e) => setQuantidade(e.target.value)}
+                  />
+                </div>
               </div>
+
+              {/* Cálculo da conversão */}
+              {quantidade && parseFloat(quantidade) > 0 && tipoEntrada === 'caixa' && produtoSelecionado?.unidadesPorCaixa > 0 && (
+                <div className="bg-blue-50 rounded-lg p-3 border border-blue-200">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-blue-700">
+                      {quantidade} caixa(s) × {produtoSelecionado.unidadesPorCaixa} un
+                    </span>
+                    <span className="font-bold text-blue-800">
+                      = {(parseFloat(quantidade) * produtoSelecionado.unidadesPorCaixa)} unidades
+                    </span>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="fornecedor">Fornecedor</Label>
@@ -609,7 +666,11 @@ export default function EstoquePage() {
               {quantidade && parseFloat(quantidade) > 0 && (
                 <div className="bg-green-50 rounded-lg p-3 border border-green-200">
                   <p className="text-sm text-green-700">
-                    Novo estoque: <span className="font-bold">{(produtoSelecionado?.estoqueAtual || 0) + parseFloat(quantidade)}</span> {produtoSelecionado?.unidade || 'un'}
+                    Novo estoque: <span className="font-bold">
+                      {(produtoSelecionado?.estoqueAtual || 0) + (tipoEntrada === 'caixa' 
+                        ? parseFloat(quantidade) * (produtoSelecionado?.unidadesPorCaixa || 1) 
+                        : parseFloat(quantidade))}
+                    </span> {produtoSelecionado?.unidade || 'un'}
                   </p>
                 </div>
               )}
