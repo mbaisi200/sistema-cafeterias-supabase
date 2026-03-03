@@ -219,7 +219,12 @@ export default function PDVPage() {
       lista = lista.filter(p => p.categoriaId === categoriaAtiva);
     }
     if (search) {
-      lista = lista.filter(p => p.nome.toLowerCase().includes(search.toLowerCase()));
+      const searchLower = search.toLowerCase();
+      lista = lista.filter(p => 
+        p.nome.toLowerCase().includes(searchLower) ||
+        (p.codigoBarras && p.codigoBarras.includes(search)) ||
+        (p.codigo && p.codigo.toLowerCase().includes(searchLower))
+      );
     }
     return lista;
   }, [produtos, categoriaAtiva, search]);
@@ -392,6 +397,25 @@ export default function PDVPage() {
 
     toast({ title: `✓ ${produto.nome} adicionado` });
   };
+
+  // Busca por código de barras - adiciona automaticamente quando encontra
+  useEffect(() => {
+    if (!search || search.length < 8) return; // Códigos de barras geralmente têm pelo menos 8 dígitos
+    
+    // Verifica se é um código de barras (apenas números)
+    const isCodigoBarras = /^[0-9]{8,}$/.test(search);
+    
+    if (isCodigoBarras) {
+      const produtoEncontrado = (produtos || []).find(p => p.codigoBarras === search);
+      
+      if (produtoEncontrado) {
+        // Adiciona o produto automaticamente
+        adicionarProduto(produtoEncontrado);
+        setSearch(''); // Limpa a busca
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, produtos]);
 
   // Alterar quantidade
   const alterarQtd = async (itemId: string, delta: number, quantidadeAtual: number) => {
@@ -988,10 +1012,11 @@ export default function PDVPage() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <Input
-                  placeholder="🔍 Buscar produto..."
+                  placeholder="🔍 Buscar por nome ou código de barras..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="pl-10 border border-blue-200 focus:border-blue-500 rounded-lg font-semibold"
+                  autoFocus
                 />
               </div>
             </div>

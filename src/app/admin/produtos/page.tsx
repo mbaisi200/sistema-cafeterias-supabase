@@ -44,6 +44,7 @@ interface Produto {
   nome: string;
   descricao?: string;
   codigo?: string;
+  codigoBarras?: string;
   categoriaId: string;
   preco: number;
   custo?: number;
@@ -70,8 +71,10 @@ export default function ProdutosPage() {
   const loading = loadingProdutos || loadingCategorias;
 
   const filteredProdutos = produtos.filter(produto => {
-    const matchSearch = produto.nome.toLowerCase().includes(search.toLowerCase()) ||
-                       (produto.codigo && produto.codigo.toLowerCase().includes(search.toLowerCase()));
+    const searchLower = search.toLowerCase();
+    const matchSearch = produto.nome.toLowerCase().includes(searchLower) ||
+                       (produto.codigo && produto.codigo.toLowerCase().includes(searchLower)) ||
+                       (produto.codigoBarras && produto.codigoBarras.includes(search));
     const matchCategoria = categoriaFilter === 'all' || produto.categoriaId === categoriaFilter;
     return matchSearch && matchCategoria;
   });
@@ -87,6 +90,7 @@ export default function ProdutosPage() {
         nome: formData.get('nome') as string,
         descricao: formData.get('descricao') as string,
         codigo: formData.get('codigo') as string,
+        codigoBarras: formData.get('codigoBarras') as string,
         categoriaId: formData.get('categoria') as string,
         preco: parseFloat(formData.get('preco') as string) || 0,
         custo: parseFloat(formData.get('custo') as string) || 0,
@@ -186,9 +190,19 @@ export default function ProdutosPage() {
                         <Input id="nome" name="nome" placeholder="Nome do produto" required defaultValue={editandoProduto?.nome || ''} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="codigo">Código</Label>
+                        <Label htmlFor="codigo">Código Interno</Label>
                         <Input id="codigo" name="codigo" placeholder="Ex: PROD001" defaultValue={editandoProduto?.codigo || ''} />
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="codigoBarras">Código de Barras <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                      <Input 
+                        id="codigoBarras" 
+                        name="codigoBarras" 
+                        placeholder="Ex: 7891234567890" 
+                        defaultValue={editandoProduto?.codigoBarras || ''}
+                      />
+                      <p className="text-xs text-muted-foreground">Use um leitor de código de barras ou digite manualmente</p>
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="descricao">Descrição</Label>
@@ -309,8 +323,9 @@ export default function ProdutosPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[300px]">Produto</TableHead>
+                    <TableHead className="w-[250px]">Produto</TableHead>
                     <TableHead>Código</TableHead>
+                    <TableHead>Cód. Barras</TableHead>
                     <TableHead>Categoria</TableHead>
                     <TableHead className="text-right">Preço</TableHead>
                     <TableHead className="text-center">Estoque</TableHead>
@@ -342,6 +357,11 @@ export default function ProdutosPage() {
                       <TableCell>
                         <span className="text-sm text-muted-foreground">
                           {produto.codigo || '-'}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs font-mono text-gray-600">
+                          {produto.codigoBarras || '-'}
                         </span>
                       </TableCell>
                       <TableCell>
