@@ -11,7 +11,9 @@ import {
   deleteDoc,
   doc,
   Timestamp,
-  getDocs
+  getDocs,
+  getDoc,
+  setDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -1354,19 +1356,16 @@ export function useConfiguracoesCupom() {
     }
 
     try {
-      // Buscar documento de configurações da empresa
+      // Buscar documento de configurações da empresa usando ID direto
       const configRef = doc(dbInstance, 'configuracoes_cupom', empresaId);
-      const configDoc = await getDocs(query(
-        collection(dbInstance, 'configuracoes_cupom'),
-        where('empresaId', '==', empresaId)
-      ));
+      const configDoc = await getDoc(configRef);
 
-      if (!configDoc.empty) {
-        const data = configDoc.docs[0].data();
+      if (configDoc.exists()) {
+        const data = configDoc.data();
         setConfiguracoes({
           ...configuracoesCupomPadrao,
           ...data,
-        });
+        } as ConfiguracoesCupom);
       } else {
         // Se não existir, usar padrão
         setConfiguracoes(configuracoesCupomPadrao);
@@ -1383,41 +1382,29 @@ export function useConfiguracoesCupom() {
   }, [carregarConfiguracoes]);
 
   // Salvar configurações
-  const salvarConfiguracoes = async (novasConfiguracoes: Partial<ConfiguracoesCupom>) => {
+  const salvarConfiguracoes = async (novasConfiguracoes: ConfiguracoesCupom) => {
     const dbInstance = db();
     if (!empresaId || !dbInstance) throw new Error('Empresa não definida');
 
     setSaving(true);
     try {
-      const configCompletas = { ...configuracoes, ...novasConfiguracoes, empresaId };
+      const configCompletas = { 
+        ...configuracoes, 
+        ...novasConfiguracoes, 
+        empresaId,
+        atualizadoEm: Timestamp.now(),
+      };
       
-      // Verificar se já existe configuração
-      const configQuery = query(
-        collection(dbInstance, 'configuracoes_cupom'),
-        where('empresaId', '==', empresaId)
-      );
-      const configSnapshot = await getDocs(configQuery);
+      // Usar setDoc com merge para criar ou atualizar o documento
+      const configRef = doc(dbInstance, 'configuracoes_cupom', empresaId);
+      await setDoc(configRef, configCompletas, { merge: true });
 
-      if (configSnapshot.empty) {
-        // Criar nova configuração
-        await addDoc(collection(dbInstance, 'configuracoes_cupom'), {
-          ...configCompletas,
-          criadoEm: Timestamp.now(),
-          atualizadoEm: Timestamp.now(),
-        });
-      } else {
-        // Atualizar configuração existente
-        await updateDoc(doc(dbInstance, 'configuracoes_cupom', configSnapshot.docs[0].id), {
-          ...configCompletas,
-          atualizadoEm: Timestamp.now(),
-        });
-      }
-
-      setConfiguracoes(configCompletas);
+      setConfiguracoes(novasConfiguracoes);
       return true;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error('Erro ao salvar configurações do cupom:', error);
-      throw error;
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      throw new Error(`Não foi possível salvar as configurações: ${errorMessage}`);
     } finally {
       setSaving(false);
     }
