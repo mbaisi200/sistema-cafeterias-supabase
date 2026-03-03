@@ -368,25 +368,45 @@ export function imprimirCupomFiscal(
   // Usar configurações salvas ou padrão
   const config = configuracoes || configuracoesCupomPadrao;
   
-  // Usar dados da empresa das configurações se disponíveis
-  const nomeEmpresa = config.nomeEmpresa || nomeEmpresaParam;
-  const cnpjEmpresa = config.cnpjEmpresa || cnpjEmpresaParam;
-  const enderecoEmpresa = config.enderecoEmpresa || enderecoEmpresaParam;
+  // SEMPRE usar dados da empresa das configurações do cupom se preenchidos
+  // Caso contrário, usa os dados do cadastro da empresa
+  const nomeEmpresa = (config.nomeEmpresa && config.nomeEmpresa.trim() !== '') 
+    ? config.nomeEmpresa 
+    : nomeEmpresaParam;
+  const cnpjEmpresa = (config.cnpjEmpresa && config.cnpjEmpresa.trim() !== '') 
+    ? config.cnpjEmpresa 
+    : cnpjEmpresaParam;
+  const enderecoEmpresa = (config.enderecoEmpresa && config.enderecoEmpresa.trim() !== '') 
+    ? config.enderecoEmpresa 
+    : enderecoEmpresaParam;
   
-  // Determinar largura do papel
+  // Determinar largura do papel - usar da configuração ou do tamanho selecionado
   const larguraMm = config.larguraPapel || (tamanhoCupom === '58mm' ? 58 : 80);
-  const tamanhoPapel = larguraMm <= 58 ? '58mm' : larguraMm <= 80 ? '80mm' : `${larguraMm}mm`;
   
   // Calcular largura em caracteres baseado no tamanho do papel
   const largura = larguraMm <= 58 ? 32 : larguraMm <= 80 ? 48 : Math.floor(larguraMm * 0.6);
   
-  // Configurações de fonte
+  // Configurações de fonte - usar valores da configuração
   const tamanhoFonte = config.tamanhoFonte || 12;
   const intensidade = config.intensidadeImpressao || 'escura';
   const espacamentoLinhas = config.espacamentoLinhas || 1.4;
-  const margemSuperior = config.margemSuperior || 2;
-  const margemInferior = config.margemInferior || 2;
+  const margemSuperior = config.margemSuperior ?? 2;
+  const margemInferior = config.margemInferior ?? 2;
   const mensagemRodape = config.mensagemRodape || 'Obrigado pela preferência!\nVolte sempre!';
+
+  // Log para debug
+  console.log('Imprimindo cupom com configurações:', {
+    nomeEmpresa,
+    cnpjEmpresa,
+    enderecoEmpresa,
+    larguraMm,
+    tamanhoFonte,
+    intensidade,
+    espacamentoLinhas,
+    margemSuperior,
+    margemInferior,
+    mensagemRodape,
+  });
 
   const formaPagamentoLabel: Record<string, string> = {
     dinheiro: 'Dinheiro',
@@ -485,6 +505,9 @@ export function imprimirCupomFiscal(
   // Determinar peso da fonte baseado na intensidade
   const fontWeight = intensidade === 'normal' ? 400 : intensidade === 'escura' ? 600 : 700;
 
+  // Determinar tamanho do papel para CSS
+  const tamanhoPapel = `${larguraMm}mm`;
+
   // Criar janela de impressão
   const printWindow = window.open('', '_blank', 'width=400,height=600');
   if (!printWindow) {
@@ -500,7 +523,7 @@ export function imprimirCupomFiscal(
       <style>
         @page {
           size: ${tamanhoPapel} auto;
-          margin: ${margemSuperior}mm 0 ${margemInferior}mm 0;
+          margin: ${margemSuperior}mm 2mm ${margemInferior}mm 2mm;
         }
         body {
           font-family: 'Courier New', monospace;
@@ -508,15 +531,18 @@ export function imprimirCupomFiscal(
           font-weight: ${fontWeight};
           line-height: ${espacamentoLinhas};
           margin: 0;
-          padding: ${margemSuperior}mm;
+          padding: ${margemSuperior}mm 2mm;
           white-space: pre-wrap;
           word-wrap: break-word;
+          width: ${larguraMm}mm;
+          max-width: ${larguraMm}mm;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
         @media print {
           body {
             padding: 0;
+            width: ${larguraMm}mm;
           }
         }
       </style>

@@ -749,6 +749,7 @@ export default function PDVPage() {
             formaPagamento,
             tamanhoCupom: dadosCupom.tamanhoCupom,
             codigoVenda: vendaId.slice(-8).toUpperCase(),
+            configuracoes: dadosCupom.configuracoes,
           });
         }
 
