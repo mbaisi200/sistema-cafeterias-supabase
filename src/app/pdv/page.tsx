@@ -133,13 +133,17 @@ export default function PDVPage() {
     const carregarEmpresa = async () => {
       if (!empresaId) return;
       
-      const dbInstance = db();
-      if (!dbInstance) return;
+      const supabase = getSupabaseClient();
+      if (!supabase) return;
 
       try {
-        const empresaDoc = await getDoc(doc(dbInstance, 'empresas', empresaId));
-        if (empresaDoc.exists()) {
-          const data = empresaDoc.data();
+        const { data, error } = await supabase
+          .from('empresas')
+          .select('nome, cnpj, endereco')
+          .eq('id', empresaId)
+          .single();
+        
+        if (!error && data) {
           setEmpresa({
             nome: data.nome || 'Sistema PDV',
             cnpj: data.cnpj || '',
@@ -165,29 +169,41 @@ export default function PDVPage() {
       return;
     }
 
-    const dbInstance = db();
-    if (!dbInstance) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
 
-    const q = query(
-      collection(dbInstance, 'pedidos_temp'),
-      where('empresaId', '==', empresaId),
-      where('mesaId', '==', mesaSelecionada)
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const itens = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        criadoEm: doc.data().criadoEm?.toDate(),
-      })) as ItemPedido[];
+    const carregarPedidos = async () => {
+      const { data, error } = await supabase
+        .from('pedidos_temp')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .eq('mesa_id', mesaSelecionada)
+        .order('criado_em', { ascending: true });
       
-      itens.sort((a, b) => a.criadoEm.getTime() - b.criadoEm.getTime());
-      setItensPedido(itens);
-    }, (error) => {
-      console.error('Erro ao carregar pedidos:', error);
-    });
+      if (!error && data) {
+        const itens = data.map(item => ({
+          id: item.id,
+          produtoId: item.produto_id,
+          nome: item.nome,
+          preco: item.preco,
+          quantidade: item.quantidade,
+          atendenteId: item.atendente_id,
+          atendenteNome: item.atendente_nome,
+          tipoVenda: item.tipo_venda,
+          mesaNumero: item.mesa_numero,
+          cliente: item.cliente,
+          criadoEm: new Date(item.criado_em),
+        })) as ItemPedido[];
+        
+        setItensPedido(itens);
+      }
+    };
 
-    return () => unsubscribe();
+    carregarPedidos();
+    // Polling a cada 5 segundos para atualizar (substituto do onSnapshot)
+    const interval = setInterval(carregarPedidos, 5000);
+    
+    return () => clearInterval(interval);
   }, [tipoVenda, mesaSelecionada, empresaId]);
 
   // Carregar itens da comanda selecionada
@@ -198,15 +214,15 @@ export default function PDVPage() {
 
     const itens = (comandaSelecionada.itens || []).map((item: any) => ({
       id: item.id,
-      produtoId: item.produtoId,
+      produtoId: item.produto_id || item.produtoId,
       nome: item.nome,
       preco: item.preco,
       quantidade: item.quantidade,
-      atendenteId: item.adicionadoPor || '',
-      atendenteNome: item.adicionadoPorNome || '',
+      atendenteId: item.adicionado_por || item.adicionadoPor || '',
+      atendenteNome: item.adicionado_por_nome || item.adicionadoPorNome || '',
       tipoVenda: 'comanda' as const,
-      cliente: comandaSelecionada.nomeCliente,
-      criadoEm: item.adicionadoEm?.toDate() || new Date(),
+      cliente: comandaSelecionada.nome_cliente || comandaSelecionada.nomeCliente,
+      criadoEm: item.adicionado_em ? new Date(item.adicionado_em) : (item.adicionadoEm?.toDate() || new Date()),
     }));
 
     setItensPedido(itens);
@@ -312,27 +328,31 @@ export default function PDVPage() {
       return;
     }
 
-    const dbInstance = db();
-    if (!dbInstance) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
 
-    // Para mesa e delivery, salva no Firestore
+    // Para mesa e delivery, salva no Supabase
     if (tipoVenda === 'mesa' || tipoVenda === 'delivery') {
       try {
-        await addDoc(collection(dbInstance, 'pedidos_temp'), {
-          empresaId,
-          mesaId: mesaSelecionada || null,
-          mesaNumero: numeroMesaSelecionada || null,
-          deliveryId: deliverySelecionado || null,
-          deliveryInfo: tipoVenda === 'delivery' ? deliveryInfo : null,
-          produtoId: produto.id,
-          nome: produto.nome,
-          preco: produto.preco,
-          quantidade: 1,
-          atendenteId: user?.id,
-          atendenteNome: user?.nome,
-          tipoVenda,
-          criadoEm: Timestamp.now(),
-        });
+        const { error } = await supabase
+          .from('pedidos_temp')
+          .insert({
+            empresa_id: empresaId,
+            mesa_id: mesaSelecionada || null,
+            mesa_numero: numeroMesaSelecionada || null,
+            delivery_id: deliverySelecionado || null,
+            delivery_info: tipoVenda === 'delivery' ? deliveryInfo : null,
+            produto_id: produto.id,
+            nome: produto.nome,
+            preco: produto.preco,
+            quantidade: 1,
+            atendente_id: user?.id,
+            atendente_nome: user?.nome,
+            tipo_venda: tipoVenda,
+            criado_em: new Date().toISOString(),
+          });
+        
+        if (error) throw error;
         
         // Se a mesa estava livre, marcar como ocupada
         if (tipoVenda === 'mesa' && mesaSelecionada) {
@@ -357,12 +377,16 @@ export default function PDVPage() {
         });
 
         // Atualizar a comanda selecionada localmente
-        const comandaRef = doc(dbInstance, 'comandas', comandaSelecionada.id);
-        const comandaDoc = await getDoc(comandaRef);
-        if (comandaDoc.exists()) {
+        const { data: comandaAtualizada } = await supabase
+          .from('comandas')
+          .select('*')
+          .eq('id', comandaSelecionada.id)
+          .single();
+        
+        if (comandaAtualizada) {
           setComandaSelecionada({
-            id: comandaDoc.id,
-            ...comandaDoc.data(),
+            id: comandaAtualizada.id,
+            ...comandaAtualizada,
           });
         }
       } catch (error) {
@@ -419,28 +443,32 @@ export default function PDVPage() {
 
   // Alterar quantidade
   const alterarQtd = async (itemId: string, delta: number, quantidadeAtual: number) => {
-    const dbInstance = db();
-    if (!dbInstance) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
 
     const novaQtd = quantidadeAtual + delta;
     
     if (tipoVenda === 'mesa' || tipoVenda === 'delivery') {
       if (novaQtd <= 0) {
-        await deleteDoc(doc(dbInstance, 'pedidos_temp', itemId));
+        await supabase.from('pedidos_temp').delete().eq('id', itemId);
       } else {
-        await updateDoc(doc(dbInstance, 'pedidos_temp', itemId), { quantidade: novaQtd });
+        await supabase.from('pedidos_temp').update({ quantidade: novaQtd }).eq('id', itemId);
       }
     } else if (tipoVenda === 'comanda') {
       try {
         await alterarQtdItemComanda(comandaSelecionada.id, itemId, novaQtd);
         
         // Atualizar a comanda selecionada localmente
-        const comandaRef = doc(dbInstance, 'comandas', comandaSelecionada.id);
-        const comandaDoc = await getDoc(comandaRef);
-        if (comandaDoc.exists()) {
+        const { data: comandaAtualizada } = await supabase
+          .from('comandas')
+          .select('*')
+          .eq('id', comandaSelecionada.id)
+          .single();
+        
+        if (comandaAtualizada) {
           setComandaSelecionada({
-            id: comandaDoc.id,
-            ...comandaDoc.data(),
+            id: comandaAtualizada.id,
+            ...comandaAtualizada,
           });
         }
       } catch (error) {
@@ -459,22 +487,26 @@ export default function PDVPage() {
 
   // Remover item
   const removerItem = async (itemId: string) => {
-    const dbInstance = db();
-    if (!dbInstance) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
 
     if (tipoVenda === 'mesa' || tipoVenda === 'delivery') {
-      await deleteDoc(doc(dbInstance, 'pedidos_temp', itemId));
+      await supabase.from('pedidos_temp').delete().eq('id', itemId);
     } else if (tipoVenda === 'comanda') {
       try {
         await removerItemComanda(comandaSelecionada.id, itemId);
         
         // Atualizar a comanda selecionada localmente
-        const comandaRef = doc(dbInstance, 'comandas', comandaSelecionada.id);
-        const comandaDoc = await getDoc(comandaRef);
-        if (comandaDoc.exists()) {
+        const { data: comandaAtualizada } = await supabase
+          .from('comandas')
+          .select('*')
+          .eq('id', comandaSelecionada.id)
+          .single();
+        
+        if (comandaAtualizada) {
           setComandaSelecionada({
-            id: comandaDoc.id,
-            ...comandaDoc.data(),
+            id: comandaAtualizada.id,
+            ...comandaAtualizada,
           });
         }
       } catch (error) {
@@ -488,10 +520,10 @@ export default function PDVPage() {
   // Limpar pedido
   const limparPedido = async () => {
     if ((tipoVenda === 'mesa' || tipoVenda === 'delivery') && mesaSelecionada) {
-      const dbInstance = db();
-      if (dbInstance) {
+      const supabase = getSupabaseClient();
+      if (supabase) {
         const deletePromises = itensPedido.map(item => 
-          deleteDoc(doc(dbInstance, 'pedidos_temp', item.id))
+          supabase.from('pedidos_temp').delete().eq('id', item.id)
         );
         await Promise.all(deletePromises);
       }
@@ -628,69 +660,80 @@ export default function PDVPage() {
         toast({ title: '✓ Comanda fechada com sucesso!' });
         setComandaSelecionada(null);
       } else {
-        // Criar venda no Firestore
-        const dbInstance = db();
-        if (!dbInstance) throw new Error('Firebase não inicializado');
+        // Criar venda no Supabase
+        const supabase = getSupabaseClient();
+        if (!supabase) throw new Error('Supabase não inicializado');
 
-        const venda = {
-          empresaId,
-          mesaId: mesaSelecionada || null,
-          mesaNumero: numeroMesaSelecionada || null,
-          deliveryId: deliverySelecionado || null,
-          deliveryInfo: tipoVenda === 'delivery' ? deliveryInfo : null,
-          itens: itensPedido,
-          total,
-          formaPagamento,
-          tipoVenda,
-          status: 'finalizada',
-          // Dados do cupom fiscal
-          cpfCliente: dadosCupom.cpfCliente || null,
-          nomeCliente: dadosCupom.nomeCliente || null,
-          cupomImpresso: dadosCupom.imprimirCupom,
-          tamanhoCupom: dadosCupom.tamanhoCupom,
-          // Múltiplos pagamentos
-          pagamentos: pagamentos.length > 0 ? pagamentos : [{ forma: formaPagamento, valor: total }],
-          criadoPor: user?.id,
-          criadoPorNome: user?.nome,
-          criadoEm: Timestamp.now(),
-        };
+        // Criar venda
+        const { data: vendaData, error: vendaError } = await supabase
+          .from('vendas')
+          .insert({
+            empresa_id: empresaId,
+            mesa_id: mesaSelecionada || null,
+            mesa_numero: numeroMesaSelecionada || null,
+            delivery_id: deliverySelecionado || null,
+            delivery_info: tipoVenda === 'delivery' ? deliveryInfo : null,
+            itens: itensPedido,
+            total,
+            forma_pagamento: formaPagamento,
+            tipo_venda: tipoVenda,
+            status: 'finalizada',
+            cpf_cliente: dadosCupom.cpfCliente || null,
+            nome_cliente: dadosCupom.nomeCliente || null,
+            cupom_impresso: dadosCupom.imprimirCupom,
+            tamanho_cupom: dadosCupom.tamanhoCupom,
+            pagamentos: pagamentos.length > 0 ? pagamentos : [{ forma: formaPagamento, valor: total }],
+            criado_por: user?.id,
+            criado_por_nome: user?.nome,
+            criado_em: new Date().toISOString(),
+          })
+          .select('id')
+          .single();
 
-        const vendaRef = await addDoc(collection(dbInstance, 'vendas'), venda);
-        vendaId = vendaRef.id;
+        if (vendaError) throw vendaError;
+        vendaId = vendaData.id;
 
         // Criar itens de venda
-        for (const item of itensPedido) {
-          await addDoc(collection(dbInstance, 'itens_venda'), {
-            empresaId,
-            vendaId: vendaRef.id,
-            produtoId: item.produtoId,
-            nome: item.nome,
-            preco: item.preco,
-            quantidade: item.quantidade,
-            total: item.preco * item.quantidade,
-            tipoVenda,
-            cpfCliente: dadosCupom.cpfCliente || null,
-            criadoEm: Timestamp.now(),
-          });
-        }
+        const itensVenda = itensPedido.map(item => ({
+          empresa_id: empresaId,
+          venda_id: vendaData.id,
+          produto_id: item.produtoId,
+          nome: item.nome,
+          preco: item.preco,
+          quantidade: item.quantidade,
+          total: item.preco * item.quantidade,
+          tipo_venda: tipoVenda,
+          cpf_cliente: dadosCupom.cpfCliente || null,
+          criado_em: new Date().toISOString(),
+        }));
 
-        // Criar pagamento(s) - múltiplos ou único
+        const { error: itensError } = await supabase
+          .from('itens_venda')
+          .insert(itensVenda);
+        
+        if (itensError) console.error('Erro ao criar itens:', itensError);
+
+        // Criar pagamento(s)
         const pagamentosParaSalvar = pagamentos.length > 0 ? pagamentos : [{ forma: formaPagamento, valor: total }];
-        for (const pg of pagamentosParaSalvar) {
-          await addDoc(collection(dbInstance, 'pagamentos'), {
-            empresaId,
-            vendaId: vendaRef.id,
-            formaPagamento: pg.forma,
-            valor: pg.valor,
-            cpfCliente: dadosCupom.cpfCliente || null,
-            criadoEm: Timestamp.now(),
-          });
-        }
+        const pagamentosInsert = pagamentosParaSalvar.map(pg => ({
+          empresa_id: empresaId,
+          venda_id: vendaData.id,
+          forma_pagamento: pg.forma,
+          valor: pg.valor,
+          cpf_cliente: dadosCupom.cpfCliente || null,
+          criado_em: new Date().toISOString(),
+        }));
+
+        const { error: pagamentosError } = await supabase
+          .from('pagamentos')
+          .insert(pagamentosInsert);
+        
+        if (pagamentosError) console.error('Erro ao criar pagamentos:', pagamentosError);
 
         // Limpar pedidos temporários
         if (tipoVenda === 'mesa' || tipoVenda === 'delivery') {
           const deletePromises = itensPedido.map(item => 
-            deleteDoc(doc(dbInstance, 'pedidos_temp', item.id))
+            supabase.from('pedidos_temp').delete().eq('id', item.id)
           );
           await Promise.all(deletePromises);
         }
@@ -702,24 +745,33 @@ export default function PDVPage() {
 
         // Registrar no caixa (se houver)
         if (caixaAberto) {
-          await addDoc(collection(dbInstance, 'movimentacoes_caixa'), {
-            caixaId: caixaAberto.id,
-            empresaId,
-            tipo: 'venda',
-            valor: total,
-            formaPagamento,
-            vendaId: vendaRef.id,
-            descricao: `Venda - ${getTipoVendaLabel()}`,
-            usuarioId: user?.id,
-            usuarioNome: user?.nome,
-            criadoEm: Timestamp.now(),
-          });
+          const { error: movError } = await supabase
+            .from('movimentacoes_caixa')
+            .insert({
+              caixa_id: caixaAberto.id,
+              empresa_id: empresaId,
+              tipo: 'venda',
+              valor: total,
+              forma_pagamento: formaPagamento,
+              venda_id: vendaData.id,
+              descricao: `Venda - ${getTipoVendaLabel()}`,
+              usuario_id: user?.id,
+              usuario_nome: user?.nome,
+              criado_em: new Date().toISOString(),
+            });
+          
+          if (movError) console.error('Erro ao registrar movimentação:', movError);
 
-          await updateDoc(doc(dbInstance, 'caixas', caixaAberto.id), {
-            valorAtual: (caixaAberto.valorAtual || 0) + total,
-            totalVendas: (caixaAberto.totalVendas || 0) + total,
-            totalEntradas: (caixaAberto.totalEntradas || 0) + total,
-          });
+          const { error: caixaError } = await supabase
+            .from('caixas')
+            .update({
+              valor_atual: (caixaAberto.valorAtual || 0) + total,
+              total_vendas: (caixaAberto.totalVendas || 0) + total,
+              total_entradas: (caixaAberto.totalEntradas || 0) + total,
+            })
+            .eq('id', caixaAberto.id);
+          
+          if (caixaError) console.error('Erro ao atualizar caixa:', caixaError);
         }
 
         // Log

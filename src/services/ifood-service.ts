@@ -6,19 +6,6 @@
  */
 
 import { getSupabaseClient } from '@/lib/supabase';
-import { 
-  collection, 
-  doc, 
-  getDoc, 
-  setDoc, 
-  updateDoc, 
-  addDoc, 
-  query, 
-  where, 
-  getDocs,
-  Timestamp,
-  serverTimestamp
-} from '@supabase/supabase-js';
 import {
   IFoodConfig,
   IFoodOrder,
@@ -100,26 +87,36 @@ export async function refreshAccessToken(config: IFoodConfig): Promise<TokenResp
 // ============================================
 
 /**
- * Salvar configuração iFood no Firestore
+ * Salvar configuração iFood no Supabase
  */
 export async function saveIFoodConfig(empresaId: string, config: Partial<IFoodConfig>): Promise<string> {
-  const dbInstance = db();
-  if (!dbInstance) throw new Error('Firebase não inicializado');
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Supabase não inicializado');
 
-  const configRef = doc(collection(dbInstance, 'ifood_config'));
   const configData = {
     ...config,
-    empresaId,
-    atualizadoEm: serverTimestamp(),
+    empresa_id: empresaId,
+    atualizado_em: new Date().toISOString(),
   };
 
   if (config.id) {
-    await updateDoc(doc(dbInstance, 'ifood_config', config.id), configData);
+    const { error } = await supabase
+      .from('ifood_config')
+      .update(configData)
+      .eq('id', config.id);
+    
+    if (error) throw error;
     return config.id;
   } else {
-    configData.criadoEm = serverTimestamp();
-    const docRef = await addDoc(collection(dbInstance, 'ifood_config'), configData);
-    return docRef.id;
+    configData.criado_em = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('ifood_config')
+      .insert(configData)
+      .select('id')
+      .single();
+    
+    if (error) throw error;
+    return data.id;
   }
 }
 
@@ -127,27 +124,37 @@ export async function saveIFoodConfig(empresaId: string, config: Partial<IFoodCo
  * Obter configuração iFood de uma empresa
  */
 export async function getIFoodConfig(empresaId: string): Promise<IFoodConfig | null> {
-  const dbInstance = db();
-  if (!dbInstance) return null;
+  const supabase = getSupabaseClient();
+  if (!supabase) return null;
 
-  const q = query(
-    collection(dbInstance, 'ifood_config'),
-    where('empresaId', '==', empresaId)
-  );
+  const { data, error } = await supabase
+    .from('ifood_config')
+    .select('*')
+    .eq('empresa_id', empresaId)
+    .single();
   
-  const snapshot = await getDocs(q);
+  if (error || !data) return null;
   
-  if (snapshot.empty) return null;
-  
-  const docData = snapshot.docs[0];
+  // Mapear de snake_case para camelCase
   return {
-    id: docData.id,
-    ...docData.data(),
+    id: data.id,
+    empresaId: data.empresa_id,
+    clientId: data.client_id,
+    clientSecret: data.client_secret,
+    merchantId: data.merchant_id,
+    accessToken: data.access_token,
+    refreshToken: data.refresh_token,
+    tokenExpiresAt: data.token_expires_at,
+    status: data.status,
+    totalPedidosRecebidos: data.total_pedidos_recebidos,
+    ultimoPedidoEm: data.ultimo_pedido_em,
+    criadoEm: data.criado_em,
+    atualizadoEm: data.atualizado_em,
   } as IFoodConfig;
 }
 
 /**
- * Atualizar tokens no Firestore
+ * Atualizar tokens no Supabase
  */
 export async function updateTokens(
   configId: string, 
@@ -155,18 +162,23 @@ export async function updateTokens(
   refreshToken: string, 
   expiresIn: number
 ): Promise<void> {
-  const dbInstance = db();
-  if (!dbInstance) return;
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
 
   const expiresAt = new Date(Date.now() + expiresIn * 1000);
 
-  await updateDoc(doc(dbInstance, 'ifood_config', configId), {
-    accessToken,
-    refreshToken,
-    tokenExpiresAt: Timestamp.fromDate(expiresAt),
-    status: 'connected',
-    atualizadoEm: serverTimestamp(),
-  });
+  const { error } = await supabase
+    .from('ifood_config')
+    .update({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      token_expires_at: expiresAt.toISOString(),
+      status: 'connected',
+      atualizado_em: new Date().toISOString(),
+    })
+    .eq('id', configId);
+  
+  if (error) throw error;
 }
 
 // ============================================
@@ -375,20 +387,26 @@ export async function logIFoodEvent(
   sucesso: boolean = true,
   erro?: string
 ): Promise<void> {
-  const dbInstance = db();
-  if (!dbInstance) return;
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
 
-  await addDoc(collection(dbInstance, 'ifood_logs'), {
-    empresaId,
-    tipo,
-    detalhes,
-    dados,
-    orderId,
-    produtoId,
-    sucesso,
-    erro,
-    criadoEm: serverTimestamp(),
-  });
+  const { error } = await supabase
+    .from('ifood_logs')
+    .insert({
+      empresa_id: empresaId,
+      tipo,
+      detalhes,
+      dados,
+      order_id: orderId,
+      produto_id: produtoId,
+      sucesso,
+      erro,
+      criado_em: new Date().toISOString(),
+    });
+  
+  if (error) {
+    console.error('Erro ao registrar log iFood:', error);
+  }
 }
 
 // ============================================
@@ -402,20 +420,20 @@ export async function processIFoodOrder(
   empresaId: string,
   order: IFoodOrder
 ): Promise<string> {
-  const dbInstance = db();
-  if (!dbInstance) throw new Error('Firebase não inicializado');
+  const supabase = getSupabaseClient();
+  if (!supabase) throw new Error('Supabase não inicializado');
 
   // Verificar se o pedido já existe
-  const existingQuery = query(
-    collection(dbInstance, 'vendas'),
-    where('empresaId', '==', empresaId),
-    where('pedidoExternoId', '==', order.orderId)
-  );
-  const existingSnapshot = await getDocs(existingQuery);
+  const { data: existingVenda } = await supabase
+    .from('vendas')
+    .select('id')
+    .eq('empresa_id', empresaId)
+    .eq('pedido_externo_id', order.orderId)
+    .single();
   
-  if (!existingSnapshot.empty) {
+  if (existingVenda) {
     // Pedido já processado, retornar ID existente
-    return existingSnapshot.docs[0].id;
+    return existingVenda.id;
   }
 
   // Calcular valores
@@ -429,62 +447,82 @@ export async function processIFoodOrder(
   const formaPagamento: string = payment ? (IFOOD_PAYMENT_MAP[payment.method] || 'ifood_online') : 'ifood_online';
 
   // Criar venda
-  const vendaRef = await addDoc(collection(dbInstance, 'vendas'), {
-    empresaId,
-    tipo: 'delivery',
-    canal: 'ifood',
-    status: 'aberta',
-    subtotal,
-    desconto,
-    taxaServico: 0,
-    taxaEntrega,
-    total,
-    
-    // Dados do iFood
-    pedidoExternoId: order.orderId,
-    nomeCliente: order.customer.name,
-    telefoneCliente: order.customer.phone,
-    
-    // Endereço de entrega
-    enderecoEntrega: order.deliveryAddress ? {
-      logradouro: order.deliveryAddress.streetName,
-      numero: order.deliveryAddress.streetNumber,
-      complemento: order.deliveryAddress.complement,
-      bairro: order.deliveryAddress.neighborhood,
-      cidade: order.deliveryAddress.city,
-      estado: order.deliveryAddress.state,
-      cep: order.deliveryAddress.postalCode,
-      referencia: order.deliveryAddress.reference,
-    } : undefined,
-    
-    observacao: order.observations,
-    criadoEm: serverTimestamp(),
-    atualizadoEm: serverTimestamp(),
-  });
+  const { data: venda, error: vendaError } = await supabase
+    .from('vendas')
+    .insert({
+      empresa_id: empresaId,
+      tipo: 'delivery',
+      canal: 'ifood',
+      status: 'aberta',
+      subtotal,
+      desconto,
+      taxa_servico: 0,
+      taxa_entrega: taxaEntrega,
+      total,
+      
+      // Dados do iFood
+      pedido_externo_id: order.orderId,
+      nome_cliente: order.customer.name,
+      telefone_cliente: order.customer.phone,
+      
+      // Endereço de entrega
+      endereco_entrega: order.deliveryAddress ? {
+        logradouro: order.deliveryAddress.streetName,
+        numero: order.deliveryAddress.streetNumber,
+        complemento: order.deliveryAddress.complement,
+        bairro: order.deliveryAddress.neighborhood,
+        cidade: order.deliveryAddress.city,
+        estado: order.deliveryAddress.state,
+        cep: order.deliveryAddress.postalCode,
+        referencia: order.deliveryAddress.reference,
+      } : undefined,
+      
+      observacao: order.observations,
+      criado_em: new Date().toISOString(),
+      atualizado_em: new Date().toISOString(),
+    })
+    .select('id')
+    .single();
+
+  if (vendaError || !venda) {
+    throw vendaError || new Error('Erro ao criar venda');
+  }
 
   // Criar itens da venda
-  for (const item of order.items) {
-    await addDoc(collection(dbInstance, 'itens_venda'), {
-      vendaId: vendaRef.id,
-      produtoId: item.externalCode || '',
-      produtoNome: item.name,
-      quantidade: item.quantity,
-      precoUnitario: item.unitPrice,
-      desconto: 0,
-      observacao: item.observations,
-      criadoEm: serverTimestamp(),
-    });
+  const itensVenda = order.items.map(item => ({
+    venda_id: venda.id,
+    produto_id: item.externalCode || '',
+    produto_nome: item.name,
+    quantidade: item.quantity,
+    preco_unitario: item.unitPrice,
+    desconto: 0,
+    observacao: item.observations,
+    criado_em: new Date().toISOString(),
+  }));
+
+  const { error: itensError } = await supabase
+    .from('itens_venda')
+    .insert(itensVenda);
+  
+  if (itensError) {
+    console.error('Erro ao criar itens da venda:', itensError);
   }
 
   // Criar pagamento
-  await addDoc(collection(dbInstance, 'pagamentos'), {
-    empresaId,
-    vendaId: vendaRef.id,
-    formaPagamento,
-    valor: total,
-    troco: payment?.changeFor ? payment.changeFor - total : 0,
-    criadoEm: serverTimestamp(),
-  });
+  const { error: pagamentoError } = await supabase
+    .from('pagamentos')
+    .insert({
+      empresa_id: empresaId,
+      venda_id: venda.id,
+      forma_pagamento: formaPagamento,
+      valor: total,
+      troco: payment?.changeFor ? payment.changeFor - total : 0,
+      criado_em: new Date().toISOString(),
+    });
+  
+  if (pagamentoError) {
+    console.error('Erro ao criar pagamento:', pagamentoError);
+  }
 
   // Registrar log
   await logIFoodEvent(
@@ -500,13 +538,16 @@ export async function processIFoodOrder(
   // Atualizar estatísticas do config
   const config = await getIFoodConfig(empresaId);
   if (config && config.id) {
-    await updateDoc(doc(dbInstance, 'ifood_config', config.id), {
-      ultimoPedidoEm: serverTimestamp(),
-      totalPedidosRecebidos: (config.totalPedidosRecebidos || 0) + 1,
-    });
+    await supabase
+      .from('ifood_config')
+      .update({
+        ultimo_pedido_em: new Date().toISOString(),
+        total_pedidos_recebidos: (config.totalPedidosRecebidos || 0) + 1,
+      })
+      .eq('id', config.id);
   }
 
-  return vendaRef.id;
+  return venda.id;
 }
 
 /**
@@ -557,8 +598,8 @@ export async function getIFoodStats(empresaId: string): Promise<{
   pedidosMes: number;
   vendasMes: number;
 }> {
-  const dbInstance = db();
-  if (!dbInstance) {
+  const supabase = getSupabaseClient();
+  if (!supabase) {
     return { pedidosHoje: 0, vendasHoje: 0, pedidosMes: 0, vendasMes: 0 };
   }
 
@@ -567,34 +608,34 @@ export async function getIFoodStats(empresaId: string): Promise<{
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
   // Vendas de hoje
-  const todayQuery = query(
-    collection(dbInstance, 'vendas'),
-    where('empresaId', '==', empresaId),
-    where('canal', '==', 'ifood'),
-    where('criadoEm', '>=', Timestamp.fromDate(startOfToday))
-  );
-  const todaySnapshot = await getDocs(todayQuery);
+  const { data: todayData, error: todayError } = await supabase
+    .from('vendas')
+    .select('total')
+    .eq('empresa_id', empresaId)
+    .eq('canal', 'ifood')
+    .gte('criado_em', startOfToday.toISOString());
   
-  const pedidosHoje = todaySnapshot.size;
-  const vendasHoje = todaySnapshot.docs.reduce((sum, doc) => {
-    const data = doc.data();
-    return sum + (data.total || 0);
-  }, 0);
+  if (todayError) {
+    console.error('Erro ao buscar vendas de hoje:', todayError);
+  }
+  
+  const pedidosHoje = todayData?.length || 0;
+  const vendasHoje = todayData?.reduce((sum, v) => sum + (v.total || 0), 0) || 0;
 
   // Vendas do mês
-  const monthQuery = query(
-    collection(dbInstance, 'vendas'),
-    where('empresaId', '==', empresaId),
-    where('canal', '==', 'ifood'),
-    where('criadoEm', '>=', Timestamp.fromDate(startOfMonth))
-  );
-  const monthSnapshot = await getDocs(monthQuery);
+  const { data: monthData, error: monthError } = await supabase
+    .from('vendas')
+    .select('total')
+    .eq('empresa_id', empresaId)
+    .eq('canal', 'ifood')
+    .gte('criado_em', startOfMonth.toISOString());
   
-  const pedidosMes = monthSnapshot.size;
-  const vendasMes = monthSnapshot.docs.reduce((sum, doc) => {
-    const data = doc.data();
-    return sum + (data.total || 0);
-  }, 0);
+  if (monthError) {
+    console.error('Erro ao buscar vendas do mês:', monthError);
+  }
+  
+  const pedidosMes = monthData?.length || 0;
+  const vendasMes = monthData?.reduce((sum, v) => sum + (v.total || 0), 0) || 0;
 
   return { pedidosHoje, vendasHoje, pedidosMes, vendasMes };
 }
