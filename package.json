@@ -1,7 +1,8 @@
 {
   "name": "sistema-cafeterias-supabase",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
+  "cacheBust": "force-rebuild-2024-no-firebase",
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
