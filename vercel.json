@@ -1,0 +1,14 @@
+{
+  "buildCommand": "rm -rf .next node_modules/.cache && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        }
+      ]
+    }
+  ]
+}
