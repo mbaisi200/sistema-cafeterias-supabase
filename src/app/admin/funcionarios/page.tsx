@@ -34,8 +34,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useFuncionarios } from '@/hooks/useFirestore';
-import { db } from '@/lib/firebase';
-import { doc, updateDoc, Timestamp } from 'firebase/firestore';
 import { useState, useEffect } from 'react';
 import {
   Plus,

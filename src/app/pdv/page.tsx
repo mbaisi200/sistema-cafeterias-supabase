@@ -18,10 +18,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, query, where, onSnapshot, deleteDoc, doc, Timestamp, updateDoc, getDoc } from 'firebase/firestore';
+import { getSupabaseClient } from '@/lib/supabase';
+import { useVendasPDV } from '@/hooks/useVendasPDV';
 import {
   Search,
   Plus,

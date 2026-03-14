@@ -26,7 +26,7 @@ import {
   Check
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, setDoc, Timestamp, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, setDoc, Timestamp, orderBy } from '@supabase/supabase-js';
 
 interface IFoodConfig {
   id?: string;

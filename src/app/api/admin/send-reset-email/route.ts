@@ -1,25 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getAuth, sendPasswordResetEmail } from 'firebase/auth';
-
-// Configuração do Firebase
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
-  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
-};
-
-// Inicializar Firebase app se ainda não estiver inicializado
-function getFirebaseApp() {
-  if (getApps().length === 0) {
-    return initializeApp(firebaseConfig);
-  }
-  return getApp();
-}
+import { createAdminClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -34,12 +14,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Inicializar Firebase
-    const app = getFirebaseApp();
-    const auth = getAuth(app);
+    const supabase = createAdminClient();
 
-    // Enviar email de redefinição de senha
-    await sendPasswordResetEmail(auth, email);
+    // Enviar email de redefinição de senha via Supabase
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/recuperar-senha`,
+    });
+
+    if (error) {
+      console.error('Erro ao enviar email de redefinição:', error);
+      
+      let errorMessage = 'Erro ao enviar email de redefinição';
+      if (error.message.includes('User not found')) {
+        errorMessage = 'Usuário não encontrado com este email';
+      } else {
+        errorMessage = error.message;
+      }
+
+      return NextResponse.json(
+        { error: errorMessage },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -49,20 +45,8 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Erro ao enviar email de redefinição:', error);
     
-    let errorMessage = 'Erro ao enviar email de redefinição';
-    if (error instanceof Error) {
-      // Traduzir erros comuns do Firebase
-      if (error.message.includes('user-not-found')) {
-        errorMessage = 'Usuário não encontrado com este email';
-      } else if (error.message.includes('invalid-email')) {
-        errorMessage = 'Email inválido';
-      } else {
-        errorMessage = error.message;
-      }
-    }
-
     return NextResponse.json(
-      { error: errorMessage },
+      { error: error instanceof Error ? error.message : 'Erro desconhecido' },
       { status: 500 }
     );
   }

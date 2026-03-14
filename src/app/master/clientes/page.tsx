@@ -35,9 +35,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useEmpresas } from '@/hooks/useFirestore';
-import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, Timestamp, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { getSupabaseClient } from '@/lib/supabase';
+import { createUserWithEmailAndPassword } from '@supabase/supabase-js';
+import { doc, setDoc, Timestamp, collection, query, where, getDocs, updateDoc } from '@supabase/supabase-js';
 import { useState, useEffect } from 'react';
 import {
   Plus,

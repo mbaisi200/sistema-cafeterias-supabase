@@ -22,8 +22,8 @@ import {
   Settings,
   Link2
 } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { collection, query, getDocs, where, orderBy } from 'firebase/firestore';
+import { getSupabaseClient } from '@/lib/supabase';
+import { collection, query, getDocs, where, orderBy } from '@supabase/supabase-js';
 
 interface Empresa {
   id: string;

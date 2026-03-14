@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminAuth, initError } from '@/lib/firebase-admin';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -21,18 +21,28 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verificar se o Firebase Admin está inicializado
-    if (!adminAuth) {
+    const supabase = createAdminClient();
+
+    // Atualizar a senha do usuário via Supabase Admin
+    const { error } = await supabase.auth.admin.updateUserById(uid, {
+      password: newPassword,
+    });
+
+    if (error) {
+      console.error('Erro ao redefinir senha:', error);
+      
+      let errorMessage = 'Erro ao redefinir senha';
+      if (error.message.includes('User not found')) {
+        errorMessage = 'Usuário não encontrado';
+      } else {
+        errorMessage = error.message;
+      }
+
       return NextResponse.json(
-        { error: `Firebase Admin não configurado: ${initError || 'Erro desconhecido'}` },
+        { error: errorMessage },
         { status: 500 }
       );
     }
-
-    // Atualizar a senha do usuário
-    await adminAuth.updateUser(uid, {
-      password: newPassword,
-    });
 
     return NextResponse.json({
       success: true,
@@ -42,20 +52,8 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('Erro ao redefinir senha:', error);
 
-    let errorMessage = 'Erro ao redefinir senha';
-    if (error instanceof Error) {
-      // Traduzir erros comuns
-      if (error.message.includes('auth/user-not-found')) {
-        errorMessage = 'Usuário não encontrado no Firebase Authentication';
-      } else if (error.message.includes('auth/invalid-password')) {
-        errorMessage = 'Senha inválida. Deve ter pelo menos 6 caracteres';
-      } else {
-        errorMessage = error.message;
-      }
-    }
-
     return NextResponse.json(
-      { error: errorMessage },
+      { error: error instanceof Error ? error.message : 'Erro desconhecido' },
       { status: 500 }
     );
   }

@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { db, auth } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, Timestamp, deleteDoc, doc } from 'firebase/firestore';
+import { collection, addDoc, getDocs, query, where, Timestamp, deleteDoc, doc } from '@supabase/supabase-js';
 import { Database, CheckCircle, XCircle, Loader2, AlertTriangle, Building2, Trash2 } from 'lucide-react';
 
 interface SeedStatus {

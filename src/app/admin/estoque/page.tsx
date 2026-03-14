@@ -34,8 +34,8 @@ import {
 import { useProdutos } from '@/hooks/useFirestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, updateDoc, doc, Timestamp, query, where, onSnapshot, orderBy } from 'firebase/firestore';
+import { getSupabaseClient } from '@/lib/supabase';
+import { collection, addDoc, updateDoc, doc, Timestamp, query, where, onSnapshot, orderBy } from '@supabase/supabase-js';
 import { useState, useEffect, useCallback } from 'react';
 import {
   Package,

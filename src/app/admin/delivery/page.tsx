@@ -19,8 +19,8 @@ import {
   Loader2
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, orderBy, Timestamp, updateDoc, doc } from 'firebase/firestore';
+import { getSupabaseClient } from '@/lib/supabase';
+import { collection, query, where, getDocs, orderBy, Timestamp, updateDoc, doc } from '@supabase/supabase-js';
 
 interface VendaDelivery {
   id: string;

@@ -10,23 +10,16 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { 
-  processIFoodOrder, 
-  getIFoodConfig, 
-  logIFoodEvent 
-} from '@/services/ifood-service';
+import { createAdminClient } from '@/lib/supabase/server';
 import { 
   IFoodWebhookEvent, 
   IFoodOrder, 
   IFoodOrderStatusUpdate,
-  IFoodOrderStatus
 } from '@/types/ifood';
 
 // Verificar assinatura do webhook (quando implementado pelo iFood)
 function verifyWebhookSignature(request: NextRequest): boolean {
   // TODO: Implementar verificação de assinatura quando o iFood disponibilizar
-  // const signature = request.headers.get('x-ifood-signature');
-  // return verifySignature(signature, body);
   return true;
 }
 
@@ -82,10 +75,17 @@ async function handleNewOrder(order: IFoodOrder) {
   try {
     console.log('[iFood Webhook] Novo pedido:', order.orderId);
 
+    const supabase = createAdminClient();
+
     // Buscar configuração pelo merchantId
-    const empresaId = await findEmpresaByMerchantId(order.merchantId);
-    
-    if (!empresaId) {
+    const { data: config, error: configError } = await supabase
+      .from('delivery_config')
+      .select('empresa_id')
+      .eq('ifood_merchant_id', order.merchantId)
+      .eq('ifood_ativo', true)
+      .single();
+
+    if (configError || !config) {
       console.error('[iFood Webhook] MerchantId não encontrado:', order.merchantId);
       return NextResponse.json(
         { error: 'Merchant não encontrado' },
@@ -93,35 +93,69 @@ async function handleNewOrder(order: IFoodOrder) {
       );
     }
 
-    // Processar o pedido e criar venda
-    const vendaId = await processIFoodOrder(empresaId, order);
+    const empresaId = config.empresa_id;
 
-    console.log('[iFood Webhook] Pedido processado. Venda ID:', vendaId);
+    // Criar venda a partir do pedido iFood
+    const { data: venda, error: vendaError } = await supabase
+      .from('vendas')
+      .insert({
+        empresa_id: empresaId,
+        tipo: 'delivery',
+        canal: 'ifood',
+        status: 'aberta',
+        pedido_externo_id: order.orderId,
+        nome_cliente: order.customer?.name,
+        telefone_cliente: order.customer?.phone,
+        entrega_logradouro: order.delivery?.address?.street,
+        entrega_numero: order.delivery?.address?.number,
+        entrega_complemento: order.delivery?.address?.complement,
+        entrega_bairro: order.delivery?.address?.neighborhood,
+        entrega_cidade: order.delivery?.address?.city,
+        entrega_estado: order.delivery?.address?.state,
+        entrega_cep: order.delivery?.address?.postalCode,
+        taxa_entrega: order.delivery?.deliveryFee || 0,
+        subtotal: order.total?.subtotal || 0,
+        total: order.total?.total || 0,
+        forma_pagamento: order.payments?.[0]?.method || 'ifood_online',
+      })
+      .select()
+      .single();
+
+    if (vendaError) throw vendaError;
+
+    // Criar itens da venda
+    if (order.items && order.items.length > 0) {
+      const itens = order.items.map(item => ({
+        empresa_id: empresaId,
+        venda_id: venda.id,
+        nome: item.name,
+        quantidade: item.quantity,
+        preco_unitario: item.unitPrice,
+        total: item.totalPrice,
+        observacao: item.observations,
+      }));
+
+      await supabase.from('itens_venda').insert(itens);
+    }
+
+    // Registrar log
+    await supabase.from('logs').insert({
+      empresa_id: empresaId,
+      acao: 'pedido_ifood_recebido',
+      detalhes: `Pedido ${order.orderId} recebido do iFood`,
+      tipo: 'venda',
+      dados_novos: order,
+    });
+
+    console.log('[iFood Webhook] Pedido processado. Venda ID:', venda.id);
 
     return NextResponse.json({
       success: true,
       orderId: order.orderId,
-      vendaId,
+      vendaId: venda.id,
     });
   } catch (error) {
     console.error('[iFood Webhook] Erro ao processar pedido:', error);
-    
-    // Registrar erro
-    if (order.merchantId) {
-      const empresaId = await findEmpresaByMerchantId(order.merchantId);
-      if (empresaId) {
-        await logIFoodEvent(
-          empresaId,
-          'order_received',
-          `Erro ao processar pedido ${order.orderId}`,
-          { order },
-          order.orderId,
-          undefined,
-          false,
-          error instanceof Error ? error.message : 'Erro desconhecido'
-        );
-      }
-    }
 
     return NextResponse.json(
       { error: 'Erro ao processar pedido' },
@@ -135,8 +169,40 @@ async function handleStatusUpdate(update: IFoodOrderStatusUpdate) {
   try {
     console.log('[iFood Webhook] Atualização de status:', update.orderId, update.status);
 
-    // TODO: Atualizar status da venda no sistema
-    // Isso pode ser implementado conforme necessidade
+    const supabase = createAdminClient();
+
+    // Buscar venda pelo pedido externo
+    const { data: venda } = await supabase
+      .from('vendas')
+      .select('id, empresa_id')
+      .eq('pedido_externo_id', update.orderId)
+      .single();
+
+    if (venda) {
+      // Atualizar status
+      const statusMap: Record<string, string> = {
+        'PLACED': 'aberta',
+        'CONFIRMED': 'aberta',
+        'PREPARATION_STARTED': 'aberta',
+        'READY_FOR_PICKUP': 'aberta',
+        'DISPATCHED': 'aberta',
+        'DELIVERED': 'fechada',
+        'CANCELLED': 'cancelada',
+      };
+
+      await supabase
+        .from('vendas')
+        .update({ status: statusMap[update.status] || 'aberta' })
+        .eq('id', venda.id);
+
+      // Registrar log
+      await supabase.from('logs').insert({
+        empresa_id: venda.empresa_id,
+        acao: 'pedido_ifood_status',
+        detalhes: `Status do pedido ${update.orderId} atualizado para ${update.status}`,
+        tipo: 'venda',
+      });
+    }
 
     return NextResponse.json({
       success: true,
@@ -170,26 +236,4 @@ export async function GET(request: NextRequest) {
     service: 'iFood Webhook',
     timestamp: new Date().toISOString(),
   });
-}
-
-// Função auxiliar para encontrar empresa pelo merchantId
-async function findEmpresaByMerchantId(merchantId: string): Promise<string | null> {
-  const { db } = await import('@/lib/firebase');
-  const { collection, query, where, getDocs } = await import('firebase/firestore');
-  
-  const dbInstance = db();
-  if (!dbInstance) return null;
-
-  const q = query(
-    collection(dbInstance, 'ifood_config'),
-    where('merchantId', '==', merchantId),
-    where('ativo', '==', true)
-  );
-  
-  const snapshot = await getDocs(q);
-  
-  if (snapshot.empty) return null;
-  
-  const config = snapshot.docs[0].data();
-  return config.empresaId;
 }

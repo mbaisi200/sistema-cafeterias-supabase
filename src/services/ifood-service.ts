@@ -5,7 +5,7 @@
  * Inclui autenticação, recebimento de pedidos, sincronização de produtos e atualização de status.
  */
 
-import { db } from '@/lib/firebase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { 
   collection, 
   doc, 
@@ -18,7 +18,7 @@ import {
   getDocs,
   Timestamp,
   serverTimestamp
-} from 'firebase/firestore';
+} from '@supabase/supabase-js';
 import {
   IFoodConfig,
   IFoodOrder,
