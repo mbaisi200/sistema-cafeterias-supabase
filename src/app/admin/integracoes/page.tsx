@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
-import { collection, query, getDocs, where } from '@supabase/supabase-js';
 
 interface IntegracaoStatus {
   ativo: boolean;
@@ -123,24 +122,22 @@ function IntegracoesContent() {
     
     setLoading(true);
     try {
-      const dbInstance = db();
-      if (!dbInstance) return;
+      const supabase = getSupabaseClient();
 
       // Carregar status do iFood
-      const ifoodQuery = query(
-        collection(dbInstance, 'ifood_config'),
-        where('empresaId', '==', empresaId)
-      );
-      const ifoodSnapshot = await getDocs(ifoodQuery);
+      const { data: ifoodConfig, error } = await supabase
+        .from('ifood_config')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .maybeSingle();
 
       const status: Record<string, IntegracaoStatus> = {};
 
-      if (!ifoodSnapshot.empty) {
-        const config = ifoodSnapshot.docs[0].data();
+      if (ifoodConfig) {
         status['ifood'] = {
-          ativo: config.ativo || false,
-          status: config.status || 'disconnected',
-          totalPedidos: config.totalPedidosRecebidos || 0
+          ativo: ifoodConfig.ativo || false,
+          status: ifoodConfig.status || 'disconnected',
+          totalPedidos: ifoodConfig.total_pedidos_recebidos || 0
         };
       } else {
         status['ifood'] = {

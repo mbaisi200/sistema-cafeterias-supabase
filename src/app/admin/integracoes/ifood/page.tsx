@@ -25,8 +25,7 @@ import {
   Check
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs, doc, setDoc, Timestamp } from '@supabase/supabase-js';
+import { getSupabaseClient } from '@/lib/supabase';
 
 interface IFoodConfig {
   id?: string;
@@ -97,23 +96,32 @@ function IFoodIntegracaoContent() {
     
     setLoading(true);
     try {
-      const dbInstance = db();
-      if (!dbInstance) return;
+      const supabase = getSupabaseClient();
 
       // Carregar configuração
-      const configQuery = query(
-        collection(dbInstance, 'ifood_config'),
-        where('empresaId', '==', empresaId)
-      );
-      const configSnapshot = await getDocs(configQuery);
+      const { data: configData, error } = await supabase
+        .from('ifood_config')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .maybeSingle();
 
-      if (!configSnapshot.empty) {
-        const configData = configSnapshot.docs[0].data();
+      if (configData) {
         setConfig({
-          id: configSnapshot.docs[0].id,
-          ...configData,
+          id: configData.id,
           empresaId: empresaId,
-          ultimoPedidoEm: configData.ultimoPedidoEm?.toDate(),
+          ativo: configData.ativo || false,
+          status: configData.status || 'disconnected',
+          clientId: configData.client_id || '',
+          clientSecret: configData.client_secret || '',
+          merchantId: configData.merchant_id || '',
+          sincronizarProdutos: configData.sincronizar_produtos ?? true,
+          sincronizarEstoque: configData.sincronizar_estoque ?? true,
+          sincronizarPrecos: configData.sincronizar_precos ?? true,
+          receberPedidosAutomatico: configData.receber_pedidos_automatico ?? true,
+          tempoPreparoPadrao: configData.tempo_preparo_padrao || 30,
+          totalPedidosRecebidos: configData.total_pedidos_recebidos || 0,
+          ultimoPedidoEm: configData.ultimo_pedido_em ? new Date(configData.ultimo_pedido_em) : undefined,
+          ultimoErro: configData.ultimo_erro || undefined,
         } as IFoodConfig);
       } else {
         // Reset para configuração vazia
@@ -143,36 +151,33 @@ function IFoodIntegracaoContent() {
     if (!empresaId) return;
     
     try {
-      const dbInstance = db();
-      if (!dbInstance) return;
+      const supabase = getSupabaseClient();
 
       const now = new Date();
       const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
       // Vendas de hoje
-      const todayQuery = query(
-        collection(dbInstance, 'vendas'),
-        where('empresaId', '==', empresaId),
-        where('canal', '==', 'ifood'),
-        where('criadoEm', '>=', Timestamp.fromDate(startOfToday))
-      );
-      const todaySnapshot = await getDocs(todayQuery);
+      const { data: todayVendas } = await supabase
+        .from('vendas')
+        .select('total')
+        .eq('empresa_id', empresaId)
+        .eq('canal', 'ifood')
+        .gte('criado_em', startOfToday.toISOString());
 
-      const pedidosHoje = todaySnapshot.size;
-      const vendasHoje = todaySnapshot.docs.reduce((sum, d) => sum + (d.data().total || 0), 0);
+      const pedidosHoje = todayVendas?.length || 0;
+      const vendasHoje = todayVendas?.reduce((sum, v) => sum + (v.total || 0), 0) || 0;
 
       // Vendas do mês
-      const monthQuery = query(
-        collection(dbInstance, 'vendas'),
-        where('empresaId', '==', empresaId),
-        where('canal', '==', 'ifood'),
-        where('criadoEm', '>=', Timestamp.fromDate(startOfMonth))
-      );
-      const monthSnapshot = await getDocs(monthQuery);
+      const { data: monthVendas } = await supabase
+        .from('vendas')
+        .select('total')
+        .eq('empresa_id', empresaId)
+        .eq('canal', 'ifood')
+        .gte('criado_em', startOfMonth.toISOString());
 
-      const pedidosMes = monthSnapshot.size;
-      const vendasMes = monthSnapshot.docs.reduce((sum, d) => sum + (d.data().total || 0), 0);
+      const pedidosMes = monthVendas?.length || 0;
+      const vendasMes = monthVendas?.reduce((sum, v) => sum + (v.total || 0), 0) || 0;
 
       setStats({ pedidosHoje, vendasHoje, pedidosMes, vendasMes });
     } catch (error) {
@@ -188,22 +193,41 @@ function IFoodIntegracaoContent() {
 
     setSaving(true);
     try {
-      const dbInstance = db();
-      if (!dbInstance) return;
+      const supabase = getSupabaseClient();
 
       const configData = {
-        ...config,
-        empresaId: empresaId,
-        atualizadoEm: Timestamp.now(),
+        empresa_id: empresaId,
+        ativo: config.ativo,
+        status: config.status,
+        client_id: config.clientId,
+        client_secret: config.clientSecret,
+        merchant_id: config.merchantId,
+        sincronizar_produtos: config.sincronizarProdutos,
+        sincronizar_estoque: config.sincronizarEstoque,
+        sincronizar_precos: config.sincronizarPrecos,
+        receber_pedidos_automatico: config.receberPedidosAutomatico,
+        tempo_preparo_padrao: config.tempoPreparoPadrao,
+        total_pedidos_recebidos: config.totalPedidosRecebidos,
+        atualizado_em: new Date().toISOString(),
       };
 
       if (config.id) {
-        await setDoc(doc(dbInstance, 'ifood_config', config.id), configData, { merge: true });
+        const { error } = await supabase
+          .from('ifood_config')
+          .update(configData)
+          .eq('id', config.id);
+        
+        if (error) throw error;
       } else {
-        configData.criadoEm = Timestamp.now();
-        const docRef = doc(collection(dbInstance, 'ifood_config'));
-        await setDoc(docRef, configData);
-        setConfig(prev => ({ ...prev, id: docRef.id }));
+        configData.criado_em = new Date().toISOString();
+        const { data, error } = await supabase
+          .from('ifood_config')
+          .insert(configData)
+          .select('id')
+          .single();
+        
+        if (error) throw error;
+        if (data) setConfig(prev => ({ ...prev, id: data.id }));
       }
 
       alert('Configuração salva com sucesso!');

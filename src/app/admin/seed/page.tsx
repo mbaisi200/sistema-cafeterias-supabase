@@ -7,8 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { db, auth } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, Timestamp, deleteDoc, doc } from '@supabase/supabase-js';
+import { getSupabaseClient } from '@/lib/supabase';
 import { Database, CheckCircle, XCircle, Loader2, AlertTriangle, Building2, Trash2 } from 'lucide-react';
 
 interface SeedStatus {
@@ -125,8 +124,8 @@ const FORNECEDORES = [
 const CATEGORIAS_CONTAS_PAGAR = ['fornecedores', 'aluguel', 'energia', 'água', 'impostos', 'salários', 'manutenção'];
 const CATEGORIAS_CONTAS_RECEBER = ['clientes', 'eventos', 'delivery parceiros'];
 
-// Coleções que serão limpas
-const COLECOES_PARA_LIMPAR = [
+// Tabelas que serão limpas
+const TABELAS_PARA_LIMPAR = [
   'categorias',
   'funcionarios',
   'mesas',
@@ -134,7 +133,7 @@ const COLECOES_PARA_LIMPAR = [
   'vendas',
   'itens_venda',
   'pagamentos',
-  'estoque_movimentos',
+  'movimentacoes_estoque',
   'contas',
   'caixas',
   'movimentacoes_caixa',
@@ -171,28 +170,21 @@ export default function SeedPage() {
   useEffect(() => {
     const buscarEmpresas = async () => {
       try {
-        const dbInstance = db();
-        if (!dbInstance) {
-          addLog('Firebase não inicializado. Verifique as variáveis de ambiente.');
-          setLoadingEmpresas(false);
-          return;
-        }
-
-        const empresasQuery = query(collection(dbInstance, 'empresas'));
-        const snapshot = await getDocs(empresasQuery);
+        const supabase = getSupabaseClient();
         
-        const empresasLista: Empresa[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          empresasLista.push({
-            id: doc.id,
-            nome: data.nome || 'Sem nome',
-            status: data.status
-          });
-        });
-
-        empresasLista.sort((a, b) => a.nome.localeCompare(b.nome));
+        const { data, error } = await supabase
+          .from('empresas')
+          .select('id, nome, status')
+          .order('nome');
         
+        if (error) throw error;
+        
+        const empresasLista: Empresa[] = (data || []).map(item => ({
+          id: item.id,
+          nome: item.nome || 'Sem nome',
+          status: item.status
+        }));
+
         setEmpresas(empresasLista);
         
         if (empresasLista.length === 0) {
@@ -225,13 +217,10 @@ export default function SeedPage() {
   };
 
   // Gera datas aleatórias entre Janeiro e Fevereiro de 2026
-  // Janeiro = mês 0, Fevereiro = mês 1 (JavaScript usa indexação baseada em 0)
   const gerarDataAleatoria = (meses: number = 2) => {
-    // Definir o período: Janeiro e Fevereiro de 2026
     const inicio = new Date(2026, 0, 1); // 1 de Janeiro de 2026
-    const fim = new Date(2026, meses, 0); // Último dia de Fevereiro de 2026 (28 de Fevereiro)
+    const fim = new Date(2026, meses, 0); // Último dia de Fevereiro de 2026
     
-    // Calcular a diferença em milissegundos
     const diferencaMs = fim.getTime() - inicio.getTime();
     const randomMs = Math.floor(Math.random() * diferencaMs);
     
@@ -240,18 +229,20 @@ export default function SeedPage() {
     return data;
   };
 
-  // Função para limpar coleção por empresaId
-  const limparColecao = async (dbInstance: FirebaseFirestore, nomeColecao: string, empresaId: string): Promise<number> => {
-    const q = query(collection(dbInstance, nomeColecao), where('empresaId', '==', empresaId));
-    const snapshot = await getDocs(q);
+  // Função para limpar tabela por empresa_id
+  const limparTabela = async (supabase: ReturnType<typeof getSupabaseClient>, nomeTabela: string, empresaId: string): Promise<number> => {
+    const { data, error } = await supabase
+      .from(nomeTabela)
+      .delete()
+      .eq('empresa_id', empresaId)
+      .select('id');
     
-    let deletados = 0;
-    for (const docSnapshot of snapshot.docs) {
-      await deleteDoc(doc(dbInstance, nomeColecao, docSnapshot.id));
-      deletados++;
+    if (error) {
+      console.error(`Erro ao limpar ${nomeTabela}:`, error);
+      return 0;
     }
     
-    return deletados;
+    return data?.length || 0;
   };
 
   const executarSeed = async () => {
@@ -265,12 +256,7 @@ export default function SeedPage() {
     setLogs([]);
     setStatusList([]);
 
-    const dbInstance = db();
-    if (!dbInstance) {
-      addLog('Firebase não inicializado');
-      setLoading(false);
-      return;
-    }
+    const supabase = getSupabaseClient();
 
     let totalProgress = 0;
     const setProgressValue = (value: number) => {
@@ -286,15 +272,15 @@ export default function SeedPage() {
       addLog('🧹 Limpando dados existentes da empresa...');
 
       let totalDeletados = 0;
-      for (const colecao of COLECOES_PARA_LIMPAR) {
+      for (const tabela of TABELAS_PARA_LIMPAR) {
         try {
-          const deletados = await limparColecao(dbInstance as unknown as FirebaseFirestore, colecao, empresaId);
+          const deletados = await limparTabela(supabase, tabela, empresaId);
           if (deletados > 0) {
-            addLog(`  - ${colecao}: ${deletados} registro(s) removido(s)`);
+            addLog(`  - ${tabela}: ${deletados} registro(s) removido(s)`);
           }
           totalDeletados += deletados;
         } catch (err) {
-          addLog(`  - ${colecao}: erro ao limpar (pode estar vazia)`);
+          addLog(`  - ${tabela}: erro ao limpar (pode estar vazia)`);
         }
       }
 
@@ -312,21 +298,32 @@ export default function SeedPage() {
       addLog('Criando categorias...');
       
       const categoriasMap: Record<string, string> = {};
-      let corIndex = 0;
+      const categoriasData: {empresa_id: string, nome: string, cor: string, ordem: number, ativo: boolean, criado_em: string, atualizado_em: string}[] = [];
       
-      for (const [nomeCategoria, produtos] of Object.entries(PRODUTOS_POR_CATEGORIA)) {
-        const docRef = await addDoc(collection(dbInstance, 'categorias'), {
-          empresaId,
+      let corIndex = 0;
+      for (const [nomeCategoria] of Object.entries(PRODUTOS_POR_CATEGORIA)) {
+        categoriasData.push({
+          empresa_id: empresaId,
           nome: nomeCategoria,
           cor: CORES_CATEGORIAS[corIndex % CORES_CATEGORIAS.length],
           ordem: corIndex + 1,
           ativo: true,
-          criadoEm: Timestamp.now(),
-          atualizadoEm: Timestamp.now()
+          criado_em: new Date().toISOString(),
+          atualizado_em: new Date().toISOString()
         });
-        categoriasMap[nomeCategoria] = docRef.id;
         corIndex++;
       }
+
+      const { data: categoriasInsert, error: catError } = await supabase
+        .from('categorias')
+        .insert(categoriasData)
+        .select('id, nome');
+
+      if (catError) throw catError;
+      
+      categoriasInsert?.forEach(cat => {
+        categoriasMap[cat.nome] = cat.id;
+      });
       
       updateStatus('Categorias', 'done', Object.keys(categoriasMap).length);
       setProgressValue(10);
@@ -338,30 +335,34 @@ export default function SeedPage() {
       updateStatus('Funcionários', 'running');
       addLog('Criando funcionários...');
 
-      const funcionariosIds: string[] = [];
+      const funcionariosData = NOMES_FUNCIONARIOS.map((nome, i) => ({
+        empresa_id: empresaId,
+        nome: nome,
+        cargo: CARGOS[i % CARGOS.length],
+        email: `${nome.toLowerCase().replace(' ', '.')}@email.com`,
+        telefone: `(11) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
+        pin: gerarPIN(),
+        permissoes: {
+          pdv: true,
+          estoque: i < 3,
+          financeiro: i < 2,
+          relatorios: i < 2,
+          cancelar_venda: i < 3,
+          dar_desconto: i < 3
+        },
+        ativo: true,
+        criado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString()
+      }));
+
+      const { data: funcionariosInsert, error: funcError } = await supabase
+        .from('funcionarios')
+        .insert(funcionariosData)
+        .select('id');
+
+      if (funcError) throw funcError;
       
-      for (let i = 0; i < NOMES_FUNCIONARIOS.length; i++) {
-        const docRef = await addDoc(collection(dbInstance, 'funcionarios'), {
-          empresaId,
-          nome: NOMES_FUNCIONARIOS[i],
-          cargo: CARGOS[i % CARGOS.length],
-          email: `${NOMES_FUNCIONARIOS[i].toLowerCase().replace(' ', '.')}@email.com`,
-          telefone: `(11) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
-          pin: gerarPIN(),
-          permissoes: {
-            pdv: true,
-            estoque: i < 3,
-            financeiro: i < 2,
-            relatorios: i < 2,
-            cancelarVenda: i < 3,
-            darDesconto: i < 3
-          },
-          ativo: true,
-          criadoEm: Timestamp.now(),
-          atualizadoEm: Timestamp.now()
-        });
-        funcionariosIds.push(docRef.id);
-      }
+      const funcionariosIds = funcionariosInsert?.map(f => f.id) || [];
 
       updateStatus('Funcionários', 'done', funcionariosIds.length);
       setProgressValue(15);
@@ -373,18 +374,23 @@ export default function SeedPage() {
       updateStatus('Mesas', 'running');
       addLog('Criando mesas...');
 
-      const mesasIds: string[] = [];
-      for (let i = 1; i <= 15; i++) {
-        const docRef = await addDoc(collection(dbInstance, 'mesas'), {
-          empresaId,
-          numero: i,
-          capacidade: i <= 5 ? 2 : i <= 10 ? 4 : 6,
-          status: 'livre',
-          criadoEm: Timestamp.now(),
-          atualizadoEm: Timestamp.now()
-        });
-        mesasIds.push(docRef.id);
-      }
+      const mesasData = Array.from({ length: 15 }, (_, i) => ({
+        empresa_id: empresaId,
+        numero: i + 1,
+        capacidade: i < 5 ? 2 : i < 10 ? 4 : 6,
+        status: 'livre',
+        criado_em: new Date().toISOString(),
+        atualizado_em: new Date().toISOString()
+      }));
+
+      const { data: mesasInsert, error: mesasError } = await supabase
+        .from('mesas')
+        .insert(mesasData)
+        .select('id');
+
+      if (mesasError) throw mesasError;
+      
+      const mesasIds = mesasInsert?.map(m => m.id) || [];
 
       updateStatus('Mesas', 'done', mesasIds.length);
       setProgressValue(20);
@@ -397,36 +403,47 @@ export default function SeedPage() {
       addLog('Criando produtos...');
 
       const produtosIds: string[] = [];
-      const produtosData: {id: string, nome: string, preco: number, custo: number}[] = [];
+      const produtosDataInsert: {empresa_id: string, categoria_id: string, nome: string, descricao: string, codigo: string, preco: number, custo: number, unidade: string, estoque_atual: number, estoque_minimo: number, destaque: boolean, ativo: boolean, criado_em: string, atualizado_em: string}[] = [];
+      const produtosDataInfo: {id: string, nome: string, preco: number, custo: number}[] = [];
 
       for (const [nomeCategoria, produtos] of Object.entries(PRODUTOS_POR_CATEGORIA)) {
         const categoriaId = categoriasMap[nomeCategoria];
         
         for (const produto of produtos) {
-          const docRef = await addDoc(collection(dbInstance, 'produtos'), {
-            empresaId,
-            categoriaId,
+          produtosDataInsert.push({
+            empresa_id: empresaId,
+            categoria_id: categoriaId,
             nome: produto.nome,
             descricao: `${produto.nome} - produto de qualidade`,
             codigo: `PROD${String(produtosIds.length + 1).padStart(4, '0')}`,
             preco: produto.preco,
             custo: produto.custo,
             unidade: 'un',
-            estoqueAtual: Math.floor(50 + Math.random() * 150),
-            estoqueMinimo: 10,
+            estoque_atual: Math.floor(50 + Math.random() * 150),
+            estoque_minimo: 10,
             destaque: Math.random() > 0.7,
             ativo: true,
-            criadoEm: Timestamp.now(),
-            atualizadoEm: Timestamp.now()
+            criado_em: new Date().toISOString(),
+            atualizado_em: new Date().toISOString()
           });
-          produtosIds.push(docRef.id);
-          produtosData.push({ id: docRef.id, nome: produto.nome, preco: produto.preco, custo: produto.custo });
+          produtosIds.push('temp');
         }
       }
 
-      updateStatus('Produtos', 'done', produtosIds.length);
+      const { data: produtosInsert, error: prodError } = await supabase
+        .from('produtos')
+        .insert(produtosDataInsert)
+        .select('id, nome, preco, custo');
+
+      if (prodError) throw prodError;
+      
+      produtosInsert?.forEach(p => {
+        produtosDataInfo.push({ id: p.id, nome: p.nome, preco: p.preco, custo: p.custo });
+      });
+
+      updateStatus('Produtos', 'done', produtosDataInfo.length);
       setProgressValue(25);
-      addLog(`${produtosIds.length} produtos criados.`);
+      addLog(`${produtosDataInfo.length} produtos criados.`);
 
       // ==========================================
       // 5. CRIAR VENDAS (220 vendas)
@@ -436,6 +453,8 @@ export default function SeedPage() {
 
       const vendasIds: string[] = [];
       const NUM_VENDAS = 220;
+      const itensVendaData: {venda_id: string, produto_id: string, nome: string, quantidade: number, preco_unitario: number, total: number, criado_em: string}[] = [];
+      const pagamentosData: {empresa_id: string, venda_id: string, forma_pagamento: string, valor: number, criado_em: string}[] = [];
 
       for (let i = 0; i < NUM_VENDAS; i++) {
         const dataVenda = gerarDataAleatoria();
@@ -447,8 +466,8 @@ export default function SeedPage() {
         const itensVenda: {produtoId: string, quantidade: number, precoUnitario: number}[] = [];
 
         for (let j = 0; j < numItens; j++) {
-          const produtoIdx = Math.floor(Math.random() * produtosData.length);
-          const produto = produtosData[produtoIdx];
+          const produtoIdx = Math.floor(Math.random() * produtosDataInfo.length);
+          const produto = produtosDataInfo[produtoIdx];
           const quantidade = Math.floor(Math.random() * 3) + 1;
           itensVenda.push({
             produtoId: produto.id,
@@ -466,50 +485,73 @@ export default function SeedPage() {
           ? mesasIds[Math.floor(Math.random() * mesasIds.length)] 
           : null;
 
-        const vendaRef = await addDoc(collection(dbInstance, 'vendas'), {
-          empresaId,
-          mesaId,
-          funcionarioId,
+        const vendaData = {
+          empresa_id: empresaId,
+          mesa_id: mesaId,
+          funcionario_id: funcionarioId,
           tipo: tipoVenda,
           status: 'fechada',
           subtotal,
           desconto,
-          taxaServico,
+          taxa_servico: taxaServico,
           total,
           observacao: Math.random() > 0.7 ? 'Sem observações' : '',
-          criadoEm: Timestamp.fromDate(dataVenda),
-          atualizadoEm: Timestamp.fromDate(dataVenda)
-        });
-        vendasIds.push(vendaRef.id);
+          criado_em: dataVenda.toISOString(),
+          atualizado_em: dataVenda.toISOString()
+        };
 
-        for (const item of itensVenda) {
-          await addDoc(collection(dbInstance, 'itens_venda'), {
-            vendaId: vendaRef.id,
-            produtoId: item.produtoId,
-            quantidade: item.quantidade,
-            precoUnitario: item.precoUnitario,
-            desconto: 0,
-            criadoEm: Timestamp.fromDate(dataVenda)
+        const { data: vendaInsert, error: vendaError } = await supabase
+          .from('vendas')
+          .insert(vendaData)
+          .select('id')
+          .single();
+
+        if (vendaError) throw vendaError;
+        
+        if (vendaInsert) {
+          vendasIds.push(vendaInsert.id);
+          
+          for (const item of itensVenda) {
+            itensVendaData.push({
+              venda_id: vendaInsert.id,
+              produto_id: item.produtoId,
+              nome: '',
+              quantidade: item.quantidade,
+              preco_unitario: item.precoUnitario,
+              total: item.precoUnitario * item.quantidade,
+              criado_em: dataVenda.toISOString()
+            });
+          }
+
+          const formaPagamento = FORMAS_PAGAMENTO[Math.floor(Math.random() * FORMAS_PAGAMENTO.length)];
+          pagamentosData.push({
+            empresa_id: empresaId,
+            venda_id: vendaInsert.id,
+            forma_pagamento: formaPagamento,
+            valor: total,
+            criado_em: dataVenda.toISOString()
           });
         }
-
-        const formaPagamento = FORMAS_PAGAMENTO[Math.floor(Math.random() * FORMAS_PAGAMENTO.length)];
-        const troco = formaPagamento === 'dinheiro' && Math.random() > 0.5 
-          ? Math.floor((total + 10) - total) 
-          : 0;
-
-        await addDoc(collection(dbInstance, 'pagamentos'), {
-          empresaId,
-          vendaId: vendaRef.id,
-          formaPagamento,
-          valor: total,
-          troco,
-          criadoEm: Timestamp.fromDate(dataVenda)
-        });
 
         if (i % 20 === 0) {
           setProgressValue(25 + Math.floor((i / NUM_VENDAS) * 50));
         }
+      }
+
+      // Inserir itens de venda em batch
+      if (itensVendaData.length > 0) {
+        const { error: itensError } = await supabase
+          .from('itens_venda')
+          .insert(itensVendaData);
+        if (itensError) console.error('Erro ao inserir itens:', itensError);
+      }
+
+      // Inserir pagamentos em batch
+      if (pagamentosData.length > 0) {
+        const { error: pgError } = await supabase
+          .from('pagamentos')
+          .insert(pagamentosData);
+        if (pgError) console.error('Erro ao inserir pagamentos:', pgError);
       }
 
       updateStatus('Vendas', 'done', NUM_VENDAS);
@@ -523,25 +565,33 @@ export default function SeedPage() {
       addLog('Criando movimentos de estoque...');
 
       const NUM_MOVIMENTOS = 100;
-
-      for (let i = 0; i < NUM_MOVIMENTOS; i++) {
-        const produto = produtosData[Math.floor(Math.random() * produtosData.length)];
-        const tipo = ['entrada', 'saida', 'ajuste'][Math.floor(Math.random() * 3)];
+      const movimentosData = Array.from({ length: NUM_MOVIMENTOS }, () => {
+        const produto = produtosDataInfo[Math.floor(Math.random() * produtosDataInfo.length)];
+        const tipo = ['entrada', 'saida', 'ajuste'][Math.floor(Math.random() * 3)] as 'entrada' | 'saida' | 'ajuste';
         const quantidade = tipo === 'entrada' 
           ? Math.floor(Math.random() * 50) + 10 
-          : -(Math.floor(Math.random() * 20) + 1);
+          : tipo === 'saida'
+          ? -(Math.floor(Math.random() * 20) + 1)
+          : Math.floor(Math.random() * 30) - 15;
 
-        await addDoc(collection(dbInstance, 'estoque_movimentos'), {
-          empresaId,
-          produtoId: produto.id,
+        return {
+          empresa_id: empresaId,
+          produto_id: produto.id,
+          produto_nome: produto.nome,
           tipo,
-          quantidade: tipo === 'ajuste' ? Math.floor(Math.random() * 30) - 15 : quantidade,
-          precoUnitario: produto.custo,
+          quantidade,
+          preco_unitario: produto.custo,
           observacao: tipo === 'entrada' ? 'Reposição de estoque' : tipo === 'saida' ? 'Saída manual' : 'Ajuste de inventário',
-          usuarioId: funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)],
-          criadoEm: Timestamp.fromDate(gerarDataAleatoria())
-        });
-      }
+          usuario_id: funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)],
+          criado_em: gerarDataAleatoria().toISOString()
+        };
+      });
+
+      const { error: movError } = await supabase
+        .from('movimentacoes_estoque')
+        .insert(movimentosData);
+
+      if (movError) console.error('Erro ao criar movimentos:', movError);
 
       updateStatus('Movimentos de Estoque', 'done', NUM_MOVIMENTOS);
       setProgressValue(80);
@@ -553,51 +603,54 @@ export default function SeedPage() {
       updateStatus('Contas a Pagar/Receber', 'running');
       addLog('Criando contas a pagar e receber...');
 
-      // Gerar datas de vencimento dentro de Janeiro/Fevereiro 2026
-      const dataReferencia = new Date(2026, 1, 15); // 15 de Fevereiro de 2026 como referência
-      
+      const contasData: {empresa_id: string, tipo: string, descricao: string, valor: number, vencimento: string, categoria: string, fornecedor?: string, status: string, data_pagamento?: string, valor_pago?: number, forma_pagamento?: string, criado_em: string, atualizado_em: string}[] = [];
+
       for (let i = 0; i < 25; i++) {
-        // Vencimento aleatório entre Janeiro e Fevereiro 2026
         const vencimento = gerarDataAleatoria();
         const status = Math.random() > 0.4 ? 'pago' : 'pendente';
 
-        await addDoc(collection(dbInstance, 'contas'), {
-          empresaId,
+        contasData.push({
+          empresa_id: empresaId,
           tipo: 'pagar',
           descricao: `${CATEGORIAS_CONTAS_PAGAR[Math.floor(Math.random() * CATEGORIAS_CONTAS_PAGAR.length)]} - ${FORNECEDORES[Math.floor(Math.random() * FORNECEDORES.length)]}`,
           valor: Math.floor(Math.random() * 3000) + 200,
-          vencimento: Timestamp.fromDate(vencimento),
+          vencimento: vencimento.toISOString(),
           categoria: CATEGORIAS_CONTAS_PAGAR[Math.floor(Math.random() * CATEGORIAS_CONTAS_PAGAR.length)],
           fornecedor: FORNECEDORES[Math.floor(Math.random() * FORNECEDORES.length)],
           status,
-          dataPagamento: status === 'pago' ? Timestamp.fromDate(new Date(vencimento.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000)) : null,
-          valorPago: status === 'pago' ? Math.floor(Math.random() * 3000) + 200 : null,
-          formaPagamento: status === 'pago' ? 'pix' : null,
-          criadoEm: Timestamp.fromDate(gerarDataAleatoria()),
-          atualizadoEm: Timestamp.fromDate(gerarDataAleatoria())
+          data_pagamento: status === 'pago' ? new Date(vencimento.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+          valor_pago: status === 'pago' ? Math.floor(Math.random() * 3000) + 200 : undefined,
+          forma_pagamento: status === 'pago' ? 'pix' : undefined,
+          criado_em: gerarDataAleatoria().toISOString(),
+          atualizado_em: gerarDataAleatoria().toISOString()
         });
       }
 
       for (let i = 0; i < 15; i++) {
-        // Vencimento aleatório entre Janeiro e Fevereiro 2026
         const vencimento = gerarDataAleatoria();
         const status = Math.random() > 0.4 ? 'pago' : 'pendente';
 
-        await addDoc(collection(dbInstance, 'contas'), {
-          empresaId,
+        contasData.push({
+          empresa_id: empresaId,
           tipo: 'receber',
           descricao: `Recebimento - ${CATEGORIAS_CONTAS_RECEBER[Math.floor(Math.random() * CATEGORIAS_CONTAS_RECEBER.length)]}`,
           valor: Math.floor(Math.random() * 5000) + 500,
-          vencimento: Timestamp.fromDate(vencimento),
+          vencimento: vencimento.toISOString(),
           categoria: CATEGORIAS_CONTAS_RECEBER[Math.floor(Math.random() * CATEGORIAS_CONTAS_RECEBER.length)],
           status,
-          dataPagamento: status === 'pago' ? Timestamp.fromDate(vencimento) : null,
-          valorPago: status === 'pago' ? Math.floor(Math.random() * 5000) + 500 : null,
-          formaPagamento: status === 'pago' ? 'pix' : null,
-          criadoEm: Timestamp.fromDate(gerarDataAleatoria()),
-          atualizadoEm: Timestamp.fromDate(gerarDataAleatoria())
+          data_pagamento: status === 'pago' ? vencimento.toISOString() : undefined,
+          valor_pago: status === 'pago' ? Math.floor(Math.random() * 5000) + 500 : undefined,
+          forma_pagamento: status === 'pago' ? 'pix' : undefined,
+          criado_em: gerarDataAleatoria().toISOString(),
+          atualizado_em: gerarDataAleatoria().toISOString()
         });
       }
+
+      const { error: contasError } = await supabase
+        .from('contas')
+        .insert(contasData);
+
+      if (contasError) console.error('Erro ao criar contas:', contasError);
 
       updateStatus('Contas a Pagar/Receber', 'done', 40);
       setProgressValue(85);
@@ -609,6 +662,9 @@ export default function SeedPage() {
       updateStatus('Caixas', 'running');
       addLog('Criando sessões de caixa...');
 
+      const caixasData: {empresa_id: string, valor_inicial: number, valor_atual: number, total_entradas: number, total_saidas: number, total_vendas: number, status: string, aberto_por: string, aberto_por_nome: string, aberto_em: string, fechado_por?: string, fechado_por_nome?: string, fechado_em?: string, valor_final?: number, quebra?: number, observacao_abertura: string, observacao_fechamento: string}[] = [];
+      const movimentacoesCaixaData: {caixa_id: string, empresa_id: string, tipo: string, valor: number, forma_pagamento: string, descricao: string, usuario_id: string, usuario_nome: string, criado_em: string}[] = [];
+
       for (let i = 0; i < 20; i++) {
         const dataAbertura = gerarDataAleatoria();
         const dataFechamento = new Date(dataAbertura.getTime() + 8 * 60 * 60 * 1000);
@@ -618,52 +674,71 @@ export default function SeedPage() {
         const totalSaidas = Math.floor(Math.random() * 100);
         const valorFinal = valorInicial + totalEntradas - totalSaidas;
 
-        const caixaRef = await addDoc(collection(dbInstance, 'caixas'), {
-          empresaId,
-          valorInicial,
-          valorAtual: valorFinal,
-          totalEntradas,
-          totalSaidas,
-          totalVendas,
+        const caixaItem = {
+          empresa_id: empresaId,
+          valor_inicial: valorInicial,
+          valor_atual: valorFinal,
+          total_entradas: totalEntradas,
+          total_saidas: totalSaidas,
+          total_vendas: totalVendas,
           status: i < 18 ? 'fechado' : 'aberto',
-          abertoPor: funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)],
-          abertoPorNome: NOMES_FUNCIONARIOS[Math.floor(Math.random() * NOMES_FUNCIONARIOS.length)],
-          abertoEm: Timestamp.fromDate(dataAbertura),
-          fechadoPor: i < 18 ? funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)] : null,
-          fechadoPorNome: i < 18 ? NOMES_FUNCIONARIOS[Math.floor(Math.random() * NOMES_FUNCIONARIOS.length)] : null,
-          fechadoEm: i < 18 ? Timestamp.fromDate(dataFechamento) : null,
-          valorFinal: i < 18 ? valorFinal : null,
-          quebra: i < 18 ? Math.floor(Math.random() * 20) - 10 : null,
-          observacaoAbertura: '',
-          observacaoFechamento: ''
-        });
+          aberto_por: funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)],
+          aberto_por_nome: NOMES_FUNCIONARIOS[Math.floor(Math.random() * NOMES_FUNCIONARIOS.length)],
+          aberto_em: dataAbertura.toISOString(),
+          fechado_por: i < 18 ? funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)] : undefined,
+          fechado_por_nome: i < 18 ? NOMES_FUNCIONARIOS[Math.floor(Math.random() * NOMES_FUNCIONARIOS.length)] : undefined,
+          fechado_em: i < 18 ? dataFechamento.toISOString() : undefined,
+          valor_final: i < 18 ? valorFinal : undefined,
+          quebra: i < 18 ? Math.floor(Math.random() * 20) - 10 : undefined,
+          observacao_abertura: '',
+          observacao_fechamento: ''
+        };
+        caixasData.push(caixaItem);
+      }
 
-        await addDoc(collection(dbInstance, 'movimentacoes_caixa'), {
-          caixaId: caixaRef.id,
-          empresaId,
+      const { data: caixasInsert, error: caixasError } = await supabase
+        .from('caixas')
+        .insert(caixasData)
+        .select('id, aberto_em');
+
+      if (caixasError) console.error('Erro ao criar caixas:', caixasError);
+
+      // Criar movimentações de caixa
+      caixasInsert?.forEach((caixa, i) => {
+        const dataAbertura = new Date(caixa.aberto_em || new Date());
+        movimentacoesCaixaData.push({
+          caixa_id: caixa.id,
+          empresa_id: empresaId,
           tipo: 'abertura',
-          valor: valorInicial,
-          formaPagamento: 'dinheiro',
+          valor: caixasData[i].valor_inicial,
+          forma_pagamento: 'dinheiro',
           descricao: 'Abertura de caixa',
-          usuarioId: funcionariosIds[0],
-          usuarioNome: NOMES_FUNCIONARIOS[0],
-          criadoEm: Timestamp.fromDate(dataAbertura)
+          usuario_id: funcionariosIds[0],
+          usuario_nome: NOMES_FUNCIONARIOS[0],
+          criado_em: dataAbertura.toISOString()
         });
 
         if (i < 18) {
-          await addDoc(collection(dbInstance, 'movimentacoes_caixa'), {
-            caixaId: caixaRef.id,
-            empresaId,
+          const dataFechamento = new Date(dataAbertura.getTime() + 8 * 60 * 60 * 1000);
+          movimentacoesCaixaData.push({
+            caixa_id: caixa.id,
+            empresa_id: empresaId,
             tipo: 'fechamento',
-            valor: valorFinal,
-            formaPagamento: 'dinheiro',
+            valor: caixasData[i].valor_final || 0,
+            forma_pagamento: 'dinheiro',
             descricao: 'Fechamento de caixa',
-            quebra: Math.floor(Math.random() * 20) - 10,
-            usuarioId: funcionariosIds[0],
-            usuarioNome: NOMES_FUNCIONARIOS[0],
-            criadoEm: Timestamp.fromDate(dataFechamento)
+            usuario_id: funcionariosIds[0],
+            usuario_nome: NOMES_FUNCIONARIOS[0],
+            criado_em: dataFechamento.toISOString()
           });
         }
+      });
+
+      if (movimentacoesCaixaData.length > 0) {
+        const { error: movCaixaError } = await supabase
+          .from('movimentacoes_caixa')
+          .insert(movimentacoesCaixaData);
+        if (movCaixaError) console.error('Erro ao criar movimentações de caixa:', movCaixaError);
       }
 
       updateStatus('Caixas', 'done', 20);
@@ -682,17 +757,21 @@ export default function SeedPage() {
         'CONTA_PAGA', 'RELATORIO_GERADO', 'LOGIN_REALIZADO'
       ];
 
-      for (let i = 0; i < 100; i++) {
-        await addDoc(collection(dbInstance, 'logs'), {
-          empresaId,
-          usuarioId: funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)],
-          usuarioNome: NOMES_FUNCIONARIOS[Math.floor(Math.random() * NOMES_FUNCIONARIOS.length)],
-          acao: acoes[Math.floor(Math.random() * acoes.length)],
-          detalhes: `Ação realizada automaticamente via seed`,
-          tipo: ['venda', 'produto', 'estoque', 'funcionario', 'financeiro', 'outro'][Math.floor(Math.random() * 6)],
-          dataHora: Timestamp.fromDate(gerarDataAleatoria())
-        });
-      }
+      const logsData = Array.from({ length: 100 }, () => ({
+        empresa_id: empresaId,
+        usuario_id: funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)],
+        usuario_nome: NOMES_FUNCIONARIOS[Math.floor(Math.random() * NOMES_FUNCIONARIOS.length)],
+        acao: acoes[Math.floor(Math.random() * acoes.length)],
+        detalhes: 'Ação realizada automaticamente via seed',
+        tipo: ['venda', 'produto', 'estoque', 'funcionario', 'financeiro', 'outro'][Math.floor(Math.random() * 6)],
+        data_hora: gerarDataAleatoria().toISOString()
+      }));
+
+      const { error: logsError } = await supabase
+        .from('logs')
+        .insert(logsData);
+
+      if (logsError) console.error('Erro ao criar logs:', logsError);
 
       updateStatus('Logs de Atividade', 'done', 100);
       setProgressValue(100);
@@ -702,7 +781,7 @@ export default function SeedPage() {
       addLog('═══════════════════════════════════════');
       addLog('✅ SEED CONCLUÍDO COM SUCESSO!');
       addLog('═══════════════════════════════════════');
-      addLog(`Total de registros criados: ${8 + funcionariosIds.length + mesasIds.length + produtosIds.length + NUM_VENDAS * 3 + NUM_MOVIMENTOS + 40 + 20 * 2 + 100}`);
+      addLog(`Total de registros criados: ${8 + funcionariosIds.length + mesasIds.length + produtosDataInfo.length + NUM_VENDAS * 3 + NUM_MOVIMENTOS + 40 + 20 * 2 + 100}`);
 
     } catch (error) {
       console.error('Erro no seed:', error);

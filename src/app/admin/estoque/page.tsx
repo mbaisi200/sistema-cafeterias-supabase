@@ -35,7 +35,6 @@ import { useProdutos } from '@/hooks/useFirestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getSupabaseClient } from '@/lib/supabase';
-import { collection, addDoc, updateDoc, doc, Timestamp, query, where, onSnapshot, orderBy } from '@supabase/supabase-js';
 import { useState, useEffect, useCallback } from 'react';
 import {
   Package,
@@ -95,39 +94,48 @@ export default function EstoquePage() {
   const carregarMovimentacoes = useCallback(() => {
     if (!empresaId) return;
     
-    const dbInstance = db();
-    if (!dbInstance) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
 
     setLoadingMovimentacoes(true);
     
-    const q = query(
-      collection(dbInstance, 'movimentacoes_estoque'),
-      where('empresaId', '==', empresaId),
-      orderBy('criadoEm', 'desc')
-    );
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        criadoEm: doc.data().criadoEm?.toDate(),
-      })) as MovimentacaoEstoque[];
-      
-      setMovimentacoes(data.slice(0, 50)); // Últimas 50 movimentações
-      setLoadingMovimentacoes(false);
-    }, (error) => {
-      console.error('Erro ao carregar movimentações:', error);
-      setLoadingMovimentacoes(false);
-    });
-
-    return unsubscribe;
+    // Buscar movimentações
+    supabase
+      .from('movimentacoes_estoque')
+      .select('*')
+      .eq('empresa_id', empresaId)
+      .order('criado_em', { ascending: false })
+      .limit(50)
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Erro ao carregar movimentações:', error);
+          setLoadingMovimentacoes(false);
+          return;
+        }
+        
+        const movimentacoes = (data || []).map(item => ({
+          id: item.id,
+          produtoId: item.produto_id,
+          produtoNome: item.produto_nome,
+          tipo: item.tipo,
+          quantidade: item.quantidade,
+          estoqueAnterior: item.estoque_anterior,
+          estoqueNovo: item.estoque_novo,
+          observacao: item.observacao,
+          fornecedor: item.fornecedor,
+          documentoRef: item.documento_ref,
+          criadoPor: item.criado_por,
+          criadoPorNome: item.criado_por_nome,
+          criadoEm: item.criado_em ? new Date(item.criado_em) : undefined,
+        })) as MovimentacaoEstoque[];
+        
+        setMovimentacoes(movimentacoes);
+        setLoadingMovimentacoes(false);
+      });
   }, [empresaId]);
 
   useEffect(() => {
-    const unsubscribe = carregarMovimentacoes();
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
+    carregarMovimentacoes();
   }, [carregarMovimentacoes]);
 
   // Filtros
@@ -179,8 +187,8 @@ export default function EstoquePage() {
     }
 
     setSaving(true);
-    const dbInstance = db();
-    if (!dbInstance || !empresaId) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !empresaId) return;
 
     try {
       const qtdInformada = parseFloat(quantidade);
@@ -196,24 +204,28 @@ export default function EstoquePage() {
       });
 
       // Registrar movimentação
-      await addDoc(collection(dbInstance, 'movimentacoes_estoque'), {
-        empresaId,
-        produtoId: produtoSelecionado.id,
-        produtoNome: produtoSelecionado.nome,
-        tipo: 'entrada',
-        quantidade: qtd,
-        quantidadeInformada: qtdInformada,
-        tipoEntrada: tipoEntrada,
-        unidadesPorCaixa: tipoEntrada === 'caixa' ? unidadesPorCaixa : null,
-        estoqueAnterior,
-        estoqueNovo,
-        fornecedor: fornecedor || null,
-        documentoRef: documentoRef || null,
-        observacao: observacao || null,
-        criadoPor: user?.id,
-        criadoPorNome: user?.nome,
-        criadoEm: Timestamp.now(),
-      });
+      const { error } = await supabase
+        .from('movimentacoes_estoque')
+        .insert({
+          empresa_id: empresaId,
+          produto_id: produtoSelecionado.id,
+          produto_nome: produtoSelecionado.nome,
+          tipo: 'entrada',
+          quantidade: qtd,
+          quantidade_informada: qtdInformada,
+          tipo_entrada: tipoEntrada,
+          unidades_por_caixa: tipoEntrada === 'caixa' ? unidadesPorCaixa : null,
+          estoque_anterior: estoqueAnterior,
+          estoque_novo: estoqueNovo,
+          fornecedor: fornecedor || null,
+          documento_ref: documentoRef || null,
+          observacao: observacao || null,
+          criado_por: user?.id,
+          criado_por_nome: user?.nome,
+          criado_em: new Date().toISOString(),
+        });
+      
+      if (error) throw error;
 
       const mensagem = tipoEntrada === 'caixa' 
         ? `✓ Entrada de ${qtdInformada} caixas (${qtd} unidades) registrada`
@@ -221,6 +233,7 @@ export default function EstoquePage() {
       toast({ title: mensagem });
       setDialogEntrada(false);
       setProdutoSelecionado(null);
+      carregarMovimentacoes(); // Recarregar movimentações
     } catch (error) {
       console.error('Erro ao registrar entrada:', error);
       toast({ variant: 'destructive', title: 'Erro ao registrar entrada' });
@@ -245,8 +258,8 @@ export default function EstoquePage() {
     }
 
     setSaving(true);
-    const dbInstance = db();
-    if (!dbInstance || !empresaId) return;
+    const supabase = getSupabaseClient();
+    if (!supabase || !empresaId) return;
 
     try {
       const estoqueAnterior = estoqueAtual;
@@ -258,23 +271,28 @@ export default function EstoquePage() {
       });
 
       // Registrar movimentação
-      await addDoc(collection(dbInstance, 'movimentacoes_estoque'), {
-        empresaId,
-        produtoId: produtoSelecionado.id,
-        produtoNome: produtoSelecionado.nome,
-        tipo: 'saida',
-        quantidade: qtd,
-        estoqueAnterior,
-        estoqueNovo,
-        observacao: observacao || null,
-        criadoPor: user?.id,
-        criadoPorNome: user?.nome,
-        criadoEm: Timestamp.now(),
-      });
+      const { error } = await supabase
+        .from('movimentacoes_estoque')
+        .insert({
+          empresa_id: empresaId,
+          produto_id: produtoSelecionado.id,
+          produto_nome: produtoSelecionado.nome,
+          tipo: 'saida',
+          quantidade: qtd,
+          estoque_anterior: estoqueAnterior,
+          estoque_novo: estoqueNovo,
+          observacao: observacao || null,
+          criado_por: user?.id,
+          criado_por_nome: user?.nome,
+          criado_em: new Date().toISOString(),
+        });
+      
+      if (error) throw error;
 
       toast({ title: `✓ Saída de ${qtd} unidades registrada` });
       setDialogSaida(false);
       setProdutoSelecionado(null);
+      carregarMovimentacoes(); // Recarregar movimentações
     } catch (error) {
       console.error('Erro ao registrar saída:', error);
       toast({ variant: 'destructive', title: 'Erro ao registrar saída' });

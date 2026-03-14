@@ -23,7 +23,6 @@ import {
   Link2
 } from 'lucide-react';
 import { getSupabaseClient } from '@/lib/supabase';
-import { collection, query, getDocs, where, orderBy } from '@supabase/supabase-js';
 
 interface Empresa {
   id: string;
@@ -129,24 +128,20 @@ function IntegracoesContent() {
   useEffect(() => {
     const carregarEmpresas = async () => {
       try {
-        const dbInstance = db();
-        if (!dbInstance) return;
-
-        const empresasQuery = query(
-          collection(dbInstance, 'empresas'),
-          orderBy('nome')
-        );
-        const snapshot = await getDocs(empresasQuery);
+        const supabase = getSupabaseClient();
         
-        const empresasLista: Empresa[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          empresasLista.push({
-            id: doc.id,
-            nome: data.nome || 'Sem nome',
-            status: data.status
-          });
-        });
+        const { data, error } = await supabase
+          .from('empresas')
+          .select('id, nome, status')
+          .order('nome');
+        
+        if (error) throw error;
+        
+        const empresasLista: Empresa[] = (data || []).map(item => ({
+          id: item.id,
+          nome: item.nome || 'Sem nome',
+          status: item.status
+        }));
 
         setEmpresas(empresasLista);
 
@@ -180,24 +175,22 @@ function IntegracoesContent() {
   const carregarStatusIntegracoes = async (empresaId: string) => {
     setLoadingStatus(true);
     try {
-      const dbInstance = db();
-      if (!dbInstance) return;
-
+      const supabase = getSupabaseClient();
+      
       // Carregar status do iFood
-      const ifoodQuery = query(
-        collection(dbInstance, 'ifood_config'),
-        where('empresaId', '==', empresaId)
-      );
-      const ifoodSnapshot = await getDocs(ifoodQuery);
+      const { data: ifoodConfig, error } = await supabase
+        .from('ifood_config')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .maybeSingle();
 
       const status: Record<string, IntegracaoStatus> = {};
 
-      if (!ifoodSnapshot.empty) {
-        const config = ifoodSnapshot.docs[0].data();
+      if (ifoodConfig) {
         status['ifood'] = {
-          ativo: config.ativo || false,
-          status: config.status || 'disconnected',
-          totalPedidos: config.totalPedidosRecebidos || 0
+          ativo: ifoodConfig.ativo || false,
+          status: ifoodConfig.status || 'disconnected',
+          totalPedidos: ifoodConfig.total_pedidos_recebidos || 0
         };
       } else {
         status['ifood'] = {

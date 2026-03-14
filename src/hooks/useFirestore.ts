@@ -13,4 +13,7 @@ export {
   registrarLog,
   useCaixa,
   useComandas,
+  useConfiguracoesCupom,
+  configuracoesCupomPadrao,
+  type ConfiguracoesCupom,
 } from './useSupabase';

@@ -20,7 +20,6 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
-import { collection, query, where, getDocs, orderBy, Timestamp, updateDoc, doc } from '@supabase/supabase-js';
 
 interface VendaDelivery {
   id: string;
@@ -78,13 +77,14 @@ const canalColors: Record<string, string> = {
 };
 
 export default function DeliveryPage() {
-  const { empresaId, empresaNome } = useAuth();
+  const { empresaId } = useAuth();
   const [vendas, setVendas] = useState<VendaDelivery[]>([]);
   const [loading, setLoading] = useState(true);
   const [vendaSelecionada, setVendaSelecionada] = useState<VendaDelivery | null>(null);
   const [itensVenda, setItensVenda] = useState<ItemVenda[]>([]);
   const [loadingItens, setLoadingItens] = useState(false);
   const [atualizando, setAtualizando] = useState(false);
+  const supabase = getSupabaseClient();
 
   useEffect(() => {
     if (empresaId) {
@@ -97,38 +97,31 @@ export default function DeliveryPage() {
     
     setLoading(true);
     try {
-      const dbInstance = db();
-      if (!dbInstance) return;
+      // Buscar vendas de delivery
+      const { data, error } = await supabase
+        .from('vendas')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .eq('tipo', 'delivery')
+        .order('criado_em', { ascending: false });
 
-      // Buscar vendas de delivery (incluindo iFood)
-      const vendasQuery = query(
-        collection(dbInstance, 'vendas'),
-        where('empresaId', '==', empresaId),
-        where('tipo', '==', 'delivery'),
-        orderBy('criadoEm', 'desc')
-      );
+      if (error) throw error;
       
-      const snapshot = await getDocs(vendasQuery);
-      
-      const vendasLista: VendaDelivery[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        vendasLista.push({
-          id: doc.id,
-          pedidoExternoId: data.pedidoExternoId,
-          canal: data.canal || 'delivery',
-          status: data.status || 'aberta',
-          nomeCliente: data.nomeCliente,
-          telefoneCliente: data.telefoneCliente,
-          enderecoEntrega: data.enderecoEntrega,
-          subtotal: data.subtotal || 0,
-          taxaEntrega: data.taxaEntrega || 0,
-          desconto: data.desconto || 0,
-          total: data.total || 0,
-          observacao: data.observacao,
-          criadoEm: data.criadoEm?.toDate(),
-        });
-      });
+      const vendasLista: VendaDelivery[] = (data || []).map((venda: any) => ({
+        id: venda.id,
+        pedidoExternoId: venda.pedido_externo_id,
+        canal: venda.canal || 'delivery',
+        status: venda.status || 'aberta',
+        nomeCliente: venda.nome_cliente,
+        telefoneCliente: venda.telefone_cliente,
+        enderecoEntrega: venda.endereco_entrega,
+        subtotal: venda.subtotal || 0,
+        taxaEntrega: venda.taxa_entrega || 0,
+        desconto: venda.desconto || 0,
+        total: venda.total || 0,
+        observacao: venda.observacao,
+        criadoEm: venda.criado_em ? new Date(venda.criado_em) : undefined,
+      }));
 
       setVendas(vendasLista);
     } catch (error) {
@@ -141,27 +134,20 @@ export default function DeliveryPage() {
   const carregarItens = async (vendaId: string) => {
     setLoadingItens(true);
     try {
-      const dbInstance = db();
-      if (!dbInstance) return;
+      const { data, error } = await supabase
+        .from('itens_venda')
+        .select('*')
+        .eq('venda_id', vendaId);
 
-      const itensQuery = query(
-        collection(dbInstance, 'itens_venda'),
-        where('vendaId', '==', vendaId)
-      );
+      if (error) throw error;
       
-      const snapshot = await getDocs(itensQuery);
-      
-      const itensLista: ItemVenda[] = [];
-      snapshot.forEach((doc) => {
-        const data = doc.data();
-        itensLista.push({
-          id: doc.id,
-          produtoNome: data.produtoNome || 'Produto',
-          quantidade: data.quantidade || 1,
-          precoUnitario: data.precoUnitario || 0,
-          observacao: data.observacao,
-        });
-      });
+      const itensLista: ItemVenda[] = (data || []).map((item: any) => ({
+        id: item.id,
+        produtoNome: item.nome || 'Produto',
+        quantidade: item.quantidade || 1,
+        precoUnitario: item.preco_unitario || 0,
+        observacao: item.observacao,
+      }));
 
       setItensVenda(itensLista);
     } catch (error) {
@@ -181,13 +167,15 @@ export default function DeliveryPage() {
     
     setAtualizando(true);
     try {
-      const dbInstance = db();
-      if (!dbInstance) return;
+      const { error } = await supabase
+        .from('vendas')
+        .update({
+          status: novoStatus,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq('id', vendaSelecionada.id);
 
-      await updateDoc(doc(dbInstance, 'vendas', vendaSelecionada.id), {
-        status: novoStatus,
-        atualizadoEm: Timestamp.now(),
-      });
+      if (error) throw error;
 
       // Atualizar localmente
       setVendaSelecionada({ ...vendaSelecionada, status: novoStatus });
@@ -229,9 +217,6 @@ export default function DeliveryPage() {
           <p className="text-muted-foreground mt-1">
             Gerencie os pedidos de delivery do iFood e outros canais
           </p>
-          {empresaNome && (
-            <p className="text-sm text-muted-foreground">Empresa: <strong>{empresaNome}</strong></p>
-          )}
         </div>
         <Button variant="outline" onClick={carregarVendas}>
           <RefreshCw className="h-4 w-4 mr-2" />

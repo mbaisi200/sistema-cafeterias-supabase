@@ -36,8 +36,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useEmpresas } from '@/hooks/useFirestore';
 import { getSupabaseClient } from '@/lib/supabase';
-import { createUserWithEmailAndPassword } from '@supabase/supabase-js';
-import { doc, setDoc, Timestamp, collection, query, where, getDocs, updateDoc } from '@supabase/supabase-js';
 import { useState, useEffect } from 'react';
 import {
   Plus,
@@ -99,21 +97,25 @@ export default function ClientesPage() {
   // Carregar dados dos admins das empresas
   useEffect(() => {
     const carregarAdmins = async () => {
-      const dbInstance = db();
-      if (!dbInstance || empresas.length === 0) return;
+      if (empresas.length === 0) return;
 
       try {
-        const usuariosQuery = query(collection(dbInstance, 'usuarios'), where('role', '==', 'admin'));
-        const snapshot = await getDocs(usuariosQuery);
+        const supabase = getSupabaseClient();
+        
+        const { data: usuarios, error } = await supabase
+          .from('usuarios')
+          .select('id, nome, email, empresa_id')
+          .eq('role', 'admin');
+        
+        if (error) throw error;
         
         const adminsMap: Record<string, { nome: string; email: string; id: string }> = {};
-        snapshot.forEach((doc) => {
-          const data = doc.data();
-          if (data.empresaId) {
-            adminsMap[data.empresaId] = {
-              nome: data.nome,
-              email: data.email,
-              id: doc.id,
+        usuarios?.forEach((usuario) => {
+          if (usuario.empresa_id) {
+            adminsMap[usuario.empresa_id] = {
+              nome: usuario.nome || '',
+              email: usuario.email || '',
+              id: usuario.id,
             };
           }
         });
@@ -165,27 +167,34 @@ export default function ClientesPage() {
       const adminEmail = formData.get('admin_email') as string;
       const adminSenha = formData.get('admin_senha') as string;
 
-      const authInstance = auth();
-      if (!authInstance) throw new Error('Firebase não inicializado');
+      const supabase = getSupabaseClient();
 
-      const userCredential = await createUserWithEmailAndPassword(
-        authInstance,
-        adminEmail,
-        adminSenha
-      );
-
-      const dbInstance = db();
-      if (!dbInstance) throw new Error('Firebase não inicializado');
-
-      await setDoc(doc(dbInstance, 'usuarios', userCredential.user.uid), {
+      // Criar usuário no Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email: adminEmail,
-        nome: adminNome,
-        role: 'admin',
-        empresaId: empresaId,
-        ativo: true,
-        criadoEm: Timestamp.now(),
-        atualizadoEm: Timestamp.now(),
+        password: adminSenha,
       });
+
+      if (authError) throw authError;
+
+      if (authData.user) {
+        // Criar registro na tabela usuarios
+        const { error: userError } = await supabase
+          .from('usuarios')
+          .insert({
+            id: authData.user.id,
+            auth_user_id: authData.user.id,
+            email: adminEmail,
+            nome: adminNome,
+            role: 'admin',
+            empresa_id: empresaId,
+            ativo: true,
+            criado_em: new Date().toISOString(),
+            atualizado_em: new Date().toISOString(),
+          });
+
+        if (userError) throw userError;
+      }
 
       toast({
         title: 'Cliente cadastrado com sucesso!',
@@ -200,7 +209,7 @@ export default function ClientesPage() {
       console.error('Erro ao salvar cliente:', error);
       let mensagem = 'Erro ao cadastrar cliente';
       if (error instanceof Error) {
-        if (error.message.includes('email-already-in-use')) {
+        if (error.message.includes('already registered') || error.message.includes('already been registered')) {
           mensagem = 'Este email já está cadastrado no sistema';
         } else {
           mensagem = error.message;
@@ -235,16 +244,19 @@ export default function ClientesPage() {
         plano: formData.get('plano') as string,
       });
 
-      // Atualizar nome do admin no Firestore se necessário
+      // Atualizar nome do admin se necessário
       const novoAdminNome = formData.get('admin_nome') as string;
       if (novoAdminNome && selectedCliente.adminId && novoAdminNome !== selectedCliente.adminNome) {
-        const dbInstance = db();
-        if (dbInstance) {
-          await updateDoc(doc(dbInstance, 'usuarios', selectedCliente.adminId), {
+        const supabase = getSupabaseClient();
+        const { error } = await supabase
+          .from('usuarios')
+          .update({
             nome: novoAdminNome,
-            atualizadoEm: Timestamp.now(),
-          });
-        }
+            atualizado_em: new Date().toISOString(),
+          })
+          .eq('id', selectedCliente.adminId);
+
+        if (error) throw error;
       }
 
       toast({

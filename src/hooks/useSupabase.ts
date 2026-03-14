@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { getSupabaseClient } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContextSupabase';
+import { useAuth } from '@/contexts/AuthContext';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
 // =====================================================
@@ -1323,5 +1323,128 @@ export function useComandas() {
     alterarQuantidadeItem,
     fecharComanda,
     cancelarComanda,
+  };
+}
+
+// =====================================================
+// HOOK: CONFIGURAÇÕES DE CUPOM
+// =====================================================
+export interface ConfiguracoesCupom {
+  nomeEmpresa: string;
+  cnpj: string;
+  endereco: string;
+  telefone: string;
+  mensagemRodape: string;
+  mostrarCPF: boolean;
+  mostrarData: boolean;
+  mostrarHora: boolean;
+  mostrarVendedor: boolean;
+  mostrarDesconto: boolean;
+  tamanhoFonte: 'pequena' | 'media' | 'grande';
+  larguraPapel: number;
+  imprimirAutomatico: boolean;
+  vias: number;
+}
+
+export const configuracoesCupomPadrao: ConfiguracoesCupom = {
+  nomeEmpresa: '',
+  cnpj: '',
+  endereco: '',
+  telefone: '',
+  mensagemRodape: 'Obrigado pela preferência!',
+  mostrarCPF: true,
+  mostrarData: true,
+  mostrarHora: true,
+  mostrarVendedor: true,
+  mostrarDesconto: true,
+  tamanhoFonte: 'media',
+  larguraPapel: 58,
+  imprimirAutomatico: false,
+  vias: 1,
+};
+
+export function useConfiguracoesCupom() {
+  const [configuracoes, setConfiguracoes] = useState<ConfiguracoesCupom>(configuracoesCupomPadrao);
+  const [loading, setLoading] = useState(true);
+  const { empresaId, user } = useAuth();
+  const supabase = getSupabaseClient();
+
+  const carregarConfiguracoes = useCallback(async () => {
+    if (!user || !empresaId) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('cupom_config')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setConfiguracoes({
+          nomeEmpresa: data.nome_empresa || '',
+          cnpj: data.cnpj || '',
+          endereco: data.endereco || '',
+          telefone: data.telefone || '',
+          mensagemRodape: data.mensagem_rodape || 'Obrigado pela preferência!',
+          mostrarCPF: data.mostrar_cpf ?? true,
+          mostrarData: data.mostrar_data ?? true,
+          mostrarHora: data.mostrar_hora ?? true,
+          mostrarVendedor: data.mostrar_vendedor ?? true,
+          mostrarDesconto: data.mostrar_desconto ?? true,
+          tamanhoFonte: data.tamanho_fonte || 'media',
+          larguraPapel: data.largura_papel || 58,
+          imprimirAutomatico: data.imprimir_automatico ?? false,
+          vias: data.vias || 1,
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao carregar configurações do cupom:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [empresaId, user]);
+
+  useEffect(() => {
+    carregarConfiguracoes();
+  }, [carregarConfiguracoes]);
+
+  const salvarConfiguracoes = async (novasConfiguracoes: ConfiguracoesCupom) => {
+    if (!empresaId) throw new Error('Empresa não definida');
+
+    const { error } = await supabase
+      .from('cupom_config')
+      .upsert({
+        empresa_id: empresaId,
+        nome_empresa: novasConfiguracoes.nomeEmpresa,
+        cnpj: novasConfiguracoes.cnpj,
+        endereco: novasConfiguracoes.endereco,
+        telefone: novasConfiguracoes.telefone,
+        mensagem_rodape: novasConfiguracoes.mensagemRodape,
+        mostrar_cpf: novasConfiguracoes.mostrarCPF,
+        mostrar_data: novasConfiguracoes.mostrarData,
+        mostrar_hora: novasConfiguracoes.mostrarHora,
+        mostrar_vendedor: novasConfiguracoes.mostrarVendedor,
+        mostrar_desconto: novasConfiguracoes.mostrarDesconto,
+        tamanho_fonte: novasConfiguracoes.tamanhoFonte,
+        largura_papel: novasConfiguracoes.larguraPapel,
+        imprimir_automatico: novasConfiguracoes.imprimirAutomatico,
+        vias: novasConfiguracoes.vias,
+        atualizado_em: new Date().toISOString(),
+      });
+
+    if (error) throw error;
+    setConfiguracoes(novasConfiguracoes);
+  };
+
+  return {
+    configuracoes,
+    loading,
+    salvarConfiguracoes,
+    carregarConfiguracoes,
   };
 }

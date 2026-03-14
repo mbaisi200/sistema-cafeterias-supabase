@@ -9,7 +9,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getSupabaseClient } from '@/lib/supabase';
-import { updatePassword, reauthenticateWithCredential, EmailAuthProvider } from '@supabase/supabase-js';
 import { KeyRound, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +22,7 @@ export default function AlterarSenhaPage() {
   const [success, setSuccess] = useState(false);
   const { toast } = useToast();
   const { user } = useAuth();
+  const supabase = getSupabaseClient();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,19 +59,24 @@ export default function AlterarSenhaPage() {
     setLoading(true);
 
     try {
-      const authInstance = auth();
-      const currentUser = authInstance?.currentUser;
+      // No Supabase, precisamos verificar a senha atual fazendo login
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: senhaAtual,
+      });
 
-      if (!currentUser || !currentUser.email) {
-        throw new Error('Usuário não está autenticado');
+      if (signInError) {
+        throw new Error('A senha atual está incorreta.');
       }
 
-      // Reautenticar o usuário com a senha atual
-      const credential = EmailAuthProvider.credential(currentUser.email, senhaAtual);
-      await reauthenticateWithCredential(currentUser, credential);
-
       // Atualizar a senha
-      await updatePassword(currentUser, novaSenha);
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: novaSenha,
+      });
+
+      if (updateError) {
+        throw updateError;
+      }
 
       setSuccess(true);
       setSenhaAtual('');
@@ -88,11 +93,11 @@ export default function AlterarSenhaPage() {
       let mensagem = 'Erro ao alterar senha';
 
       if (error instanceof Error) {
-        if (error.message.includes('wrong-password') || error.message.includes('invalid-credential')) {
+        if (error.message.includes('incorrect') || error.message.includes('invalid')) {
           mensagem = 'A senha atual está incorreta.';
-        } else if (error.message.includes('weak-password')) {
+        } else if (error.message.includes('weak')) {
           mensagem = 'A nova senha é muito fraca. Use pelo menos 6 caracteres.';
-        } else if (error.message.includes('too-many-requests')) {
+        } else if (error.message.includes('too many')) {
           mensagem = 'Muitas tentativas. Aguarde alguns minutos e tente novamente.';
         } else {
           mensagem = error.message;
