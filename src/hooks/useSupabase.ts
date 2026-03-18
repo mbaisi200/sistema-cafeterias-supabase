@@ -907,7 +907,17 @@ export function useCaixa() {
         setCaixaAberto({
           id: caixas.id,
           ...caixas,
+          valorInicial: caixas.valor_inicial,
+          valorAtual: caixas.valor_atual,
+          valorFinal: caixas.valor_final,
+          totalEntradas: caixas.total_entradas,
+          totalSaidas: caixas.total_saidas,
+          totalVendas: caixas.total_vendas,
+          abertoPor: caixas.aberto_por,
+          abertoPorNome: caixas.aberto_por_nome,
           abertoEm: new Date(caixas.aberto_em),
+          fechadoPor: caixas.fechado_por,
+          fechadoPorNome: caixas.fechado_por_nome,
           fechadoEm: caixas.fechado_em ? new Date(caixas.fechado_em) : null,
         });
 
@@ -923,6 +933,8 @@ export function useCaixa() {
         setMovimentacoes(movs?.map(m => ({
           id: m.id,
           ...m,
+          formaPagamento: m.forma_pagamento,
+          usuarioNome: m.usuario_nome,
           criadoEm: new Date(m.criado_em),
         })) || []);
       } else {
