@@ -738,47 +738,74 @@ export default function PDVPage() {
         const supabase = getSupabaseClient();
         if (!supabase) throw new Error('Supabase não inicializado');
 
+        // Mapear tipo de venda para o schema
+        const tipoVendaMap: Record<string, string> = {
+          'balcao': 'balcao',
+          'mesa': 'mesa',
+          'delivery': 'delivery',
+          'comanda': 'comanda',
+        };
+
+        // Mapear forma de pagamento para o schema
+        const formaPagamentoMap: Record<string, string> = {
+          'dinheiro': 'dinheiro',
+          'cartao_credito': 'cartao_credito',
+          'cartao_debito': 'cartao_debito',
+          'pix': 'pix',
+          'voucher': 'voucher',
+          'ifood_online': 'ifood_online',
+        };
+
+        // Criar venda com campos corretos do schema
+        const vendaInsert: any = {
+          empresa_id: empresaId,
+          tipo: tipoVendaMap[tipoVenda] || 'balcao',
+          canal: tipoVenda === 'delivery' ? 'delivery' : tipoVenda,
+          status: 'fechada',
+          mesa_id: mesaSelecionada || null,
+          subtotal: total,
+          total: total,
+          forma_pagamento: formaPagamentoMap[formaPagamento] || 'dinheiro',
+          nome_cliente: dadosCupom.nomeCliente || (tipoVenda === 'delivery' ? deliveryInfo.nome : null),
+          telefone_cliente: tipoVenda === 'delivery' ? deliveryInfo.telefone : null,
+          observacao: dadosCupom.cpfCliente ? `CPF: ${dadosCupom.cpfCliente}` : null,
+          criado_por: user?.id,
+          criado_por_nome: user?.nome,
+          fechado_em: new Date().toISOString(),
+        };
+
+        // Adicionar campos de entrega se for delivery
+        if (tipoVenda === 'delivery' && deliveryInfo) {
+          vendaInsert.entrega_logradouro = deliveryInfo.endereco;
+          vendaInsert.entrega_numero = deliveryInfo.numero;
+          vendaInsert.entrega_complemento = deliveryInfo.complemento;
+          vendaInsert.entrega_bairro = deliveryInfo.bairro;
+          vendaInsert.entrega_cidade = deliveryInfo.cidade;
+          vendaInsert.entrega_cep = deliveryInfo.cep;
+          vendaInsert.entrega_referencia = deliveryInfo.observacao;
+          vendaInsert.pedido_externo_id = deliverySelecionado;
+        }
+
         // Criar venda
         const { data: vendaData, error: vendaError } = await supabase
           .from('vendas')
-          .insert({
-            empresa_id: empresaId,
-            mesa_id: mesaSelecionada || null,
-            mesa_numero: numeroMesaSelecionada || null,
-            delivery_id: deliverySelecionado || null,
-            delivery_info: tipoVenda === 'delivery' ? deliveryInfo : null,
-            itens: itensPedido,
-            total,
-            forma_pagamento: formaPagamento,
-            tipo_venda: tipoVenda,
-            status: 'finalizada',
-            cpf_cliente: dadosCupom.cpfCliente || null,
-            nome_cliente: dadosCupom.nomeCliente || null,
-            cupom_impresso: dadosCupom.imprimirCupom,
-            tamanho_cupom: dadosCupom.tamanhoCupom,
-            pagamentos: pagamentos.length > 0 ? pagamentos : [{ forma: formaPagamento, valor: total }],
-            criado_por: user?.id,
-            criado_por_nome: user?.nome,
-            criado_em: new Date().toISOString(),
-          })
+          .insert(vendaInsert)
           .select('id')
           .single();
 
         if (vendaError) throw vendaError;
         vendaId = vendaData.id;
 
-        // Criar itens de venda
+        // Criar itens de venda com campos corretos
         const itensVenda = itensPedido.map(item => ({
           empresa_id: empresaId,
           venda_id: vendaData.id,
           produto_id: item.produtoId,
           nome: item.nome,
-          preco: item.preco,
+          preco_unitario: item.preco,
           quantidade: item.quantidade,
           total: item.preco * item.quantidade,
-          tipo_venda: tipoVenda,
-          cpf_cliente: dadosCupom.cpfCliente || null,
-          criado_em: new Date().toISOString(),
+          observacao: null,
         }));
 
         const { error: itensError } = await supabase
@@ -787,15 +814,15 @@ export default function PDVPage() {
         
         if (itensError) console.error('Erro ao criar itens:', itensError);
 
-        // Criar pagamento(s)
+        // Criar pagamento(s) com campos corretos
         const pagamentosParaSalvar = pagamentos.length > 0 ? pagamentos : [{ forma: formaPagamento, valor: total }];
         const pagamentosInsert = pagamentosParaSalvar.map(pg => ({
           empresa_id: empresaId,
           venda_id: vendaData.id,
-          forma_pagamento: pg.forma,
+          forma_pagamento: formaPagamentoMap[pg.forma] || 'dinheiro',
           valor: pg.valor,
-          cpf_cliente: dadosCupom.cpfCliente || null,
-          criado_em: new Date().toISOString(),
+          troco: 0,
+          observacao: dadosCupom.cpfCliente ? `CPF: ${dadosCupom.cpfCliente}` : null,
         }));
 
         const { error: pagamentosError } = await supabase
