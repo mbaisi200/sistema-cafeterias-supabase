@@ -1,0 +1,19 @@
+// Este arquivo mantém compatibilidade com o código existente
+// Reexporta os hooks do Supabase com os nomes antigos
+
+export {
+  useProdutos,
+  useCategorias,
+  useMesas,
+  useFuncionarios,
+  useVendas,
+  useEmpresas,
+  useContas,
+  useLogs,
+  registrarLog,
+  useCaixa,
+  useComandas,
+  useConfiguracoesCupom,
+  configuracoesCupomPadrao,
+  type ConfiguracoesCupom,
+} from './useSupabase';
