@@ -20,7 +20,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCaixa } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Wallet,
   Plus,
@@ -42,10 +42,160 @@ import {
   AlertTriangle,
   CheckCircle,
   BarChart3,
+  FileDown,
+  Eye,
+  Printer,
+  X,
 } from 'lucide-react';
 
+// Função para gerar PDF do relatório de caixa
+const gerarPDFRelatorioCaixa = (caixa: any, empresa: string) => {
+  const dataAbertura = caixa.dataAbertura?.toLocaleString?.('pt-BR') || caixa.abertoEm?.toLocaleString?.('pt-BR') || '-';
+  const dataFechamento = caixa.dataFechamento?.toLocaleString?.('pt-BR') || caixa.fechadoEm?.toLocaleString?.('pt-BR') || '-';
+  
+  // Criar conteúdo HTML para impressão
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>Relatório de Caixa</title>
+      <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+        .header h1 { margin: 0; font-size: 24px; }
+        .header h2 { margin: 5px 0; font-size: 18px; color: #666; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .info-box { background: #f5f5f5; padding: 10px; border-radius: 5px; }
+        .info-box p { margin: 3px 0; font-size: 12px; }
+        .info-box strong { font-size: 14px; }
+        .section { margin-bottom: 20px; }
+        .section-title { background: #333; color: white; padding: 8px; font-weight: bold; }
+        .item { display: flex; justify-content: space-between; padding: 8px; border-bottom: 1px solid #eee; }
+        .item.dinheiro { background: #e3f2fd; }
+        .item.credito { background: #f3e5f5; }
+        .item.debito { background: #e0f2f1; }
+        .item.pix { background: #e8f5e9; }
+        .total-row { background: #f5f5f5; font-weight: bold; font-size: 16px; }
+        .resumo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .resumo-item { padding: 10px; border-radius: 5px; }
+        .resumo-item.entrada { background: #e8f5e9; }
+        .resumo-item.saida { background: #ffebee; }
+        .quebra { padding: 15px; border-radius: 5px; text-align: center; font-size: 18px; font-weight: bold; }
+        .quebra.positivo { background: #c8e6c9; color: #2e7d32; }
+        .quebra.negativo { background: #ffcdd2; color: #c62828; }
+        .quebra.zero { background: #e8f5e9; color: #388e3c; }
+        @media print { body { padding: 0; } }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <h1>${empresa}</h1>
+        <h2>Relatório de Caixa</h2>
+      </div>
+      
+      <div class="info-grid">
+        <div class="info-box">
+          <p><strong>Abertura:</strong></p>
+          <p>${dataAbertura}</p>
+          <p>Por: ${caixa.abertoPor || '-'}</p>
+        </div>
+        <div class="info-box">
+          <p><strong>Fechamento:</strong></p>
+          <p>${dataFechamento}</p>
+          <p>Por: ${caixa.fechadoPor || '-'}</p>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="section-title">VENDAS POR FORMA DE PAGAMENTO</div>
+        <div class="item dinheiro">
+          <span>💵 Dinheiro</span>
+          <strong>R$ ${(caixa.vendasDinheiro || 0).toFixed(2)}</strong>
+        </div>
+        <div class="item credito">
+          <span>💳 Cartão Crédito</span>
+          <strong>R$ ${(caixa.vendasCredito || 0).toFixed(2)}</strong>
+        </div>
+        <div class="item debito">
+          <span>💳 Cartão Débito</span>
+          <strong>R$ ${(caixa.vendasDebito || 0).toFixed(2)}</strong>
+        </div>
+        <div class="item pix">
+          <span>📱 PIX</span>
+          <strong>R$ ${(caixa.vendasPix || 0).toFixed(2)}</strong>
+        </div>
+        <div class="item total-row">
+          <span>TOTAL DE VENDAS</span>
+          <span>R$ ${(caixa.totalVendas || 0).toFixed(2)}</span>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="section-title">OUTRAS MOVIMENTAÇÕES</div>
+        <div class="item">
+          <span>⬆️ Reforços</span>
+          <strong style="color: green;">+ R$ ${(caixa.reforcos || 0).toFixed(2)}</strong>
+        </div>
+        <div class="item">
+          <span>⬇️ Sangrias</span>
+          <strong style="color: red;">- R$ ${(caixa.sangrias || 0).toFixed(2)}</strong>
+        </div>
+      </div>
+      
+      <div class="section">
+        <div class="section-title">RESUMO DO CAIXA</div>
+        <div class="resumo-grid">
+          <div class="resumo-item entrada">
+            <p>Valor Inicial</p>
+            <strong>R$ ${(caixa.valorInicial || 0).toFixed(2)}</strong>
+          </div>
+          <div class="resumo-item entrada">
+            <p>Total Entradas</p>
+            <strong>R$ ${(caixa.totalEntradas || 0).toFixed(2)}</strong>
+          </div>
+          <div class="resumo-item saida">
+            <p>Total Saídas</p>
+            <strong>R$ ${(caixa.totalSaidas || 0).toFixed(2)}</strong>
+          </div>
+          <div class="resumo-item entrada">
+            <p>Valor Final</p>
+            <strong>R$ ${(caixa.valorFinal || caixa.valorAtual || 0).toFixed(2)}</strong>
+          </div>
+        </div>
+      </div>
+      
+      ${(caixa.quebra || 0) !== 0 ? `
+        <div class="quebra ${caixa.quebra > 0 ? 'positivo' : 'negativo'}">
+          ${caixa.quebra > 0 ? '💰 SOBRA' : '⚠️ FALTA'}: R$ ${Math.abs(caixa.quebra).toFixed(2)}
+        </div>
+      ` : `
+        <div class="quebra zero">
+          ✓ Caixa conferido - Sem diferenças
+        </div>
+      `}
+      
+      <p style="text-align: center; margin-top: 30px; color: #666; font-size: 12px;">
+        Relatório gerado em ${new Date().toLocaleString('pt-BR')}
+      </p>
+    </body>
+    </html>
+  `;
+  
+  // Abrir janela de impressão
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => {
+      printWindow.print();
+    }, 250);
+  }
+};
+
 export default function CaixaPage() {
-  const { caixaAberto, movimentacoes, historico, loading, abrirCaixa, fecharCaixa, adicionarReforco, adicionarSangria, resumo } = useCaixa();
+  const { caixaAberto, movimentacoes, historico, loading, abrirCaixa, fecharCaixa, adicionarReforco, adicionarSangria, resumo, carregarCaixaPorId } = useCaixa();
   const { toast } = useToast();
   
   const [dialogAbertura, setDialogAbertura] = useState(false);
@@ -54,6 +204,11 @@ export default function CaixaPage() {
   const [dialogSangria, setDialogSangria] = useState(false);
   const [dialogRelatorioUltimo, setDialogRelatorioUltimo] = useState(false);
   const [saving, setSaving] = useState(false);
+  
+  // Estados para o seletor de caixa
+  const [caixaSelecionadoId, setCaixaSelecionadoId] = useState<string>('');
+  const [caixaSelecionado, setCaixaSelecionado] = useState<any>(null);
+  const [loadingCaixaSelecionado, setLoadingCaixaSelecionado] = useState(false);
   
   // Form states
   const [valorAbertura, setValorAbertura] = useState('');
@@ -476,7 +631,7 @@ export default function CaixaPage() {
                     {historico.map((cx) => (
                       <div 
                         key={cx.id} 
-                        className="flex items-center justify-between p-4 rounded-lg border bg-gray-50"
+                        className="flex items-center justify-between p-4 rounded-lg border bg-gray-50 hover:bg-gray-100 transition-colors"
                       >
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
@@ -487,26 +642,50 @@ export default function CaixaPage() {
                               {cx.abertoEm?.toLocaleDateString('pt-BR')}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              Aberto por {cx.abertoPorNome} • Fechado por {cx.fechadoPorNome}
+                              Aberto por {cx.abertoPorNome || cx.aberto_por_nome} • Fechado por {cx.fechadoPorNome || cx.fechado_por_nome}
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold">R$ {(cx.valorFinal || 0).toFixed(2)}</p>
-                          <div className="flex items-center gap-2">
-                            {(cx.quebra || 0) !== 0 && (
-                              <Badge 
-                                variant={cx.quebra > 0 ? 'default' : 'destructive'}
-                                className="text-xs"
-                              >
-                                {cx.quebra > 0 ? 'Sobra' : 'Falta'}: R$ {Math.abs(cx.quebra).toFixed(2)}
-                              </Badge>
-                            )}
-                            {cx.quebra === 0 && (
-                              <Badge variant="outline" className="text-xs bg-green-100 text-green-700">
-                                Conferido
-                              </Badge>
-                            )}
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <p className="text-lg font-bold">R$ {(cx.valorFinal || cx.valor_final || 0).toFixed(2)}</p>
+                            <div className="flex items-center gap-2">
+                              {(cx.quebra || 0) !== 0 && (
+                                <Badge 
+                                  variant={cx.quebra > 0 ? 'default' : 'destructive'}
+                                  className="text-xs"
+                                >
+                                  {cx.quebra > 0 ? 'Sobra' : 'Falta'}: R$ {Math.abs(cx.quebra).toFixed(2)}
+                                </Badge>
+                              )}
+                              {cx.quebra === 0 && (
+                                <Badge variant="outline" className="text-xs bg-green-100 text-green-700">
+                                  Conferido
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-blue-600 border-blue-300 hover:bg-blue-50"
+                              onClick={async () => {
+                                setLoadingCaixaSelecionado(true);
+                                const caixa = await carregarCaixaPorId(cx.id);
+                                setCaixaSelecionado(caixa);
+                                setDialogRelatorioUltimo(true);
+                                setLoadingCaixaSelecionado(false);
+                              }}
+                              disabled={loadingCaixaSelecionado}
+                            >
+                              {loadingCaixaSelecionado ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Eye className="h-4 w-4 mr-1" />
+                              )}
+                              Ver Relatório
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -875,121 +1054,168 @@ export default function CaixaPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Dialog Relatório Último Caixa */}
+        {/* Dialog Relatório do Caixa Selecionado */}
         <Dialog open={dialogRelatorioUltimo} onOpenChange={setDialogRelatorioUltimo}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-blue-600" />
-                Relatório do Último Caixa Fechado
+                Relatório de Caixa
               </DialogTitle>
               <DialogDescription>
-                Resumo do fechamento anterior
+                Resumo detalhado do caixa selecionado
               </DialogDescription>
             </DialogHeader>
             
-            {historico.length > 0 && historico[0] && (
-              <div className="space-y-4 py-4">
-                {/* Informações do Caixa */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <p className="text-sm text-blue-600">Abertura</p>
-                    <p className="font-semibold">{historico[0].abertoEm?.toLocaleString('pt-BR')}</p>
-                    <p className="text-xs text-muted-foreground">por {historico[0].abertoPorNome}</p>
+            {loadingCaixaSelecionado ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              </div>
+            ) : caixaSelecionado ? (
+              <ScrollArea className="flex-1 max-h-[60vh]">
+                <div className="space-y-4 py-4 pr-4">
+                  {/* Informações do Caixa */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-3 bg-blue-50 rounded-lg">
+                      <p className="text-sm text-blue-600 font-medium">Abertura</p>
+                      <p className="font-semibold">{caixaSelecionado.dataAbertura?.toLocaleString?.('pt-BR') || '-'}</p>
+                      <p className="text-xs text-muted-foreground">por {caixaSelecionado.abertoPor || '-'}</p>
+                    </div>
+                    <div className="p-3 bg-red-50 rounded-lg">
+                      <p className="text-sm text-red-600 font-medium">Fechamento</p>
+                      <p className="font-semibold">{caixaSelecionado.dataFechamento?.toLocaleString?.('pt-BR') || '-'}</p>
+                      <p className="text-xs text-muted-foreground">por {caixaSelecionado.fechadoPor || '-'}</p>
+                    </div>
                   </div>
-                  <div className="p-3 bg-red-50 rounded-lg">
-                    <p className="text-sm text-red-600">Fechamento</p>
-                    <p className="font-semibold">{historico[0].fechadoEm?.toLocaleString('pt-BR')}</p>
-                    <p className="text-xs text-muted-foreground">por {historico[0].fechadoPorNome}</p>
-                  </div>
-                </div>
 
-                {/* Vendas por Forma de Pagamento */}
-                <div className="border rounded-lg overflow-hidden">
-                  <div className="bg-gray-100 px-4 py-2 font-semibold text-sm text-gray-700">
-                    VENDAS POR FORMA DE PAGAMENTO
+                  {/* Vendas por Forma de Pagamento */}
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-gray-100 px-4 py-2 font-semibold text-sm text-gray-700">
+                      VENDAS POR FORMA DE PAGAMENTO
+                    </div>
+                    <div className="divide-y">
+                      <div className="flex items-center justify-between px-4 py-3 bg-blue-50">
+                        <div className="flex items-center gap-2">
+                          <Banknote className="h-5 w-5 text-blue-600" />
+                          <span className="font-medium">Dinheiro</span>
+                        </div>
+                        <span className="font-bold text-lg text-blue-700">
+                          R$ {(caixaSelecionado.vendasDinheiro || 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between px-4 py-3 bg-purple-50">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="h-5 w-5 text-purple-600" />
+                          <span className="font-medium">Cartão Crédito</span>
+                        </div>
+                        <span className="font-bold text-lg text-purple-700">
+                          R$ {(caixaSelecionado.vendasCredito || 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between px-4 py-3 bg-teal-50">
+                        <div className="flex items-center gap-2">
+                          <CreditCard className="h-5 w-5 text-teal-600" />
+                          <span className="font-medium">Cartão Débito</span>
+                        </div>
+                        <span className="font-bold text-lg text-teal-700">
+                          R$ {(caixaSelecionado.vendasDebito || 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between px-4 py-3 bg-cyan-50">
+                        <div className="flex items-center gap-2">
+                          <Smartphone className="h-5 w-5 text-cyan-600" />
+                          <span className="font-medium">PIX</span>
+                        </div>
+                        <span className="font-bold text-lg text-cyan-700">
+                          R$ {(caixaSelecionado.vendasPix || 0).toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between px-4 py-3 bg-gray-100 font-bold">
+                        <span>TOTAL DE VENDAS</span>
+                        <span className="text-xl">R$ {(caixaSelecionado.totalVendas || 0).toFixed(2)}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="divide-y">
-                    <div className="flex items-center justify-between px-4 py-3 bg-blue-50">
-                      <div className="flex items-center gap-2">
-                        <Banknote className="h-5 w-5 text-blue-600" />
-                        <span className="font-medium">Dinheiro</span>
-                      </div>
-                      <span className="font-bold text-lg text-blue-700">
-                        R$ {(historico[0].vendasDinheiro || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between px-4 py-3 bg-purple-50">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="h-5 w-5 text-purple-600" />
-                        <span className="font-medium">Cartão Crédito</span>
-                      </div>
-                      <span className="font-bold text-lg text-purple-700">
-                        R$ {(historico[0].vendasCredito || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between px-4 py-3 bg-teal-50">
-                      <div className="flex items-center gap-2">
-                        <CreditCard className="h-5 w-5 text-teal-600" />
-                        <span className="font-medium">Cartão Débito</span>
-                      </div>
-                      <span className="font-bold text-lg text-teal-700">
-                        R$ {(historico[0].vendasDebito || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between px-4 py-3 bg-cyan-50">
-                      <div className="flex items-center gap-2">
-                        <Smartphone className="h-5 w-5 text-cyan-600" />
-                        <span className="font-medium">PIX</span>
-                      </div>
-                      <span className="font-bold text-lg text-cyan-700">
-                        R$ {(historico[0].vendasPix || 0).toFixed(2)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between px-4 py-3 bg-gray-100 font-bold">
-                      <span>TOTAL DE VENDAS</span>
-                      <span className="text-xl">R$ {(historico[0].totalVendas || 0).toFixed(2)}</span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Resumo do Caixa */}
-                <div className="border rounded-lg overflow-hidden bg-gray-50">
-                  <div className="bg-gray-200 px-4 py-2 font-semibold text-sm text-gray-700">
-                    RESUMO DO CAIXA
-                  </div>
-                  <div className="p-4 space-y-2">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Valor Inicial:</span>
-                      <span className="font-bold">R$ {(historico[0].valorInicial || 0).toFixed(2)}</span>
+                  {/* Outras Movimentações */}
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="bg-gray-100 px-4 py-2 font-semibold text-sm text-gray-700">
+                      OUTRAS MOVIMENTAÇÕES
                     </div>
-                    <div className="flex justify-between text-green-700">
-                      <span>Total Entradas:</span>
-                      <span className="font-bold">+ R$ {(historico[0].totalEntradas || 0).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-red-700">
-                      <span>Total Saídas:</span>
-                      <span className="font-bold">- R$ {(historico[0].totalSaidas || 0).toFixed(2)}</span>
-                    </div>
-                    <hr />
-                    <div className="flex justify-between text-lg">
-                      <span className="font-semibold">Valor Final:</span>
-                      <span className="font-bold text-xl">R$ {(historico[0].valorFinal || 0).toFixed(2)}</span>
-                    </div>
-                    {(historico[0].quebra || 0) !== 0 && (
-                      <div className={`mt-2 p-2 rounded ${historico[0].quebra > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                        <strong>{historico[0].quebra > 0 ? 'Sobra' : 'Falta'}:</strong> R$ {Math.abs(historico[0].quebra).toFixed(2)}
+                    <div className="divide-y">
+                      <div className="flex items-center justify-between px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <ArrowUpCircle className="h-5 w-5 text-green-600" />
+                          <span>Reforços</span>
+                        </div>
+                        <span className="font-bold text-green-600">
+                          + R$ {(caixaSelecionado.reforcos || 0).toFixed(2)}
+                        </span>
                       </div>
-                    )}
+                      <div className="flex items-center justify-between px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <ArrowDownCircle className="h-5 w-5 text-red-600" />
+                          <span>Sangrias</span>
+                        </div>
+                        <span className="font-bold text-red-600">
+                          - R$ {(caixaSelecionado.sangrias || 0).toFixed(2)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Resumo do Caixa */}
+                  <div className="border rounded-lg overflow-hidden bg-gray-50">
+                    <div className="bg-gray-200 px-4 py-2 font-semibold text-sm text-gray-700">
+                      RESUMO DO CAIXA
+                    </div>
+                    <div className="p-4 space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Valor Inicial:</span>
+                        <span className="font-bold">R$ {(caixaSelecionado.valorInicial || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-green-700">
+                        <span>Total Entradas:</span>
+                        <span className="font-bold">+ R$ {(caixaSelecionado.totalEntradas || 0).toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-red-700">
+                        <span>Total Saídas:</span>
+                        <span className="font-bold">- R$ {(caixaSelecionado.totalSaidas || 0).toFixed(2)}</span>
+                      </div>
+                      <hr />
+                      <div className="flex justify-between text-lg">
+                        <span className="font-semibold">Valor Final:</span>
+                        <span className="font-bold text-xl">R$ {(caixaSelecionado.valorFinal || caixaSelecionado.valorAtual || 0).toFixed(2)}</span>
+                      </div>
+                      {(caixaSelecionado.quebra || 0) !== 0 && (
+                        <div className={`mt-2 p-2 rounded ${caixaSelecionado.quebra > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                          <strong>{caixaSelecionado.quebra > 0 ? 'Sobra' : 'Falta'}:</strong> R$ {Math.abs(caixaSelecionado.quebra).toFixed(2)}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
+              </ScrollArea>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                Nenhum caixa selecionado
               </div>
             )}
 
-            <DialogFooter>
-              <Button onClick={() => setDialogRelatorioUltimo(false)}>
+            <DialogFooter className="gap-2 sm:gap-0 flex-wrap">
+              <Button variant="outline" onClick={() => setDialogRelatorioUltimo(false)}>
+                <X className="h-4 w-4 mr-2" />
                 Fechar
               </Button>
+              {caixaSelecionado && (
+                <Button 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => gerarPDFRelatorioCaixa(caixaSelecionado, 'Sistema Cafeterias')}
+                >
+                  <FileDown className="h-4 w-4 mr-2" />
+                  Exportar PDF
+                </Button>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

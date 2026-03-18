@@ -1853,147 +1853,160 @@ export default function PDVPage() {
 
       {/* DIALOG RELATÓRIO DO DIA */}
       <Dialog open={dialogRelatorio} onOpenChange={setDialogRelatorio}>
-        <DialogContent className="max-w-lg border border-border bg-background">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-foreground">
-              <BarChart3 className="h-5 w-5 text-blue-600" />
-              Relatório de Vendas do Dia
-            </DialogTitle>
+        <DialogContent className="max-w-lg max-h-[85vh] border border-border bg-background flex flex-col">
+          <DialogHeader className="flex-shrink-0">
+            <div className="flex items-center justify-between">
+              <DialogTitle className="flex items-center gap-2 text-xl font-bold text-foreground">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+                Relatório de Vendas do Dia
+              </DialogTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 hover:bg-gray-100"
+                onClick={() => setDialogRelatorio(false)}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
             <DialogDescription className="text-muted-foreground">
               Resumo das vendas por forma de pagamento
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {/* Vendas por forma de pagamento */}
-            <div className="border rounded-lg overflow-hidden">
-              <div className="bg-gray-100 px-4 py-2 font-semibold text-sm text-gray-700">
-                VENDAS POR FORMA DE PAGAMENTO
+          <ScrollArea className="flex-1 max-h-[55vh] pr-4">
+            <div className="space-y-3">
+              {/* Vendas por forma de pagamento */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-gray-100 px-3 py-1.5 font-semibold text-xs text-gray-700">
+                  VENDAS POR FORMA DE PAGAMENTO
+                </div>
+                <div className="divide-y">
+                  <div className="flex items-center justify-between px-3 py-2 bg-green-50">
+                    <div className="flex items-center gap-2">
+                      <Banknote className="h-4 w-4 text-green-600" />
+                      <span className="font-medium text-sm text-green-800">Dinheiro</span>
+                    </div>
+                    <span className="font-bold text-green-700">
+                      R$ {resumo.vendasDinheiro.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 bg-purple-50">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-purple-600" />
+                      <span className="font-medium text-sm text-purple-800">Cartão Crédito</span>
+                    </div>
+                    <span className="font-bold text-purple-700">
+                      R$ {resumo.vendasCredito.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 bg-indigo-50">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-4 w-4 text-indigo-600" />
+                      <span className="font-medium text-sm text-indigo-800">Cartão Débito</span>
+                    </div>
+                    <span className="font-bold text-indigo-700">
+                      R$ {resumo.vendasDebito.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 bg-cyan-50">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="h-4 w-4 text-cyan-600" />
+                      <span className="font-medium text-sm text-cyan-800">PIX</span>
+                    </div>
+                    <span className="font-bold text-cyan-700">
+                      R$ {resumo.vendasPix.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 bg-gray-100 font-bold">
+                    <span className="text-sm text-gray-800">TOTAL DE VENDAS</span>
+                    <span className="text-gray-900">R$ {resumo.totalVendas.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
-              <div className="divide-y">
-                <div className="flex items-center justify-between px-4 py-3 bg-green-50">
-                  <div className="flex items-center gap-2">
-                    <Banknote className="h-5 w-5 text-green-600" />
-                    <span className="font-medium text-green-800">Dinheiro</span>
-                  </div>
-                  <span className="font-bold text-lg text-green-700">
-                    R$ {resumo.vendasDinheiro.toFixed(2)}
-                  </span>
+
+              {/* Outras movimentações */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-gray-100 px-3 py-1.5 font-semibold text-xs text-gray-700">
+                  OUTRAS MOVIMENTAÇÕES
                 </div>
-                <div className="flex items-center justify-between px-4 py-3 bg-purple-50">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-purple-600" />
-                    <span className="font-medium text-purple-800">Cartão Crédito</span>
+                <div className="divide-y">
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-green-600" />
+                      <span className="text-sm">Reforços</span>
+                    </div>
+                    <span className="font-bold text-green-600">
+                      + R$ {resumo.reforcos.toFixed(2)}
+                    </span>
                   </div>
-                  <span className="font-bold text-lg text-purple-700">
-                    R$ {resumo.vendasCredito.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between px-4 py-3 bg-indigo-50">
-                  <div className="flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-indigo-600" />
-                    <span className="font-medium text-indigo-800">Cartão Débito</span>
+                  <div className="flex items-center justify-between px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <TrendingUp className="h-4 w-4 text-red-600 rotate-180" />
+                      <span className="text-sm">Sangrias</span>
+                    </div>
+                    <span className="font-bold text-red-600">
+                      - R$ {resumo.sangrias.toFixed(2)}
+                    </span>
                   </div>
-                  <span className="font-bold text-lg text-indigo-700">
-                    R$ {resumo.vendasDebito.toFixed(2)}
-                  </span>
                 </div>
-                <div className="flex items-center justify-between px-4 py-3 bg-cyan-50">
-                  <div className="flex items-center gap-2">
-                    <Smartphone className="h-5 w-5 text-cyan-600" />
-                    <span className="font-medium text-cyan-800">PIX</span>
+              </div>
+
+              {/* Resumo do caixa */}
+              <div className="border rounded-lg overflow-hidden bg-blue-50">
+                <div className="bg-blue-100 px-3 py-1.5 font-semibold text-xs text-blue-700">
+                  RESUMO DO CAIXA
+                </div>
+                <div className="p-3 space-y-1">
+                  <div className="flex justify-between text-sm text-blue-800">
+                    <span>Valor Inicial:</span>
+                    <span className="font-bold">R$ {resumo.valorInicial.toFixed(2)}</span>
                   </div>
-                  <span className="font-bold text-lg text-cyan-700">
-                    R$ {resumo.vendasPix.toFixed(2)}
-                  </span>
+                  <div className="flex justify-between text-sm text-green-700">
+                    <span>Total Entradas:</span>
+                    <span className="font-bold">+ R$ {resumo.totalEntradas.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm text-red-700">
+                    <span>Total Saídas:</span>
+                    <span className="font-bold">- R$ {resumo.totalSaidas.toFixed(2)}</span>
+                  </div>
+                  <hr className="border-blue-200 my-1" />
+                  <div className="flex justify-between">
+                    <span className="font-semibold text-blue-900">Valor em Caixa:</span>
+                    <span className="font-bold text-lg text-blue-700">
+                      R$ {resumo.valorAtual.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between px-4 py-3 bg-gray-100 font-bold">
-                  <span className="text-gray-800">TOTAL DE VENDAS</span>
-                  <span className="text-xl text-gray-900">R$ {resumo.totalVendas.toFixed(2)}</span>
+              </div>
+
+              {/* Destaque para valor em dinheiro esperado */}
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex justify-between items-center">
+                  <div>
+                    <span className="text-xs text-yellow-800 font-medium">Valor esperado em DINHEIRO:</span>
+                    <p className="text-xs text-yellow-600">(Valor inicial + vendas dinheiro + reforços - sangrias)</p>
+                  </div>
+                  <span className="font-bold text-lg text-yellow-700">
+                    R$ {(
+                      resumo.valorInicial + 
+                      resumo.vendasDinheiro + 
+                      resumo.reforcos - 
+                      resumo.sangrias
+                    ).toFixed(2)}
+                  </span>
                 </div>
               </div>
             </div>
+          </ScrollArea>
 
-            {/* Outras movimentações */}
-            <div className="border rounded-lg overflow-hidden">
-              <div className="bg-gray-100 px-4 py-2 font-semibold text-sm text-gray-700">
-                OUTRAS MOVIMENTAÇÕES
-              </div>
-              <div className="divide-y">
-                <div className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-green-600" />
-                    <span>Reforços</span>
-                  </div>
-                  <span className="font-bold text-green-600">
-                    + R$ {resumo.reforcos.toFixed(2)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-5 w-5 text-red-600 rotate-180" />
-                    <span>Sangrias</span>
-                  </div>
-                  <span className="font-bold text-red-600">
-                    - R$ {resumo.sangrias.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Resumo do caixa */}
-            <div className="border rounded-lg overflow-hidden bg-blue-50">
-              <div className="bg-blue-100 px-4 py-2 font-semibold text-sm text-blue-700">
-                RESUMO DO CAIXA
-              </div>
-              <div className="p-4 space-y-2">
-                <div className="flex justify-between text-blue-800">
-                  <span>Valor Inicial:</span>
-                  <span className="font-bold">R$ {resumo.valorInicial.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-green-700">
-                  <span>Total Entradas:</span>
-                  <span className="font-bold">+ R$ {resumo.totalEntradas.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-red-700">
-                  <span>Total Saídas:</span>
-                  <span className="font-bold">- R$ {resumo.totalSaidas.toFixed(2)}</span>
-                </div>
-                <hr className="border-blue-200" />
-                <div className="flex justify-between text-lg">
-                  <span className="font-semibold text-blue-900">Valor em Caixa:</span>
-                  <span className="font-bold text-xl text-blue-700">
-                    R$ {resumo.valorAtual.toFixed(2)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Destaque para valor em dinheiro esperado */}
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <div className="flex justify-between items-center">
-                <div>
-                  <span className="text-sm text-yellow-800 font-medium">Valor esperado em DINHEIRO:</span>
-                  <p className="text-xs text-yellow-600">(Valor inicial + vendas dinheiro + reforços - sangrias)</p>
-                </div>
-                <span className="font-bold text-xl text-yellow-700">
-                  R$ {(
-                    resumo.valorInicial + 
-                    resumo.vendasDinheiro + 
-                    resumo.reforcos - 
-                    resumo.sangrias
-                  ).toFixed(2)}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-2">
+          <div className="flex gap-3 pt-3 border-t flex-shrink-0">
             <Button 
               variant="outline" 
               onClick={() => setDialogRelatorio(false)} 
               className="flex-1 font-bold"
             >
+              <X className="h-4 w-4 mr-2" />
               Fechar
             </Button>
           </div>

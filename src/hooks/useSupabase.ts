@@ -1200,6 +1200,69 @@ export function useCaixa() {
     fechadoPor: ultimoCaixa.fechadoPorNome || ultimoCaixa.fechado_por_nome,
   } : null;
 
+  // Função para carregar dados de um caixa específico pelo ID
+  const carregarCaixaPorId = async (caixaId: string) => {
+    if (!empresaId) return null;
+
+    try {
+      // Buscar dados do caixa
+      const { data: caixa, error: caixaError } = await supabase
+        .from('caixas')
+        .select('*')
+        .eq('id', caixaId)
+        .single();
+
+      if (caixaError) throw caixaError;
+
+      // Buscar movimentações do caixa
+      const { data: movs, error: movsError } = await supabase
+        .from('movimentacoes_caixa')
+        .select('*')
+        .eq('caixa_id', caixaId)
+        .order('criado_em', { ascending: false });
+
+      if (movsError) throw movsError;
+
+      const movimentacoesCaixa = movs?.map(m => ({
+        id: m.id,
+        ...m,
+        tipo: m.tipo,
+        formaPagamento: m.forma_pagamento,
+        usuarioNome: m.usuario_nome,
+        criadoEm: new Date(m.criado_em),
+      })) || [];
+
+      // Calcular resumo
+      const resumoCaixa = {
+        id: caixa.id,
+        valorInicial: caixa.valor_inicial || 0,
+        valorAtual: caixa.valor_atual || 0,
+        valorFinal: caixa.valor_final || 0,
+        totalEntradas: caixa.total_entradas || 0,
+        totalSaidas: caixa.total_saidas || 0,
+        totalVendas: caixa.total_vendas || 0,
+        vendasDinheiro: movimentacoesCaixa.filter((m: any) => m.tipo === 'venda' && (m.formaPagamento === 'dinheiro' || m.forma_pagamento === 'dinheiro')).reduce((acc: number, m: any) => acc + (m.valor || 0), 0),
+        vendasCredito: movimentacoesCaixa.filter((m: any) => m.tipo === 'venda' && (m.formaPagamento === 'cartao_credito' || m.formaPagamento === 'credito' || m.forma_pagamento === 'cartao_credito' || m.forma_pagamento === 'credito')).reduce((acc: number, m: any) => acc + (m.valor || 0), 0),
+        vendasDebito: movimentacoesCaixa.filter((m: any) => m.tipo === 'venda' && (m.formaPagamento === 'cartao_debito' || m.formaPagamento === 'debito' || m.forma_pagamento === 'cartao_debito' || m.forma_pagamento === 'debito')).reduce((acc: number, m: any) => acc + (m.valor || 0), 0),
+        vendasPix: movimentacoesCaixa.filter((m: any) => m.tipo === 'venda' && (m.formaPagamento === 'pix' || m.forma_pagamento === 'pix')).reduce((acc: number, m: any) => acc + (m.valor || 0), 0),
+        reforcos: movimentacoesCaixa.filter((m: any) => m.tipo === 'reforco').reduce((acc: number, m: any) => acc + (m.valor || 0), 0),
+        sangrias: movimentacoesCaixa.filter((m: any) => m.tipo === 'sangria').reduce((acc: number, m: any) => acc + (m.valor || 0), 0),
+        quebra: caixa.quebra || 0,
+        dataAbertura: caixa.aberto_em ? new Date(caixa.aberto_em) : null,
+        dataFechamento: caixa.fechado_em ? new Date(caixa.fechado_em) : null,
+        abertoPor: caixa.aberto_por_nome,
+        fechadoPor: caixa.fechado_por_nome,
+        status: caixa.status,
+        movimentacoes: movimentacoesCaixa,
+      };
+
+      return resumoCaixa;
+    } catch (error) {
+      console.error('Erro ao carregar caixa por ID:', error);
+      return null;
+    }
+  };
+
   return {
     caixaAberto,
     movimentacoes,
@@ -1212,6 +1275,7 @@ export function useCaixa() {
     fecharCaixa,
     resumo,
     resumoUltimoCaixa,
+    carregarCaixaPorId,
   };
 }
 
