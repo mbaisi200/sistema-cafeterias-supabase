@@ -561,60 +561,168 @@ export default function CaixaPage() {
 
         {/* Dialog Fechamento de Caixa */}
         <Dialog open={dialogFechamento} onOpenChange={setDialogFechamento}>
-          <DialogContent>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <Lock className="h-5 w-5 text-red-600" />
-                Fechar Caixa
+                Fechar Caixa - Relatório do Dia
               </DialogTitle>
               <DialogDescription>
-                Confira os valores e informe o valor final em caixa
+                Confira o resumo de vendas por forma de pagamento
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              <div className="p-4 bg-gray-100 rounded-lg space-y-2">
-                <div className="flex justify-between">
-                  <span>Valor Inicial:</span>
-                  <span className="font-bold">R$ {resumo.valorInicial.toFixed(2)}</span>
+              
+              {/* Relatório de Vendas por Forma de Pagamento */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-gray-100 px-4 py-2 font-semibold text-sm">
+                  VENDAS POR FORMA DE PAGAMENTO
                 </div>
-                <div className="flex justify-between text-green-600">
-                  <span>Total Entradas:</span>
-                  <span className="font-bold">+ R$ {resumo.totalEntradas.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-red-600">
-                  <span>Total Saídas:</span>
-                  <span className="font-bold">- R$ {resumo.totalSaidas.toFixed(2)}</span>
-                </div>
-                <hr />
-                <div className="flex justify-between text-lg">
-                  <span>Valor Esperado:</span>
-                  <span className="font-bold text-blue-600">R$ {resumo.valorAtual.toFixed(2)}</span>
+                <div className="divide-y">
+                  <div className="flex items-center justify-between px-4 py-3 bg-blue-50">
+                    <div className="flex items-center gap-2">
+                      <Banknote className="h-5 w-5 text-blue-600" />
+                      <span className="font-medium">Dinheiro</span>
+                    </div>
+                    <span className="font-bold text-lg text-blue-600">
+                      R$ {resumo.vendasDinheiro.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3 bg-purple-50">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-purple-600" />
+                      <span className="font-medium">Cartão Crédito</span>
+                    </div>
+                    <span className="font-bold text-lg text-purple-600">
+                      R$ {resumo.vendasCredito.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3 bg-teal-50">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-teal-600" />
+                      <span className="font-medium">Cartão Débito</span>
+                    </div>
+                    <span className="font-bold text-lg text-teal-600">
+                      R$ {resumo.vendasDebito.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3 bg-green-50">
+                    <div className="flex items-center gap-2">
+                      <Smartphone className="h-5 w-5 text-green-600" />
+                      <span className="font-medium">PIX</span>
+                    </div>
+                    <span className="font-bold text-lg text-green-600">
+                      R$ {resumo.vendasPix.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3 bg-gray-100 font-bold">
+                    <span>TOTAL DE VENDAS</span>
+                    <span className="text-xl">R$ {resumo.totalVendas.toFixed(2)}</span>
+                  </div>
                 </div>
               </div>
+
+              {/* Outras Movimentações */}
+              <div className="border rounded-lg overflow-hidden">
+                <div className="bg-gray-100 px-4 py-2 font-semibold text-sm">
+                  OUTRAS MOVIMENTAÇÕES
+                </div>
+                <div className="divide-y">
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <ArrowUpCircle className="h-5 w-5 text-green-600" />
+                      <span>Reforços</span>
+                    </div>
+                    <span className="font-bold text-green-600">
+                      + R$ {resumo.reforcos.toFixed(2)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <ArrowDownCircle className="h-5 w-5 text-red-600" />
+                      <span>Sangrias</span>
+                    </div>
+                    <span className="font-bold text-red-600">
+                      - R$ {resumo.sangrias.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Resumo Final */}
+              <div className="border rounded-lg overflow-hidden bg-gray-50">
+                <div className="bg-gray-200 px-4 py-2 font-semibold text-sm">
+                  RESUMO DO CAIXA
+                </div>
+                <div className="p-4 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Valor Inicial:</span>
+                    <span className="font-bold">R$ {resumo.valorInicial.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-green-600">
+                    <span>Total Entradas:</span>
+                    <span className="font-bold">+ R$ {resumo.totalEntradas.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-red-600">
+                    <span>Total Saídas:</span>
+                    <span className="font-bold">- R$ {resumo.totalSaidas.toFixed(2)}</span>
+                  </div>
+                  <hr />
+                  <div className="flex justify-between text-lg">
+                    <span className="font-semibold">Valor Esperado em Caixa:</span>
+                    <span className="font-bold text-blue-600 text-xl">
+                      R$ {resumo.valorAtual.toFixed(2)}
+                    </span>
+                  </div>
+                  
+                  {/* Destaque para valor em dinheiro */}
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <span className="text-sm text-yellow-800">Valor esperado em DINHEIRO:</span>
+                        <p className="text-xs text-yellow-600">(Valor inicial + vendas dinheiro + reforços - sangrias)</p>
+                      </div>
+                      <span className="font-bold text-xl text-yellow-700">
+                        R$ {(
+                          resumo.valorInicial + 
+                          resumo.vendasDinheiro + 
+                          resumo.reforcos - 
+                          resumo.sangrias
+                        ).toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Input do Valor Final */}
               <div className="space-y-2">
-                <Label>Valor Final em Caixa (R$)</Label>
+                <Label className="text-base font-semibold">Valor Final em Dinheiro (R$)</Label>
                 <Input
                   type="number"
                   step="0.01"
-                  placeholder="0.00"
+                  placeholder="Digite o valor contado no caixa"
                   value={valorFechamento}
                   onChange={(e) => setValorFechamento(e.target.value)}
+                  className="text-lg h-12"
                 />
                 {valorFechamento && (
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2 text-sm p-2 rounded-lg bg-gray-100">
                     {parseFloat(valorFechamento) === resumo.valorAtual ? (
                       <span className="text-green-600 flex items-center gap-1">
-                        <CheckCircle className="h-4 w-4" /> Valores conferem!
+                        <CheckCircle className="h-4 w-4" /> ✓ Valores conferem perfeitamente!
                       </span>
                     ) : (
-                      <span className={`flex items-center gap-1 ${parseFloat(valorFechamento) > resumo.valorAtual ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`flex items-center gap-1 ${parseFloat(valorFechamento) > resumo.valorAtual ? 'text-green-600 bg-green-50' : 'text-red-600 bg-red-50'} p-2 rounded`}>
                         <AlertTriangle className="h-4 w-4" />
-                        {parseFloat(valorFechamento) > resumo.valorAtual ? 'Sobra' : 'Falta'}: R$ {Math.abs(parseFloat(valorFechamento) - resumo.valorAtual).toFixed(2)}
+                        {parseFloat(valorFechamento) > resumo.valorAtual ? '💰 SOBRA' : '⚠️ FALTA'}: 
+                        <strong>R$ {Math.abs(parseFloat(valorFechamento) - resumo.valorAtual).toFixed(2)}</strong>
                       </span>
                     )}
                   </div>
                 )}
               </div>
+              
               <div className="space-y-2">
                 <Label>Observação (opcional)</Label>
                 <Textarea
@@ -624,13 +732,27 @@ export default function CaixaPage() {
                 />
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2 sm:gap-0">
               <Button variant="outline" onClick={() => setDialogFechamento(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleFecharCaixa} disabled={saving} variant="destructive">
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Fechar Caixa
+              <Button 
+                onClick={handleFecharCaixa} 
+                disabled={saving || !valorFechamento} 
+                variant="destructive"
+                className="min-w-[150px]"
+              >
+                {saving ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Fechando...
+                  </>
+                ) : (
+                  <>
+                    <Lock className="mr-2 h-4 w-4" />
+                    Confirmar Fechamento
+                  </>
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
