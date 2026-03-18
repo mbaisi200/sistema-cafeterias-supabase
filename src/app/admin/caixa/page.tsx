@@ -1057,7 +1057,7 @@ export default function CaixaPage() {
         {/* Dialog Relatório do Caixa Selecionado */}
         <Dialog open={dialogRelatorioUltimo} onOpenChange={setDialogRelatorioUltimo}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-            <DialogHeader>
+            <DialogHeader className="flex-shrink-0">
               <DialogTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-blue-600" />
                 Relatório de Caixa
@@ -1072,7 +1072,7 @@ export default function CaixaPage() {
                 <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
               </div>
             ) : caixaSelecionado ? (
-              <ScrollArea className="flex-1 max-h-[60vh]">
+              <ScrollArea className="flex-1 min-h-0">
                 <div className="space-y-4 py-4 pr-4">
                   {/* Informações do Caixa */}
                   <div className="grid grid-cols-2 gap-4">
@@ -1202,7 +1202,7 @@ export default function CaixaPage() {
               </div>
             )}
 
-            <DialogFooter className="gap-2 sm:gap-0 flex-wrap">
+            <DialogFooter className="flex-shrink-0 gap-2 sm:gap-0 flex-wrap border-t pt-4 bg-background sticky bottom-0 z-10">
               <Button variant="outline" onClick={() => setDialogRelatorioUltimo(false)}>
                 <X className="h-4 w-4 mr-2" />
                 Fechar
