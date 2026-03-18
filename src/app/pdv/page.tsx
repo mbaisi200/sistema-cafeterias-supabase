@@ -86,7 +86,7 @@ export default function PDVPage() {
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
   const { mesas, loading: loadingMesas, atualizarMesa } = useMesas();
-  const { caixaAberto, abrirCaixa, fecharCaixa, resumo, movimentacoes } = useCaixa();
+  const { caixaAberto, abrirCaixa, fecharCaixa, resumo, resumoUltimoCaixa, movimentacoes, registrarVenda } = useCaixa();
   const { 
     comandas, 
     loading: loadingComandas, 
@@ -132,6 +132,10 @@ export default function PDVPage() {
   
   // Estado para o relatório do dia
   const [dialogRelatorio, setDialogRelatorio] = useState(false);
+  
+  // Estado para abertura de caixa
+  const [dialogAbrirCaixa, setDialogAbrirCaixa] = useState(false);
+  const [valorAberturaCaixa, setValorAberturaCaixa] = useState('');
 
   // Carregar dados da empresa
   useEffect(() => {
@@ -849,35 +853,20 @@ export default function PDVPage() {
           await atualizarMesa(mesaSelecionada, { status: 'livre' });
         }
 
-        // Registrar no caixa (se houver)
-        if (caixaAberto) {
-          const { error: movError } = await supabase
-            .from('movimentacoes_caixa')
-            .insert({
-              caixa_id: caixaAberto.id,
-              empresa_id: empresaId,
-              tipo: 'venda',
-              valor: total,
-              forma_pagamento: formaPagamento,
-              venda_id: vendaData.id,
-              descricao: `Venda - ${getTipoVendaLabel()}`,
-              usuario_id: user?.id,
-              usuario_nome: user?.nome,
-              criado_em: new Date().toISOString(),
-            });
-          
-          if (movError) console.error('Erro ao registrar movimentação:', movError);
-
-          const { error: caixaError } = await supabase
-            .from('caixas')
-            .update({
-              valor_atual: (caixaAberto.valorAtual || 0) + total,
-              total_vendas: (caixaAberto.totalVendas || 0) + total,
-              total_entradas: (caixaAberto.totalEntradas || 0) + total,
-            })
-            .eq('id', caixaAberto.id);
-          
-          if (caixaError) console.error('Erro ao atualizar caixa:', caixaError);
+        // Registrar no caixa (se houver) usando o hook
+        if (caixaAberto && registrarVenda) {
+          try {
+            // Registrar para cada forma de pagamento (suporta múltiplos pagamentos)
+            if (pagamentos.length > 0) {
+              for (const pg of pagamentos) {
+                await registrarVenda(pg.valor, pg.forma, vendaId);
+              }
+            } else {
+              await registrarVenda(total, formaPagamento, vendaId);
+            }
+          } catch (error) {
+            console.error('Erro ao registrar venda no caixa:', error);
+          }
         }
 
         // Log
@@ -981,13 +970,24 @@ export default function PDVPage() {
             </div>
 
             {!caixaAberto ? (
-              <Button
-                size="sm"
-                className="bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm"
-                onClick={() => abrirCaixa(0)}
-              >
-                Abrir Caixa
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  className="bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm"
+                  onClick={() => setDialogAbrirCaixa(true)}
+                >
+                  Abrir Caixa
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 font-bold shadow-sm"
+                  onClick={() => setDialogRelatorio(true)}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Relatório
+                </Button>
+              </>
             ) : (
               <Button
                 size="sm"
@@ -1966,6 +1966,84 @@ export default function PDVPage() {
               className="flex-1 font-bold"
             >
               Fechar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG ABRIR CAIXA */}
+      <Dialog open={dialogAbrirCaixa} onOpenChange={setDialogAbrirCaixa}>
+        <DialogContent className="max-w-md border border-border bg-background">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-foreground">
+              <DollarSign className="h-5 w-5 text-green-600" />
+              Abrir Caixa
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Informe o valor inicial em dinheiro no caixa (troco)
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">Valor Inicial (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={valorAberturaCaixa}
+                onChange={(e) => setValorAberturaCaixa(e.target.value)}
+                className="text-2xl h-14 text-center font-bold"
+                autoFocus
+              />
+              <p className="text-xs text-muted-foreground">
+                Digite o valor que você tem em dinheiro para troco
+              </p>
+            </div>
+
+            {/* Botões de valor rápido */}
+            <div className="grid grid-cols-4 gap-2">
+              {[0, 50, 100, 200].map((valor) => (
+                <Button
+                  key={valor}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setValorAberturaCaixa(valor.toString())}
+                  className="font-bold"
+                >
+                  R$ {valor}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setDialogAbrirCaixa(false);
+                setValorAberturaCaixa('');
+              }} 
+              className="flex-1 font-bold"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+              onClick={async () => {
+                const valor = parseFloat(valorAberturaCaixa) || 0;
+                try {
+                  await abrirCaixa(valor);
+                  toast({ title: '✓ Caixa aberto com sucesso!' });
+                  setDialogAbrirCaixa(false);
+                  setValorAberturaCaixa('');
+                } catch (error: any) {
+                  toast({ variant: 'destructive', title: error.message || 'Erro ao abrir caixa' });
+                }
+              }}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Confirmar
             </Button>
           </div>
         </DialogContent>

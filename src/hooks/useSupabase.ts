@@ -921,7 +921,7 @@ export function useCaixa() {
           fechadoEm: caixas.fechado_em ? new Date(caixas.fechado_em) : null,
         });
 
-        // Carregar movimentações
+        // Carregar movimentações do caixa aberto
         const { data: movs, error: movsError } = await supabase
           .from('movimentacoes_caixa')
           .select('*')
@@ -933,13 +933,42 @@ export function useCaixa() {
         setMovimentacoes(movs?.map(m => ({
           id: m.id,
           ...m,
+          tipo: m.tipo,
           formaPagamento: m.forma_pagamento,
           usuarioNome: m.usuario_nome,
           criadoEm: new Date(m.criado_em),
         })) || []);
       } else {
         setCaixaAberto(null);
-        setMovimentacoes([]);
+        
+        // Carregar movimentações do último caixa fechado (para o relatório)
+        const { data: ultimoCaixa } = await supabase
+          .from('caixas')
+          .select('id')
+          .eq('empresa_id', empresaId)
+          .eq('status', 'fechado')
+          .order('fechado_em', { ascending: false })
+          .limit(1)
+          .single();
+
+        if (ultimoCaixa) {
+          const { data: movs } = await supabase
+            .from('movimentacoes_caixa')
+            .select('*')
+            .eq('caixa_id', ultimoCaixa.id)
+            .order('criado_em', { ascending: false });
+          
+          setMovimentacoes(movs?.map(m => ({
+            id: m.id,
+            ...m,
+            tipo: m.tipo,
+            formaPagamento: m.forma_pagamento,
+            usuarioNome: m.usuario_nome,
+            criadoEm: new Date(m.criado_em),
+          })) || []);
+        } else {
+          setMovimentacoes([]);
+        }
       }
 
       // Carregar histórico
@@ -1143,13 +1172,33 @@ export function useCaixa() {
     totalEntradas: caixaAberto?.totalEntradas || 0,
     totalSaidas: caixaAberto?.totalSaidas || 0,
     totalVendas: caixaAberto?.totalVendas || 0,
-    vendasDinheiro: movimentacoes.filter(m => m.tipo === 'venda' && m.formaPagamento === 'dinheiro').reduce((acc, m) => acc + (m.valor || 0), 0),
-    vendasCredito: movimentacoes.filter(m => m.tipo === 'venda' && m.formaPagamento === 'cartao_credito').reduce((acc, m) => acc + (m.valor || 0), 0),
-    vendasDebito: movimentacoes.filter(m => m.tipo === 'venda' && m.formaPagamento === 'cartao_debito').reduce((acc, m) => acc + (m.valor || 0), 0),
-    vendasPix: movimentacoes.filter(m => m.tipo === 'venda' && m.formaPagamento === 'pix').reduce((acc, m) => acc + (m.valor || 0), 0),
+    vendasDinheiro: movimentacoes.filter(m => m.tipo === 'venda' && (m.formaPagamento === 'dinheiro' || m.forma_pagamento === 'dinheiro')).reduce((acc, m) => acc + (m.valor || 0), 0),
+    vendasCredito: movimentacoes.filter(m => m.tipo === 'venda' && (m.formaPagamento === 'cartao_credito' || m.formaPagamento === 'credito' || m.forma_pagamento === 'cartao_credito' || m.forma_pagamento === 'credito')).reduce((acc, m) => acc + (m.valor || 0), 0),
+    vendasDebito: movimentacoes.filter(m => m.tipo === 'venda' && (m.formaPagamento === 'cartao_debito' || m.formaPagamento === 'debito' || m.forma_pagamento === 'cartao_debito' || m.forma_pagamento === 'debito')).reduce((acc, m) => acc + (m.valor || 0), 0),
+    vendasPix: movimentacoes.filter(m => m.tipo === 'venda' && (m.formaPagamento === 'pix' || m.forma_pagamento === 'pix')).reduce((acc, m) => acc + (m.valor || 0), 0),
     reforcos: movimentacoes.filter(m => m.tipo === 'reforco').reduce((acc, m) => acc + (m.valor || 0), 0),
     sangrias: movimentacoes.filter(m => m.tipo === 'sangria').reduce((acc, m) => acc + (m.valor || 0), 0),
   };
+
+  // Resumo do último caixa fechado (para o relatório quando não há caixa aberto)
+  const ultimoCaixa = historico[0];
+  const resumoUltimoCaixa = ultimoCaixa ? {
+    valorInicial: ultimoCaixa.valorInicial || ultimoCaixa.valor_inicial || 0,
+    valorAtual: ultimoCaixa.valorFinal || ultimoCaixa.valor_final || ultimoCaixa.valorAtual || 0,
+    totalEntradas: ultimoCaixa.totalEntradas || ultimoCaixa.total_entradas || 0,
+    totalSaidas: ultimoCaixa.totalSaidas || ultimoCaixa.total_saidas || 0,
+    totalVendas: ultimoCaixa.totalVendas || ultimoCaixa.total_vendas || 0,
+    vendasDinheiro: movimentacoes.filter(m => m.tipo === 'venda' && (m.formaPagamento === 'dinheiro' || m.forma_pagamento === 'dinheiro')).reduce((acc, m) => acc + (m.valor || 0), 0),
+    vendasCredito: movimentacoes.filter(m => m.tipo === 'venda' && (m.formaPagamento === 'cartao_credito' || m.formaPagamento === 'credito' || m.forma_pagamento === 'cartao_credito' || m.forma_pagamento === 'credito')).reduce((acc, m) => acc + (m.valor || 0), 0),
+    vendasDebito: movimentacoes.filter(m => m.tipo === 'venda' && (m.formaPagamento === 'cartao_debito' || m.formaPagamento === 'debito' || m.forma_pagamento === 'cartao_debito' || m.forma_pagamento === 'debito')).reduce((acc, m) => acc + (m.valor || 0), 0),
+    vendasPix: movimentacoes.filter(m => m.tipo === 'venda' && (m.formaPagamento === 'pix' || m.forma_pagamento === 'pix')).reduce((acc, m) => acc + (m.valor || 0), 0),
+    reforcos: movimentacoes.filter(m => m.tipo === 'reforco').reduce((acc, m) => acc + (m.valor || 0), 0),
+    sangrias: movimentacoes.filter(m => m.tipo === 'sangria').reduce((acc, m) => acc + (m.valor || 0), 0),
+    dataAbertura: ultimoCaixa.abertoEm || ultimoCaixa.aberto_em,
+    dataFechamento: ultimoCaixa.fechadoEm || ultimoCaixa.fechado_em,
+    abertoPor: ultimoCaixa.abertoPorNome || ultimoCaixa.aberto_por_nome,
+    fechadoPor: ultimoCaixa.fechadoPorNome || ultimoCaixa.fechado_por_nome,
+  } : null;
 
   return {
     caixaAberto,
@@ -1162,6 +1211,7 @@ export function useCaixa() {
     adicionarSangria,
     fecharCaixa,
     resumo,
+    resumoUltimoCaixa,
   };
 }
 
