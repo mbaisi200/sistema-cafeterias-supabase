@@ -86,7 +86,7 @@ export default function PDVPage() {
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
   const { mesas, loading: loadingMesas, atualizarMesa } = useMesas();
-  const { caixaAberto, abrirCaixa, fecharCaixa, resumo, resumoUltimoCaixa, movimentacoes, registrarVenda } = useCaixa();
+  const { caixaAberto, abrirCaixa, fecharCaixa, resumo, resumoUltimoCaixa, movimentacoes, registrarVenda, adicionarSangria, adicionarReforco } = useCaixa();
   const { 
     comandas, 
     loading: loadingComandas, 
@@ -136,6 +136,15 @@ export default function PDVPage() {
   // Estado para abertura de caixa
   const [dialogAbrirCaixa, setDialogAbrirCaixa] = useState(false);
   const [valorAberturaCaixa, setValorAberturaCaixa] = useState('');
+  
+  // Estados para sangria e reforço
+  const [dialogSangria, setDialogSangria] = useState(false);
+  const [dialogReforco, setDialogReforco] = useState(false);
+  const [valorSangria, setValorSangria] = useState('');
+  const [descricaoSangria, setDescricaoSangria] = useState('');
+  const [valorReforco, setValorReforco] = useState('');
+  const [descricaoReforco, setDescricaoReforco] = useState('');
+  const [formaReforco, setFormaReforco] = useState('dinheiro');
 
   // Carregar dados da empresa
   useEffect(() => {
@@ -989,13 +998,33 @@ export default function PDVPage() {
                 </Button>
               </>
             ) : (
-              <Button
-                size="sm"
-                className="bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm"
-                onClick={() => fecharCaixa(caixaAberto.valorAtual || 0)}
-              >
-                Fechar Caixa
-              </Button>
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 bg-orange-50 text-orange-700 border-orange-200 hover:bg-orange-100 font-bold shadow-sm"
+                  onClick={() => setDialogSangria(true)}
+                >
+                  <Minus className="h-4 w-4" />
+                  Sangria
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100 font-bold shadow-sm"
+                  onClick={() => setDialogReforco(true)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Reforço
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm"
+                  onClick={() => fecharCaixa(caixaAberto.valorAtual || 0)}
+                >
+                  Fechar Caixa
+                </Button>
+              </>
             )}
 
             <Badge className="bg-muted text-primary px-4 py-2 text-sm font-bold shadow-sm">
@@ -2039,6 +2068,182 @@ export default function PDVPage() {
                   setValorAberturaCaixa('');
                 } catch (error: any) {
                   toast({ variant: 'destructive', title: error.message || 'Erro ao abrir caixa' });
+                }
+              }}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Confirmar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG SANGRIA */}
+      <Dialog open={dialogSangria} onOpenChange={setDialogSangria}>
+        <DialogContent className="max-w-md border border-border bg-background">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-foreground">
+              <Minus className="h-5 w-5 text-orange-600" />
+              Sangria
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Retirar dinheiro do caixa
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="p-3 bg-blue-50 rounded-lg text-sm text-blue-800">
+              Disponível em caixa: <strong>R$ {(caixaAberto?.valorAtual || resumo?.valorAtual || 0).toFixed(2)}</strong>
+            </div>
+            
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">Valor (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={valorSangria}
+                onChange={(e) => setValorSangria(e.target.value)}
+                className="text-2xl h-14 text-center font-bold"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">Descrição</Label>
+              <Input
+                placeholder="Ex: Pagamento de fornecedor"
+                value={descricaoSangria}
+                onChange={(e) => setDescricaoSangria(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setDialogSangria(false);
+                setValorSangria('');
+                setDescricaoSangria('');
+              }} 
+              className="flex-1 font-bold"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              className="flex-1 bg-orange-600 hover:bg-orange-700 text-white font-bold"
+              onClick={async () => {
+                const valor = parseFloat(valorSangria) || 0;
+                if (valor <= 0) {
+                  toast({ variant: 'destructive', title: 'Informe um valor válido' });
+                  return;
+                }
+                if (!descricaoSangria.trim()) {
+                  toast({ variant: 'destructive', title: 'Informe uma descrição' });
+                  return;
+                }
+                try {
+                  await adicionarSangria(valor, descricaoSangria);
+                  toast({ title: '✓ Sangria realizada com sucesso!' });
+                  setDialogSangria(false);
+                  setValorSangria('');
+                  setDescricaoSangria('');
+                } catch (error: any) {
+                  toast({ variant: 'destructive', title: error.message || 'Erro ao realizar sangria' });
+                }
+              }}
+            >
+              <CheckCircle className="h-4 w-4 mr-2" />
+              Confirmar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* DIALOG REFORÇO */}
+      <Dialog open={dialogReforco} onOpenChange={setDialogReforco}>
+        <DialogContent className="max-w-md border border-border bg-background">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-foreground">
+              <Plus className="h-5 w-5 text-green-600" />
+              Reforço
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground">
+              Adicionar dinheiro ao caixa
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">Valor (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={valorReforco}
+                onChange={(e) => setValorReforco(e.target.value)}
+                className="text-2xl h-14 text-center font-bold"
+                autoFocus
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">Descrição</Label>
+              <Input
+                placeholder="Ex: Troco adicional"
+                value={descricaoReforco}
+                onChange={(e) => setDescricaoReforco(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label className="text-base font-semibold">Forma</Label>
+              <select
+                value={formaReforco}
+                onChange={(e) => setFormaReforco(e.target.value)}
+                className="w-full h-10 px-3 rounded-md border border-input bg-background"
+              >
+                <option value="dinheiro">Dinheiro</option>
+                <option value="pix">PIX</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setDialogReforco(false);
+                setValorReforco('');
+                setDescricaoReforco('');
+                setFormaReforco('dinheiro');
+              }} 
+              className="flex-1 font-bold"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+              onClick={async () => {
+                const valor = parseFloat(valorReforco) || 0;
+                if (valor <= 0) {
+                  toast({ variant: 'destructive', title: 'Informe um valor válido' });
+                  return;
+                }
+                if (!descricaoReforco.trim()) {
+                  toast({ variant: 'destructive', title: 'Informe uma descrição' });
+                  return;
+                }
+                try {
+                  await adicionarReforco(valor, descricaoReforco, formaReforco);
+                  toast({ title: '✓ Reforço adicionado com sucesso!' });
+                  setDialogReforco(false);
+                  setValorReforco('');
+                  setDescricaoReforco('');
+                  setFormaReforco('dinheiro');
+                } catch (error: any) {
+                  toast({ variant: 'destructive', title: error.message || 'Erro ao adicionar reforço' });
                 }
               }}
             >
