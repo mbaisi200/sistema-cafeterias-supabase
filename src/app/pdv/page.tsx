@@ -222,7 +222,7 @@ export default function PDVPage() {
       atendenteNome: item.adicionado_por_nome || item.adicionadoPorNome || '',
       tipoVenda: 'comanda' as const,
       cliente: comandaSelecionada.nome_cliente || comandaSelecionada.nomeCliente,
-      criadoEm: item.adicionado_em ? new Date(item.adicionado_em) : (item.adicionadoEm?.toDate() || new Date()),
+      criadoEm: item.adicionado_em ? new Date(item.adicionado_em) : (item.adicionadoEm ? new Date(item.adicionadoEm) : new Date()),
     }));
 
     setItensPedido(itens);
