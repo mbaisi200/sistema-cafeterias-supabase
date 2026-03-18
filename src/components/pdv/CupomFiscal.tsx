@@ -77,19 +77,18 @@ export function CupomFiscalModal({
     }
   }, [configuracoes]);
 
-  // Resetar valores quando o modal abrir
+  // Resetar valores quando o modal abrir ou fechar
   useEffect(() => {
     if (open) {
-      // Usando flushSync para evitar warning de cascading renders
-      if (cpfPrePreenchido !== cpfCliente) {
-        setCpfCliente(cpfPrePreenchido);
-      }
-      if (nomePrePreenchido !== nomeCliente) {
-        setNomeCliente(nomePrePreenchido);
-      }
+      // Sempre resetar para os valores passados pelo pai quando o modal abre
+      setCpfCliente(cpfPrePreenchido);
+      setNomeCliente(nomePrePreenchido);
+    } else {
+      // Limpar estados quando o modal fecha
+      setCpfCliente('');
+      setNomeCliente('');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open, cpfPrePreenchido, nomePrePreenchido]);
 
   // Carregar configurações salvas
   useEffect(() => {

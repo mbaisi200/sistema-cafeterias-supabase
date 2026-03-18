@@ -914,6 +914,15 @@ export default function PDVPage() {
       setItensPedido([]);
       setMesaSelecionada('');
       setNumeroMesaSelecionada(0);
+      setPagamentos([]);
+      setFormaPagamentoSelecionada('');
+      setCpfClientePreVenda('');
+      setNomeClientePreVenda('');
+      setValorPagamentoAtual('');
+      setDeliverySelecionado('');
+      setDeliveryInfo({ nome: '', telefone: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', cep: '', observacao: '' });
+      setComandaSelecionada(null);
+      setTipoVenda('balcao');
       
     } catch (error) {
       console.error('Erro ao finalizar venda:', error);
