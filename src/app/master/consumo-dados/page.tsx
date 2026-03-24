@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -24,8 +25,9 @@ import {
   TrendingUp,
   Loader2,
   Building2,
-  Calendar,
   DollarSign,
+  PieChart,
+  BarChart3,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import {
@@ -38,6 +40,9 @@ import {
   ResponsiveContainer,
   LineChart,
   Line,
+  PieChart as RechartsPie,
+  Pie,
+  Cell,
 } from 'recharts';
 
 interface EmpresaResumo {
@@ -50,6 +55,19 @@ interface EmpresaResumo {
     totalProdutos: number;
     totalUsuarios: number;
   };
+}
+
+interface ConsumoEmpresa {
+  id: string;
+  nome: string;
+  cnpj?: string;
+  status: string;
+  cidade?: string;
+  estado?: string;
+  registros: number;
+  tamanhoEstimado: number;
+  tamanhoFormatado: string;
+  percentual: number;
 }
 
 interface ConsumoTabela {
@@ -88,6 +106,25 @@ interface DadosConsumo {
   };
 }
 
+interface DadosTodos {
+  modo: string;
+  empresas: any[];
+  consumoPorEmpresa: ConsumoEmpresa[];
+  consumoTotal: {
+    porTabela: ConsumoTabela[];
+    total: {
+      registros: number;
+      tamanhoEstimado: number;
+      tamanhoFormatado: string;
+    };
+  };
+  estatisticas: {
+    totalEmpresas: number;
+    empresasAtivas: number;
+    vendas30Dias: number;
+  };
+}
+
 const CORES_STATUS: Record<string, string> = {
   ativo: 'bg-green-500',
   inativo: 'bg-yellow-500',
@@ -104,6 +141,11 @@ const ICONES_TABELAS: Record<string, React.ReactNode> = {
   itens_venda: <FileText className="h-4 w-4" />,
   pagamentos: <DollarSign className="h-4 w-4" />,
 };
+
+const CORES_GRAFICO = [
+  '#f97316', '#3b82f6', '#22c55e', '#ec4899', '#eab308', '#ef4444',
+  '#8b5cf6', '#06b6d4', '#f43f5e', '#84cc16', '#6366f1', '#14b8a6',
+];
 
 const formatarTamanho = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
@@ -128,8 +170,9 @@ const formatarData = (data: string): string => {
 
 export default function ConsumoDadosPage() {
   const [empresas, setEmpresas] = useState<EmpresaResumo[]>([]);
-  const [empresaSelecionada, setEmpresaSelecionada] = useState<string>('');
+  const [empresaSelecionada, setEmpresaSelecionada] = useState<string>('todos');
   const [dadosConsumo, setDadosConsumo] = useState<DadosConsumo | null>(null);
+  const [dadosTodos, setDadosTodos] = useState<DadosTodos | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingDetalhes, setLoadingDetalhes] = useState(false);
 
@@ -143,9 +186,6 @@ export default function ConsumoDadosPage() {
 
         if (data.empresas) {
           setEmpresas(data.empresas);
-          if (data.empresas.length > 0) {
-            setEmpresaSelecionada(data.empresas[0].id);
-          }
         }
       } catch (error) {
         console.error('Erro ao carregar empresas:', error);
@@ -164,11 +204,17 @@ export default function ConsumoDadosPage() {
 
       try {
         setLoadingDetalhes(true);
-        const response = await fetch(`/api/master/consumo-dados?empresaId=${empresaSelecionada}`);
-        const data = await response.json();
 
-        if (data.empresa) {
+        if (empresaSelecionada === 'todos') {
+          const response = await fetch('/api/master/consumo-dados?modo=todos');
+          const data = await response.json();
+          setDadosTodos(data);
+          setDadosConsumo(null);
+        } else {
+          const response = await fetch(`/api/master/consumo-dados?empresaId=${empresaSelecionada}`);
+          const data = await response.json();
           setDadosConsumo(data);
+          setDadosTodos(null);
         }
       } catch (error) {
         console.error('Erro ao carregar detalhes:', error);
@@ -206,7 +252,7 @@ export default function ConsumoDadosPage() {
             <div>
               <h1 className="text-3xl font-bold">Consumo de Dados</h1>
               <p className="text-muted-foreground">
-                Monitore o uso do banco de dados por cliente
+                Monitore o uso do banco de dados Supabase
               </p>
             </div>
 
@@ -218,6 +264,12 @@ export default function ConsumoDadosPage() {
                   <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="todos">
+                    <div className="flex items-center gap-2">
+                      <PieChart className="h-4 w-4 text-orange-500" />
+                      <span className="font-medium">TODOS (Visão Geral)</span>
+                    </div>
+                  </SelectItem>
                   {empresas.map((empresa) => (
                     <SelectItem key={empresa.id} value={empresa.id}>
                       <div className="flex items-center gap-2">
@@ -246,7 +298,361 @@ export default function ConsumoDadosPage() {
             <div className="flex items-center justify-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
             </div>
+          ) : dadosTodos ? (
+            // VISÃO TODOS
+            <>
+              {/* Cards de Resumo Geral */}
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <HardDrive className="h-4 w-4 text-blue-500" />
+                      Tamanho Total Estimado
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">
+                      {dadosTodos.consumoTotal.total.tamanhoFormatado}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {dadosTodos.consumoTotal.total.registros.toLocaleString('pt-BR')} registros totais
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Building2 className="h-4 w-4 text-green-500" />
+                      Total de Clientes
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">
+                      {dadosTodos.estatisticas.totalEmpresas}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {dadosTodos.estatisticas.empresasAtivas} ativos
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <ShoppingCart className="h-4 w-4 text-purple-500" />
+                      Vendas (30 dias)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-600">
+                      {formatarMoeda(dadosTodos.estatisticas.vendas30Dias)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Total de vendas no período
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Database className="h-4 w-4 text-orange-500" />
+                      Tabelas em Uso
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-orange-600">
+                      {dadosTodos.consumoTotal.porTabela.filter(t => t.registros > 0).length}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      de {dadosTodos.consumoTotal.porTabela.length} tabelas
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Tabs para visualização */}
+              <Tabs defaultValue="clientes" className="space-y-6">
+                <TabsList>
+                  <TabsTrigger value="clientes">
+                    <Users className="h-4 w-4 mr-2" />
+                    Por Cliente
+                  </TabsTrigger>
+                  <TabsTrigger value="tabelas">
+                    <Database className="h-4 w-4 mr-2" />
+                    Por Tabela
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Tab Por Cliente */}
+                <TabsContent value="clientes" className="space-y-6">
+                  {/* Gráfico de Pizza - Distribuição por Cliente */}
+                  <div className="grid gap-6 lg:grid-cols-2">
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Distribuição por Cliente</CardTitle>
+                        <CardDescription>
+                          Proporção de registros por empresa
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-80">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <RechartsPie>
+                              <Pie
+                                data={dadosTodos.consumoPorEmpresa.slice(0, 10)}
+                                dataKey="registros"
+                                nameKey="nome"
+                                cx="50%"
+                                cy="50%"
+                                outerRadius={100}
+                                label={({ nome, percentual }) => `${nome.substring(0, 10)}... ${(percentual || 0).toFixed(1)}%`}
+                              >
+                                {dadosTodos.consumoPorEmpresa.slice(0, 10).map((entry, index) => (
+                                  <Cell key={`cell-${index}`} fill={CORES_GRAFICO[index % CORES_GRAFICO.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip
+                                formatter={(value: number) => [
+                                  `${value.toLocaleString('pt-BR')} registros`,
+                                  'Quantidade',
+                                ]}
+                              />
+                            </RechartsPie>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Gráfico de Barras - Top 10 Clientes */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Top 10 Clientes por Consumo</CardTitle>
+                        <CardDescription>
+                          Clientes com maior volume de dados
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="h-80">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={dadosTodos.consumoPorEmpresa.slice(0, 10)}
+                              layout="vertical"
+                            >
+                              <CartesianGrid strokeDasharray="3 3" />
+                              <XAxis type="number" />
+                              <YAxis
+                                dataKey="nome"
+                                type="category"
+                                width={120}
+                                tick={{ fontSize: 11 }}
+                                formatter={(value) => value.length > 15 ? `${value.substring(0, 15)}...` : value}
+                              />
+                              <Tooltip
+                                formatter={(value: number, name: string) => [
+                                  name === 'registros'
+                                    ? `${value.toLocaleString('pt-BR')} registros`
+                                    : formatarTamanho(value as number),
+                                  name === 'registros' ? 'Registros' : 'Tamanho',
+                                ]}
+                              />
+                              <Bar
+                                dataKey="registros"
+                                fill="#f97316"
+                                radius={[0, 4, 4, 0]}
+                              />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Tabela Detalhada por Cliente */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Detalhamento por Cliente</CardTitle>
+                      <CardDescription>
+                        Todos os clientes ordenados por consumo de dados
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Cliente</TableHead>
+                            <TableHead>Cidade</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Registros</TableHead>
+                            <TableHead className="text-right">Tamanho</TableHead>
+                            <TableHead className="text-right">% do Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dadosTodos.consumoPorEmpresa.map((empresa, index) => (
+                            <TableRow
+                              key={empresa.id}
+                              className="cursor-pointer hover:bg-muted/50"
+                              onClick={() => setEmpresaSelecionada(empresa.id)}
+                            >
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="h-3 w-3 rounded-full"
+                                    style={{ backgroundColor: CORES_GRAFICO[index % CORES_GRAFICO.length] }}
+                                  />
+                                  <span className="font-medium">{empresa.nome}</span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {empresa.cidade && empresa.estado
+                                  ? `${empresa.cidade}/${empresa.estado}`
+                                  : '-'}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    empresa.status === 'ativo'
+                                      ? 'border-green-500 text-green-600'
+                                      : empresa.status === 'inativo'
+                                      ? 'border-yellow-500 text-yellow-600'
+                                      : 'border-red-500 text-red-600'
+                                  }
+                                >
+                                  {empresa.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {empresa.registros.toLocaleString('pt-BR')}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {empresa.tamanhoFormatado}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <div className="flex items-center justify-end gap-2">
+                                  <Progress
+                                    value={empresa.percentual}
+                                    className="w-16 h-2"
+                                  />
+                                  <span className="text-sm text-muted-foreground w-12 text-right">
+                                    {empresa.percentual.toFixed(1)}%
+                                  </span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Tab Por Tabela */}
+                <TabsContent value="tabelas" className="space-y-6">
+                  {/* Gráfico por Tabela */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Registros por Tabela</CardTitle>
+                      <CardDescription>
+                        Distribuição de registros em todas as tabelas
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-96">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart
+                            data={dadosTodos.consumoTotal.porTabela.filter(t => t.registros > 0)}
+                            layout="vertical"
+                          >
+                            <CartesianGrid strokeDasharray="3 3" />
+                            <XAxis type="number" />
+                            <YAxis
+                              dataKey="descricao"
+                              type="category"
+                              width={150}
+                              tick={{ fontSize: 12 }}
+                            />
+                            <Tooltip
+                              formatter={(value: number) => [
+                                `${value.toLocaleString('pt-BR')} registros`,
+                                'Quantidade',
+                              ]}
+                            />
+                            <Bar
+                              dataKey="registros"
+                              fill="#3b82f6"
+                              radius={[0, 4, 4, 0]}
+                            />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Tabela Detalhada */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Detalhamento por Tabela</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Tabela</TableHead>
+                            <TableHead>Descrição</TableHead>
+                            <TableHead className="text-right">Registros</TableHead>
+                            <TableHead className="text-right">Tamanho Estimado</TableHead>
+                            <TableHead className="text-right">% do Total</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {dadosTodos.consumoTotal.porTabela.map((tabela) => {
+                            const percentual =
+                              dadosTodos.consumoTotal.total.registros > 0
+                                ? (tabela.registros / dadosTodos.consumoTotal.total.registros) * 100
+                                : 0;
+
+                            return (
+                              <TableRow key={tabela.tabela}>
+                                <TableCell>
+                                  <div className="flex items-center gap-2">
+                                    {ICONES_TABELAS[tabela.tabela] || (
+                                      <Database className="h-4 w-4" />
+                                    )}
+                                    <code className="text-sm bg-muted px-2 py-1 rounded">
+                                      {tabela.tabela}
+                                    </code>
+                                  </div>
+                                </TableCell>
+                                <TableCell>{tabela.descricao}</TableCell>
+                                <TableCell className="text-right font-medium">
+                                  {tabela.registros.toLocaleString('pt-BR')}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  {formatarTamanho(tabela.tamanhoEstimado)}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <Progress value={percentual} className="w-16 h-2" />
+                                    <span className="text-sm text-muted-foreground w-12 text-right">
+                                      {percentual.toFixed(1)}%
+                                    </span>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </>
           ) : dadosConsumo ? (
+            // VISÃO INDIVIDUAL POR EMPRESA
             <>
               {/* Informações da Empresa */}
               <Card>
@@ -482,51 +888,6 @@ export default function ConsumoDadosPage() {
                       })}
                     </TableBody>
                   </Table>
-                </CardContent>
-              </Card>
-
-              {/* Resumo de Armazenamento */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Resumo de Armazenamento</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Total de Registros
-                      </span>
-                      <span className="font-bold">
-                        {dadosConsumo.consumo.total.registros.toLocaleString('pt-BR')}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Tamanho Estimado Total
-                      </span>
-                      <span className="font-bold text-blue-600">
-                        {dadosConsumo.consumo.total.tamanhoFormatado}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-muted-foreground">
-                        Tabela com Mais Registros
-                      </span>
-                      <span className="font-medium">
-                        {dadosConsumo.consumo.porTabela[0]?.descricao || '-'} (
-                        {dadosConsumo.consumo.porTabela[0]?.registros.toLocaleString('pt-BR') || 0})
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="mt-6 p-4 bg-muted rounded-lg">
-                    <p className="text-sm text-muted-foreground">
-                      <strong>Nota:</strong> O tamanho estimado é calculado com base no
-                      número de registros e um tamanho médio por tipo de dados. O
-                      consumo real pode variar dependendo do conteúdo armazenado em
-                      campos de texto longo, JSON, e outros dados variáveis.
-                    </p>
-                  </div>
                 </CardContent>
               </Card>
             </>
