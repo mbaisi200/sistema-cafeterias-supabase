@@ -1491,6 +1491,21 @@ export function useConfiguracoesCupom() {
       if (error) throw error;
 
       if (data) {
+        // Converter tamanhoFonte para número se vier como string
+        let tamanhoFonteNum = 12;
+        if (data.tamanho_fonte) {
+          if (typeof data.tamanho_fonte === 'string') {
+            const mapTamanho: Record<string, number> = {
+              'pequena': 10,
+              'media': 12,
+              'grande': 14
+            };
+            tamanhoFonteNum = mapTamanho[data.tamanho_fonte] || 12;
+          } else {
+            tamanhoFonteNum = data.tamanho_fonte;
+          }
+        }
+
         setConfiguracoes({
           nomeEmpresa: data.nome_empresa || '',
           cnpj: data.cnpj || '',
@@ -1502,8 +1517,12 @@ export function useConfiguracoesCupom() {
           mostrarHora: data.mostrar_hora ?? true,
           mostrarVendedor: data.mostrar_vendedor ?? true,
           mostrarDesconto: data.mostrar_desconto ?? true,
-          tamanhoFonte: data.tamanho_fonte || 'media',
+          tamanhoFonte: tamanhoFonteNum,
           larguraPapel: data.largura_papel || 58,
+          espacamentoLinhas: data.espacamento_linhas ?? 1.4,
+          margemSuperior: data.margem_superior ?? 2,
+          margemInferior: data.margem_inferior ?? 2,
+          intensidadeImpressao: data.intensidade_impressao || 'escura',
           imprimirAutomatico: data.imprimir_automatico ?? false,
           vias: data.vias || 1,
         });

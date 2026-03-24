@@ -72,7 +72,7 @@ export function CupomFiscalModal({
 
   // Atualizar tamanho do cupom baseado nas configurações salvas
   useEffect(() => {
-    if (configuracoes) {
+    if (configuracoes && configuracoes.larguraPapel) {
       setTamanhoCupom(configuracoes.larguraPapel === 58 ? '58mm' : '80mm');
     }
   }, [configuracoes]);
@@ -101,7 +101,8 @@ export function CupomFiscalModal({
   }, []);
 
   // Formatar CPF
-  const formatarCPF = (valor: string) => {
+  const formatarCPF = (valor: string | undefined | null) => {
+    if (!valor) return '';
     const numeros = valor.replace(/\D/g, '');
     if (numeros.length <= 3) return numeros;
     if (numeros.length <= 6) return `${numeros.slice(0, 3)}.${numeros.slice(3)}`;
@@ -110,7 +111,8 @@ export function CupomFiscalModal({
   };
 
   // Validar CPF
-  const validarCPF = (cpf: string): boolean => {
+  const validarCPF = (cpf: string | undefined | null): boolean => {
+    if (!cpf) return true; // CPF opcional
     const numeros = cpf.replace(/\D/g, '');
     if (numeros.length === 0) return true; // CPF opcional
     if (numeros.length !== 11) return false;
@@ -139,12 +141,12 @@ export function CupomFiscalModal({
   };
 
   const handleCPFChange = (valor: string) => {
-    const formatado = formatarCPF(valor);
+    const formatado = formatarCPF(valor || '');
     setCpfCliente(formatado);
   };
 
   const handleConfirmar = () => {
-    const cpfLimpo = cpfCliente.replace(/\D/g, '');
+    const cpfLimpo = (cpfCliente || '').replace(/\D/g, '');
     
     if (cpfLimpo.length > 0 && !validarCPF(cpfCliente)) {
       toast({
@@ -160,7 +162,7 @@ export function CupomFiscalModal({
 
     onConfirmar({
       cpfCliente: cpfLimpo,
-      nomeCliente: nomeCliente.trim(),
+      nomeCliente: (nomeCliente || '').trim(),
       imprimirCupom,
       tamanhoCupom,
       configuracoes: configuracoes || configuracoesCupomPadrao,
@@ -428,7 +430,7 @@ export function imprimirCupomFiscal(
     return esquerda + ' '.repeat(espacos) + direita;
   };
 
-  const formatarCPF = (cpf: string) => {
+  const formatarCPF = (cpf: string | undefined | null) => {
     if (!cpf) return '';
     const numeros = cpf.replace(/\D/g, '');
     if (numeros.length !== 11) return cpf;
