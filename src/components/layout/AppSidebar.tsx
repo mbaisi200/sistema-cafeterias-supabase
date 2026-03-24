@@ -37,6 +37,7 @@ import {
   ExternalLink,
   Users,
   Menu,
+  Settings,
   LucideIcon,
 } from 'lucide-react';
 
@@ -61,6 +62,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
   { title: 'Delivery', url: '/admin/delivery', icon: Bike },
   { title: 'Cardápio Online', url: '/cardapio', icon: Menu, external: true },
+  { title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
   { title: 'Funcionários', url: '/admin/funcionarios', icon: UserCog },
