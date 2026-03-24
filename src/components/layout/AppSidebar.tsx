@@ -75,7 +75,7 @@ const adminMenuItems: MenuItem[] = [
 // Itens do Atalho Rápido (Cardápio e configurações)
 const atalhoRapidoMenuItems: MenuItem[] = [
   { title: 'Cardápio', url: '/cardapio', icon: Menu, external: true },
-  { title: 'Config. Cardápio', url: '/admin/cardapio-config', icon: Settings },
+  { title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings },
 ];
 
 const funcionarioMenuItems: MenuItem[] = [
