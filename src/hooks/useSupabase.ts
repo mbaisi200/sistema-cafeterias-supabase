@@ -111,47 +111,57 @@ export function useProdutos() {
   };
 
   const atualizarProduto = async (id: string, dados: any) => {
-    // Dados básicos que sempre existem
+    // Construir objeto de atualização apenas com campos fornecidos
     const updateData: any = {
-      nome: dados.nome,
-      descricao: dados.descricao || null,
-      codigo: dados.codigo || null,
-      preco: dados.preco,
-      custo: dados.custo,
-      unidade: dados.unidade,
-      categoria_id: dados.categoriaId,
-      estoque_minimo: dados.estoqueMinimo,
-      destaque: dados.destaque,
       atualizado_em: new Date().toISOString(),
     };
 
-    // Atualizar dados básicos primeiro
-    const { error: errorBasico } = await supabase
+    // Adicionar apenas campos que foram fornecidos (não são undefined)
+    if (dados.nome !== undefined) updateData.nome = dados.nome;
+    if (dados.descricao !== undefined) updateData.descricao = dados.descricao || null;
+    if (dados.codigo !== undefined) updateData.codigo = dados.codigo || null;
+    if (dados.codigoBarras !== undefined) updateData.codigo_barras = dados.codigoBarras || null;
+    if (dados.preco !== undefined) updateData.preco = dados.preco;
+    if (dados.custo !== undefined) updateData.custo = dados.custo;
+    if (dados.unidade !== undefined) updateData.unidade = dados.unidade;
+    if (dados.categoriaId !== undefined) updateData.categoria_id = dados.categoriaId;
+    if (dados.estoqueMinimo !== undefined) updateData.estoque_minimo = dados.estoqueMinimo;
+    if (dados.destaque !== undefined) updateData.destaque = dados.destaque;
+
+    // Campos de iFood (podem não existir na tabela se migration não foi executada)
+    if (dados.disponivelIfood !== undefined) updateData.disponivel_ifood = dados.disponivelIfood;
+    if (dados.ifoodExternalCode !== undefined) updateData.ifood_external_code = dados.ifoodExternalCode;
+    if (dados.ifoodSyncStatus !== undefined) updateData.ifood_sync_status = dados.ifoodSyncStatus;
+
+    // Atualizar todos os dados de uma vez
+    const { error } = await supabase
       .from('produtos')
       .update(updateData)
       .eq('id', id);
 
-    if (errorBasico) throw errorBasico;
+    if (error) {
+      // Se o erro for coluna de iFood não existente, tentar atualizar sem esses campos
+      if (error.message?.includes('disponivel_ifood') ||
+          error.message?.includes('ifood_external_code') ||
+          error.message?.includes('ifood_sync_status') ||
+          error.message?.includes('column') ||
+          error.message?.includes('does not exist')) {
 
-    // Tentar atualizar campos de iFood separadamente (podem não existir)
-    if (dados.disponivelIfood !== undefined || dados.ifoodExternalCode !== undefined || dados.ifoodSyncStatus !== undefined) {
-      const ifoodData: any = {};
-      if (dados.disponivelIfood !== undefined) ifoodData.disponivel_ifood = dados.disponivelIfood;
-      if (dados.ifoodExternalCode !== undefined) ifoodData.ifood_external_code = dados.ifoodExternalCode;
-      if (dados.ifoodSyncStatus !== undefined) ifoodData.ifood_sync_status = dados.ifoodSyncStatus;
-      ifoodData.atualizado_em = new Date().toISOString();
+        // Remover campos de iFood e tentar novamente
+        const basicData = { ...updateData };
+        delete basicData.disponivel_ifood;
+        delete basicData.ifood_external_code;
+        delete basicData.ifood_sync_status;
 
-      // Tentar atualizar - ignorar erro se colunas não existirem
-      const { error: errorIfood } = await supabase
-        .from('produtos')
-        .update(ifoodData)
-        .eq('id', id);
+        const { error: basicError } = await supabase
+          .from('produtos')
+          .update(basicData)
+          .eq('id', id);
 
-      if (errorIfood) {
-        // Se o erro for coluna não existente, ignorar silenciosamente
-        if (!errorIfood.message?.includes('column') && !errorIfood.message?.includes('does not exist')) {
-          console.warn('Aviso: Campos de iFood não atualizados (execute a migration SQL)');
-        }
+        if (basicError) throw basicError;
+        console.warn('Aviso: Campos de iFood não atualizados (execute a migration SQL)');
+      } else {
+        throw error;
       }
     }
   };

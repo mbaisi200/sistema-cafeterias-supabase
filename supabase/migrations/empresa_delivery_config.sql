@@ -41,6 +41,10 @@ CREATE TRIGGER update_empresa_delivery_config_updated_at
 -- RLS Policies
 ALTER TABLE empresa_delivery_config ENABLE ROW LEVEL SECURITY;
 
+-- Drop policies if they exist before creating (idempotent)
+DROP POLICY IF EXISTS "Usuários podem ver config delivery da sua empresa" ON empresa_delivery_config;
+DROP POLICY IF EXISTS "Admins podem gerenciar config delivery" ON empresa_delivery_config;
+
 CREATE POLICY "Usuários podem ver config delivery da sua empresa" 
   ON empresa_delivery_config FOR SELECT 
   USING (empresa_id IN (SELECT empresa_id FROM usuarios WHERE auth_user_id = auth.uid()));

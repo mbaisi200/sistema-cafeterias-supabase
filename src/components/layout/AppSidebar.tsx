@@ -39,6 +39,7 @@ import {
   Users,
   Menu,
   Settings,
+  Zap,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -71,10 +72,10 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Cupom Fiscal', url: '/admin/configuracoes-cupom', icon: Printer },
 ];
 
-// Itens do Cardápio Online (seção separada)
-const cardapioMenuItems: MenuItem[] = [
-  { title: 'Ver Cardápio', url: '/cardapio', icon: Menu, external: true },
-  { title: 'Configurar Cardápio', url: '/admin/delivery/config', icon: Settings },
+// Itens do Atalho Rápido (Cardápio e configurações)
+const atalhoRapidoMenuItems: MenuItem[] = [
+  { title: 'Cardápio', url: '/cardapio', icon: Menu, external: true },
+  { title: 'Config. Cardápio', url: '/admin/cardapio-config', icon: Settings },
 ];
 
 const funcionarioMenuItems: MenuItem[] = [
@@ -165,18 +166,18 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Cardápio Online - Seção separada para Admin */}
+        {/* Atalho Rápido - Seção separada para Admin */}
         {role === 'admin' && (
           <>
             <SidebarSeparator />
             <SidebarGroup>
               <SidebarGroupLabel className="flex items-center gap-2">
-                <Menu className="h-4 w-4" />
-                Cardápio Online
+                <Zap className="h-4 w-4" />
+                Atalho Rápido
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {cardapioMenuItems.map((item) => (
+                  {atalhoRapidoMenuItems.map((item) => (
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton
                         asChild
