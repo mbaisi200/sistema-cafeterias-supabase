@@ -254,8 +254,11 @@ export default function DeliveryAdminPage() {
           {/* Header */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold">Pedidos de Delivery</h1>
-              <p className="text-muted-foreground">Gerencie os pedidos recebidos</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-bold">Pedidos de Delivery</h1>
+                <Badge className="bg-green-500 animate-pulse">NOVO</Badge>
+              </div>
+              <p className="text-muted-foreground">Gerencie os pedidos recebidos pelo cardápio online</p>
             </div>
             <Button variant="outline" onClick={loadPedidos}>
               <RefreshCw className="h-4 w-4 mr-2" /> Atualizar
