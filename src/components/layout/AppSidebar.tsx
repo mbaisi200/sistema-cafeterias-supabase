@@ -16,12 +16,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
   LayoutDashboard,
-  Users,
   Package,
   FolderOpen,
   UtensilsCrossed,
@@ -35,8 +35,12 @@ import {
   BarChart3,
   Wallet,
   Plug,
-  Truck,
   Printer,
+  Bike,
+  ExternalLink,
+  ClipboardList,
+  Users,
+  Menu,
 } from 'lucide-react';
 
 const masterMenuItems = [
@@ -51,7 +55,7 @@ const adminMenuItems = [
   { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
-  { title: 'Delivery', url: '/admin/delivery', icon: Truck },
+  { title: 'Delivery', url: '/admin/delivery', icon: Bike },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
   { title: 'Categorias', url: '/admin/categorias', icon: FolderOpen },
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
@@ -103,6 +107,9 @@ export function AppSidebar() {
     await logout();
   };
 
+  // URL do cardápio online
+  const cardapioUrl = empresaId ? `/cardapio?empresa=${empresaId}` : '/cardapio';
+
   return (
     <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader className="border-b border-blue-100 bg-blue-50">
@@ -141,6 +148,32 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Cardápio Online - apenas para admin */}
+        {role === 'admin' && empresaId && (
+          <>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel>Acesso Rápido</SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      asChild
+                      tooltip="Ver Cardápio Online"
+                    >
+                      <Link href={cardapioUrl} target="_blank">
+                        <Menu className="h-4 w-4" />
+                        <span>Cardápio Online</span>
+                        <ExternalLink className="h-3 w-3 ml-auto text-muted-foreground" />
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-blue-100 bg-blue-50">
