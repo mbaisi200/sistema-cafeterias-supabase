@@ -30,7 +30,8 @@ export function LoginForm() {
 
     try {
       await login(email, password);
-      router.push('/dashboard');
+      // O redirecionamento será feito pelo page.tsx baseado no role do usuário
+      // Não redirecionar aqui para evitar 404
     } catch (err: unknown) {
       if (err instanceof Error) {
         setError(err.message);

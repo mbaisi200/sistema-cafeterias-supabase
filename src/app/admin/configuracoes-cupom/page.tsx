@@ -240,7 +240,7 @@ export default function ConfiguracoesCupomPage() {
                     <div className="space-y-2">
                       <Label htmlFor="larguraPapel">Largura do Papel (mm)</Label>
                       <Select
-                        value={formData.larguraPapel.toString()}
+                        value={(formData.larguraPapel ?? 58).toString()}
                         onValueChange={(value) => handleInputChange('larguraPapel', parseInt(value))}
                       >
                         <SelectTrigger>
@@ -402,7 +402,7 @@ export default function ConfiguracoesCupomPage() {
                       <div className="space-y-2">
                         <Label htmlFor="tamanhoFonte">Tamanho da Fonte (pt)</Label>
                         <Select
-                          value={formData.tamanhoFonte.toString()}
+                          value={(formData.tamanhoFonte ?? 12).toString()}
                           onValueChange={(value) => handleInputChange('tamanhoFonte', parseInt(value))}
                         >
                           <SelectTrigger>
@@ -421,7 +421,7 @@ export default function ConfiguracoesCupomPage() {
                       <div className="space-y-2">
                         <Label htmlFor="espacamentoLinhas">Espaçamento entre Linhas</Label>
                         <Select
-                          value={formData.espacamentoLinhas.toString()}
+                          value={(formData.espacamentoLinhas ?? 1.4).toString()}
                           onValueChange={(value) => handleInputChange('espacamentoLinhas', parseFloat(value))}
                         >
                           <SelectTrigger>
