@@ -10,6 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -17,7 +18,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -37,7 +37,8 @@ import {
 } from '@/components/ui/table';
 import { useProdutos, useCategorias } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
-import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
 import {
   Plus,
   Search,
@@ -50,6 +51,11 @@ import {
   FolderOpen,
   GripVertical,
   MoreHorizontal,
+  ShoppingCart,
+  RefreshCw,
+  CheckCircle,
+  XCircle,
+  Clock,
 } from 'lucide-react';
 
 const colorOptions = [
@@ -73,12 +79,17 @@ interface Produto {
   estoqueAtual?: number;
   destaque?: boolean;
   ativo?: boolean;
+  disponivelIfood?: boolean;
+  ifoodExternalCode?: string;
+  ifoodSyncStatus?: 'synced' | 'pending' | 'error' | 'not_synced';
+  ifoodProductId?: string;
 }
 
 export default function ProdutosPage() {
-  const { produtos, loading: loadingProdutos, adicionarProduto, atualizarProduto, excluirProduto } = useProdutos();
+  const { produtos, loading: loadingProdutos, adicionarProduto, atualizarProduto, excluirProduto, refetch: refetchProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias, adicionarCategoria, excluirCategoria } = useCategorias();
   const { toast } = useToast();
+  const { empresaId } = useAuth();
   
   // Estados de Produtos
   const [search, setSearch] = useState('');
@@ -91,7 +102,29 @@ export default function ProdutosPage() {
   const [dialogCategoriaOpen, setDialogCategoriaOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#f97316');
 
+  // Estados de Sincronização iFood
+  const [syncing, setSyncing] = useState(false);
+  const [ifoodConfig, setIfoodConfig] = useState<any>(null);
+  const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+
   const loading = loadingProdutos || loadingCategorias;
+
+  // Carregar configuração iFood
+  useEffect(() => {
+    const loadIfoodConfig = async () => {
+      if (!empresaId) return;
+      try {
+        const res = await fetch('/api/ifood/config');
+        if (res.ok) {
+          const data = await res.json();
+          setIfoodConfig(data.config);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar config iFood:', error);
+      }
+    };
+    loadIfoodConfig();
+  }, [empresaId]);
 
   const filteredProdutos = produtos.filter(produto => {
     const searchLower = search.toLowerCase();
@@ -102,6 +135,9 @@ export default function ProdutosPage() {
     return matchSearch && matchCategoria;
   });
 
+  // Produtos marcados para iFood
+  const produtosIfood = produtos.filter(p => p.disponivelIfood);
+
   // Handlers de Produtos
   const handleSalvarProduto = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -110,7 +146,7 @@ export default function ProdutosPage() {
     const formData = new FormData(e.currentTarget);
     
     try {
-      const dados = {
+      const dados: any = {
         nome: formData.get('nome') as string,
         descricao: formData.get('descricao') as string,
         codigo: formData.get('codigo') as string,
@@ -123,7 +159,14 @@ export default function ProdutosPage() {
         precoUnidade: parseFloat(formData.get('precoUnidade') as string) || 0,
         estoqueMinimo: parseInt(formData.get('estoqueMinimo') as string) || 0,
         destaque: formData.get('destaque') === 'on',
+        disponivelIfood: formData.get('disponivelIfood') === 'on',
       };
+
+      // Gerar código externo para iFood se não existir
+      if (dados.disponivelIfood && !editandoProduto?.ifoodExternalCode) {
+        dados.ifoodExternalCode = `PROD-${Date.now()}`;
+        dados.ifoodSyncStatus = 'pending';
+      }
 
       if (editandoProduto) {
         await atualizarProduto(editandoProduto.id, dados);
@@ -139,6 +182,7 @@ export default function ProdutosPage() {
       
       setDialogOpen(false);
       setEditandoProduto(null);
+      refetchProdutos();
     } catch (error) {
       console.error('Erro ao salvar produto:', error);
       toast({ variant: 'destructive', title: 'Erro ao salvar produto' });
@@ -163,6 +207,72 @@ export default function ProdutosPage() {
       toast({ title: 'Produto excluído!' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erro ao excluir produto' });
+    }
+  };
+
+  // Toggle iFood para produto
+  const handleToggleIfood = async (produto: Produto, checked: boolean) => {
+    try {
+      const updateData: any = {
+        disponivelIfood: checked,
+      };
+      
+      if (checked && !produto.ifoodExternalCode) {
+        updateData.ifoodExternalCode = `PROD-${Date.now()}`;
+        updateData.ifoodSyncStatus = 'pending';
+      }
+      
+      await atualizarProduto(produto.id, updateData);
+      toast({ 
+        title: checked ? 'Produto marcado para iFood' : 'Produto removido do iFood',
+        description: checked ? 'Sincronize com o iFood para atualizar o catálogo' : ''
+      });
+      refetchProdutos();
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro ao atualizar produto' });
+    }
+  };
+
+  // Sincronizar produtos com iFood
+  const handleSyncIfood = async () => {
+    if (!ifoodConfig?.merchantId) {
+      toast({ variant: 'destructive', title: 'Configure a integração iFood primeiro' });
+      return;
+    }
+
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/ifood/sync-products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          produtos: produtosIfood.map(p => ({
+            id: p.id,
+            externalCode: p.ifoodExternalCode || `PROD-${p.id}`,
+            name: p.nome,
+            description: p.descricao,
+            price: p.preco,
+            categoryId: p.categoriaId,
+            categoryName: categorias.find(c => c.id === p.categoriaId)?.nome || 'Outros',
+          }))
+        }),
+      });
+
+      const data = await res.json();
+      
+      if (res.ok) {
+        toast({ 
+          title: 'Sincronização concluída!', 
+          description: `${data.synced} produtos sincronizados, ${data.errors} erros` 
+        });
+        refetchProdutos();
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro na sincronização', description: error.message });
+    } finally {
+      setSyncing(false);
     }
   };
 
@@ -206,6 +316,21 @@ export default function ProdutosPage() {
     return produtos.filter(p => p.categoriaId === categoriaId && p.ativo).length;
   };
 
+  const getIfoodStatusBadge = (produto: Produto) => {
+    if (!produto.disponivelIfood) return null;
+    
+    switch (produto.ifoodSyncStatus) {
+      case 'synced':
+        return <Badge className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" />Sincronizado</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-500"><Clock className="h-3 w-3 mr-1" />Pendente</Badge>;
+      case 'error':
+        return <Badge className="bg-red-500"><XCircle className="h-3 w-3 mr-1" />Erro</Badge>;
+      default:
+        return <Badge className="bg-gray-500"><Clock className="h-3 w-3 mr-1" />Não sincronizado</Badge>;
+    }
+  };
+
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
@@ -235,6 +360,10 @@ export default function ProdutosPage() {
               <TabsTrigger value="categorias">
                 <FolderOpen className="h-4 w-4 mr-2" />
                 Categorias ({categorias.length})
+              </TabsTrigger>
+              <TabsTrigger value="ifood">
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                iFood ({produtosIfood.length})
               </TabsTrigger>
             </TabsList>
           </div>
@@ -343,6 +472,16 @@ export default function ProdutosPage() {
                           <p className="text-xs text-muted-foreground">Aparece na tela inicial do PDV</p>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2">
+                        <Switch id="disponivelIfood" name="disponivelIfood" defaultChecked={editandoProduto?.disponivelIfood} />
+                        <div>
+                          <Label htmlFor="disponivelIfood" className="flex items-center gap-1">
+                            <ShoppingCart className="h-4 w-4 text-red-500" />
+                            Enviar para iFood
+                          </Label>
+                          <p className="text-xs text-muted-foreground">Incluir no catálogo do iFood</p>
+                        </div>
+                      </div>
                     </div>
                   </div>
                   <DialogFooter>
@@ -399,10 +538,9 @@ export default function ProdutosPage() {
                     <TableRow>
                       <TableHead className="w-[250px]">Produto</TableHead>
                       <TableHead>Código</TableHead>
-                      <TableHead>Cód. Barras</TableHead>
                       <TableHead>Categoria</TableHead>
                       <TableHead className="text-right">Preço</TableHead>
-                      <TableHead className="text-center">Estoque</TableHead>
+                      <TableHead className="text-center">iFood</TableHead>
                       <TableHead className="text-center">Status</TableHead>
                       <TableHead className="w-[100px] text-center">Ações</TableHead>
                     </TableRow>
@@ -434,11 +572,6 @@ export default function ProdutosPage() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          <span className="text-xs font-mono text-gray-600">
-                            {produto.codigoBarras || '-'}
-                          </span>
-                        </TableCell>
-                        <TableCell>
                           <Badge variant="outline" className="text-xs">
                             {getNomeCategoria(produto.categoriaId)}
                           </Badge>
@@ -449,16 +582,13 @@ export default function ProdutosPage() {
                           </span>
                         </TableCell>
                         <TableCell className="text-center">
-                          <span className="text-sm">{produto.estoqueAtual || 0}</span>
+                          <Checkbox 
+                            checked={produto.disponivelIfood}
+                            onCheckedChange={(checked) => handleToggleIfood(produto, checked as boolean)}
+                          />
                         </TableCell>
                         <TableCell className="text-center">
-                          {(produto.estoqueAtual || 0) <= (produto.estoqueMinimo || 0) ? (
-                            <Badge variant="destructive" className="text-xs flex items-center gap-1 w-fit mx-auto">
-                              <AlertTriangle className="h-3 w-3" /> Baixo
-                            </Badge>
-                          ) : (
-                            <Badge variant="secondary" className="text-xs w-fit mx-auto">Normal</Badge>
-                          )}
+                          {getIfoodStatusBadge(produto)}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-1">
@@ -626,6 +756,113 @@ export default function ProdutosPage() {
                       </div>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+
+          {/* Tab iFood */}
+          <TabsContent value="ifood" className="space-y-6">
+            {/* Header iFood */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5 text-red-500" />
+                  Produtos no iFood
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Gerencie quais produtos serão sincronizados com o iFood
+                </p>
+              </div>
+              <Button 
+                onClick={handleSyncIfood} 
+                disabled={syncing || produtosIfood.length === 0}
+                className="bg-red-500 hover:bg-red-600"
+              >
+                {syncing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Sincronizar com iFood
+              </Button>
+            </div>
+
+            {/* Status iFood */}
+            {!ifoodConfig?.merchantId && (
+              <Card className="border-yellow-200 bg-yellow-50">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                    <div>
+                      <p className="font-medium text-yellow-800">Integração iFood não configurada</p>
+                      <p className="text-sm text-yellow-700">
+                        Configure suas credenciais do iFood em Integrações para sincronizar produtos.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Lista de produtos iFood */}
+            {produtosIfood.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center h-64">
+                  <ShoppingCart className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium">Nenhum produto marcado para iFood</p>
+                  <p className="text-sm text-muted-foreground">
+                    Marque produtos na aba "Produtos" para enviá-los ao iFood
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Produtos marcados para iFood ({produtosIfood.length})</CardTitle>
+                  <CardDescription>
+                    Estes produtos serão enviados para o catálogo do iFood
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Produto</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        <TableHead className="text-right">Preço</TableHead>
+                        <TableHead className="text-center">Status Sync</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {produtosIfood.map((produto) => (
+                        <TableRow key={produto.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <Package className="h-5 w-5 text-muted-foreground" />
+                              <div>
+                                <p className="font-medium">{produto.nome}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  Código: {produto.ifoodExternalCode || produto.codigo || '-'}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline">
+                              {getNomeCategoria(produto.categoriaId)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-green-600">
+                            R$ {(produto.preco || 0).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {getIfoodStatusBadge(produto)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </CardContent>
               </Card>
             )}

@@ -425,6 +425,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/api/ifood/config/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ifood/config">> = Specific
+  const handler = {} as typeof import("../../src/app/api/ifood/config/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/ifood/pedidos/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/ifood/pedidos">> = Specific
@@ -438,6 +447,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/ifood/produtos">> = Specific
   const handler = {} as typeof import("../../src/app/api/ifood/produtos/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/ifood/sync-products/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/ifood/sync-products">> = Specific
+  const handler = {} as typeof import("../../src/app/api/ifood/sync-products/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

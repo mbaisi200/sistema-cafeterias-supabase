@@ -36,6 +36,7 @@ export function useProdutos() {
         nome: p.nome,
         descricao: p.descricao,
         codigo: p.codigo,
+        codigoBarras: p.codigo_barras,
         preco: p.preco,
         custo: p.custo,
         unidade: p.unidade,
@@ -45,6 +46,10 @@ export function useProdutos() {
         destaque: p.destaque,
         ativo: p.ativo,
         foto: p.foto,
+        disponivelIfood: p.disponivel_ifood,
+        ifoodExternalCode: p.ifood_external_code,
+        ifoodSyncStatus: p.ifood_sync_status,
+        ifoodProductId: p.ifood_product_id,
         criadoEm: new Date(p.criado_em),
         atualizadoEm: new Date(p.atualizado_em),
       })) || []);
@@ -85,6 +90,7 @@ export function useProdutos() {
         nome: dados.nome,
         descricao: dados.descricao || null,
         codigo: dados.codigo || null,
+        codigo_barras: dados.codigoBarras || null,
         preco: dados.preco || 0,
         custo: dados.custo || 0,
         unidade: dados.unidade || 'un',
@@ -92,6 +98,9 @@ export function useProdutos() {
         estoque_atual: dados.estoqueAtual || 0,
         estoque_minimo: dados.estoqueMinimo || 0,
         destaque: dados.destaque || false,
+        disponivel_ifood: dados.disponivelIfood || false,
+        ifood_external_code: dados.ifoodExternalCode || null,
+        ifood_sync_status: dados.ifoodSyncStatus || 'not_synced',
         ativo: true,
       })
       .select()
@@ -102,19 +111,33 @@ export function useProdutos() {
   };
 
   const atualizarProduto = async (id: string, dados: any) => {
+    const updateData: any = {
+      nome: dados.nome,
+      descricao: dados.descricao || null,
+      codigo: dados.codigo || null,
+      preco: dados.preco,
+      custo: dados.custo,
+      unidade: dados.unidade,
+      categoria_id: dados.categoriaId,
+      estoque_minimo: dados.estoqueMinimo,
+      destaque: dados.destaque,
+      atualizado_em: new Date().toISOString(),
+    };
+    
+    // Campos opcionais de iFood
+    if (dados.disponivelIfood !== undefined) {
+      updateData.disponivel_ifood = dados.disponivelIfood;
+    }
+    if (dados.ifoodExternalCode !== undefined) {
+      updateData.ifood_external_code = dados.ifoodExternalCode;
+    }
+    if (dados.ifoodSyncStatus !== undefined) {
+      updateData.ifood_sync_status = dados.ifoodSyncStatus;
+    }
+
     const { error } = await supabase
       .from('produtos')
-      .update({
-        nome: dados.nome,
-        descricao: dados.descricao || null,
-        codigo: dados.codigo || null,
-        preco: dados.preco,
-        custo: dados.custo,
-        unidade: dados.unidade,
-        categoria_id: dados.categoriaId,
-        estoque_minimo: dados.estoqueMinimo,
-        destaque: dados.destaque,
-      })
+      .update(updateData)
       .eq('id', id);
 
     if (error) throw error;
@@ -129,7 +152,7 @@ export function useProdutos() {
     if (error) throw error;
   };
 
-  return { produtos, loading, adicionarProduto, atualizarProduto, excluirProduto };
+  return { produtos, loading, adicionarProduto, atualizarProduto, excluirProduto, refetch: carregarDados };
 }
 
 // =====================================================
