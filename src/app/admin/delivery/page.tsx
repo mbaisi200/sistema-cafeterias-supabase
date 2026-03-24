@@ -1,506 +1,659 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { 
-  Truck, 
-  MapPin, 
-  Phone, 
-  User, 
-  Clock, 
-  Package,
-  ChefHat,
-  CheckCircle2,
-  XCircle,
-  RefreshCw,
-  Eye,
-  Loader2
-} from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
+import {
+  ShoppingBag,
+  Clock,
+  CheckCircle,
+  XCircle,
+  Truck,
+  ChefHat,
+  Package,
+  Search,
+  RefreshCw,
+  Phone,
+  MapPin,
+  User,
+  DollarSign,
+  FileKey,
+  AlertTriangle,
+  Loader2,
+  Printer
+} from 'lucide-react';
 
-interface VendaDelivery {
+// Tipos
+type OrderStatus = 'PLACED' | 'CONFIRMED' | 'IN_PREPARATION' | 'READY_FOR_PICKUP' | 'DISPATCHED' | 'DELIVERED' | 'CANCELLED' | 'REJECTED';
+
+interface IFoodOrder {
   id: string;
-  pedidoExternoId?: string;
-  canal: string;
-  status: string;
-  nomeCliente?: string;
-  telefoneCliente?: string;
-  enderecoEntrega?: {
+  order_id: string;
+  short_order_number: string;
+  venda_id: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_document: string;
+  order_type: 'DELIVERY' | 'TAKEOUT' | 'INDOOR';
+  ifood_status: OrderStatus;
+  total: number;
+  subtotal: number;
+  taxa_entrega: number;
+  desconto: number;
+  forma_pagamento: string;
+  is_prepaid: boolean;
+  delivery_address: {
     logradouro: string;
     numero: string;
-    complemento?: string;
+    complemento: string;
     bairro: string;
     cidade: string;
-    referencia?: string;
+    estado: string;
+    cep: string;
+    referencia: string;
+  } | null;
+  observacao: string;
+  itens: Array<{
+    id: string;
+    nome: string;
+    quantidade: number;
+    preco_unitario: number;
+    total: number;
+    observacao: string;
+  }>;
+  criado_em: string;
+  estimated_delivery_time: number;
+  delivery_by: string;
+}
+
+const statusConfig: Record<OrderStatus, { label: string; color: string; icon: any }> = {
+  'PLACED': { label: 'Novo', color: 'bg-blue-500', icon: ShoppingBag },
+  'CONFIRMED': { label: 'Confirmado', color: 'bg-yellow-500', icon: CheckCircle },
+  'IN_PREPARATION': { label: 'Preparando', color: 'bg-orange-500', icon: ChefHat },
+  'READY_FOR_PICKUP': { label: 'Pronto', color: 'bg-purple-500', icon: Package },
+  'DISPATCHED': { label: 'Enviado', color: 'bg-indigo-500', icon: Truck },
+  'DELIVERED': { label: 'Entregue', color: 'bg-green-500', icon: CheckCircle },
+  'CANCELLED': { label: 'Cancelado', color: 'bg-red-500', icon: XCircle },
+  'REJECTED': { label: 'Recusado', color: 'bg-red-600', icon: XCircle },
+};
+
+function OrderCard({ order, onAction, loading }: { 
+  order: IFoodOrder; 
+  onAction: (action: string, orderId: string, data?: any) => Promise<void>;
+  loading: boolean;
+}) {
+  const config = statusConfig[order.ifood_status] || statusConfig['PLACED'];
+  const IconComponent = config.icon;
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
-  subtotal: number;
-  taxaEntrega: number;
-  desconto: number;
-  total: number;
-  observacao?: string;
-  criadoEm?: Date;
+
+  const formatTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleAction = async (action: string) => {
+    if (action === 'cancel') {
+      setCancelDialogOpen(true);
+    } else {
+      await onAction(action, order.order_id);
+    }
+  };
+
+  const handleConfirmCancel = async () => {
+    await onAction('cancel', order.order_id, { reason: cancelReason });
+    setCancelDialogOpen(false);
+    setCancelReason('');
+  };
+
+  return (
+    <>
+      <Card className="relative overflow-hidden">
+        {/* Status indicator */}
+        <div className={`absolute top-0 left-0 w-1 h-full ${config.color}`} />
+        
+        <CardContent className="p-4 pl-6">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-lg">#{order.short_order_number || order.order_id.slice(-6)}</span>
+                <Badge className={config.color}>{config.label}</Badge>
+                {order.order_type === 'TAKEOUT' && (
+                  <Badge variant="outline">Retirada</Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {formatTime(order.criado_em)} • {order.order_type === 'DELIVERY' ? 'Delivery' : order.order_type === 'TAKEOUT' ? 'Retirada' : 'Local'}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-bold text-lg">{formatCurrency(order.total)}</p>
+              <p className="text-sm text-muted-foreground">
+                {order.forma_pagamento} {order.is_prepaid && '(Pago)'}
+              </p>
+            </div>
+          </div>
+
+          {/* Customer info */}
+          <div className="flex items-center gap-2 mb-3 text-sm">
+            <User className="h-4 w-4 text-muted-foreground" />
+            <span>{order.customer_name}</span>
+            {order.customer_phone && (
+              <>
+                <Separator orientation="vertical" className="h-4" />
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <span>{order.customer_phone}</span>
+              </>
+            )}
+          </div>
+
+          {/* Delivery address */}
+          {order.delivery_address && order.order_type === 'DELIVERY' && (
+            <div className="flex items-start gap-2 mb-3 text-sm text-muted-foreground">
+              <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+              <span>
+                {order.delivery_address.logradouro}, {order.delivery_address.numero}
+                {order.delivery_address.complemento && ` - ${order.delivery_address.complemento}`}
+                <br />
+                {order.delivery_address.bairro} - {order.delivery_address.cidade}/{order.delivery_address.estado}
+              </span>
+            </div>
+          )}
+
+          {/* Items preview */}
+          <div className="text-sm mb-3">
+            {order.itens?.slice(0, 3).map((item, idx) => (
+              <div key={idx} className="flex justify-between">
+                <span>{item.quantidade}x {item.nome}</span>
+                <span>{formatCurrency(item.total)}</span>
+              </div>
+            ))}
+            {order.itens?.length > 3 && (
+              <span className="text-muted-foreground">+{order.itens.length - 3} itens</span>
+            )}
+          </div>
+
+          {/* Observation */}
+          {order.observacao && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded p-2 mb-3 text-sm">
+              <strong>Obs:</strong> {order.observacao}
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex flex-wrap gap-2">
+            {order.ifood_status === 'PLACED' && (
+              <>
+                <Button 
+                  size="sm" 
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={() => handleAction('confirm')}
+                  disabled={loading}
+                >
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                  Aceitar
+                </Button>
+                <Button 
+                  size="sm" 
+                  variant="destructive"
+                  onClick={() => handleAction('cancel')}
+                  disabled={loading}
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Recusar
+                </Button>
+              </>
+            )}
+            
+            {order.ifood_status === 'CONFIRMED' && (
+              <Button 
+                size="sm" 
+                className="bg-orange-600 hover:bg-orange-700"
+                onClick={() => handleAction('startPreparation')}
+                disabled={loading}
+              >
+                <ChefHat className="h-4 w-4 mr-1" />
+                Iniciar Preparo
+              </Button>
+            )}
+            
+            {order.ifood_status === 'IN_PREPARATION' && (
+              <Button 
+                size="sm" 
+                className="bg-purple-600 hover:bg-purple-700"
+                onClick={() => handleAction('ready')}
+                disabled={loading}
+              >
+                <Package className="h-4 w-4 mr-1" />
+                Pronto
+              </Button>
+            )}
+            
+            {order.ifood_status === 'READY_FOR_PICKUP' && order.order_type === 'DELIVERY' && (
+              <Button 
+                size="sm" 
+                className="bg-indigo-600 hover:bg-indigo-700"
+                onClick={() => handleAction('dispatch')}
+                disabled={loading}
+              >
+                <Truck className="h-4 w-4 mr-1" />
+                Despachar
+              </Button>
+            )}
+            
+            {order.ifood_status === 'READY_FOR_PICKUP' && order.order_type === 'TAKEOUT' && (
+              <Button 
+                size="sm" 
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => handleAction('delivered')}
+                disabled={loading}
+              >
+                <CheckCircle className="h-4 w-4 mr-1" />
+                Entregue
+              </Button>
+            )}
+            
+            {order.ifood_status === 'DISPATCHED' && (
+              <Button 
+                size="sm" 
+                className="bg-green-600 hover:bg-green-700"
+                onClick={() => handleAction('delivered')}
+                disabled={loading}
+              >
+                <CheckCircle className="h-4 w-4 mr-1" />
+                Entregue
+              </Button>
+            )}
+            
+            {!['DELIVERED', 'CANCELLED', 'REJECTED'].includes(order.ifood_status) && order.ifood_status !== 'PLACED' && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => handleAction('cancel')}
+                disabled={loading}
+              >
+                <XCircle className="h-4 w-4 mr-1" />
+                Cancelar
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Cancel Dialog */}
+      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Cancelar Pedido</DialogTitle>
+            <DialogDescription>
+              Informe o motivo do cancelamento.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            value={cancelReason}
+            onChange={(e) => setCancelReason(e.target.value)}
+            placeholder="Motivo do cancelamento..."
+            rows={3}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCancelDialogOpen(false)}>
+              Voltar
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmCancel} disabled={!cancelReason || loading}>
+              Confirmar Cancelamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
 }
-
-interface ItemVenda {
-  id: string;
-  produtoNome: string;
-  quantidade: number;
-  precoUnitario: number;
-  observacao?: string;
-}
-
-const statusColors: Record<string, string> = {
-  'aberta': 'bg-yellow-500',
-  'em_preparo': 'bg-blue-500',
-  'pronta': 'bg-green-500',
-  'entregue': 'bg-gray-500',
-  'cancelada': 'bg-red-500',
-};
-
-const statusLabels: Record<string, string> = {
-  'aberta': 'Aguardando',
-  'em_preparo': 'Em Preparo',
-  'pronta': 'Pronta',
-  'entregue': 'Entregue',
-  'cancelada': 'Cancelada',
-};
-
-const canalColors: Record<string, string> = {
-  'ifood': 'bg-red-500',
-  'rappi': 'bg-orange-500',
-  'uber_eats': 'bg-green-500',
-  'whatsapp': 'bg-emerald-500',
-  'delivery': 'bg-purple-500',
-};
 
 export default function DeliveryPage() {
-  const { empresaId } = useAuth();
-  const [vendas, setVendas] = useState<VendaDelivery[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [vendaSelecionada, setVendaSelecionada] = useState<VendaDelivery | null>(null);
-  const [itensVenda, setItensVenda] = useState<ItemVenda[]>([]);
-  const [loadingItens, setLoadingItens] = useState(false);
-  const [atualizando, setAtualizando] = useState(false);
+  const { empresaId, user } = useAuth();
   const supabase = getSupabaseClient();
+  const { toast } = useToast();
+  
+  const [orders, setOrders] = useState<IFoodOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  const [ifoodConnected, setIfoodConnected] = useState(false);
 
-  useEffect(() => {
-    if (empresaId) {
-      carregarVendas();
-    }
-  }, [empresaId]);
-
-  const carregarVendas = async () => {
+  const loadOrders = useCallback(async () => {
     if (!empresaId) return;
-    
     setLoading(true);
+
     try {
-      // Buscar vendas de delivery
-      const { data, error } = await supabase
+      // Buscar vendas do canal iFood
+      const { data: vendas, error } = await supabase
         .from('vendas')
-        .select('*')
+        .select(`
+          *,
+          itens:itens_venda(*)
+        `)
         .eq('empresa_id', empresaId)
-        .eq('tipo', 'delivery')
-        .order('criado_em', { ascending: false });
+        .eq('canal', 'ifood')
+        .order('criado_em', { ascending: false })
+        .limit(100);
 
       if (error) throw error;
-      
-      const vendasLista: VendaDelivery[] = (data || []).map((venda: any) => ({
-        id: venda.id,
-        pedidoExternoId: venda.pedido_externo_id,
-        canal: venda.canal || 'delivery',
-        status: venda.status || 'aberta',
-        nomeCliente: venda.nome_cliente,
-        telefoneCliente: venda.telefone_cliente,
-        enderecoEntrega: venda.endereco_entrega,
-        subtotal: venda.subtotal || 0,
-        taxaEntrega: venda.taxa_entrega || 0,
-        desconto: venda.desconto || 0,
-        total: venda.total || 0,
-        observacao: venda.observacao,
-        criadoEm: venda.criado_em ? new Date(venda.criado_em) : undefined,
-      }));
 
-      setVendas(vendasLista);
+      // Buscar dados extras do iFood
+      const { data: ifoodPedidos } = await supabase
+        .from('ifood_pedidos')
+        .select('*')
+        .eq('empresa_id', empresaId);
+
+      // Mapear pedidos
+      const mappedOrders: IFoodOrder[] = (vendas || []).map(venda => {
+        const ifoodData = ifoodPedidos?.find(p => p.venda_id === venda.id);
+        
+        return {
+          id: venda.id,
+          order_id: ifoodData?.order_id || venda.pedido_externo_id || venda.id,
+          short_order_number: ifoodData?.short_order_number || venda.pedido_externo_id?.slice(-6) || '',
+          venda_id: venda.id,
+          customer_name: venda.nome_cliente || 'Cliente',
+          customer_phone: venda.telefone_cliente || '',
+          customer_document: '',
+          order_type: venda.order_type || 'DELIVERY',
+          ifood_status: mapStatus(venda.status, ifoodData?.ifood_status),
+          total: venda.total || 0,
+          subtotal: venda.subtotal || 0,
+          taxa_entrega: venda.taxa_entrega || 0,
+          desconto: venda.desconto || 0,
+          forma_pagamento: venda.forma_pagamento || 'ifood_online',
+          is_prepaid: venda.forma_pagamento === 'ifood_online',
+          delivery_address: venda.entrega_logradouro ? {
+            logradouro: venda.entrega_logradouro,
+            numero: venda.entrega_numero || '',
+            complemento: venda.entrega_complemento || '',
+            bairro: venda.entrega_bairro || '',
+            cidade: venda.entrega_cidade || '',
+            estado: venda.entrega_estado || '',
+            cep: venda.entrega_cep || '',
+            referencia: venda.entrega_referencia || '',
+          } : null,
+          observacao: venda.observacao || '',
+          itens: (venda.itens || []).map((item: any) => ({
+            id: item.id,
+            nome: item.nome,
+            quantidade: item.quantidade,
+            preco_unitario: item.preco_unitario,
+            total: item.total || item.preco_unitario * item.quantidade,
+            observacao: item.observacao || '',
+          })),
+          criado_em: venda.criado_em,
+          estimated_delivery_time: ifoodData?.estimated_delivery_time || 30,
+          delivery_by: ifoodData?.delivery_by || 'RESTAURANTE',
+        };
+      });
+
+      setOrders(mappedOrders);
+
+      // Verificar conexão iFood
+      const { data: ifoodConfig } = await supabase
+        .from('ifood_config')
+        .select('status')
+        .eq('empresa_id', empresaId)
+        .maybeSingle();
+      
+      setIfoodConnected(ifoodConfig?.status === 'connected');
     } catch (error) {
-      console.error('Erro ao carregar vendas:', error);
+      console.error('Erro ao carregar pedidos:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível carregar os pedidos.',
+      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [empresaId, supabase, toast]);
 
-  const carregarItens = async (vendaId: string) => {
-    setLoadingItens(true);
-    try {
-      const { data, error } = await supabase
-        .from('itens_venda')
-        .select('*')
-        .eq('venda_id', vendaId);
-
-      if (error) throw error;
-      
-      const itensLista: ItemVenda[] = (data || []).map((item: any) => ({
-        id: item.id,
-        produtoNome: item.nome || 'Produto',
-        quantidade: item.quantidade || 1,
-        precoUnitario: item.preco_unitario || 0,
-        observacao: item.observacao,
-      }));
-
-      setItensVenda(itensLista);
-    } catch (error) {
-      console.error('Erro ao carregar itens:', error);
-    } finally {
-      setLoadingItens(false);
-    }
-  };
-
-  const handleSelecionarVenda = (venda: VendaDelivery) => {
-    setVendaSelecionada(venda);
-    carregarItens(venda.id);
-  };
-
-  const handleAtualizarStatus = async (novoStatus: string) => {
-    if (!vendaSelecionada) return;
+  const mapStatus = (vendaStatus: string, ifoodStatus?: string): OrderStatus => {
+    if (ifoodStatus) return ifoodStatus as OrderStatus;
     
-    setAtualizando(true);
-    try {
-      const { error } = await supabase
-        .from('vendas')
-        .update({
-          status: novoStatus,
-          atualizado_em: new Date().toISOString(),
-        })
-        .eq('id', vendaSelecionada.id);
-
-      if (error) throw error;
-
-      // Atualizar localmente
-      setVendaSelecionada({ ...vendaSelecionada, status: novoStatus });
-      setVendas(vendas.map(v => v.id === vendaSelecionada.id ? { ...v, status: novoStatus } : v));
-    } catch (error) {
-      console.error('Erro ao atualizar status:', error);
-    } finally {
-      setAtualizando(false);
+    switch (vendaStatus) {
+      case 'aberta': return 'PLACED';
+      case 'fechada': return 'DELIVERED';
+      case 'cancelada': return 'CANCELLED';
+      default: return 'PLACED';
     }
   };
 
-  const formatarHorario = (data?: Date) => {
-    if (!data) return '--:--';
-    return data.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  useEffect(() => {
+    loadOrders();
+  }, [loadOrders]);
+
+  const handleAction = async (action: string, orderId: string, data?: any) => {
+    if (!empresaId || !user) return;
+    setActionLoading(orderId);
+
+    try {
+      const order = orders.find(o => o.order_id === orderId);
+      if (!order) return;
+
+      let newStatus: OrderStatus = order.ifood_status;
+      
+      switch (action) {
+        case 'confirm':
+          newStatus = 'CONFIRMED';
+          break;
+        case 'startPreparation':
+          newStatus = 'IN_PREPARATION';
+          break;
+        case 'ready':
+          newStatus = 'READY_FOR_PICKUP';
+          break;
+        case 'dispatch':
+          newStatus = 'DISPATCHED';
+          break;
+        case 'delivered':
+          newStatus = 'DELIVERED';
+          break;
+        case 'cancel':
+          newStatus = 'CANCELLED';
+          break;
+      }
+
+      // Atualizar status na venda
+      const vendaStatus = newStatus === 'DELIVERED' ? 'fechada' : 
+                          newStatus === 'CANCELLED' ? 'cancelada' : 'aberta';
+      
+      await supabase
+        .from('vendas')
+        .update({ 
+          status: vendaStatus,
+          atualizado_em: new Date().toISOString() 
+        })
+        .eq('id', order.venda_id);
+
+      // Atualizar status no iFood pedidos
+      await supabase
+        .from('ifood_pedidos')
+        .update({ 
+          ifood_status: newStatus,
+          atualizado_em: new Date().toISOString() 
+        })
+        .eq('order_id', orderId);
+
+      // Registrar log
+      await supabase
+        .from('ifood_logs')
+        .insert({
+          empresa_id: empresaId,
+          tipo: 'order_' + action,
+          order_id: orderId,
+          detalhes: `Pedido ${action} - ${newStatus}`,
+          dados: data,
+          sucesso: true,
+          criado_em: new Date().toISOString(),
+        });
+
+      toast({
+        title: 'Status atualizado!',
+        description: `Pedido #${order.short_order_number} - ${statusConfig[newStatus].label}`,
+      });
+
+      // Recarregar pedidos
+      loadOrders();
+    } catch (error) {
+      console.error('Erro ao atualizar pedido:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível atualizar o pedido.',
+      });
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  const formatarData = (data?: Date) => {
-    if (!data) return '--/--';
-    return data.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-  };
+  // Filtrar pedidos
+  const filteredOrders = orders.filter(order => {
+    const matchesSearch = !searchTerm || 
+      order.short_order_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customer_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.order_id.toLowerCase().includes(searchTerm.toLowerCase());
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-      </div>
-    );
-  }
+    if (!matchesSearch) return false;
+
+    switch (activeTab) {
+      case 'new':
+        return ['PLACED'].includes(order.ifood_status);
+      case 'preparing':
+        return ['CONFIRMED', 'IN_PREPARATION'].includes(order.ifood_status);
+      case 'ready':
+        return ['READY_FOR_PICKUP', 'DISPATCHED'].includes(order.ifood_status);
+      case 'finished':
+        return ['DELIVERED', 'CANCELLED', 'REJECTED'].includes(order.ifood_status);
+      default:
+        return true;
+    }
+  });
+
+  // Contadores
+  const counts = {
+    all: orders.length,
+    new: orders.filter(o => o.ifood_status === 'PLACED').length,
+    preparing: orders.filter(o => ['CONFIRMED', 'IN_PREPARATION'].includes(o.ifood_status)).length,
+    ready: orders.filter(o => ['READY_FOR_PICKUP', 'DISPATCHED'].includes(o.ifood_status)).length,
+    finished: orders.filter(o => ['DELIVERED', 'CANCELLED', 'REJECTED'].includes(o.ifood_status)).length,
+  };
 
   return (
-    <div className="container mx-auto py-6 px-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Truck className="h-8 w-8 text-orange-500" />
-            Pedidos Delivery
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie os pedidos de delivery do iFood e outros canais
-          </p>
-        </div>
-        <Button variant="outline" onClick={carregarVendas}>
-          <RefreshCw className="h-4 w-4 mr-2" />
-          Atualizar
-        </Button>
-      </div>
-
-      {/* Estatísticas rápidas */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-yellow-500" />
-              <div>
-                <p className="text-2xl font-bold">{vendas.filter(v => v.status === 'aberta').length}</p>
-                <p className="text-xs text-muted-foreground">Aguardando</p>
-              </div>
+    <ProtectedRoute allowedRoles={['admin', 'funcionario']}>
+      <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Delivery' }]}>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-2">
+                <Truck className="h-8 w-8 text-orange-600" />
+                Delivery
+              </h1>
+              <p className="text-muted-foreground">
+                Gerencie pedidos do iFood e delivery
+              </p>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
             <div className="flex items-center gap-2">
-              <ChefHat className="h-5 w-5 text-blue-500" />
-              <div>
-                <p className="text-2xl font-bold">{vendas.filter(v => v.status === 'em_preparo').length}</p>
-                <p className="text-xs text-muted-foreground">Em Preparo</p>
-              </div>
+              {ifoodConnected ? (
+                <Badge className="bg-green-500">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  iFood Conectado
+                </Badge>
+              ) : (
+                <Badge variant="secondary">
+                  <AlertTriangle className="h-3 w-3 mr-1" />
+                  iFood Desconectado
+                </Badge>
+              )}
+              <Button variant="outline" size="icon" onClick={loadOrders} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-green-500" />
-              <div>
-                <p className="text-2xl font-bold">{vendas.filter(v => v.status === 'pronta').length}</p>
-                <p className="text-xs text-muted-foreground">Prontas</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-2">
-              <Truck className="h-5 w-5 text-purple-500" />
-              <div>
-                <p className="text-2xl font-bold">{vendas.filter(v => v.canal === 'ifood').length}</p>
-                <p className="text-xs text-muted-foreground">iFood Hoje</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Lista de pedidos */}
-      {vendas.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-medium">Nenhum pedido de delivery</h3>
-            <p className="text-muted-foreground">
-              Os pedidos do iFood e outros canais de delivery aparecerão aqui.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-3">
-          {/* Lista de vendas */}
-          <div className="lg:col-span-2 space-y-3">
-            {vendas.map((venda) => (
-              <Card 
-                key={venda.id} 
-                className={`cursor-pointer transition-all hover:shadow-md ${
-                  vendaSelecionada?.id === venda.id ? 'ring-2 ring-orange-500' : ''
-                }`}
-                onClick={() => handleSelecionarVenda(venda)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-lg ${canalColors[venda.canal] || 'bg-gray-500'} text-white`}>
-                        {venda.canal === 'ifood' ? (
-                          <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current">
-                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-                          </svg>
-                        ) : (
-                          <Truck className="h-5 w-5" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-lg">
-                            #{venda.pedidoExternoId || venda.id.slice(-6).toUpperCase()}
-                          </span>
-                          <Badge className={statusColors[venda.status] || 'bg-gray-500'}>
-                            {statusLabels[venda.status] || venda.status}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                          <User className="h-3 w-3" />
-                          <span>{venda.nomeCliente || 'Cliente'}</span>
-                          {venda.telefoneCliente && (
-                            <>
-                              <span>•</span>
-                              <Phone className="h-3 w-3" />
-                              <span>{venda.telefoneCliente}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-lg">R$ {venda.total.toFixed(2)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatarData(venda.criadoEm)} às {formatarHorario(venda.criadoEm)}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {venda.enderecoEntrega && (
-                    <div className="mt-3 pt-3 border-t flex items-start gap-2 text-sm text-muted-foreground">
-                      <MapPin className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                      <span>
-                        {venda.enderecoEntrega.logradouro}, {venda.enderecoEntrega.numero}
-                        {venda.enderecoEntrega.complemento && ` - ${venda.enderecoEntrega.complemento}`}
-                        {' - '}{venda.enderecoEntrega.bairro}
-                      </span>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
           </div>
 
-          {/* Detalhes do pedido selecionado */}
-          <div className="lg:col-span-1">
-            {vendaSelecionada ? (
-              <Card className="sticky top-4">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <span>#{vendaSelecionada.pedidoExternoId || vendaSelecionada.id.slice(-6).toUpperCase()}</span>
-                    <Badge className={statusColors[vendaSelecionada.status] || 'bg-gray-500'}>
-                      {statusLabels[vendaSelecionada.status] || vendaSelecionada.status}
-                    </Badge>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Cliente */}
-                  <div>
-                    <h4 className="font-medium text-sm text-muted-foreground mb-1">Cliente</h4>
-                    <p className="font-medium">{vendaSelecionada.nomeCliente || 'Não informado'}</p>
-                    {vendaSelecionada.telefoneCliente && (
-                      <p className="text-sm text-muted-foreground">{vendaSelecionada.telefoneCliente}</p>
-                    )}
-                  </div>
-
-                  {/* Endereço */}
-                  {vendaSelecionada.enderecoEntrega && (
-                    <div>
-                      <h4 className="font-medium text-sm text-muted-foreground mb-1">Endereço de Entrega</h4>
-                      <p className="text-sm">
-                        {vendaSelecionada.enderecoEntrega.logradouro}, {vendaSelecionada.enderecoEntrega.numero}
-                        {vendaSelecionada.enderecoEntrega.complemento && ` - ${vendaSelecionada.enderecoEntrega.complemento}`}
-                      </p>
-                      <p className="text-sm">{vendaSelecionada.enderecoEntrega.bairro}</p>
-                      {vendaSelecionada.enderecoEntrega.referencia && (
-                        <p className="text-sm text-muted-foreground">Ref: {vendaSelecionada.enderecoEntrega.referencia}</p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Observação */}
-                  {vendaSelecionada.observacao && (
-                    <div>
-                      <h4 className="font-medium text-sm text-muted-foreground mb-1">Observação</h4>
-                      <p className="text-sm bg-yellow-50 p-2 rounded">{vendaSelecionada.observacao}</p>
-                    </div>
-                  )}
-
-                  {/* Itens */}
-                  <div>
-                    <h4 className="font-medium text-sm text-muted-foreground mb-2">Itens do Pedido</h4>
-                    {loadingItens ? (
-                      <div className="flex justify-center py-4">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                      </div>
-                    ) : itensVenda.length > 0 ? (
-                      <div className="space-y-2">
-                        {itensVenda.map((item) => (
-                          <div key={item.id} className="flex justify-between text-sm">
-                            <span>
-                              {item.quantidade}x {item.produtoNome}
-                            </span>
-                            <span>R$ {(item.quantidade * item.precoUnitario).toFixed(2)}</span>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Nenhum item encontrado</p>
-                    )}
-                  </div>
-
-                  {/* Totais */}
-                  <div className="pt-3 border-t space-y-1">
-                    <div className="flex justify-between text-sm">
-                      <span>Subtotal</span>
-                      <span>R$ {vendaSelecionada.subtotal.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span>Taxa de Entrega</span>
-                      <span>R$ {vendaSelecionada.taxaEntrega.toFixed(2)}</span>
-                    </div>
-                    {vendaSelecionada.desconto > 0 && (
-                      <div className="flex justify-between text-sm text-red-500">
-                        <span>Desconto</span>
-                        <span>-R$ {vendaSelecionada.desconto.toFixed(2)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between font-bold pt-2 border-t">
-                      <span>Total</span>
-                      <span>R$ {vendaSelecionada.total.toFixed(2)}</span>
-                    </div>
-                  </div>
-
-                  {/* Ações */}
-                  <div className="pt-3 border-t space-y-2">
-                    {vendaSelecionada.status === 'aberta' && (
-                      <Button 
-                        className="w-full" 
-                        onClick={() => handleAtualizarStatus('em_preparo')}
-                        disabled={atualizando}
-                      >
-                        <ChefHat className="h-4 w-4 mr-2" />
-                        Iniciar Preparo
-                      </Button>
-                    )}
-                    {vendaSelecionada.status === 'em_preparo' && (
-                      <Button 
-                        className="w-full bg-green-500 hover:bg-green-600" 
-                        onClick={() => handleAtualizarStatus('pronta')}
-                        disabled={atualizando}
-                      >
-                        <CheckCircle2 className="h-4 w-4 mr-2" />
-                        Marcar como Pronta
-                      </Button>
-                    )}
-                    {vendaSelecionada.status === 'pronta' && (
-                      <Button 
-                        className="w-full bg-purple-500 hover:bg-purple-600" 
-                        onClick={() => handleAtualizarStatus('entregue')}
-                        disabled={atualizando}
-                      >
-                        <Truck className="h-4 w-4 mr-2" />
-                        Marcar como Entregue
-                      </Button>
-                    )}
-                    {(vendaSelecionada.status === 'aberta' || vendaSelecionada.status === 'em_preparo') && (
-                      <Button 
-                        variant="destructive" 
-                        className="w-full"
-                        onClick={() => handleAtualizarStatus('cancelada')}
-                        disabled={atualizando}
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Cancelar Pedido
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardContent className="py-12 text-center">
-                  <Eye className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">
-                    Selecione um pedido para ver os detalhes
-                  </p>
-                </CardContent>
-              </Card>
-            )}
+          {/* Search */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por número ou nome do cliente..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
+
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-5">
+              <TabsTrigger value="all">
+                Todos ({counts.all})
+              </TabsTrigger>
+              <TabsTrigger value="new">
+                Novos ({counts.new})
+              </TabsTrigger>
+              <TabsTrigger value="preparing">
+                Preparando ({counts.preparing})
+              </TabsTrigger>
+              <TabsTrigger value="ready">
+                Prontos ({counts.ready})
+              </TabsTrigger>
+              <TabsTrigger value="finished">
+                Finalizados ({counts.finished})
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value={activeTab} className="mt-4">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-orange-600" />
+                </div>
+              ) : filteredOrders.length === 0 ? (
+                <Card>
+                  <CardContent className="py-12 text-center text-muted-foreground">
+                    <ShoppingBag className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                    <p>Nenhum pedido encontrado</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {filteredOrders.map(order => (
+                    <OrderCard
+                      key={order.id}
+                      order={order}
+                      onAction={handleAction}
+                      loading={actionLoading === order.order_id}
+                    />
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
-      )}
-    </div>
+      </MainLayout>
+    </ProtectedRoute>
   );
 }
