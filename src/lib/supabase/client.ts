@@ -30,9 +30,37 @@ export function isSupabaseConfigured(): boolean {
 // Tipo do cliente Supabase
 type SupabaseClient = ReturnType<typeof import('@supabase/ssr').createBrowserClient>
 
+// Mock query builder que suporta encadeamento
+function createMockQueryBuilder() {
+  const queryBuilder: Record<string, unknown> = {
+    data: null,
+    error: new Error('Supabase não configurado'),
+  }
+
+  // Métodos que retornam o próprio queryBuilder para encadeamento
+  const chainMethods = [
+    'select', 'insert', 'update', 'delete', 'upsert',
+    'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in', 'contains', 'containedBy',
+    'order', 'limit', 'offset', 'range', 'single', 'maybeSingle',
+    'ilike', 'like', 'is', 'not', 'or', 'and', 'filter',
+    'match', 'overlaps', 'textSearch', 'fts', 'plfts', 'phfts', 'wfts'
+  ]
+
+  chainMethods.forEach(method => {
+    queryBuilder[method] = (..._args: unknown[]) => queryBuilder
+  })
+
+  // Métodos que retornam promise
+  queryBuilder.then = (resolve: (value: unknown) => void) => {
+    return Promise.resolve(resolve({ data: null, error: new Error('Supabase não configurado') }))
+  }
+
+  return queryBuilder
+}
+
 // Mock client para quando o Supabase não está configurado
 function createMockClient(): SupabaseClient {
-  return {
+  const mockClient = {
     auth: {
       getSession: async () => ({ data: { session: null }, error: null }),
       getUser: async () => ({ data: { user: null }, error: null }),
@@ -42,16 +70,36 @@ function createMockClient(): SupabaseClient {
       refreshSession: async () => ({ data: { session: null, user: null }, error: null }),
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
     },
-    from: () => ({
-      select: () => ({ data: null, error: new Error('Supabase não configurado') }),
-      insert: () => ({ data: null, error: new Error('Supabase não configurado') }),
-      update: () => ({ data: null, error: new Error('Supabase não configurado') }),
-      delete: () => ({ data: null, error: new Error('Supabase não configurado') }),
-      eq: () => ({ data: null, error: new Error('Supabase não configurado') }),
-      single: async () => ({ data: null, error: new Error('Supabase não configurado') }),
+    from: (_table: string) => createMockQueryBuilder(),
+    rpc: (_fn: string, _args?: Record<string, unknown>) => ({
+      data: null,
+      error: new Error('Supabase não configurado'),
     }),
-    rpc: () => ({ data: null, error: new Error('Supabase não configurado') }),
-  } as unknown as SupabaseClient
+    storage: {
+      from: (_bucket: string) => ({
+        upload: async () => ({ data: null, error: new Error('Supabase não configurado') }),
+        download: async () => ({ data: null, error: new Error('Supabase não configurado') }),
+        remove: async () => ({ data: null, error: new Error('Supabase não configurado') }),
+        list: async () => ({ data: [], error: new Error('Supabase não configurado') }),
+        getPublicUrl: () => ({ data: { publicUrl: '' } }),
+        createSignedUrl: async () => ({ data: null, error: new Error('Supabase não configurado') }),
+      }),
+    },
+    realtime: {
+      channel: () => ({
+        on: () => ({ subscribe: () => {} }),
+        subscribe: () => {},
+        unsubscribe: () => {},
+      }),
+    },
+    channel: () => ({
+      on: () => ({ subscribe: () => {} }),
+      subscribe: () => {},
+      unsubscribe: () => {},
+    }),
+  }
+
+  return mockClient as unknown as SupabaseClient
 }
 
 export async function createClientAsync(): Promise<SupabaseClient> {
@@ -111,7 +159,7 @@ export function createClient(): SupabaseClient {
     // Import síncrono (pode falhar se @supabase/ssr tiver problemas)
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const { createBrowserClient } = require('@supabase/ssr')
-    
+
     return createBrowserClient(
       supabaseUrl!,
       supabaseAnonKey!,

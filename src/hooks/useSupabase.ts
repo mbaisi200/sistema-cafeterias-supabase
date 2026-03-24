@@ -1423,6 +1423,9 @@ export function useComandas() {
 export interface ConfiguracoesCupom {
   nomeEmpresa: string;
   cnpj: string;
+  cnpjEmpresa?: string;
+  enderecoEmpresa?: string;
+  telefoneEmpresa?: string;
   endereco: string;
   telefone: string;
   mensagemRodape: string;
@@ -1431,15 +1434,23 @@ export interface ConfiguracoesCupom {
   mostrarHora: boolean;
   mostrarVendedor: boolean;
   mostrarDesconto: boolean;
-  tamanhoFonte: 'pequena' | 'media' | 'grande';
+  tamanhoFonte: number;
   larguraPapel: number;
+  espacamentoLinhas: number;
+  margemSuperior: number;
+  margemInferior: number;
+  intensidadeImpressao: 'normal' | 'escura' | 'muito-escura';
   imprimirAutomatico: boolean;
   vias: number;
+  [key: string]: unknown; // Allow additional properties
 }
 
 export const configuracoesCupomPadrao: ConfiguracoesCupom = {
   nomeEmpresa: '',
   cnpj: '',
+  cnpjEmpresa: '',
+  enderecoEmpresa: '',
+  telefoneEmpresa: '',
   endereco: '',
   telefone: '',
   mensagemRodape: 'Obrigado pela preferência!',
@@ -1448,8 +1459,12 @@ export const configuracoesCupomPadrao: ConfiguracoesCupom = {
   mostrarHora: true,
   mostrarVendedor: true,
   mostrarDesconto: true,
-  tamanhoFonte: 'media',
+  tamanhoFonte: 12,
   larguraPapel: 58,
+  espacamentoLinhas: 1.4,
+  margemSuperior: 2,
+  margemInferior: 2,
+  intensidadeImpressao: 'escura',
   imprimirAutomatico: false,
   vias: 1,
 };
