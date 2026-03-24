@@ -1,73 +1,144 @@
-import { createBrowserClient } from '@supabase/ssr'
+// Lazy load do createBrowserClient para evitar erros quando não configurado
+let createBrowserClientFn: typeof import('@supabase/ssr').createBrowserClient | null = null
 
 // Singleton para evitar múltiplas instâncias
-let client: ReturnType<typeof createBrowserClient> | null = null
-
-// Verificar se as variáveis de ambiente estão configuradas
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+let client: ReturnType<typeof import('@supabase/ssr').createBrowserClient> | null = null
 
 // Verificar se as credenciais são válidas (não são placeholders)
-const isValidSupabaseConfig = supabaseUrl && 
-  supabaseAnonKey && 
-  supabaseUrl !== 'https://your-project.supabase.co' &&
-  !supabaseUrl.includes('your-project') &&
-  supabaseAnonKey !== 'your-anon-key-here' &&
-  supabaseAnonKey.length > 50
-
-export function isSupabaseConfigured(): boolean {
-  return isValidSupabaseConfig
+function checkSupabaseConfig(url: string | undefined, key: string | undefined): boolean {
+  if (!url || !key) return false
+  if (url === 'https://your-project.supabase.co') return false
+  if (url.includes('your-project')) return false
+  if (key === 'your-anon-key-here') return false
+  if (key.length < 50) return false
+  // Verificar se a URL é válida
+  try {
+    new URL(url)
+    return true
+  } catch {
+    return false
+  }
 }
 
-export function createClient() {
-  // Se não configurado, retornar um cliente mock que não quebra a aplicação
-  if (!isValidSupabaseConfig) {
-    console.warn('⚠️ Supabase não configurado. Configure as variáveis de ambiente NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY')
-    // Retornar cliente mock para evitar erros
-    return {
-      auth: {
-        getSession: async () => ({ data: { session: null }, error: null }),
-        getUser: async () => ({ data: { user: null }, error: null }),
-        signInWithPassword: async () => ({ data: { user: null, session: null }, error: new Error('Supabase não configurado') }),
-        signOut: async () => ({ error: null }),
-        resetPasswordForEmail: async () => ({ error: new Error('Supabase não configurado') }),
-        refreshSession: async () => ({ data: { session: null, user: null }, error: null }),
-        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-      },
-      from: () => ({
-        select: () => ({ data: null, error: new Error('Supabase não configurado') }),
-        insert: () => ({ data: null, error: new Error('Supabase não configurado') }),
-        update: () => ({ data: null, error: new Error('Supabase não configurado') }),
-        delete: () => ({ data: null, error: new Error('Supabase não configurado') }),
-      }),
-    } as unknown as ReturnType<typeof createBrowserClient>
-  }
-
-  return createBrowserClient(
-    supabaseUrl!,
-    supabaseAnonKey!,
-    {
-      auth: {
-        storageKey: 'sb-wbgppesbzbwyymmmxgqq-auth-token',
-        detectSessionInUrl: true,
-        persistSession: true,
-        autoRefreshToken: true,
-        flowType: 'pkce',
-        lock: false,
-        // Configurar debug para monitorar sessão
-        debug: false,
-      },
-      global: {
-        headers: {
-          // Cache control para evitar problemas de stale session
-          'Cache-Control': 'no-store',
-        },
-      },
-    }
+export function isSupabaseConfigured(): boolean {
+  return checkSupabaseConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   )
 }
 
-export function getSupabaseClient() {
+// Tipo do cliente Supabase
+type SupabaseClient = ReturnType<typeof import('@supabase/ssr').createBrowserClient>
+
+// Mock client para quando o Supabase não está configurado
+function createMockClient(): SupabaseClient {
+  return {
+    auth: {
+      getSession: async () => ({ data: { session: null }, error: null }),
+      getUser: async () => ({ data: { user: null }, error: null }),
+      signInWithPassword: async () => ({ data: { user: null, session: null }, error: new Error('Supabase não configurado') }),
+      signOut: async () => ({ error: null }),
+      resetPasswordForEmail: async () => ({ error: new Error('Supabase não configurado') }),
+      refreshSession: async () => ({ data: { session: null, user: null }, error: null }),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+    },
+    from: () => ({
+      select: () => ({ data: null, error: new Error('Supabase não configurado') }),
+      insert: () => ({ data: null, error: new Error('Supabase não configurado') }),
+      update: () => ({ data: null, error: new Error('Supabase não configurado') }),
+      delete: () => ({ data: null, error: new Error('Supabase não configurado') }),
+      eq: () => ({ data: null, error: new Error('Supabase não configurado') }),
+      single: async () => ({ data: null, error: new Error('Supabase não configurado') }),
+    }),
+    rpc: () => ({ data: null, error: new Error('Supabase não configurado') }),
+  } as unknown as SupabaseClient
+}
+
+export async function createClientAsync(): Promise<SupabaseClient> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // Se não configurado, retornar um cliente mock
+  if (!checkSupabaseConfig(supabaseUrl, supabaseAnonKey)) {
+    console.warn('⚠️ Supabase não configurado. Configure as variáveis de ambiente NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    return createMockClient()
+  }
+
+  try {
+    // Lazy import do @supabase/ssr
+    if (!createBrowserClientFn) {
+      const ssr = await import('@supabase/ssr')
+      createBrowserClientFn = ssr.createBrowserClient
+    }
+
+    return createBrowserClientFn(
+      supabaseUrl!,
+      supabaseAnonKey!,
+      {
+        auth: {
+          storageKey: 'sb-wbgppesbzbwyymmmxgqq-auth-token',
+          detectSessionInUrl: true,
+          persistSession: true,
+          autoRefreshToken: true,
+          flowType: 'pkce',
+          lock: false,
+          debug: false,
+        },
+        global: {
+          headers: {
+            'Cache-Control': 'no-store',
+          },
+        },
+      }
+    )
+  } catch (error) {
+    console.error('Erro ao criar cliente Supabase:', error)
+    return createMockClient()
+  }
+}
+
+export function createClient(): SupabaseClient {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  // Se não configurado, retornar um cliente mock
+  if (!checkSupabaseConfig(supabaseUrl, supabaseAnonKey)) {
+    console.warn('⚠️ Supabase não configurado. Configure as variáveis de ambiente NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    return createMockClient()
+  }
+
+  try {
+    // Import síncrono (pode falhar se @supabase/ssr tiver problemas)
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { createBrowserClient } = require('@supabase/ssr')
+    
+    return createBrowserClient(
+      supabaseUrl!,
+      supabaseAnonKey!,
+      {
+        auth: {
+          storageKey: 'sb-wbgppesbzbwyymmmxgqq-auth-token',
+          detectSessionInUrl: true,
+          persistSession: true,
+          autoRefreshToken: true,
+          flowType: 'pkce',
+          lock: false,
+          debug: false,
+        },
+        global: {
+          headers: {
+            'Cache-Control': 'no-store',
+          },
+        },
+      }
+    )
+  } catch (error) {
+    console.error('Erro ao criar cliente Supabase:', error)
+    return createMockClient()
+  }
+}
+
+export function getSupabaseClient(): SupabaseClient {
   if (!client) {
     client = createClient()
   }

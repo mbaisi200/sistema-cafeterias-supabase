@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
+import { createClient, isSupabaseConfigured } from '@/lib/supabase';
 import { User, UserRole } from '@/types';
 
 interface AuthContextType {
@@ -31,8 +31,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const mounted = useRef(true);
   const hasInitialized = useRef(false);
+  const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
 
-  const supabase = getSupabaseClient();
+  // Inicializar cliente Supabase apenas uma vez
+  const getSupabase = () => {
+    if (!supabaseRef.current) {
+      supabaseRef.current = createClient();
+    }
+    return supabaseRef.current;
+  };
 
   // Buscar dados do usuário na tabela usuarios via API route
   const fetchUserData = async (authUserId: string): Promise<User | null> => {
@@ -50,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!response.ok) {
         if (result.blocked || result.expired) {
-          await supabase.auth.signOut();
+          await getSupabase().auth.signOut();
           throw new Error(result.error);
         }
         console.error('❌ Erro da API:', result.error);
@@ -178,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         console.log('🚀 Iniciando sessão...');
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        const { data: { session: initialSession } } = await getSupabase().auth.getSession();
 
         if (!mounted.current) return;
 
@@ -211,7 +218,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initSession();
 
     // Escutar mudanças de autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+    const { data: { subscription } } = getSupabase().auth.onAuthStateChange(async (event, newSession) => {
       console.log('🔄 Auth state change:', event);
       if (!mounted.current) return;
 
@@ -258,7 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!mounted.current) return;
 
       try {
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
+        const { data: { session: currentSession } } = await getSupabase().auth.getSession();
 
         if (currentSession) {
           const expiresAt = currentSession.expires_at;
@@ -267,7 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Se expira em menos de 5 minutos, fazer refresh proativo
           if (expiresAt && (expiresAt - now) < 300) {
             console.log('🔄 Refresh proativo da sessão...');
-            const { error } = await supabase.auth.refreshSession();
+            const { error } = await getSupabase().auth.refreshSession();
             if (error) {
               console.error('❌ Erro no refresh proativo:', error);
             } else {
@@ -288,7 +295,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const login = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await getSupabase().auth.signInWithPassword({
       email,
       password,
     });
@@ -298,11 +305,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (data.user) {
       const userData = await fetchUserData(data.user.id);
       if (!userData) {
-        await supabase.auth.signOut();
+        await getSupabase().auth.signOut();
         throw new Error('Usuário não encontrado no sistema');
       }
       if (!userData.ativo) {
-        await supabase.auth.signOut();
+        await getSupabase().auth.signOut();
         throw new Error('Seu acesso foi revogado. Entre em contato com o administrador.');
       }
       setUser(userData);
@@ -323,7 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
+    await getSupabase().auth.signOut();
     setSession(null);
     setSupabaseUser(null);
     setUser(null);
@@ -337,7 +344,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await getSupabase().auth.resetPasswordForEmail(email, {
       redirectTo: `${window.location.origin}/recuperar-senha`,
     });
     if (error) throw error;
