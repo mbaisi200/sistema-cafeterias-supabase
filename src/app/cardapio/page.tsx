@@ -609,19 +609,24 @@ function CardapioContent() {
     <div className="min-h-screen bg-gray-50 pb-24">
       {/* Header */}
       <div className="bg-white shadow-sm">
-        <div className="h-32 bg-gradient-to-r from-orange-400 to-red-500" />
-        <div className="container mx-auto px-4 -mt-12 relative z-10">
-          <div className="flex items-end gap-4">
+        <div className="h-24 bg-gradient-to-r from-orange-400 to-red-500 relative">
+          {/* Nome da empresa centralizado na faixa */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <h1 className="text-2xl font-bold text-white drop-shadow-lg text-center px-4">{empresa.nome}</h1>
+          </div>
+        </div>
+        
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center gap-4">
             {empresa.logo_url ? (
-              <img src={empresa.logo_url} alt={empresa.nome} className="w-24 h-24 rounded-xl border-4 border-white shadow-lg object-cover bg-white" />
+              <img src={empresa.logo_url} alt={empresa.nome} className="w-16 h-16 rounded-xl border-2 border-white shadow-lg object-cover bg-white -mt-10 relative z-10" />
             ) : (
-              <div className="w-24 h-24 rounded-xl border-4 border-white shadow-lg bg-white flex items-center justify-center">
-                <Coffee className="h-10 w-10 text-orange-500" />
+              <div className="w-16 h-16 rounded-xl border-2 border-white shadow-lg bg-white flex items-center justify-center -mt-10 relative z-10">
+                <Coffee className="h-8 w-8 text-orange-500" />
               </div>
             )}
-            <div className="pb-2">
-              <h1 className="text-2xl font-bold text-white drop-shadow-lg">{empresa.nome}</h1>
-              <div className="flex items-center gap-4 text-sm text-white/90 mt-1">
+            <div className="flex-1">
+              <div className="flex items-center gap-4 text-sm text-gray-600">
                 <span className="flex items-center gap-1"><Star className="h-4 w-4 fill-yellow-400 text-yellow-400" /> 4.8</span>
                 <span className="flex items-center gap-1"><Clock className="h-4 w-4" /> {empresa.tempo_preparo_min}-{empresa.tempo_preparo_max} min</span>
                 <span className="flex items-center gap-1"><Bike className="h-4 w-4" /> {empresa.taxa_entrega_padrao > 0 ? formatCurrency(empresa.taxa_entrega_padrao) : 'Grátis'}</span>
@@ -629,7 +634,7 @@ function CardapioContent() {
             </div>
           </div>
 
-          <div className="flex gap-2 mt-4 pb-4 overflow-x-auto">
+          <div className="flex gap-2 mt-3 overflow-x-auto">
             {empresa.delivery_ativo && <Badge variant="secondary" className="flex-shrink-0"><Bike className="h-3 w-3 mr-1" /> Entrega</Badge>}
             {empresa.retirada_ativo && <Badge variant="secondary" className="flex-shrink-0"><Store className="h-3 w-3 mr-1" /> Retirada</Badge>}
             {empresa.aceita_pix && <Badge variant="outline" className="flex-shrink-0">PIX</Badge>}
