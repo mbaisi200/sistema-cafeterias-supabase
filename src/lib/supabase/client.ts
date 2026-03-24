@@ -3,10 +3,49 @@ import { createBrowserClient } from '@supabase/ssr'
 // Singleton para evitar múltiplas instâncias
 let client: ReturnType<typeof createBrowserClient> | null = null
 
+// Verificar se as variáveis de ambiente estão configuradas
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// Verificar se as credenciais são válidas (não são placeholders)
+const isValidSupabaseConfig = supabaseUrl && 
+  supabaseAnonKey && 
+  supabaseUrl !== 'https://your-project.supabase.co' &&
+  !supabaseUrl.includes('your-project') &&
+  supabaseAnonKey !== 'your-anon-key-here' &&
+  supabaseAnonKey.length > 50
+
+export function isSupabaseConfigured(): boolean {
+  return isValidSupabaseConfig
+}
+
 export function createClient() {
+  // Se não configurado, retornar um cliente mock que não quebra a aplicação
+  if (!isValidSupabaseConfig) {
+    console.warn('⚠️ Supabase não configurado. Configure as variáveis de ambiente NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    // Retornar cliente mock para evitar erros
+    return {
+      auth: {
+        getSession: async () => ({ data: { session: null }, error: null }),
+        getUser: async () => ({ data: { user: null }, error: null }),
+        signInWithPassword: async () => ({ data: { user: null, session: null }, error: new Error('Supabase não configurado') }),
+        signOut: async () => ({ error: null }),
+        resetPasswordForEmail: async () => ({ error: new Error('Supabase não configurado') }),
+        refreshSession: async () => ({ data: { session: null, user: null }, error: null }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      },
+      from: () => ({
+        select: () => ({ data: null, error: new Error('Supabase não configurado') }),
+        insert: () => ({ data: null, error: new Error('Supabase não configurado') }),
+        update: () => ({ data: null, error: new Error('Supabase não configurado') }),
+        delete: () => ({ data: null, error: new Error('Supabase não configurado') }),
+      }),
+    } as unknown as ReturnType<typeof createBrowserClient>
+  }
+
   return createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl!,
+    supabaseAnonKey!,
     {
       auth: {
         storageKey: 'sb-wbgppesbzbwyymmmxgqq-auth-token',

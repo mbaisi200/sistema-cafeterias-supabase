@@ -1,12 +1,49 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
+// Verificar se as variáveis de ambiente estão configuradas
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+// Verificar se as credenciais são válidas
+const isValidSupabaseConfig = supabaseUrl && 
+  supabaseAnonKey && 
+  supabaseUrl !== 'https://your-project.supabase.co' &&
+  !supabaseUrl.includes('your-project') &&
+  supabaseAnonKey !== 'your-anon-key-here' &&
+  supabaseAnonKey.length > 50
+
+export function isSupabaseConfigured(): boolean {
+  return isValidSupabaseConfig
+}
+
 export async function createClient() {
   const cookieStore = await cookies()
 
+  // Se não configurado, retornar um cliente mock
+  if (!isValidSupabaseConfig) {
+    return {
+      auth: {
+        getSession: async () => ({ data: { session: null }, error: null }),
+        getUser: async () => ({ data: { user: null }, error: null }),
+        signInWithPassword: async () => ({ data: { user: null, session: null }, error: new Error('Supabase não configurado') }),
+        signOut: async () => ({ error: null }),
+        resetPasswordForEmail: async () => ({ error: new Error('Supabase não configurado') }),
+        refreshSession: async () => ({ data: { session: null, user: null }, error: null }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      },
+      from: () => ({
+        select: () => ({ data: null, error: new Error('Supabase não configurado') }),
+        insert: () => ({ data: null, error: new Error('Supabase não configurado') }),
+        update: () => ({ data: null, error: new Error('Supabase não configurado') }),
+        delete: () => ({ data: null, error: new Error('Supabase não configurado') }),
+      }),
+    } as unknown as ReturnType<typeof createServerClient>
+  }
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl!,
+    supabaseAnonKey!,
     {
       cookies: {
         getAll() {
@@ -29,8 +66,29 @@ export async function createClient() {
 
 // Cliente admin com service role (para operações privilegiadas)
 export function createAdminClient() {
+  // Se não configurado, retornar um cliente mock
+  if (!isValidSupabaseConfig) {
+    return {
+      auth: {
+        getSession: async () => ({ data: { session: null }, error: null }),
+        getUser: async () => ({ data: { user: null }, error: null }),
+        signInWithPassword: async () => ({ data: { user: null, session: null }, error: new Error('Supabase não configurado') }),
+        signOut: async () => ({ error: null }),
+        resetPasswordForEmail: async () => ({ error: new Error('Supabase não configurado') }),
+        refreshSession: async () => ({ data: { session: null, user: null }, error: null }),
+        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      },
+      from: () => ({
+        select: () => ({ data: null, error: new Error('Supabase não configurado') }),
+        insert: () => ({ data: null, error: new Error('Supabase não configurado') }),
+        update: () => ({ data: null, error: new Error('Supabase não configurado') }),
+        delete: () => ({ data: null, error: new Error('Supabase não configurado') }),
+      }),
+    } as unknown as ReturnType<typeof createServerClient>
+  }
+
   return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    supabaseUrl!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     {
       cookies: {

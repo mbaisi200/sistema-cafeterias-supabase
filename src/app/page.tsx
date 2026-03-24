@@ -4,8 +4,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { useEffect, Suspense } from 'react';
 import { LoginForm } from '@/components/auth/LoginForm';
-import { AlertCircle } from 'lucide-react';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { AlertCircle, Settings } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { useSearchParams } from 'next/navigation';
 
 function SessionExpiredAlert() {
@@ -24,8 +25,37 @@ function SessionExpiredAlert() {
   );
 }
 
+function SupabaseNotConfiguredAlert() {
+  const router = useRouter();
+  
+  return (
+    <Alert className="border-amber-200 bg-amber-50">
+      <Settings className="h-4 w-4 text-amber-600" />
+      <AlertTitle className="text-amber-800">Configuração Necessária</AlertTitle>
+      <AlertDescription className="text-amber-700">
+        <p className="mb-3">
+          O Supabase não está configurado. Para usar o sistema, configure as variáveis de ambiente:
+        </p>
+        <ul className="list-disc list-inside text-sm mb-3 space-y-1">
+          <li><code className="bg-amber-100 px-1 rounded">NEXT_PUBLIC_SUPABASE_URL</code></li>
+          <li><code className="bg-amber-100 px-1 rounded">NEXT_PUBLIC_SUPABASE_ANON_KEY</code></li>
+          <li><code className="bg-amber-100 px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code></li>
+        </ul>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="border-amber-300 text-amber-700 hover:bg-amber-100"
+          onClick={() => router.push('/setup')}
+        >
+          Ir para página de configuração
+        </Button>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, loading, isConfigured } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -75,6 +105,7 @@ export default function Home() {
         <Suspense fallback={null}>
           <SessionExpiredAlert />
         </Suspense>
+        {!isConfigured && <SupabaseNotConfiguredAlert />}
         <LoginForm />
       </div>
     </div>

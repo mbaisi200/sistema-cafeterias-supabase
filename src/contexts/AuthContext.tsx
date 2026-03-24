@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, ReactNode, useRef } from 'react';
 import { Session, User as SupabaseUser } from '@supabase/supabase-js';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient, isSupabaseConfigured } from '@/lib/supabase';
 import { User, UserRole } from '@/types';
 
 interface AuthContextType {
@@ -12,6 +12,7 @@ interface AuthContextType {
   loading: boolean;
   empresaId: string | null;
   role: UserRole | null;
+  isConfigured: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginFuncionario: (codigoEmpresa: string, pin: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -349,6 +350,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     empresaId: user?.empresaId || null,
     role: user?.role || null,
+    isConfigured: isSupabaseConfigured(),
     login,
     loginFuncionario,
     logout,
