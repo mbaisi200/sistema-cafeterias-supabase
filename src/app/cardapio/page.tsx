@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -458,7 +458,7 @@ function CarrinhoSheet({
 }
 
 // Main Page
-export default function CardapioPage() {
+function CardapioContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -723,5 +723,21 @@ export default function CardapioPage() {
         />
       )}
     </div>
+  );
+}
+
+export default function CardapioPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50">
+        <div className="h-48 bg-gray-200 animate-pulse" />
+        <div className="container mx-auto px-4 py-6 space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+      </div>
+    }>
+      <CardapioContent />
+    </Suspense>
   );
 }

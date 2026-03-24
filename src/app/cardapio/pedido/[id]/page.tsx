@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,7 +74,7 @@ const STATUS_STEPS: { status: PedidoDeliveryStatus; label: string; icon: React.R
   { status: 'entregue', label: 'Entregue', icon: <Home className="h-5 w-5" /> },
 ];
 
-export default function PedidoPage() {
+function PedidoContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -394,5 +394,21 @@ export default function PedidoPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+export default function PedidoPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50">
+        <div className="container mx-auto px-4 py-6 space-y-4">
+          <Skeleton className="h-48 rounded-lg" />
+          <Skeleton className="h-32 rounded-lg" />
+          <Skeleton className="h-64 rounded-lg" />
+        </div>
+      </div>
+    }>
+      <PedidoContent />
+    </Suspense>
   );
 }
