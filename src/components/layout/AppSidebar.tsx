@@ -16,6 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -38,13 +39,12 @@ import {
   Users,
   Menu,
   Settings,
-  LucideIcon,
 } from 'lucide-react';
 
 interface MenuItem {
   title: string;
   url: string;
-  icon: LucideIcon;
+  icon: typeof LayoutDashboard;
   external?: boolean;
 }
 
@@ -61,8 +61,6 @@ const adminMenuItems: MenuItem[] = [
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
   { title: 'Delivery', url: '/admin/delivery', icon: Bike },
-  { title: 'Cardápio Online', url: '/cardapio', icon: Menu, external: true },
-  { title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
   { title: 'Funcionários', url: '/admin/funcionarios', icon: UserCog },
@@ -71,6 +69,12 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
   { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
   { title: 'Cupom Fiscal', url: '/admin/configuracoes-cupom', icon: Printer },
+];
+
+// Itens do Cardápio Online (seção separada)
+const cardapioMenuItems: MenuItem[] = [
+  { title: 'Ver Cardápio', url: '/cardapio', icon: Menu, external: true },
+  { title: 'Configurar Cardápio', url: '/admin/delivery/config', icon: Settings },
 ];
 
 const funcionarioMenuItems: MenuItem[] = [
@@ -136,6 +140,7 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {/* Menu Principal */}
         <SidebarGroup>
           <SidebarGroupLabel>
             {role === 'master' ? 'Painel Master' : 'Menu Principal'}
@@ -149,24 +154,55 @@ export function AppSidebar() {
                     isActive={!item.external && pathname === item.url}
                     tooltip={item.title}
                   >
-                    {item.external ? (
-                      <a href={getCardapioUrl(item)} target="_blank" rel="noopener noreferrer">
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                        <ExternalLink className="h-3 w-3 ml-auto text-muted-foreground" />
-                      </a>
-                    ) : (
-                      <Link href={item.url}>
-                        <item.icon className="h-4 w-4" />
-                        <span>{item.title}</span>
-                      </Link>
-                    )}
+                    <Link href={item.url}>
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        {/* Cardápio Online - Seção separada para Admin */}
+        {role === 'admin' && (
+          <>
+            <SidebarSeparator />
+            <SidebarGroup>
+              <SidebarGroupLabel className="flex items-center gap-2">
+                <Menu className="h-4 w-4" />
+                Cardápio Online
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {cardapioMenuItems.map((item) => (
+                    <SidebarMenuItem key={item.url}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={!item.external && pathname === item.url}
+                        tooltip={item.title}
+                      >
+                        {item.external ? (
+                          <a href={getCardapioUrl(item)} target="_blank" rel="noopener noreferrer">
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                            <ExternalLink className="h-3 w-3 ml-auto text-muted-foreground" />
+                          </a>
+                        ) : (
+                          <Link href={item.url}>
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </Link>
+                        )}
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-blue-100 bg-blue-50">

@@ -111,6 +111,7 @@ export function useProdutos() {
   };
 
   const atualizarProduto = async (id: string, dados: any) => {
+    // Dados básicos que sempre existem
     const updateData: any = {
       nome: dados.nome,
       descricao: dados.descricao || null,
@@ -123,24 +124,36 @@ export function useProdutos() {
       destaque: dados.destaque,
       atualizado_em: new Date().toISOString(),
     };
-    
-    // Campos opcionais de iFood
-    if (dados.disponivelIfood !== undefined) {
-      updateData.disponivel_ifood = dados.disponivelIfood;
-    }
-    if (dados.ifoodExternalCode !== undefined) {
-      updateData.ifood_external_code = dados.ifoodExternalCode;
-    }
-    if (dados.ifoodSyncStatus !== undefined) {
-      updateData.ifood_sync_status = dados.ifoodSyncStatus;
-    }
 
-    const { error } = await supabase
+    // Atualizar dados básicos primeiro
+    const { error: errorBasico } = await supabase
       .from('produtos')
       .update(updateData)
       .eq('id', id);
 
-    if (error) throw error;
+    if (errorBasico) throw errorBasico;
+
+    // Tentar atualizar campos de iFood separadamente (podem não existir)
+    if (dados.disponivelIfood !== undefined || dados.ifoodExternalCode !== undefined || dados.ifoodSyncStatus !== undefined) {
+      const ifoodData: any = {};
+      if (dados.disponivelIfood !== undefined) ifoodData.disponivel_ifood = dados.disponivelIfood;
+      if (dados.ifoodExternalCode !== undefined) ifoodData.ifood_external_code = dados.ifoodExternalCode;
+      if (dados.ifoodSyncStatus !== undefined) ifoodData.ifood_sync_status = dados.ifoodSyncStatus;
+      ifoodData.atualizado_em = new Date().toISOString();
+
+      // Tentar atualizar - ignorar erro se colunas não existirem
+      const { error: errorIfood } = await supabase
+        .from('produtos')
+        .update(ifoodData)
+        .eq('id', id);
+
+      if (errorIfood) {
+        // Se o erro for coluna não existente, ignorar silenciosamente
+        if (!errorIfood.message?.includes('column') && !errorIfood.message?.includes('does not exist')) {
+          console.warn('Aviso: Campos de iFood não atualizados (execute a migration SQL)');
+        }
+      }
+    }
   };
 
   const excluirProduto = async (id: string) => {

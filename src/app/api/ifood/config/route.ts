@@ -28,19 +28,25 @@ export async function GET(request: NextRequest) {
       empresaId = url.searchParams.get('empresa_id');
     }
 
+    // Retornar null se não tiver empresa_id (não é erro)
     if (!empresaId) {
-      return NextResponse.json({ error: 'Empresa não identificada' }, { status: 400 });
+      return NextResponse.json({ config: null });
     }
 
+    // Verificar se a tabela existe
     const { data: config, error } = await supabase
       .from('ifood_config')
       .select('*')
       .eq('empresa_id', empresaId)
-      .single();
+      .maybeSingle();
 
     if (error && error.code !== 'PGRST116') {
+      // Se a tabela não existe, retornar null
+      if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
+        return NextResponse.json({ config: null });
+      }
       console.error('Erro ao buscar config iFood:', error);
-      return NextResponse.json({ error: 'Erro ao buscar configuração' }, { status: 500 });
+      return NextResponse.json({ config: null });
     }
 
     return NextResponse.json({ 
@@ -63,7 +69,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Erro na API iFood config:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+    return NextResponse.json({ config: null });
   }
 }
 
