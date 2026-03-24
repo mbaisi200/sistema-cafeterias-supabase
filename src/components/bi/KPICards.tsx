@@ -63,16 +63,17 @@ const cores: Record<string, { bg: string; text: string; border: string; gradient
   }
 };
 
-function formatarValor(valor: number, formato: KPI['formato']): string {
+function formatarValor(valor: number | undefined | null, formato: KPI['formato']): string {
+  const valorSeguro = valor ?? 0;
   switch (formato) {
     case 'moeda':
-      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valorSeguro);
     case 'porcentagem':
-      return `${valor.toFixed(1)}%`;
+      return `${valorSeguro.toFixed(1)}%`;
     case 'numero':
-      return new Intl.NumberFormat('pt-BR').format(Math.round(valor));
+      return new Intl.NumberFormat('pt-BR').format(Math.round(valorSeguro));
     default:
-      return valor.toString();
+      return valorSeguro.toString();
   }
 }
 

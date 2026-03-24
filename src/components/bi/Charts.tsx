@@ -240,7 +240,10 @@ interface AnaliseHorarioChartProps {
 }
 
 export function AnaliseHorarioChart({ dados }: AnaliseHorarioChartProps) {
-  const dadosFormatados = dados.map(d => ({ ...d, horario: `${d.hora.toString().padStart(2, '0')}h` }));
+  const dadosFormatados = dados.map(d => ({ 
+    ...d, 
+    horario: `${(d.hora ?? 0).toString().padStart(2, '0')}h` 
+  }));
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}>
