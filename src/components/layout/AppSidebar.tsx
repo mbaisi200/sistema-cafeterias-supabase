@@ -16,14 +16,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarSeparator,
 } from '@/components/ui/sidebar';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
   LayoutDashboard,
   Package,
-  FolderOpen,
   UtensilsCrossed,
   UserCog,
   Warehouse,
@@ -31,33 +29,39 @@ import {
   ShoppingCart,
   LogOut,
   Coffee,
-  Settings,
   BarChart3,
   Wallet,
   Plug,
   Printer,
   Bike,
   ExternalLink,
-  ClipboardList,
   Users,
   Menu,
+  LucideIcon,
 } from 'lucide-react';
 
-const masterMenuItems = [
+interface MenuItem {
+  title: string;
+  url: string;
+  icon: LucideIcon;
+  external?: boolean;
+}
+
+const masterMenuItems: MenuItem[] = [
   { title: 'Dashboard', url: '/master/dashboard', icon: LayoutDashboard },
   { title: 'Clientes', url: '/master/clientes', icon: Users },
   { title: 'Integrações', url: '/master/integracoes', icon: Plug },
   { title: 'Métricas', url: '/master/metricas', icon: BarChart3 },
-  { title: 'Configurações', url: '/master/configuracoes', icon: Settings },
+  { title: 'Configurações', url: '/master/configuracoes', icon: Coffee },
 ];
 
-const adminMenuItems = [
+const adminMenuItems: MenuItem[] = [
   { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
   { title: 'Delivery', url: '/admin/delivery', icon: Bike },
+  { title: 'Cardápio Online', url: '/cardapio', icon: Menu, external: true },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
-  { title: 'Categorias', url: '/admin/categorias', icon: FolderOpen },
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
   { title: 'Funcionários', url: '/admin/funcionarios', icon: UserCog },
   { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
@@ -67,7 +71,7 @@ const adminMenuItems = [
   { title: 'Cupom Fiscal', url: '/admin/configuracoes-cupom', icon: Printer },
 ];
 
-const funcionarioMenuItems = [
+const funcionarioMenuItems: MenuItem[] = [
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
 ];
@@ -88,7 +92,7 @@ export function AppSidebar() {
   const { user, logout, empresaId, role } = useAuth();
   const pathname = usePathname();
 
-  const getMenuItems = () => {
+  const getMenuItems = (): MenuItem[] => {
     switch (role) {
       case 'master':
         return masterMenuItems;
@@ -107,8 +111,13 @@ export function AppSidebar() {
     await logout();
   };
 
-  // URL do cardápio online
-  const cardapioUrl = empresaId ? `/cardapio?empresa=${empresaId}` : '/cardapio';
+  // URL do cardápio online com empresa
+  const getCardapioUrl = (item: MenuItem) => {
+    if (item.external && empresaId) {
+      return `${item.url}?empresa=${empresaId}`;
+    }
+    return item.url;
+  };
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
@@ -135,45 +144,27 @@ export function AppSidebar() {
                 <SidebarMenuItem key={item.url}>
                   <SidebarMenuButton
                     asChild
-                    isActive={pathname === item.url}
+                    isActive={!item.external && pathname === item.url}
                     tooltip={item.title}
                   >
-                    <Link href={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
+                    {item.external ? (
+                      <a href={getCardapioUrl(item)} target="_blank" rel="noopener noreferrer">
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                        <ExternalLink className="h-3 w-3 ml-auto text-muted-foreground" />
+                      </a>
+                    ) : (
+                      <Link href={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-
-        {/* Cardápio Online - apenas para admin */}
-        {role === 'admin' && empresaId && (
-          <>
-            <SidebarSeparator />
-            <SidebarGroup>
-              <SidebarGroupLabel>Acesso Rápido</SidebarGroupLabel>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      asChild
-                      tooltip="Ver Cardápio Online"
-                    >
-                      <Link href={cardapioUrl} target="_blank">
-                        <Menu className="h-4 w-4" />
-                        <span>Cardápio Online</span>
-                        <ExternalLink className="h-3 w-3 ml-auto text-muted-foreground" />
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </SidebarGroup>
-          </>
-        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-blue-100 bg-blue-50">
