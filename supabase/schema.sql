@@ -434,6 +434,21 @@ CREATE TABLE IF NOT EXISTS cupom_config (
   exibir_valor BOOLEAN DEFAULT true,
   exibir_cliente BOOLEAN DEFAULT false,
   
+  -- Configurações de impressão
+  mostrar_cpf BOOLEAN DEFAULT true,
+  mostrar_data BOOLEAN DEFAULT true,
+  mostrar_hora BOOLEAN DEFAULT true,
+  mostrar_vendedor BOOLEAN DEFAULT true,
+  mostrar_desconto BOOLEAN DEFAULT true,
+  tamanho_fonte INTEGER DEFAULT 12,
+  largura_papel INTEGER DEFAULT 58,
+  espacamento_linhas DECIMAL(3,1) DEFAULT 1.4,
+  margem_superior INTEGER DEFAULT 2,
+  margem_inferior INTEGER DEFAULT 2,
+  intensidade_impressao VARCHAR(20) DEFAULT 'escura',
+  imprimir_automatico BOOLEAN DEFAULT false,
+  vias INTEGER DEFAULT 1,
+  
   criado_em TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   atualizado_em TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
