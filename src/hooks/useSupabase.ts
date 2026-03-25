@@ -1644,100 +1644,94 @@ export function useConfiguracoesCupom() {
 
     setSaving(true);
     try {
-      console.log('💾 Salvando configurações do cupom para empresa:', empresaId);
-      console.log('📝 Dados recebidos:', novasConfiguracoes);
+      console.log('💾 [CUPOM CONFIG] Iniciando salvamento para empresa:', empresaId);
+      console.log('📝 [CUPOM CONFIG] Dados recebidos:', JSON.stringify(novasConfiguracoes, null, 2));
 
       // Primeiro, verificar se já existe um registro
       const { data: existing, error: selectError } = await supabase
         .from('cupom_config')
-        .select('id')
+        .select('id, tamanho_fonte, largura_papel')
         .eq('empresa_id', empresaId)
         .maybeSingle();
 
       if (selectError) {
-        console.error('❌ Erro ao verificar registro existente:', selectError);
+        console.error('❌ [CUPOM CONFIG] Erro ao verificar registro existente:', selectError);
         throw selectError;
       }
 
-      console.log('📋 Registro existente:', existing);
+      console.log('📋 [CUPOM CONFIG] Registro existente:', existing);
 
-      // Garantir que tamanho_fonte seja um número inteiro
-      const tamanhoFonteInt = parseInt(String(novasConfiguracoes.tamanhoFonte)) || 12;
-      const larguraPapelInt = parseInt(String(novasConfiguracoes.larguraPapel)) || 58;
+      // Garantir que os valores sejam números inteiros válidos
+      const tamanhoFonteInt = Math.round(Number(novasConfiguracoes.tamanhoFonte)) || 12;
+      const larguraPapelInt = Math.round(Number(novasConfiguracoes.larguraPapel)) || 58;
 
-      const configData = {
+      console.log('🔢 [CUPOM CONFIG] tamanhoFonteInt:', tamanhoFonteInt, 'larguraPapelInt:', larguraPapelInt);
+
+      // Dados essenciais para salvar - apenas campos que EXISTEM na tabela
+      const configData: Record<string, any> = {
         empresa_id: empresaId,
         razao_social: novasConfiguracoes.nomeEmpresa || '',
-        nome_fantasia: novasConfiguracoes.nomeEmpresa || '',
-        cnpj: novasConfiguracoes.cnpj || novasConfiguracoes.cnpjEmpresa || '',
-        endereco: novasConfiguracoes.endereco || novasConfiguracoes.enderecoEmpresa || '',
-        telefone: novasConfiguracoes.telefone || novasConfiguracoes.telefoneEmpresa || '',
+        cnpj: novasConfiguracoes.cnpj || '',
+        endereco: novasConfiguracoes.endereco || '',
+        telefone: novasConfiguracoes.telefone || '',
         mensagem_cupom: novasConfiguracoes.mensagemRodape || '',
-        exibir_valor: true,
-        exibir_cliente: novasConfiguracoes.mostrarCPF ?? true,
-        // Campos de configuração do papel/impressão
-        mostrar_cpf: novasConfiguracoes.mostrarCPF ?? true,
-        mostrar_data: novasConfiguracoes.mostrarData ?? true,
-        mostrar_hora: novasConfiguracoes.mostrarHora ?? true,
-        mostrar_vendedor: novasConfiguracoes.mostrarVendedor ?? true,
-        mostrar_desconto: novasConfiguracoes.mostrarDesconto ?? true,
         tamanho_fonte: tamanhoFonteInt,
         largura_papel: larguraPapelInt,
-        espacamento_linhas: novasConfiguracoes.espacamentoLinhas ?? 1.4,
-        margem_superior: novasConfiguracoes.margemSuperior ?? 2,
-        margem_inferior: novasConfiguracoes.margemInferior ?? 2,
-        margem_esquerda: novasConfiguracoes.margemEsquerda ?? 2,
-        margem_direita: novasConfiguracoes.margemDireita ?? 2,
+        espacamento_linhas: Number(novasConfiguracoes.espacamentoLinhas) || 1.4,
+        margem_superior: Number(novasConfiguracoes.margemSuperior) || 2,
+        margem_inferior: Number(novasConfiguracoes.margemInferior) || 2,
         intensidade_impressao: novasConfiguracoes.intensidadeImpressao || 'escura',
-        imprimir_automatico: novasConfiguracoes.imprimirAutomatico ?? false,
-        vias: novasConfiguracoes.vias ?? 1,
+        imprimir_automatico: Boolean(novasConfiguracoes.imprimirAutomatico),
+        vias: Number(novasConfiguracoes.vias) || 1,
+        mostrar_cpf: Boolean(novasConfiguracoes.mostrarCPF),
+        mostrar_data: Boolean(novasConfiguracoes.mostrarData),
+        mostrar_hora: Boolean(novasConfiguracoes.mostrarHora),
+        mostrar_vendedor: Boolean(novasConfiguracoes.mostrarVendedor),
+        mostrar_desconto: Boolean(novasConfiguracoes.mostrarDesconto),
         atualizado_em: new Date().toISOString(),
       };
 
-      console.log('📤 Dados a salvar:', configData);
+      console.log('📤 [CUPOM CONFIG] Dados a salvar:', JSON.stringify(configData, null, 2));
 
-      let error;
+      let result;
       if (existing?.id) {
         // Atualizar registro existente
-        console.log('🔄 Atualizando registro existente ID:', existing.id);
-        const result = await supabase
+        console.log('🔄 [CUPOM CONFIG] Atualizando registro ID:', existing.id);
+        result = await supabase
           .from('cupom_config')
           .update(configData)
           .eq('id', existing.id)
           .select();
-        error = result.error;
-        if (result.data) {
-          console.log('✅ Registro atualizado:', result.data);
-        }
       } else {
         // Inserir novo registro
-        console.log('➕ Inserindo novo registro');
-        const result = await supabase
+        console.log('➕ [CUPOM CONFIG] Inserindo novo registro');
+        configData.criado_em = new Date().toISOString();
+        result = await supabase
           .from('cupom_config')
-          .insert({
-            ...configData,
-            criado_em: new Date().toISOString(),
-          })
+          .insert(configData)
           .select();
-        error = result.error;
-        if (result.data) {
-          console.log('✅ Novo registro inserido:', result.data);
-        }
       }
 
-      if (error) {
-        console.error('❌ Erro ao salvar configurações:', error);
-        console.error('❌ Detalhes:', JSON.stringify(error, null, 2));
-        throw error;
+      console.log('📊 [CUPOM CONFIG] Resultado:', { data: result.data, error: result.error });
+
+      if (result.error) {
+        console.error('❌ [CUPOM CONFIG] Erro ao salvar:', result.error);
+        console.error('❌ [CUPOM CONFIG] Código:', result.error.code);
+        console.error('❌ [CUPOM CONFIG] Mensagem:', result.error.message);
+        console.error('❌ [CUPOM CONFIG] Detalhes:', result.error.details);
+        console.error('❌ [CUPOM CONFIG] Hint:', result.error.hint);
+        throw new Error(`Erro ao salvar: ${result.error.message} (${result.error.code})`);
       }
 
-      console.log('🎉 Configurações salvas com sucesso!');
+      console.log('✅ [CUPOM CONFIG] Salvo com sucesso! Dados retornados:', result.data);
 
       // Recarregar configurações do banco para garantir consistência
+      console.log('🔄 [CUPOM CONFIG] Recarregando configurações...');
       await carregarConfiguracoes();
+      console.log('✅ [CUPOM CONFIG] Configurações recarregadas!');
 
-    } catch (error) {
-      console.error('❌ ERRO CRÍTICO ao salvar configurações:', error);
+    } catch (error: any) {
+      console.error('❌ [CUPOM CONFIG] ERRO CRÍTICO:', error);
       throw error;
     } finally {
       setSaving(false);

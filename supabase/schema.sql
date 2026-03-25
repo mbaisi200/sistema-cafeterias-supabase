@@ -445,6 +445,8 @@ CREATE TABLE IF NOT EXISTS cupom_config (
   espacamento_linhas DECIMAL(3,1) DEFAULT 1.4,
   margem_superior INTEGER DEFAULT 2,
   margem_inferior INTEGER DEFAULT 2,
+  margem_esquerda INTEGER DEFAULT 2,
+  margem_direita INTEGER DEFAULT 2,
   intensidade_impressao VARCHAR(20) DEFAULT 'escura',
   imprimir_automatico BOOLEAN DEFAULT false,
   vias INTEGER DEFAULT 1,
