@@ -383,10 +383,7 @@ export function imprimirCupomFiscal(
     : enderecoEmpresaParam;
   
   // Determinar largura do papel - usar da configuração ou do tamanho selecionado
-  const larguraMm = config.larguraPapel || config.larguraPapel || (tamanhoCupom === '58mm' ? 58 : 80);
-  
-  // Calcular largura em caracteres baseado no tamanho do papel
-  const largura = larguraMm <= 58 ? 32 : larguraMm <= 80 ? 48 : Math.floor(larguraMm * 0.6);
+  const larguraMm = config.larguraPapel || (tamanhoCupom === '58mm' ? 58 : 80);
   
   // Configurações de fonte - usar valores da configuração
   const tamanhoFonte = config.tamanhoFonte || 12;
@@ -396,6 +393,21 @@ export function imprimirCupomFiscal(
   const margemInferior = config.margemInferior ?? 2;
   const margemEsquerda = config.margemEsquerda ?? 2;
   const margemDireita = config.margemDireita ?? 2;
+  
+  // Calcular largura ÚTIL em mm (descontando margens laterais)
+  const larguraUtilMm = Math.max(20, larguraMm - margemEsquerda - margemDireita);
+  
+  // Calcular largura em caracteres baseado na largura ÚTIL do papel e tamanho da fonte
+  // Em fontes monospace (Courier New), cada caractere tem ~0.6x o tamanho da fonte em mm
+  // Fonte 12pt ≈ 4.2mm por caractere, Fonte 10pt ≈ 3.5mm, Fonte 9pt ≈ 3.15mm
+  // Fórmula: mmPorCaractere = (tamanhoFonte / 12) * 1.5 (base: 12pt = 1.5mm/char em tela)
+  const mmPorCaractere = (tamanhoFonte / 12) * 1.5;
+  
+  // Calcular número de caracteres que cabem na largura útil
+  // Subtrair 1 caractere de margem de segurança para evitar estouro
+  const larguraCalculada = Math.floor(larguraUtilMm / mmPorCaractere);
+  const largura = Math.max(16, larguraCalculada - 1);
+  
   const mensagemRodape = config.mensagemRodape || 'Obrigado pela preferência!\nVolte sempre!';
 
   // Log para debug
@@ -404,6 +416,9 @@ export function imprimirCupomFiscal(
     cnpjEmpresa,
     enderecoEmpresa,
     larguraMm,
+    larguraUtilMm,
+    mmPorCaractere,
+    larguraCaracteres: largura,
     tamanhoFonte,
     intensidade,
     espacamentoLinhas,
@@ -424,9 +439,34 @@ export function imprimirCupomFiscal(
   const separador = '='.repeat(largura);
   const traco = '-'.repeat(largura);
 
+  // Função para quebrar texto longo em múltiplas linhas
+  const quebrarTexto = (texto: string): string[] => {
+    if (texto.length <= largura) return [texto];
+    const linhas: string[] = [];
+    let textoRestante = texto;
+    while (textoRestante.length > largura) {
+      // Tentar quebrar no último espaço antes da largura
+      let posicaoQuebra = largura;
+      const ultimoEspaco = textoRestante.lastIndexOf(' ', largura);
+      if (ultimoEspaco > 0) {
+        posicaoQuebra = ultimoEspaco;
+      }
+      linhas.push(textoRestante.slice(0, posicaoQuebra).trim());
+      textoRestante = textoRestante.slice(posicaoQuebra).trim();
+    }
+    if (textoRestante.length > 0) {
+      linhas.push(textoRestante);
+    }
+    return linhas;
+  };
+
   const centralizar = (texto: string) => {
-    const espacos = Math.max(0, Math.floor((largura - texto.length) / 2));
-    return ' '.repeat(espacos) + texto;
+    // Se texto for maior que largura, quebrar e centralizar cada linha
+    const linhas = quebrarTexto(texto);
+    return linhas.map(linha => {
+      const espacos = Math.max(0, Math.floor((largura - linha.length) / 2));
+      return ' '.repeat(espacos) + linha;
+    }).join('\n');
   };
 
   const formatarLinha = (esquerda: string, direita: string) => {
