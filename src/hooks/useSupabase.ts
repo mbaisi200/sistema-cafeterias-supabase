@@ -668,6 +668,7 @@ export function useEmpresas() {
 
   const atualizarEmpresa = async (id: string, dados: any) => {
     // Construir objeto apenas com campos válidos da tabela empresas
+    // NOTA: A tabela tem coluna 'endereco' (text) mas não tem 'data_inicio'
     const updateData: any = {
       nome: dados.nome,
       cnpj: dados.cnpj || null,
@@ -694,11 +695,9 @@ export function useEmpresas() {
       }
     }
 
-    // Converter data_inicio para formato DATE (YYYY-MM-DD)
-    const dataInicio = dados.data_inicio || dados.dataInicio;
-    if (dataInicio) {
-      updateData.data_inicio = dataInicio;
-    }
+    // NOTA: data_inicio precisa ser adicionado à tabela com:
+    // ALTER TABLE empresas ADD COLUMN IF NOT EXISTS data_inicio DATE;
+    // Por enquanto, não enviamos esse campo
 
     // Status (se fornecido)
     if (dados.status) {
