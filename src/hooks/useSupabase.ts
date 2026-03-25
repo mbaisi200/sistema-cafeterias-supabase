@@ -1693,6 +1693,8 @@ export function useConfiguracoesCupom() {
         espacamento_linhas: Number(novasConfiguracoes.espacamentoLinhas) || 1.4,
         margem_superior: Number(novasConfiguracoes.margemSuperior) || 2,
         margem_inferior: Number(novasConfiguracoes.margemInferior) || 2,
+        margem_esquerda: Number(novasConfiguracoes.margemEsquerda) || 2,
+        margem_direita: Number(novasConfiguracoes.margemDireita) || 2,
         intensidade_impressao: novasConfiguracoes.intensidadeImpressao || 'escura',
         imprimir_automatico: Boolean(novasConfiguracoes.imprimirAutomatico),
         vias: Number(novasConfiguracoes.vias) || 1,
