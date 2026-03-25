@@ -664,28 +664,31 @@ export default function PDVPage() {
         const supabase = getSupabaseClient();
         if (!supabase) throw new Error('Supabase não inicializado');
 
-        // Criar venda
+        // Criar venda - usando campos do schema correto
         const { data: vendaData, error: vendaError } = await supabase
           .from('vendas')
           .insert({
             empresa_id: empresaId,
+            tipo: tipoVenda, // campo correto do schema
+            canal: tipoVenda === 'delivery' ? 'delivery' : tipoVenda, // campo correto do schema
+            status: 'fechada', // valor válido do CHECK constraint
             mesa_id: mesaSelecionada || null,
-            mesa_numero: numeroMesaSelecionada || null,
-            delivery_id: deliverySelecionado || null,
-            delivery_info: tipoVenda === 'delivery' ? deliveryInfo : null,
-            itens: itensPedido,
             total,
             forma_pagamento: formaPagamento,
-            tipo_venda: tipoVenda,
-            status: 'finalizada',
-            cpf_cliente: dadosCupom.cpfCliente || null,
-            nome_cliente: dadosCupom.nomeCliente || null,
-            cupom_impresso: dadosCupom.imprimirCupom,
-            tamanho_cupom: dadosCupom.tamanhoCupom,
-            pagamentos: pagamentos.length > 0 ? pagamentos : [{ forma: formaPagamento, valor: total }],
+            nome_cliente: dadosCupom.nomeCliente || deliveryInfo?.nome || null,
+            telefone_cliente: deliveryInfo?.telefone || null,
+            // Campos de entrega para delivery
+            entrega_logradouro: tipoVenda === 'delivery' ? deliveryInfo?.endereco : null,
+            entrega_numero: tipoVenda === 'delivery' ? deliveryInfo?.numero : null,
+            entrega_complemento: tipoVenda === 'delivery' ? deliveryInfo?.complemento : null,
+            entrega_bairro: tipoVenda === 'delivery' ? deliveryInfo?.bairro : null,
+            entrega_cidade: tipoVenda === 'delivery' ? deliveryInfo?.cidade : null,
+            entrega_cep: tipoVenda === 'delivery' ? deliveryInfo?.cep : null,
+            observacao: tipoVenda === 'delivery' ? deliveryInfo?.observacao : null,
             criado_por: user?.id,
             criado_por_nome: user?.nome,
             criado_em: new Date().toISOString(),
+            fechado_em: new Date().toISOString(),
           })
           .select('id')
           .single();
@@ -693,18 +696,15 @@ export default function PDVPage() {
         if (vendaError) throw vendaError;
         vendaId = vendaData.id;
 
-        // Criar itens de venda
+        // Criar itens de venda - usando campos do schema correto
         const itensVenda = itensPedido.map(item => ({
           empresa_id: empresaId,
           venda_id: vendaData.id,
           produto_id: item.produtoId,
           nome: item.nome,
-          preco: item.preco,
           quantidade: item.quantidade,
+          preco_unitario: item.preco, // campo correto do schema
           total: item.preco * item.quantidade,
-          tipo_venda: tipoVenda,
-          cpf_cliente: dadosCupom.cpfCliente || null,
-          criado_em: new Date().toISOString(),
         }));
 
         const { error: itensError } = await supabase
@@ -713,15 +713,13 @@ export default function PDVPage() {
         
         if (itensError) console.error('Erro ao criar itens:', itensError);
 
-        // Criar pagamento(s)
+        // Criar pagamento(s) - usando campos do schema correto
         const pagamentosParaSalvar = pagamentos.length > 0 ? pagamentos : [{ forma: formaPagamento, valor: total }];
         const pagamentosInsert = pagamentosParaSalvar.map(pg => ({
           empresa_id: empresaId,
           venda_id: vendaData.id,
           forma_pagamento: pg.forma,
           valor: pg.valor,
-          cpf_cliente: dadosCupom.cpfCliente || null,
-          criado_em: new Date().toISOString(),
         }));
 
         const { error: pagamentosError } = await supabase
@@ -765,9 +763,9 @@ export default function PDVPage() {
           const { error: caixaError } = await supabase
             .from('caixas')
             .update({
-              valor_atual: (caixaAberto.valorAtual || 0) + total,
-              total_vendas: (caixaAberto.totalVendas || 0) + total,
-              total_entradas: (caixaAberto.totalEntradas || 0) + total,
+              valor_atual: (caixaAberto.valor_atual || 0) + total,
+              total_vendas: (caixaAberto.total_vendas || 0) + total,
+              total_entradas: (caixaAberto.total_entradas || 0) + total,
             })
             .eq('id', caixaAberto.id);
           
@@ -877,7 +875,7 @@ export default function PDVPage() {
               <Button
                 size="sm"
                 className="bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm"
-                onClick={() => fecharCaixa(caixaAberto.valorAtual || 0)}
+                onClick={() => fecharCaixa(caixaAberto.valor_atual || 0)}
               >
                 Fechar Caixa
               </Button>

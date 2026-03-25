@@ -88,34 +88,36 @@ export function useVendasPDV() {
 
     setProcessando(true);
     try {
-      // Criar venda
+      // Criar venda - usando campos do schema correto
       const { data: venda, error: vendaError } = await supabase
         .from('vendas')
         .insert({
           empresa_id: empresaId,
-          tipo: tipoVenda,
-          canal: tipoVenda,
-          status: 'fechada',
+          tipo: tipoVenda, // campo correto do schema
+          canal: tipoVenda, // campo correto do schema
+          status: 'fechada', // valor válido do CHECK constraint
           total,
           forma_pagamento: formaPagamento,
           nome_cliente: dadosAdicionais?.nomeCliente,
           mesa_id: dadosAdicionais?.mesaId,
           criado_por: user.id,
           criado_por_nome: user.nome,
+          criado_em: new Date().toISOString(),
+          fechado_em: new Date().toISOString(),
         })
         .select()
         .single();
 
       if (vendaError) throw vendaError;
 
-      // Criar itens de venda
+      // Criar itens de venda - usando campos do schema correto
       const itensVenda = itensPedido.map(item => ({
         empresa_id: empresaId,
         venda_id: venda.id,
         produto_id: item.produtoId,
         nome: item.nome,
         quantidade: item.quantidade,
-        preco_unitario: item.preco,
+        preco_unitario: item.preco, // campo correto do schema
         total: item.preco * item.quantidade,
         observacao: item.observacao,
       }));

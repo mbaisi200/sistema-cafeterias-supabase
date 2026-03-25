@@ -947,6 +947,12 @@ export function useCaixa() {
         setCaixaAberto({
           id: caixas.id,
           ...caixas,
+          // Mapear propriedades para camelCase (compatibilidade)
+          valorInicial: caixas.valor_inicial,
+          valorAtual: caixas.valor_atual,
+          totalEntradas: caixas.total_entradas,
+          totalSaidas: caixas.total_saidas,
+          totalVendas: caixas.total_vendas,
           abertoEm: new Date(caixas.aberto_em),
           fechadoEm: caixas.fechado_em ? new Date(caixas.fechado_em) : null,
         });
@@ -959,10 +965,14 @@ export function useCaixa() {
           .order('criado_em', { ascending: false });
 
         if (movsError) throw movsError;
-        
+
         setMovimentacoes(movs?.map(m => ({
           id: m.id,
           ...m,
+          // Mapear propriedades para camelCase (compatibilidade)
+          formaPagamento: m.forma_pagamento,
+          usuarioId: m.usuario_id,
+          usuarioNome: m.usuario_nome,
           criadoEm: new Date(m.criado_em),
         })) || []);
       } else {
