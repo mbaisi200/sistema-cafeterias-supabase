@@ -1585,15 +1585,28 @@ export function useConfiguracoesCupom() {
         let tamanhoFonteNum = 12;
         if (data.tamanho_fonte) {
           if (typeof data.tamanho_fonte === 'string') {
-            const mapTamanho: Record<string, number> = {
-              'pequena': 10,
-              'media': 12,
-              'grande': 14
-            };
-            tamanhoFonteNum = mapTamanho[data.tamanho_fonte] || 12;
+            // Primeiro, tentar converter para número diretamente
+            const numValue = parseInt(data.tamanho_fonte);
+            if (!isNaN(numValue) && numValue > 0) {
+              tamanhoFonteNum = numValue;
+            } else {
+              // Se não for número, tentar mapear valores textuais
+              const mapTamanho: Record<string, number> = {
+                'pequena': 10,
+                'media': 12,
+                'grande': 14
+              };
+              tamanhoFonteNum = mapTamanho[data.tamanho_fonte.toLowerCase()] || 12;
+            }
           } else {
-            tamanhoFonteNum = data.tamanho_fonte;
+            tamanhoFonteNum = Number(data.tamanho_fonte) || 12;
           }
+        }
+
+        // Converter larguraPapel para número
+        let larguraPapelNum = 58;
+        if (data.largura_papel) {
+          larguraPapelNum = Number(data.largura_papel) || 58;
         }
 
         const nomeEmpresa = data.razao_social || data.nome_fantasia || '';
