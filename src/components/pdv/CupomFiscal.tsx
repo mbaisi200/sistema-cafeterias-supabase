@@ -375,15 +375,15 @@ export function imprimirCupomFiscal(
   const nomeEmpresa = (config.nomeEmpresa && config.nomeEmpresa.trim() !== '') 
     ? config.nomeEmpresa 
     : nomeEmpresaParam;
-  const cnpjEmpresa = (config.cnpjEmpresa && config.cnpjEmpresa.trim() !== '') 
-    ? config.cnpjEmpresa 
+  const cnpjEmpresa = (config.cnpj && config.cnpj.trim() !== '') 
+    ? config.cnpj 
     : cnpjEmpresaParam;
-  const enderecoEmpresa = (config.enderecoEmpresa && config.enderecoEmpresa.trim() !== '') 
-    ? config.enderecoEmpresa 
+  const enderecoEmpresa = (config.endereco && config.endereco.trim() !== '') 
+    ? config.endereco 
     : enderecoEmpresaParam;
   
   // Determinar largura do papel - usar da configuração ou do tamanho selecionado
-  const larguraMm = config.larguraPapel || (tamanhoCupom === '58mm' ? 58 : 80);
+  const larguraMm = config.larguraPapel || config.larguraPapel || (tamanhoCupom === '58mm' ? 58 : 80);
   
   // Calcular largura em caracteres baseado no tamanho do papel
   const largura = larguraMm <= 58 ? 32 : larguraMm <= 80 ? 48 : Math.floor(larguraMm * 0.6);
@@ -444,7 +444,7 @@ export function imprimirCupomFiscal(
   cupom += centralizar(nomeEmpresa || 'EMPRESA') + '\n';
   if (cnpjEmpresa) cupom += centralizar(`CNPJ: ${cnpjEmpresa}`) + '\n';
   if (enderecoEmpresa) cupom += centralizar(enderecoEmpresa) + '\n';
-  if (config.telefoneEmpresa) cupom += centralizar(`Tel: ${config.telefoneEmpresa}`) + '\n';
+  if (config.telefone) cupom += centralizar(`Tel: ${config.telefone}`) + '\n';
   cupom += separador + '\n';
   cupom += centralizar('CUPOM FISCAL') + '\n';
   cupom += separador + '\n';

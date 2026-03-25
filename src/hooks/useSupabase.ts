@@ -680,19 +680,24 @@ export function useEmpresas() {
       cidade: dados.cidade || null,
       estado: dados.estado || null,
       cep: dados.cep || null,
-      valor_mensal: dados.valor_mensal ?? dados.valorMensal ?? 0,
+      valor_mensal: parseFloat(dados.valor_mensal ?? dados.valorMensal ?? 0) || 0,
     };
 
-    // Converter data de validade para formato ISO
+    // Converter data de validade para formato ISO (TIMESTAMP WITH TIME ZONE)
     if (dados.validade) {
-      updateData.validade = new Date(dados.validade + 'T23:59:59').toISOString();
+      // Se já for uma string ISO, usar diretamente
+      if (typeof dados.validade === 'string' && dados.validade.includes('T')) {
+        updateData.validade = dados.validade;
+      } else {
+        // Se for apenas data (YYYY-MM-DD), adicionar hora
+        updateData.validade = new Date(dados.validade + 'T23:59:59').toISOString();
+      }
     }
 
-    // Converter data_inicio
-    if (dados.data_inicio) {
-      updateData.data_inicio = dados.data_inicio;
-    } else if (dados.dataInicio) {
-      updateData.data_inicio = dados.dataInicio;
+    // Converter data_inicio para formato DATE (YYYY-MM-DD)
+    const dataInicio = dados.data_inicio || dados.dataInicio;
+    if (dataInicio) {
+      updateData.data_inicio = dataInicio;
     }
 
     // Status (se fornecido)
@@ -700,17 +705,25 @@ export function useEmpresas() {
       updateData.status = dados.status;
     }
 
-    console.log('📝 Atualizando empresa:', JSON.stringify(updateData, null, 2));
+    console.log('📝 Atualizando empresa ID:', id);
+    console.log('📝 Dados:', JSON.stringify(updateData, null, 2));
 
-    const { error } = await supabase
+    const { data: resultData, error } = await supabase
       .from('empresas')
       .update(updateData)
-      .eq('id', id);
+      .eq('id', id)
+      .select();
 
     if (error) {
-      console.error('❌ Erro ao atualizar empresa:', error);
-      throw error;
+      console.error('❌ Erro ao atualizar empresa:');
+      console.error('   Message:', error.message);
+      console.error('   Details:', error.details);
+      console.error('   Hint:', error.hint);
+      console.error('   Code:', error.code);
+      throw new Error(`${error.message}${error.details ? ' - ' + error.details : ''}${error.hint ? ' (' + error.hint + ')' : ''}`);
     }
+
+    console.log('✅ Empresa atualizada:', resultData);
 
     // Recarregar lista
     await carregarEmpresas();
