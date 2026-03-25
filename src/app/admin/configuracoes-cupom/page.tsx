@@ -72,6 +72,31 @@ function PreviaCupom({ formData }: { formData: ConfiguracoesCupom }) {
   const telefoneEmpresa = formData.telefone || formData.telefoneEmpresa || '';
   const mensagemRodape = formData.mensagemRodape || 'Obrigado pela preferência!\nVolte sempre!';
 
+  // Formatar CNPJ: XX.XXX.XXX/XXXX-XX
+  const formatarCNPJ = (cnpj: string) => {
+    if (!cnpj) return '';
+    const numeros = cnpj.replace(/\D/g, '');
+    if (numeros.length !== 14) return cnpj;
+    return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8, 12)}-${numeros.slice(12)}`;
+  };
+
+  // Formatar Telefone: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+  const formatarTelefone = (telefone: string) => {
+    if (!telefone) return '';
+    const numeros = telefone.replace(/\D/g, '');
+    
+    if (numeros.length === 11) {
+      return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 7)}-${numeros.slice(7)}`;
+    } else if (numeros.length === 10) {
+      return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 6)}-${numeros.slice(6)}`;
+    } else if (numeros.length === 9) {
+      return `${numeros.slice(0, 5)}-${numeros.slice(5)}`;
+    } else if (numeros.length === 8) {
+      return `${numeros.slice(0, 4)}-${numeros.slice(4)}`;
+    }
+    return telefone;
+  };
+
   return (
     <div 
       className="bg-white border-2 border-dashed border-gray-300 mx-auto shadow-lg"
@@ -88,13 +113,13 @@ function PreviaCupom({ formData }: { formData: ConfiguracoesCupom }) {
         {nomeEmpresa}
       </div>
       {cnpjEmpresa && (
-        <div className="text-center text-xs mb-1">CNPJ: {cnpjEmpresa}</div>
+        <div className="text-center text-xs mb-1">CNPJ: {formatarCNPJ(cnpjEmpresa)}</div>
       )}
       {enderecoEmpresa && (
         <div className="text-center text-xs mb-2">{enderecoEmpresa}</div>
       )}
       {telefoneEmpresa && (
-        <div className="text-center text-xs mb-2">Tel: {telefoneEmpresa}</div>
+        <div className="text-center text-xs mb-2">Tel: {formatarTelefone(telefoneEmpresa)}</div>
       )}
       <div className="border-t border-b border-gray-400 py-1 my-1 text-center">
         CUPOM FISCAL

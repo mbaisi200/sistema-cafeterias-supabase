@@ -441,14 +441,43 @@ export function imprimirCupomFiscal(
     return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6, 9)}-${numeros.slice(9)}`;
   };
 
+  // Formatar CNPJ: XX.XXX.XXX/XXXX-XX
+  const formatarCNPJ = (cnpj: string | undefined | null) => {
+    if (!cnpj) return '';
+    const numeros = cnpj.replace(/\D/g, '');
+    if (numeros.length !== 14) return cnpj; // Retorna original se não tiver 14 dígitos
+    return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8, 12)}-${numeros.slice(12)}`;
+  };
+
+  // Formatar Telefone: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+  const formatarTelefone = (telefone: string | undefined | null) => {
+    if (!telefone) return '';
+    const numeros = telefone.replace(/\D/g, '');
+    
+    if (numeros.length === 11) {
+      // Celular: (XX) XXXXX-XXXX
+      return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 7)}-${numeros.slice(7)}`;
+    } else if (numeros.length === 10) {
+      // Fixo: (XX) XXXX-XXXX
+      return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 6)}-${numeros.slice(6)}`;
+    } else if (numeros.length === 9) {
+      // Sem DDD celular: XXXXX-XXXX
+      return `${numeros.slice(0, 5)}-${numeros.slice(5)}`;
+    } else if (numeros.length === 8) {
+      // Sem DDD fixo: XXXX-XXXX
+      return `${numeros.slice(0, 4)}-${numeros.slice(4)}`;
+    }
+    return telefone; // Retorna original se não matching
+  };
+
   // Construir cupom
   let cupom = '';
 
   cupom += '\n';
   cupom += centralizar(nomeEmpresa || 'EMPRESA') + '\n';
-  if (cnpjEmpresa) cupom += centralizar(`CNPJ: ${cnpjEmpresa}`) + '\n';
+  if (cnpjEmpresa) cupom += centralizar(`CNPJ: ${formatarCNPJ(cnpjEmpresa)}`) + '\n';
   if (enderecoEmpresa) cupom += centralizar(enderecoEmpresa) + '\n';
-  if (config.telefone) cupom += centralizar(`Tel: ${config.telefone}`) + '\n';
+  if (config.telefone) cupom += centralizar(`Tel: ${formatarTelefone(config.telefone)}`) + '\n';
   cupom += separador + '\n';
   cupom += centralizar('CUPOM FISCAL') + '\n';
   cupom += separador + '\n';
