@@ -1644,63 +1644,101 @@ export function useConfiguracoesCupom() {
 
     setSaving(true);
     try {
+      console.log('💾 Salvando configurações do cupom para empresa:', empresaId);
+      console.log('📝 Dados recebidos:', novasConfiguracoes);
+
       // Primeiro, verificar se já existe um registro
-      const { data: existing } = await supabase
+      const { data: existing, error: selectError } = await supabase
         .from('cupom_config')
         .select('id')
         .eq('empresa_id', empresaId)
         .maybeSingle();
 
+      if (selectError) {
+        console.error('❌ Erro ao verificar registro existente:', selectError);
+        throw selectError;
+      }
+
+      console.log('📋 Registro existente:', existing);
+
+      // Garantir que tamanho_fonte seja um número inteiro
+      const tamanhoFonteInt = parseInt(String(novasConfiguracoes.tamanhoFonte)) || 12;
+      const larguraPapelInt = parseInt(String(novasConfiguracoes.larguraPapel)) || 58;
+
       const configData = {
         empresa_id: empresaId,
-        razao_social: novasConfiguracoes.nomeEmpresa,
-        nome_fantasia: novasConfiguracoes.nomeEmpresa,
-        cnpj: novasConfiguracoes.cnpj || novasConfiguracoes.cnpjEmpresa,
-        endereco: novasConfiguracoes.endereco || novasConfiguracoes.enderecoEmpresa,
-        telefone: novasConfiguracoes.telefone || novasConfiguracoes.telefoneEmpresa,
-        mensagem_cupom: novasConfiguracoes.mensagemRodape,
+        razao_social: novasConfiguracoes.nomeEmpresa || '',
+        nome_fantasia: novasConfiguracoes.nomeEmpresa || '',
+        cnpj: novasConfiguracoes.cnpj || novasConfiguracoes.cnpjEmpresa || '',
+        endereco: novasConfiguracoes.endereco || novasConfiguracoes.enderecoEmpresa || '',
+        telefone: novasConfiguracoes.telefone || novasConfiguracoes.telefoneEmpresa || '',
+        mensagem_cupom: novasConfiguracoes.mensagemRodape || '',
         exibir_valor: true,
-        exibir_cliente: novasConfiguracoes.mostrarCPF,
+        exibir_cliente: novasConfiguracoes.mostrarCPF ?? true,
         // Campos de configuração do papel/impressão
-        mostrar_cpf: novasConfiguracoes.mostrarCPF,
-        mostrar_data: novasConfiguracoes.mostrarData,
-        mostrar_hora: novasConfiguracoes.mostrarHora,
-        mostrar_vendedor: novasConfiguracoes.mostrarVendedor,
-        mostrar_desconto: novasConfiguracoes.mostrarDesconto,
-        tamanho_fonte: novasConfiguracoes.tamanhoFonte,
-        largura_papel: novasConfiguracoes.larguraPapel,
-        espacamento_linhas: novasConfiguracoes.espacamentoLinhas,
-        margem_superior: novasConfiguracoes.margemSuperior,
-        margem_inferior: novasConfiguracoes.margemInferior,
-        margem_esquerda: novasConfiguracoes.margemEsquerda,
-        margem_direita: novasConfiguracoes.margemDireita,
-        intensidade_impressao: novasConfiguracoes.intensidadeImpressao,
-        imprimir_automatico: novasConfiguracoes.imprimirAutomatico,
-        vias: novasConfiguracoes.vias,
+        mostrar_cpf: novasConfiguracoes.mostrarCPF ?? true,
+        mostrar_data: novasConfiguracoes.mostrarData ?? true,
+        mostrar_hora: novasConfiguracoes.mostrarHora ?? true,
+        mostrar_vendedor: novasConfiguracoes.mostrarVendedor ?? true,
+        mostrar_desconto: novasConfiguracoes.mostrarDesconto ?? true,
+        tamanho_fonte: tamanhoFonteInt,
+        largura_papel: larguraPapelInt,
+        espacamento_linhas: novasConfiguracoes.espacamentoLinhas ?? 1.4,
+        margem_superior: novasConfiguracoes.margemSuperior ?? 2,
+        margem_inferior: novasConfiguracoes.margemInferior ?? 2,
+        margem_esquerda: novasConfiguracoes.margemEsquerda ?? 2,
+        margem_direita: novasConfiguracoes.margemDireita ?? 2,
+        intensidade_impressao: novasConfiguracoes.intensidadeImpressao || 'escura',
+        imprimir_automatico: novasConfiguracoes.imprimirAutomatico ?? false,
+        vias: novasConfiguracoes.vias ?? 1,
         atualizado_em: new Date().toISOString(),
       };
+
+      console.log('📤 Dados a salvar:', configData);
 
       let error;
       if (existing?.id) {
         // Atualizar registro existente
+        console.log('🔄 Atualizando registro existente ID:', existing.id);
         const result = await supabase
           .from('cupom_config')
           .update(configData)
-          .eq('id', existing.id);
+          .eq('id', existing.id)
+          .select();
         error = result.error;
+        if (result.data) {
+          console.log('✅ Registro atualizado:', result.data);
+        }
       } else {
         // Inserir novo registro
+        console.log('➕ Inserindo novo registro');
         const result = await supabase
           .from('cupom_config')
           .insert({
             ...configData,
             criado_em: new Date().toISOString(),
-          });
+          })
+          .select();
         error = result.error;
+        if (result.data) {
+          console.log('✅ Novo registro inserido:', result.data);
+        }
       }
 
-      if (error) throw error;
-      setConfiguracoes(novasConfiguracoes);
+      if (error) {
+        console.error('❌ Erro ao salvar configurações:', error);
+        console.error('❌ Detalhes:', JSON.stringify(error, null, 2));
+        throw error;
+      }
+
+      console.log('🎉 Configurações salvas com sucesso!');
+
+      // Recarregar configurações do banco para garantir consistência
+      await carregarConfiguracoes();
+
+    } catch (error) {
+      console.error('❌ ERRO CRÍTICO ao salvar configurações:', error);
+      throw error;
     } finally {
       setSaving(false);
     }
