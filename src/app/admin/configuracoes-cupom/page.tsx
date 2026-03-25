@@ -56,10 +56,19 @@ function LoadingSkeleton() {
 // Componente de pré-visualização
 function PreviaCupom({ formData }: { formData: ConfiguracoesCupom }) {
   const larguraPx = formData.larguraPapel * 3.78;
-  const fontSize = formData.tamanhoFonte;
+  const fontSize = formData.tamanhoFonte || 12;
   const fontWeight = formData.intensidadeImpressao === 'normal' ? 400 : 
                      formData.intensidadeImpressao === 'escura' ? 600 : 700;
-  const lineHeight = formData.espacamentoLinhas;
+  const lineHeight = formData.espacamentoLinhas || 1.4;
+  const margemSup = formData.margemSuperior ?? 2;
+  const margemInf = formData.margemInferior ?? 2;
+
+  // Usar os mesmos campos que a função de impressão
+  const nomeEmpresa = formData.nomeEmpresa || 'NOME DA EMPRESA';
+  const cnpjEmpresa = formData.cnpj || formData.cnpjEmpresa || '';
+  const enderecoEmpresa = formData.endereco || formData.enderecoEmpresa || '';
+  const telefoneEmpresa = formData.telefone || formData.telefoneEmpresa || '';
+  const mensagemRodape = formData.mensagemRodape || 'Obrigado pela preferência!\nVolte sempre!';
 
   return (
     <div 
@@ -69,18 +78,21 @@ function PreviaCupom({ formData }: { formData: ConfiguracoesCupom }) {
         fontSize: `${fontSize}px`,
         fontWeight,
         lineHeight,
-        padding: `${formData.margemSuperior}mm ${formData.margemSuperior}mm ${formData.margemInferior}mm`,
+        padding: `${margemSup}mm 2mm ${margemInf}mm`,
         fontFamily: "'Courier New', monospace",
       }}
     >
       <div className="text-center font-bold mb-2">
-        {formData.nomeEmpresa || 'NOME DA EMPRESA'}
+        {nomeEmpresa}
       </div>
-      {formData.cnpjEmpresa && (
-        <div className="text-center text-xs mb-1">CNPJ: {formData.cnpjEmpresa}</div>
+      {cnpjEmpresa && (
+        <div className="text-center text-xs mb-1">CNPJ: {cnpjEmpresa}</div>
       )}
-      {formData.enderecoEmpresa && (
-        <div className="text-center text-xs mb-2">{formData.enderecoEmpresa}</div>
+      {enderecoEmpresa && (
+        <div className="text-center text-xs mb-2">{enderecoEmpresa}</div>
+      )}
+      {telefoneEmpresa && (
+        <div className="text-center text-xs mb-2">Tel: {telefoneEmpresa}</div>
       )}
       <div className="border-t border-b border-gray-400 py-1 my-1 text-center">
         CUPOM FISCAL
@@ -111,7 +123,7 @@ function PreviaCupom({ formData }: { formData: ConfiguracoesCupom }) {
       </div>
       <div className="border-t border-b border-gray-400 my-2"></div>
       <div className="text-center text-xs whitespace-pre-line">
-        {formData.mensagemRodape || 'Obrigado pela preferência!'}
+        {mensagemRodape}
       </div>
     </div>
   );
@@ -565,32 +577,32 @@ export default function ConfiguracoesCupomPage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="cnpjEmpresa">CNPJ</Label>
+                    <Label htmlFor="cnpj">CNPJ</Label>
                     <Input
-                      id="cnpjEmpresa"
+                      id="cnpj"
                       placeholder="00.000.000/0000-00"
-                      value={formData.cnpjEmpresa}
-                      onChange={(e) => handleInputChange('cnpjEmpresa', e.target.value)}
+                      value={formData.cnpj}
+                      onChange={(e) => handleInputChange('cnpj', e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="enderecoEmpresa">Endereço</Label>
+                    <Label htmlFor="endereco">Endereço</Label>
                     <Input
-                      id="enderecoEmpresa"
+                      id="endereco"
                       placeholder="Rua, número, bairro, cidade"
-                      value={formData.enderecoEmpresa}
-                      onChange={(e) => handleInputChange('enderecoEmpresa', e.target.value)}
+                      value={formData.endereco}
+                      onChange={(e) => handleInputChange('endereco', e.target.value)}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="telefoneEmpresa">Telefone</Label>
+                    <Label htmlFor="telefone">Telefone</Label>
                     <Input
-                      id="telefoneEmpresa"
+                      id="telefone"
                       placeholder="(00) 00000-0000"
-                      value={formData.telefoneEmpresa}
-                      onChange={(e) => handleInputChange('telefoneEmpresa', e.target.value)}
+                      value={formData.telefone}
+                      onChange={(e) => handleInputChange('telefone', e.target.value)}
                     />
                   </div>
 
