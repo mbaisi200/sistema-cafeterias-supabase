@@ -1617,6 +1617,20 @@ export function useConfiguracoesCupom() {
         mensagem_cupom: novasConfiguracoes.mensagemRodape,
         exibir_valor: true,
         exibir_cliente: novasConfiguracoes.mostrarCPF,
+        // Campos de configuração do papel/impressão
+        mostrar_cpf: novasConfiguracoes.mostrarCPF,
+        mostrar_data: novasConfiguracoes.mostrarData,
+        mostrar_hora: novasConfiguracoes.mostrarHora,
+        mostrar_vendedor: novasConfiguracoes.mostrarVendedor,
+        mostrar_desconto: novasConfiguracoes.mostrarDesconto,
+        tamanho_fonte: novasConfiguracoes.tamanhoFonte,
+        largura_papel: novasConfiguracoes.larguraPapel,
+        espacamento_linhas: novasConfiguracoes.espacamentoLinhas,
+        margem_superior: novasConfiguracoes.margemSuperior,
+        margem_inferior: novasConfiguracoes.margemInferior,
+        intensidade_impressao: novasConfiguracoes.intensidadeImpressao,
+        imprimir_automatico: novasConfiguracoes.imprimirAutomatico,
+        vias: novasConfiguracoes.vias,
         atualizado_em: new Date().toISOString(),
       };
 
