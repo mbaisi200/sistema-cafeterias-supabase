@@ -667,21 +667,40 @@ export function useEmpresas() {
   };
 
   const atualizarEmpresa = async (id: string, dados: any) => {
-    // Preparar dados com formato correto
-    const updateData: any = { ...dados };
+    // Construir objeto apenas com campos válidos da tabela empresas
+    const updateData: any = {
+      nome: dados.nome,
+      cnpj: dados.cnpj || null,
+      telefone: dados.telefone || null,
+      email: dados.email || null,
+      logradouro: dados.logradouro || null,
+      numero: dados.numero || null,
+      complemento: dados.complemento || null,
+      bairro: dados.bairro || null,
+      cidade: dados.cidade || null,
+      estado: dados.estado || null,
+      cep: dados.cep || null,
+      valor_mensal: dados.valor_mensal ?? dados.valorMensal ?? 0,
+    };
 
-    // Converter datas se presentes
+    // Converter data de validade para formato ISO
     if (dados.validade) {
       updateData.validade = new Date(dados.validade + 'T23:59:59').toISOString();
     }
-    if (dados.dataInicio) {
+
+    // Converter data_inicio
+    if (dados.data_inicio) {
+      updateData.data_inicio = dados.data_inicio;
+    } else if (dados.dataInicio) {
       updateData.data_inicio = dados.dataInicio;
     }
 
-    // Remover campos que não pertencem à tabela
-    delete updateData.dataInicio;
-    delete updateData.criadoEm;
-    delete updateData.atualizadoEm;
+    // Status (se fornecido)
+    if (dados.status) {
+      updateData.status = dados.status;
+    }
+
+    console.log('📝 Atualizando empresa:', JSON.stringify(updateData, null, 2));
 
     const { error } = await supabase
       .from('empresas')
@@ -1479,11 +1498,12 @@ export function useComandas() {
 export interface ConfiguracoesCupom {
   nomeEmpresa: string;
   cnpj: string;
+  endereco: string;
+  telefone: string;
+  // Campos alternativos usados no formulário
   cnpjEmpresa?: string;
   enderecoEmpresa?: string;
   telefoneEmpresa?: string;
-  endereco: string;
-  telefone: string;
   mensagemRodape: string;
   mostrarCPF: boolean;
   mostrarData: boolean;
@@ -1504,9 +1524,6 @@ export interface ConfiguracoesCupom {
 export const configuracoesCupomPadrao: ConfiguracoesCupom = {
   nomeEmpresa: '',
   cnpj: '',
-  cnpjEmpresa: '',
-  enderecoEmpresa: '',
-  telefoneEmpresa: '',
   endereco: '',
   telefone: '',
   mensagemRodape: 'Obrigado pela preferência!',
@@ -1563,13 +1580,22 @@ export function useConfiguracoesCupom() {
           }
         }
 
+        const nomeEmpresa = data.razao_social || data.nome_fantasia || '';
+        const cnpjValue = data.cnpj || '';
+        const enderecoValue = data.endereco || '';
+        const telefoneValue = data.telefone || '';
+
         setConfiguracoes({
-          nomeEmpresa: data.nome_empresa || '',
-          cnpj: data.cnpj || '',
-          endereco: data.endereco || '',
-          telefone: data.telefone || '',
-          mensagemRodape: data.mensagem_rodape || 'Obrigado pela preferência!',
-          mostrarCPF: data.mostrar_cpf ?? true,
+          nomeEmpresa,
+          cnpj: cnpjValue,
+          endereco: enderecoValue,
+          telefone: telefoneValue,
+          // Preencher também os campos alternativos usados no formulário
+          cnpjEmpresa: cnpjValue,
+          enderecoEmpresa: enderecoValue,
+          telefoneEmpresa: telefoneValue,
+          mensagemRodape: data.mensagem_cupom || 'Obrigado pela preferência!',
+          mostrarCPF: data.exibir_cliente ?? data.mostrar_cpf ?? true,
           mostrarData: data.mostrar_data ?? true,
           mostrarHora: data.mostrar_hora ?? true,
           mostrarVendedor: data.mostrar_vendedor ?? true,

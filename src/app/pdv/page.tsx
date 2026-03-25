@@ -132,22 +132,36 @@ export default function PDVPage() {
   useEffect(() => {
     const carregarEmpresa = async () => {
       if (!empresaId) return;
-      
+
       const supabase = getSupabaseClient();
       if (!supabase) return;
 
       try {
         const { data, error } = await supabase
           .from('empresas')
-          .select('nome, cnpj, endereco')
+          .select('nome, cnpj, logradouro, numero, complemento, bairro, cidade, estado')
           .eq('id', empresaId)
           .single();
-        
+
         if (!error && data) {
+          // Montar endereço completo a partir dos campos separados
+          const partesEndereco = [
+            data.logradouro,
+            data.numero,
+            data.complemento,
+            data.bairro,
+            data.cidade,
+            data.estado
+          ].filter(Boolean);
+
+          const enderecoCompleto = partesEndereco.length > 0
+            ? partesEndereco.join(', ')
+            : '';
+
           setEmpresa({
             nome: data.nome || 'Sistema PDV',
             cnpj: data.cnpj || '',
-            endereco: data.endereco || '',
+            endereco: enderecoCompleto,
           });
         }
       } catch (error) {
