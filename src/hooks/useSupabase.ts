@@ -1528,6 +1528,7 @@ export const configuracoesCupomPadrao: ConfiguracoesCupom = {
 export function useConfiguracoesCupom() {
   const [configuracoes, setConfiguracoes] = useState<ConfiguracoesCupom>(configuracoesCupomPadrao);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const { empresaId, user } = useAuth();
   const supabase = getSupabaseClient();
 
@@ -1597,34 +1598,58 @@ export function useConfiguracoesCupom() {
   const salvarConfiguracoes = async (novasConfiguracoes: ConfiguracoesCupom) => {
     if (!empresaId) throw new Error('Empresa não definida');
 
-    const { error } = await supabase
-      .from('cupom_config')
-      .upsert({
-        empresa_id: empresaId,
-        nome_empresa: novasConfiguracoes.nomeEmpresa,
-        cnpj: novasConfiguracoes.cnpj,
-        endereco: novasConfiguracoes.endereco,
-        telefone: novasConfiguracoes.telefone,
-        mensagem_rodape: novasConfiguracoes.mensagemRodape,
-        mostrar_cpf: novasConfiguracoes.mostrarCPF,
-        mostrar_data: novasConfiguracoes.mostrarData,
-        mostrar_hora: novasConfiguracoes.mostrarHora,
-        mostrar_vendedor: novasConfiguracoes.mostrarVendedor,
-        mostrar_desconto: novasConfiguracoes.mostrarDesconto,
-        tamanho_fonte: novasConfiguracoes.tamanhoFonte,
-        largura_papel: novasConfiguracoes.larguraPapel,
-        imprimir_automatico: novasConfiguracoes.imprimirAutomatico,
-        vias: novasConfiguracoes.vias,
-        atualizado_em: new Date().toISOString(),
-      });
+    setSaving(true);
+    try {
+      // Primeiro, verificar se já existe um registro
+      const { data: existing } = await supabase
+        .from('cupom_config')
+        .select('id')
+        .eq('empresa_id', empresaId)
+        .maybeSingle();
 
-    if (error) throw error;
-    setConfiguracoes(novasConfiguracoes);
+      const configData = {
+        empresa_id: empresaId,
+        razao_social: novasConfiguracoes.nomeEmpresa,
+        nome_fantasia: novasConfiguracoes.nomeEmpresa,
+        cnpj: novasConfiguracoes.cnpj || novasConfiguracoes.cnpjEmpresa,
+        endereco: novasConfiguracoes.endereco || novasConfiguracoes.enderecoEmpresa,
+        telefone: novasConfiguracoes.telefone || novasConfiguracoes.telefoneEmpresa,
+        mensagem_cupom: novasConfiguracoes.mensagemRodape,
+        exibir_valor: true,
+        exibir_cliente: novasConfiguracoes.mostrarCPF,
+        atualizado_em: new Date().toISOString(),
+      };
+
+      let error;
+      if (existing?.id) {
+        // Atualizar registro existente
+        const result = await supabase
+          .from('cupom_config')
+          .update(configData)
+          .eq('id', existing.id);
+        error = result.error;
+      } else {
+        // Inserir novo registro
+        const result = await supabase
+          .from('cupom_config')
+          .insert({
+            ...configData,
+            criado_em: new Date().toISOString(),
+          });
+        error = result.error;
+      }
+
+      if (error) throw error;
+      setConfiguracoes(novasConfiguracoes);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return {
     configuracoes,
     loading,
+    saving,
     salvarConfiguracoes,
     carregarConfiguracoes,
   };
