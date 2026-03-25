@@ -394,6 +394,8 @@ export function imprimirCupomFiscal(
   const espacamentoLinhas = config.espacamentoLinhas || 1.4;
   const margemSuperior = config.margemSuperior ?? 2;
   const margemInferior = config.margemInferior ?? 2;
+  const margemEsquerda = config.margemEsquerda ?? 2;
+  const margemDireita = config.margemDireita ?? 2;
   const mensagemRodape = config.mensagemRodape || 'Obrigado pela preferência!\nVolte sempre!';
 
   // Log para debug
@@ -407,6 +409,8 @@ export function imprimirCupomFiscal(
     espacamentoLinhas,
     margemSuperior,
     margemInferior,
+    margemEsquerda,
+    margemDireita,
     mensagemRodape,
   });
 
@@ -525,7 +529,7 @@ export function imprimirCupomFiscal(
       <style>
         @page {
           size: ${tamanhoPapel} auto;
-          margin: ${margemSuperior}mm 2mm ${margemInferior}mm 2mm;
+          margin: ${margemSuperior}mm ${margemDireita}mm ${margemInferior}mm ${margemEsquerda}mm;
         }
         body {
           font-family: 'Courier New', monospace;
@@ -533,7 +537,7 @@ export function imprimirCupomFiscal(
           font-weight: ${fontWeight};
           line-height: ${espacamentoLinhas};
           margin: 0;
-          padding: ${margemSuperior}mm 2mm;
+          padding: ${margemSuperior}mm ${margemDireita}mm ${margemInferior}mm ${margemEsquerda}mm;
           white-space: pre-wrap;
           word-wrap: break-word;
           width: ${larguraMm}mm;

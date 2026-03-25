@@ -1527,6 +1527,8 @@ export interface ConfiguracoesCupom {
   espacamentoLinhas: number;
   margemSuperior: number;
   margemInferior: number;
+  margemEsquerda: number;
+  margemDireita: number;
   intensidadeImpressao: 'normal' | 'escura' | 'muito-escura';
   imprimirAutomatico: boolean;
   vias: number;
@@ -1549,6 +1551,8 @@ export const configuracoesCupomPadrao: ConfiguracoesCupom = {
   espacamentoLinhas: 1.4,
   margemSuperior: 2,
   margemInferior: 2,
+  margemEsquerda: 2,
+  margemDireita: 2,
   intensidadeImpressao: 'escura',
   imprimirAutomatico: false,
   vias: 1,
@@ -1617,6 +1621,8 @@ export function useConfiguracoesCupom() {
           espacamentoLinhas: data.espacamento_linhas ?? 1.4,
           margemSuperior: data.margem_superior ?? 2,
           margemInferior: data.margem_inferior ?? 2,
+          margemEsquerda: data.margem_esquerda ?? 2,
+          margemDireita: data.margem_direita ?? 2,
           intensidadeImpressao: data.intensidade_impressao || 'escura',
           imprimirAutomatico: data.imprimir_automatico ?? false,
           vias: data.vias || 1,
@@ -1666,6 +1672,8 @@ export function useConfiguracoesCupom() {
         espacamento_linhas: novasConfiguracoes.espacamentoLinhas,
         margem_superior: novasConfiguracoes.margemSuperior,
         margem_inferior: novasConfiguracoes.margemInferior,
+        margem_esquerda: novasConfiguracoes.margemEsquerda,
+        margem_direita: novasConfiguracoes.margemDireita,
         intensidade_impressao: novasConfiguracoes.intensidadeImpressao,
         imprimir_automatico: novasConfiguracoes.imprimirAutomatico,
         vias: novasConfiguracoes.vias,

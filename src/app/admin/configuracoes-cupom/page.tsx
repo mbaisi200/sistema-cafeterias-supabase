@@ -62,6 +62,8 @@ function PreviaCupom({ formData }: { formData: ConfiguracoesCupom }) {
   const lineHeight = formData.espacamentoLinhas || 1.4;
   const margemSup = formData.margemSuperior ?? 2;
   const margemInf = formData.margemInferior ?? 2;
+  const margemEsq = formData.margemEsquerda ?? 2;
+  const margemDir = formData.margemDireita ?? 2;
 
   // Usar os mesmos campos que a função de impressão
   const nomeEmpresa = formData.nomeEmpresa || 'NOME DA EMPRESA';
@@ -78,7 +80,7 @@ function PreviaCupom({ formData }: { formData: ConfiguracoesCupom }) {
         fontSize: `${fontSize}px`,
         fontWeight,
         lineHeight,
-        padding: `${margemSup}mm 2mm ${margemInf}mm`,
+        padding: `${margemSup}mm ${margemDir}mm ${margemInf}mm ${margemEsq}mm`,
         fontFamily: "'Courier New', monospace",
       }}
     >
@@ -535,6 +537,33 @@ export default function ConfiguracoesCupomPage() {
                         step="0.5"
                         value={formData.margemInferior}
                         onChange={(e) => handleInputChange('margemInferior', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="margemEsquerda">Margem Esquerda (mm)</Label>
+                      <Input
+                        id="margemEsquerda"
+                        type="number"
+                        min="0"
+                        max="20"
+                        step="0.5"
+                        value={formData.margemEsquerda}
+                        onChange={(e) => handleInputChange('margemEsquerda', parseFloat(e.target.value) || 0)}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="margemDireita">Margem Direita (mm)</Label>
+                      <Input
+                        id="margemDireita"
+                        type="number"
+                        min="0"
+                        max="20"
+                        step="0.5"
+                        value={formData.margemDireita}
+                        onChange={(e) => handleInputChange('margemDireita', parseFloat(e.target.value) || 0)}
                       />
                     </div>
                   </div>
