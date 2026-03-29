@@ -860,27 +860,27 @@ export default function PDVPage() {
       <div className="h-screen flex flex-col bg-white">
         
         {/* HEADER */}
-        <header className="bg-white border-b border-blue-100 px-6 py-3 flex items-center justify-between shrink-0 shadow-sm">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold shadow-sm">
+        <header className="bg-white border-b border-blue-100 px-3 py-1.5 flex items-center justify-between shrink-0 shadow-sm">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold shadow-sm text-sm">
               {user?.nome?.charAt(0)}
             </div>
             <div>
-              <p className="font-bold text-gray-800 text-lg">{user?.nome}</p>
-              <p className="text-xs text-gray-500">Ponto de Venda</p>
+              <p className="font-bold text-gray-800 text-sm leading-tight">{user?.nome}</p>
+              <p className="text-[10px] text-gray-500 leading-tight">Ponto de Venda</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-3">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${caixaAberto ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} shadow-sm`}>
-              <CheckCircle className="h-4 w-4" />
+          <div className="flex items-center gap-2">
+            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${caixaAberto ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} shadow-sm`}>
+              <CheckCircle className="h-3.5 w-3.5" />
               {caixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'}
             </div>
 
             {!caixaAberto ? (
               <Button
                 size="sm"
-                className="bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm"
+                className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm"
                 onClick={() => abrirCaixa(0)}
               >
                 Abrir Caixa
@@ -888,85 +888,85 @@ export default function PDVPage() {
             ) : (
               <Button
                 size="sm"
-                className="bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm"
+                className="h-7 text-xs bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm"
                 onClick={() => fecharCaixa(caixaAberto.valor_atual || 0)}
               >
                 Fechar Caixa
               </Button>
             )}
 
-            <Badge className="bg-blue-100 text-blue-700 px-4 py-2 text-sm font-bold shadow-sm">
+            <Badge className="bg-blue-100 text-blue-700 px-3 py-1 text-xs font-bold shadow-sm">
               {getTipoVendaLabel()}
             </Badge>
 
             <Button 
               variant="destructive" 
               onClick={handleLogout} 
-              className="gap-2 bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm"
+              className="gap-1 h-7 text-xs bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm"
             >
-              <LogOut className="h-4 w-4" />
+              <LogOut className="h-3.5 w-3.5" />
               SAIR
             </Button>
           </div>
         </header>
 
         {/* SELEÇÃO DE TIPO DE VENDA */}
-        <div className="bg-blue-50 border-b border-blue-100 px-6 py-3 flex gap-3 items-center shadow-sm overflow-x-auto">
-          <span className="text-sm font-bold text-gray-700 uppercase whitespace-nowrap">Tipo de Venda:</span>
+        <div className="bg-blue-50 border-b border-blue-100 px-3 py-1.5 flex gap-2 items-center shadow-sm overflow-x-auto">
+          <span className="text-xs font-bold text-gray-700 uppercase whitespace-nowrap">Tipo:</span>
           <Button
             variant={tipoVenda === 'balcao' ? 'default' : 'outline'}
             size="sm"
-            className={`font-bold transition-all whitespace-nowrap ${tipoVenda === 'balcao' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'border border-blue-300 text-blue-600 hover:bg-blue-50'}`}
+            className={`h-7 text-xs font-bold transition-all whitespace-nowrap ${tipoVenda === 'balcao' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'border border-blue-300 text-blue-600 hover:bg-blue-50'}`}
             onClick={() => trocarTipoVenda('balcao')}
           >
-            <Package className="h-4 w-4 mr-2" />
+            <Package className="h-3.5 w-3.5 mr-1" />
             Balcão
           </Button>
           <Button
             variant={tipoVenda === 'mesa' ? 'default' : 'outline'}
             size="sm"
-            className={`font-bold transition-all whitespace-nowrap ${tipoVenda === 'mesa' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'border border-blue-300 text-blue-600 hover:bg-blue-50'}`}
+            className={`h-7 text-xs font-bold transition-all whitespace-nowrap ${tipoVenda === 'mesa' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'border border-blue-300 text-blue-600 hover:bg-blue-50'}`}
             onClick={() => trocarTipoVenda('mesa')}
           >
-            <UtensilsCrossed className="h-4 w-4 mr-2" />
+            <UtensilsCrossed className="h-3.5 w-3.5 mr-1" />
             Mesa
           </Button>
           <Button
             variant={tipoVenda === 'comanda' ? 'default' : 'outline'}
             size="sm"
-            className={`font-bold transition-all whitespace-nowrap ${tipoVenda === 'comanda' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'border border-blue-300 text-blue-600 hover:bg-blue-50'}`}
+            className={`h-7 text-xs font-bold transition-all whitespace-nowrap ${tipoVenda === 'comanda' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'border border-blue-300 text-blue-600 hover:bg-blue-50'}`}
             onClick={() => trocarTipoVenda('comanda')}
           >
-            <ClipboardList className="h-4 w-4 mr-2" />
+            <ClipboardList className="h-3.5 w-3.5 mr-1" />
             Comanda
           </Button>
           <Button
             variant={tipoVenda === 'delivery' ? 'default' : 'outline'}
             size="sm"
-            className={`font-bold transition-all whitespace-nowrap ${tipoVenda === 'delivery' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'border border-blue-300 text-blue-600 hover:bg-blue-50'}`}
+            className={`h-7 text-xs font-bold transition-all whitespace-nowrap ${tipoVenda === 'delivery' ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-sm' : 'border border-blue-300 text-blue-600 hover:bg-blue-50'}`}
             onClick={() => trocarTipoVenda('delivery')}
           >
-            <Truck className="h-4 w-4 mr-2" />
+            <Truck className="h-3.5 w-3.5 mr-1" />
             Delivery
           </Button>
         </div>
 
         {/* CONTEÚDO PRINCIPAL */}
-        <div className="flex-1 flex overflow-hidden gap-4 p-4">
+        <div className="flex-1 flex overflow-hidden gap-2 p-2">
           
           {/* COLUNA ESQUERDA - MESAS (se selecionado) */}
           {tipoVenda === 'mesa' && (
-            <div className="w-48 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden">
-              <div className="bg-blue-50 border-b border-blue-100 px-4 py-3 text-blue-700 font-bold">
+            <div className="w-40 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden">
+              <div className="bg-blue-50 border-b border-blue-100 px-3 py-2 text-blue-700 font-bold text-xs">
                 MESAS
               </div>
-              <ScrollArea className="flex-1 p-3">
-                <div className="space-y-2">
+              <ScrollArea className="flex-1 p-2">
+                <div className="space-y-1.5">
                   {mesasOrdenadas.map(mesa => (
                     <button
                       key={mesa.id}
                       onClick={() => selecionarMesa(mesa.id, mesa.numero, mesa.status)}
-                      className={`w-full p-3 rounded-lg font-bold transition-all transform hover:scale-105 ${
+                      className={`w-full p-2 rounded-lg font-bold transition-all transform hover:scale-105 ${
                         mesaSelecionada === mesa.id
                           ? 'bg-blue-600 text-white shadow-md'
                           : mesa.status === 'livre'
@@ -975,8 +975,8 @@ export default function PDVPage() {
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-lg">Mesa {mesa.numero}</span>
-                        <Badge className={`text-xs font-bold ${mesa.status === 'livre' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+                        <span className="text-sm">Mesa {mesa.numero}</span>
+                        <Badge className={`text-[10px] font-bold ${mesa.status === 'livre' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
                           {mesa.status === 'livre' ? 'Livre' : 'Ocupada'}
                         </Badge>
                       </div>
@@ -989,7 +989,7 @@ export default function PDVPage() {
 
           {/* COLUNA ESQUERDA - COMANDAS (se selecionado) */}
           {tipoVenda === 'comanda' && (
-            <div className="w-56 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden">
+            <div className="w-48 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden">
               <div className="bg-blue-50 border-b border-blue-100 px-4 py-3 flex items-center justify-between">
                 <span className="text-blue-700 font-bold">COMANDAS</span>
                 <Button 
@@ -1049,11 +1049,11 @@ export default function PDVPage() {
           <div className="flex-1 flex flex-col overflow-hidden bg-white rounded-lg shadow-sm border border-blue-100">
             
             {/* CATEGORIAS */}
-            <div className="bg-blue-50 px-4 py-3 flex gap-2 overflow-x-auto border-b border-blue-100">
+            <div className="bg-blue-50 px-3 py-1.5 flex gap-1.5 overflow-x-auto border-b border-blue-100">
               <Button
                 size="sm"
                 variant={categoriaAtiva === 'todos' ? 'default' : 'outline'}
-                className={`font-bold whitespace-nowrap transition-all ${categoriaAtiva === 'todos' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'}`}
+                className={`h-7 text-xs font-bold whitespace-nowrap transition-all ${categoriaAtiva === 'todos' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'}`}
                 onClick={() => setCategoriaAtiva('todos')}
               >
                 Todos
@@ -1064,7 +1064,7 @@ export default function PDVPage() {
                   size="sm"
                   variant={categoriaAtiva === cat.id ? 'default' : 'outline'}
                   style={categoriaAtiva === cat.id ? { backgroundColor: cat.cor, color: 'white' } : { borderColor: cat.cor, color: cat.cor }}
-                  className={`font-bold whitespace-nowrap transition-all ${categoriaAtiva === cat.id ? 'shadow-md' : 'bg-white hover:shadow-md'}`}
+                  className={`h-7 text-xs font-bold whitespace-nowrap transition-all ${categoriaAtiva === cat.id ? 'shadow-md' : 'bg-white hover:shadow-md'}`}
                   onClick={() => setCategoriaAtiva(cat.id)}
                 >
                   {cat.nome}
@@ -1073,51 +1073,53 @@ export default function PDVPage() {
             </div>
 
             {/* BUSCA */}
-            <div className="p-4 border-b border-blue-100 bg-white">
+            <div className="px-3 py-2 border-b border-blue-100 bg-white">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
-                  placeholder="🔍 Buscar por nome ou código de barras..."
+                  placeholder="🔍 Buscar produto ou código de barras..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-10 border border-blue-200 focus:border-blue-500 rounded-lg font-semibold"
+                  className="pl-8 h-8 text-sm border border-blue-200 focus:border-blue-500 rounded-lg font-semibold"
                   autoFocus
                 />
               </div>
             </div>
 
             {/* GRID PRODUTOS */}
-            <div className="flex-1 overflow-y-auto p-4">
+            <div className="flex-1 overflow-y-auto p-2">
               {produtosFiltrados.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400">
-                  <Package className="h-20 w-20 mb-4 opacity-30" />
-                  <p className="text-lg font-bold">Nenhum produto cadastrado</p>
-                  <p className="text-sm">O admin precisa cadastrar produtos primeiro</p>
+                  <Package className="h-16 w-16 mb-3 opacity-30" />
+                  <p className="text-base font-bold">Nenhum produto cadastrado</p>
+                  <p className="text-xs">O admin precisa cadastrar produtos primeiro</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
                   {(produtosFiltrados || []).map(produto => {
                     const corCategoria = getCorCategoria(produto.categoriaId);
                     return (
                       <button
                         key={produto.id}
-                        className="group bg-white rounded-lg p-3 hover:shadow-md active:scale-95 transition-all border border-blue-100 hover:border-blue-300 overflow-hidden relative"
+                        className="group bg-white rounded-lg p-2 hover:shadow-md active:scale-95 transition-all border border-blue-100 hover:border-blue-300 overflow-hidden relative"
                         onClick={() => adicionarProduto(produto)}
                       >
                         {/* Fundo gradiente no hover */}
                         <div className="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-100 transition-opacity" />
                         
-                        <div className="relative z-10">
+                        <div className="relative z-10 flex items-center gap-2">
                           <div 
-                            className="h-14 rounded-lg flex items-center justify-center mb-2 shadow-md transition-transform group-hover:scale-110"
+                            className="w-10 h-10 shrink-0 rounded-lg flex items-center justify-center shadow-sm transition-transform group-hover:scale-110"
                             style={{ backgroundColor: `${corCategoria}25` }}
                           >
-                            <Coffee className="h-7 w-7 transition-transform group-hover:rotate-12" style={{ color: corCategoria }} />
+                            <Coffee className="h-5 w-5 transition-transform group-hover:rotate-12" style={{ color: corCategoria }} />
                           </div>
-                          <p className="text-sm font-bold truncate text-gray-800 group-hover:text-blue-600">{produto.nome}</p>
-                          <p className="text-base font-extrabold text-green-600 mt-1">
-                            R$ {(produto.preco || 0).toFixed(2)}
-                          </p>
+                          <div className="flex-1 min-w-0 text-left">
+                            <p className="text-[13px] font-bold truncate text-gray-800 group-hover:text-blue-600 leading-tight">{produto.nome}</p>
+                            <p className="text-sm font-extrabold text-green-600 leading-tight">
+                              R$ {(produto.preco || 0).toFixed(2)}
+                            </p>
+                          </div>
                         </div>
                       </button>
                     );
@@ -1128,22 +1130,22 @@ export default function PDVPage() {
           </div>
 
           {/* COLUNA DIREITA - CARRINHO */}
-          <div className="w-80 lg:w-96 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden h-full">
+          <div className="w-72 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden h-full">
             
             {/* HEADER CARRINHO */}
-            <div className="bg-blue-50 border-b border-blue-100 px-3 py-3 shrink-0">
-              <div className="flex items-center justify-between mb-1">
-                <h2 className="text-lg font-bold flex items-center gap-2 text-gray-800">
-                  <ShoppingCart className="h-5 w-5 text-blue-600" />
+            <div className="bg-blue-50 border-b border-blue-100 px-2 py-2 shrink-0">
+              <div className="flex items-center justify-between mb-0.5">
+                <h2 className="text-sm font-bold flex items-center gap-1.5 text-gray-800">
+                  <ShoppingCart className="h-4 w-4 text-blue-600" />
                   PEDIDO
                 </h2>
                 {itensPedido.length > 0 && (
-                  <Badge className="bg-blue-100 text-blue-700 font-bold text-lg px-3 py-1">
+                  <Badge className="bg-blue-100 text-blue-700 font-bold text-xs px-2 py-0.5">
                     {itensPedido.length}
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-gray-600 font-semibold">
+              <p className="text-xs text-gray-600 font-semibold">
                 {getTipoVendaLabel()}
                 {tipoVenda === 'comanda' && comandaSelecionada && (
                   <span className="ml-2 text-purple-600">
@@ -1229,20 +1231,20 @@ export default function PDVPage() {
             </ScrollArea>
 
             {/* TOTAL E FINALIZAR */}
-            <div className="p-3 border-t border-blue-100 space-y-2 bg-white shrink-0">
+            <div className="p-2 border-t border-blue-100 space-y-1.5 bg-white shrink-0">
               <div className="flex justify-between items-center">
-                <span className="text-base font-bold text-gray-700">TOTAL:</span>
-                <span className="text-2xl font-extrabold text-green-600">
+                <span className="text-sm font-bold text-gray-700">TOTAL:</span>
+                <span className="text-xl font-extrabold text-green-600">
                   R$ {total.toFixed(2)}
                 </span>
               </div>
               
               <Button
-                className="w-full h-11 text-base font-bold bg-green-600 hover:bg-green-700 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-9 text-sm font-bold bg-green-600 hover:bg-green-700 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={itensPedido.length === 0 || processando || (tipoVenda === 'comanda' && !comandaSelecionada)}
                 onClick={() => setDialogPerguntaCPF(true)}
               >
-                <CreditCard className="h-5 w-5 mr-2" />
+                <CreditCard className="h-4 w-4 mr-1.5" />
                 {processando ? 'Processando...' : 'FINALIZAR VENDA'}
               </Button>
 
@@ -1250,10 +1252,10 @@ export default function PDVPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full border border-red-300 text-red-600 hover:bg-red-50 font-bold h-9"
+                  className="w-full border border-red-300 text-red-600 hover:bg-red-50 font-bold h-7 text-xs"
                   onClick={limparPedido}
                 >
-                  <Trash2 className="h-3.5 w-3.5 mr-1" />
+                  <Trash2 className="h-3 w-3 mr-1" />
                   Limpar Carrinho
                 </Button>
               )}
