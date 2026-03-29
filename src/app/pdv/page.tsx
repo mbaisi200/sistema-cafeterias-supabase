@@ -1095,32 +1095,20 @@ export default function PDVPage() {
                   <p className="text-xs">O admin precisa cadastrar produtos primeiro</p>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                <div className="grid grid-cols-2 xl:grid-cols-3 gap-2">
                   {(produtosFiltrados || []).map(produto => {
                     const corCategoria = getCorCategoria(produto.categoriaId);
                     return (
                       <button
                         key={produto.id}
-                        className="group bg-white rounded-lg p-2 hover:shadow-md active:scale-95 transition-all border border-blue-100 hover:border-blue-300 overflow-hidden relative"
+                        className="group bg-white rounded-lg p-2.5 hover:shadow-md active:scale-95 transition-all border-2 hover:border-blue-300 overflow-hidden relative text-left"
+                        style={{ borderLeftWidth: '5px', borderLeftColor: corCategoria }}
                         onClick={() => adicionarProduto(produto)}
                       >
-                        {/* Fundo gradiente no hover */}
-                        <div className="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-100 transition-opacity" />
-                        
-                        <div className="relative z-10 flex items-center gap-2">
-                          <div 
-                            className="w-10 h-10 shrink-0 rounded-lg flex items-center justify-center shadow-sm transition-transform group-hover:scale-110"
-                            style={{ backgroundColor: `${corCategoria}25` }}
-                          >
-                            <Coffee className="h-5 w-5 transition-transform group-hover:rotate-12" style={{ color: corCategoria }} />
-                          </div>
-                          <div className="flex-1 min-w-0 text-left">
-                            <p className="text-[13px] font-bold truncate text-gray-800 group-hover:text-blue-600 leading-tight">{produto.nome}</p>
-                            <p className="text-sm font-extrabold text-green-600 leading-tight">
-                              R$ {(produto.preco || 0).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
+                        <p className="text-sm font-bold text-gray-800 group-hover:text-blue-600 leading-snug" style={{ lineHeight: '1.25' }}>{produto.nome}</p>
+                        <p className="text-base font-extrabold text-green-600 mt-1 leading-tight">
+                          R$ {(produto.preco || 0).toFixed(2)}
+                        </p>
                       </button>
                     );
                   })}
@@ -1130,7 +1118,7 @@ export default function PDVPage() {
           </div>
 
           {/* COLUNA DIREITA - CARRINHO */}
-          <div className="w-72 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden h-full">
+          <div className="w-64 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden h-full">
             
             {/* HEADER CARRINHO */}
             <div className="bg-blue-50 border-b border-blue-100 px-2 py-2 shrink-0">
