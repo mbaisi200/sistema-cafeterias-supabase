@@ -118,10 +118,7 @@ export default function PDVPage() {
   
   // Estados para Cupom Fiscal
   const [dialogCupomFiscal, setDialogCupomFiscal] = useState(false);
-  const [dialogPerguntaCPF, setDialogPerguntaCPF] = useState(false);
   const [formaPagamentoSelecionada, setFormaPagamentoSelecionada] = useState<string>('');
-  const [cpfClientePreVenda, setCpfClientePreVenda] = useState('');
-  const [nomeClientePreVenda, setNomeClientePreVenda] = useState('');
   const [pagamentos, setPagamentos] = useState<Array<{forma: string; valor: number}>>([]);
   const [valorPagamentoAtual, setValorPagamentoAtual] = useState('');
   const [empresa, setEmpresa] = useState<{
@@ -1236,7 +1233,7 @@ export default function PDVPage() {
               <Button
                 className="w-full h-9 text-sm font-bold bg-green-600 hover:bg-green-700 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={itensPedido.length === 0 || processando || (tipoVenda === 'comanda' && !comandaSelecionada)}
-                onClick={() => setDialogPerguntaCPF(true)}
+                onClick={() => setDialogPagamento(true)}
               >
                 <CreditCard className="h-4 w-4 mr-1.5" />
                 {processando ? 'Processando...' : 'FINALIZAR VENDA'}
@@ -1465,82 +1462,6 @@ export default function PDVPage() {
         </DialogContent>
       </Dialog>
 
-      {/* DIALOG PERGUNTA CPF */}
-      <Dialog open={dialogPerguntaCPF} onOpenChange={setDialogPerguntaCPF}>
-        <DialogContent className="max-w-md border border-blue-200 bg-white">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-center font-bold text-gray-800 flex items-center justify-center gap-2">
-              <User className="h-6 w-6 text-blue-600" />
-              CPF na Nota?
-            </DialogTitle>
-            <DialogDescription className="text-center text-gray-600">
-              O cliente deseja incluir CPF no cupom fiscal?
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="text-center py-4 bg-blue-50 rounded-lg border border-blue-100">
-            <p className="text-3xl font-extrabold text-green-600">R$ {total.toFixed(2)}</p>
-            <p className="text-sm text-gray-600 mt-1">{itensPedido.length} itens</p>
-          </div>
-
-          <div className="space-y-3">
-            <div className="space-y-2">
-              <Label className="font-bold text-sm">CPF do Cliente</Label>
-              <Input
-                placeholder="Digite o CPF (opcional)"
-                value={cpfClientePreVenda}
-                onChange={(e) => {
-                  const valor = e.target.value.replace(/\D/g, '');
-                  if (valor.length <= 11) {
-                    let formatado = valor;
-                    if (valor.length > 3) formatado = valor.slice(0, 3) + '.' + valor.slice(3);
-                    if (valor.length > 6) formatado = formatado.slice(0, 7) + '.' + formatado.slice(7);
-                    if (valor.length > 9) formatado = formatado.slice(0, 11) + '-' + formatado.slice(11);
-                    setCpfClientePreVenda(formatado);
-                  }
-                }}
-                className="text-center text-lg font-mono border-blue-200 focus:border-blue-500"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label className="font-bold text-sm">Nome do Cliente</Label>
-              <Input
-                placeholder="Nome (opcional)"
-                value={nomeClientePreVenda}
-                onChange={(e) => setNomeClientePreVenda(e.target.value)}
-                className="border-blue-200 focus:border-blue-500"
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <Button 
-              variant="outline"
-              onClick={() => {
-                setCpfClientePreVenda('');
-                setNomeClientePreVenda('');
-                setDialogPerguntaCPF(false);
-                setDialogPagamento(true);
-              }} 
-              className="h-14 font-bold border-gray-300 hover:bg-gray-100"
-            >
-              <X className="h-5 w-5 mr-2" />
-              Sem CPF
-            </Button>
-            <Button 
-              onClick={() => {
-                setDialogPerguntaCPF(false);
-                setDialogPagamento(true);
-              }} 
-              className="h-14 font-bold bg-green-600 hover:bg-green-700 text-white"
-            >
-              <CheckCircle className="h-5 w-5 mr-2" />
-              Continuar
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
       {/* DIALOG PAGAMENTO */}
       <Dialog open={dialogPagamento} onOpenChange={setDialogPagamento}>
         <DialogContent className="max-w-lg border border-blue-200 bg-white">
@@ -1730,8 +1651,6 @@ export default function PDVPage() {
         cnpjEmpresa={empresa?.cnpj || ''}
         enderecoEmpresa={empresa?.endereco || ''}
         processando={processando}
-        cpfPrePreenchido={cpfClientePreVenda}
-        nomePrePreenchido={nomeClientePreVenda}
       />
 
     </ProtectedRoute>

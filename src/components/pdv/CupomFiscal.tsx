@@ -46,8 +46,6 @@ interface CupomFiscalModalProps {
   cnpjEmpresa?: string;
   enderecoEmpresa?: string;
   processando?: boolean;
-  cpfPrePreenchido?: string;
-  nomePrePreenchido?: string;
   pagamentosMultiplos?: Array<{ forma: string; valor: number }>;
 }
 
@@ -62,16 +60,14 @@ export function CupomFiscalModal({
   cnpjEmpresa = '',
   enderecoEmpresa = '',
   processando = false,
-  cpfPrePreenchido = '',
-  nomePrePreenchido = '',
 }: CupomFiscalModalProps) {
   const { toast } = useToast();
   const { configuracoes } = useConfiguracoesCupom();
 
   // Estados de cliente
   const [clienteSelecionado, setClienteSelecionado] = useState<ClienteEncontrado | null>(null);
-  const [cpfCliente, setCpfCliente] = useState(cpfPrePreenchido);
-  const [nomeCliente, setNomeCliente] = useState(nomePrePreenchido);
+  const [cpfCliente, setCpfCliente] = useState('');
+  const [nomeCliente, setNomeCliente] = useState('');
   const [modoEntradaManual, setModoEntradaManual] = useState(false);
 
   const [imprimirCupom, setImprimirCupom] = useState(true);
@@ -90,14 +86,9 @@ export function CupomFiscalModal({
     if (open) {
       setClienteSelecionado(null);
       setModoEntradaManual(false);
-      if (cpfPrePreenchido !== cpfCliente) {
-        setCpfCliente(cpfPrePreenchido);
-      }
-      if (nomePrePreenchido !== nomeCliente) {
-        setNomeCliente(nomePrePreenchido);
-      }
+      setCpfCliente('');
+      setNomeCliente('');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   // Carregar configurações salvas
