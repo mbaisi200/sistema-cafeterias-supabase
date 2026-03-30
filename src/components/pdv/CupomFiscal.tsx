@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { Printer, FileText, User, Settings, CreditCard, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useConfiguracoesCupom, ConfiguracoesCupom, configuracoesCupomPadrao } from '@/hooks/useFirestore';
+import { BuscaCliente, ClienteEncontrado } from './BuscaCliente';
 
 export interface DadosCupomFiscal {
   cpfCliente: string;
@@ -26,6 +27,8 @@ export interface DadosCupomFiscal {
   imprimirCupom: boolean;
   tamanhoCupom: '58mm' | '80mm';
   configuracoes?: ConfiguracoesCupom;
+  clienteId?: string;
+  cliente?: ClienteEncontrado;
 }
 
 interface CupomFiscalModalProps {
@@ -64,8 +67,13 @@ export function CupomFiscalModal({
 }: CupomFiscalModalProps) {
   const { toast } = useToast();
   const { configuracoes } = useConfiguracoesCupom();
+
+  // Estados de cliente
+  const [clienteSelecionado, setClienteSelecionado] = useState<ClienteEncontrado | null>(null);
   const [cpfCliente, setCpfCliente] = useState(cpfPrePreenchido);
   const [nomeCliente, setNomeCliente] = useState(nomePrePreenchido);
+  const [modoEntradaManual, setModoEntradaManual] = useState(false);
+
   const [imprimirCupom, setImprimirCupom] = useState(true);
   const [tamanhoCupom, setTamanhoCupom] = useState<'58mm' | '80mm'>('80mm');
   const [mostrarConfiguracoes, setMostrarConfiguracoes] = useState(false);
@@ -80,7 +88,8 @@ export function CupomFiscalModal({
   // Resetar valores quando o modal abrir
   useEffect(() => {
     if (open) {
-      // Usando flushSync para evitar warning de cascading renders
+      setClienteSelecionado(null);
+      setModoEntradaManual(false);
       if (cpfPrePreenchido !== cpfCliente) {
         setCpfCliente(cpfPrePreenchido);
       }
@@ -112,15 +121,13 @@ export function CupomFiscalModal({
 
   // Validar CPF
   const validarCPF = (cpf: string | undefined | null): boolean => {
-    if (!cpf) return true; // CPF opcional
+    if (!cpf) return true;
     const numeros = cpf.replace(/\D/g, '');
-    if (numeros.length === 0) return true; // CPF opcional
+    if (numeros.length === 0) return true;
     if (numeros.length !== 11) return false;
     
-    // Verificar se todos os dígitos são iguais
     if (/^(\d)\1+$/.test(numeros)) return false;
     
-    // Validar dígitos verificadores
     let soma = 0;
     for (let i = 0; i < 9; i++) {
       soma += parseInt(numeros[i]) * (10 - i);
@@ -145,6 +152,20 @@ export function CupomFiscalModal({
     setCpfCliente(formatado);
   };
 
+  const handleClienteSelect = (cliente: ClienteEncontrado | null) => {
+    setClienteSelecionado(cliente);
+    if (cliente) {
+      setModoEntradaManual(false);
+      setCpfCliente(cliente.cnpj_cpf);
+      setNomeCliente(cliente.nome_razao_social);
+    }
+  };
+
+  const handleCadastrarNovo = () => {
+    setClienteSelecionado(null);
+    setModoEntradaManual(true);
+  };
+
   const handleConfirmar = () => {
     const cpfLimpo = (cpfCliente || '').replace(/\D/g, '');
     
@@ -166,6 +187,8 @@ export function CupomFiscalModal({
       imprimirCupom,
       tamanhoCupom,
       configuracoes: configuracoes || configuracoesCupomPadrao,
+      clienteId: clienteSelecionado?.id,
+      cliente: clienteSelecionado || undefined,
     }, formaPagamento);
   };
 
@@ -185,7 +208,7 @@ export function CupomFiscalModal({
             Finalizar Venda
           </DialogTitle>
           <DialogDescription className="text-gray-600">
-            Preencha os dados do cupom fiscal
+            Identifique o cliente e confirme a venda
           </DialogDescription>
         </DialogHeader>
 
@@ -209,43 +232,73 @@ export function CupomFiscalModal({
             </div>
           </div>
 
-          {/* CPF do Cliente */}
-          <div className="space-y-2">
-            <Label htmlFor="cpf" className="font-bold flex items-center gap-2">
-              <User className="h-4 w-4 text-gray-600" />
-              CPF do Cliente
-              <span className="text-xs text-gray-400 font-normal">(opcional)</span>
-            </Label>
-            <Input
-              id="cpf"
-              placeholder="000.000.000-00"
-              value={cpfCliente}
-              onChange={(e) => handleCPFChange(e.target.value)}
-              maxLength={14}
-              className="border border-blue-200 focus:border-blue-500 text-lg font-mono"
+          {/* Busca de Cliente */}
+          {!modoEntradaManual ? (
+            <BuscaCliente
+              onSelect={handleClienteSelect}
+              selected={clienteSelecionado}
+              placeholder="Buscar por nome ou CPF/CNPJ..."
+              label="Identificar Cliente"
+              showActions={true}
+              onCadastrarNovo={handleCadastrarNovo}
             />
-            {cpfCliente && cpfCliente.replace(/\D/g, '').length === 11 && validarCPF(cpfCliente) && (
-              <p className="text-xs text-green-600 flex items-center gap-1">
-                <CheckCircle className="h-3 w-3" />
-                CPF válido
-              </p>
-            )}
-          </div>
+          ) : (
+            /* Entrada manual de CPF e Nome (fallback) */
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <Label className="font-bold flex items-center gap-2">
+                  <User className="h-4 w-4 text-gray-600" />
+                  Dados do Cliente
+                </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-blue-600 hover:text-blue-700"
+                  onClick={() => setModoEntradaManual(false)}
+                >
+                  Buscar cliente cadastrado
+                </Button>
+              </div>
 
-          {/* Nome do Cliente */}
-          <div className="space-y-2">
-            <Label htmlFor="nomeCliente" className="font-bold">
-              Nome do Cliente
-              <span className="text-xs text-gray-400 font-normal ml-1">(opcional)</span>
-            </Label>
-            <Input
-              id="nomeCliente"
-              placeholder="Nome do cliente"
-              value={nomeCliente}
-              onChange={(e) => setNomeCliente(e.target.value)}
-              className="border border-blue-200 focus:border-blue-500"
-            />
-          </div>
+              {/* CPF do Cliente */}
+              <div className="space-y-1">
+                <Label htmlFor="cpf" className="text-sm font-medium">
+                  CPF do Cliente
+                  <span className="text-xs text-gray-400 font-normal ml-1">(opcional)</span>
+                </Label>
+                <Input
+                  id="cpf"
+                  placeholder="000.000.000-00"
+                  value={cpfCliente}
+                  onChange={(e) => handleCPFChange(e.target.value)}
+                  maxLength={14}
+                  className="border border-blue-200 focus:border-blue-500 text-lg font-mono"
+                />
+                {cpfCliente && cpfCliente.replace(/\D/g, '').length === 11 && validarCPF(cpfCliente) && (
+                  <p className="text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3" />
+                    CPF válido
+                  </p>
+                )}
+              </div>
+
+              {/* Nome do Cliente */}
+              <div className="space-y-1">
+                <Label htmlFor="nomeCliente" className="text-sm font-medium">
+                  Nome do Cliente
+                  <span className="text-xs text-gray-400 font-normal ml-1">(opcional)</span>
+                </Label>
+                <Input
+                  id="nomeCliente"
+                  placeholder="Nome do cliente"
+                  value={nomeCliente}
+                  onChange={(e) => setNomeCliente(e.target.value)}
+                  className="border border-blue-200 focus:border-blue-500"
+                />
+              </div>
+            </div>
+          )}
 
           <Separator />
 
@@ -350,6 +403,7 @@ export function imprimirCupomFiscal(
     codigoVenda?: string;
     pagamentosMultiplos?: Array<{ forma: string; valor: number }>;
     configuracoes?: ConfiguracoesCupom;
+    cliente?: ClienteEncontrado;
   }
 ) {
   const {
@@ -365,13 +419,13 @@ export function imprimirCupomFiscal(
     codigoVenda,
     pagamentosMultiplos,
     configuracoes,
+    cliente,
   } = dados;
 
   // Usar configurações salvas ou padrão
   const config = configuracoes || configuracoesCupomPadrao;
   
   // SEMPRE usar dados da empresa das configurações do cupom se preenchidos
-  // Caso contrário, usa os dados do cadastro da empresa
   const nomeEmpresa = (config.nomeEmpresa && config.nomeEmpresa.trim() !== '') 
     ? config.nomeEmpresa 
     : nomeEmpresaParam;
@@ -382,10 +436,10 @@ export function imprimirCupomFiscal(
     ? config.endereco 
     : enderecoEmpresaParam;
   
-  // Determinar largura do papel - usar da configuração ou do tamanho selecionado
+  // Determinar largura do papel
   const larguraMm = config.larguraPapel || (tamanhoCupom === '58mm' ? 58 : 80);
   
-  // Configurações de fonte - usar valores da configuração
+  // Configurações de fonte
   const tamanhoFonte = config.tamanhoFonte || 12;
   const intensidade = config.intensidadeImpressao || 'escura';
   const espacamentoLinhas = config.espacamentoLinhas || 1.4;
@@ -394,39 +448,21 @@ export function imprimirCupomFiscal(
   const margemEsquerda = config.margemEsquerda ?? 2;
   const margemDireita = config.margemDireita ?? 2;
   
-  // Calcular largura ÚTIL em mm (descontando margens laterais)
   const larguraUtilMm = Math.max(20, larguraMm - margemEsquerda - margemDireita);
-  
-  // Calcular largura em caracteres baseado na largura ÚTIL do papel e tamanho da fonte
-  // Em fontes monospace (Courier New), cada caractere tem ~0.6x o tamanho da fonte em mm
-  // Fonte 12pt ≈ 4.2mm por caractere, Fonte 10pt ≈ 3.5mm, Fonte 9pt ≈ 3.15mm
-  // Fórmula: mmPorCaractere = (tamanhoFonte / 12) * 1.5 (base: 12pt = 1.5mm/char em tela)
   const mmPorCaractere = (tamanhoFonte / 12) * 1.5;
-  
-  // Calcular número de caracteres que cabem na largura útil
-  // Subtrair 1 caractere de margem de segurança para evitar estouro
   const larguraCalculada = Math.floor(larguraUtilMm / mmPorCaractere);
   const largura = Math.max(16, larguraCalculada - 1);
   
   const mensagemRodape = config.mensagemRodape || 'Obrigado pela preferência!\nVolte sempre!';
 
-  // Log para debug
   console.log('Imprimindo cupom com configurações:', {
     nomeEmpresa,
     cnpjEmpresa,
     enderecoEmpresa,
     larguraMm,
-    larguraUtilMm,
-    mmPorCaractere,
     larguraCaracteres: largura,
     tamanhoFonte,
-    intensidade,
-    espacamentoLinhas,
-    margemSuperior,
-    margemInferior,
-    margemEsquerda,
-    margemDireita,
-    mensagemRodape,
+    cliente: cliente?.nome_razao_social || nomeCliente,
   });
 
   const formaPagamentoLabel: Record<string, string> = {
@@ -439,13 +475,11 @@ export function imprimirCupomFiscal(
   const separador = '='.repeat(largura);
   const traco = '-'.repeat(largura);
 
-  // Função para quebrar texto longo em múltiplas linhas
   const quebrarTexto = (texto: string): string[] => {
     if (texto.length <= largura) return [texto];
     const linhas: string[] = [];
     let textoRestante = texto;
     while (textoRestante.length > largura) {
-      // Tentar quebrar no último espaço antes da largura
       let posicaoQuebra = largura;
       const ultimoEspaco = textoRestante.lastIndexOf(' ', largura);
       if (ultimoEspaco > 0) {
@@ -461,7 +495,6 @@ export function imprimirCupomFiscal(
   };
 
   const centralizar = (texto: string) => {
-    // Se texto for maior que largura, quebrar e centralizar cada linha
     const linhas = quebrarTexto(texto);
     return linhas.map(linha => {
       const espacos = Math.max(0, Math.floor((largura - linha.length) / 2));
@@ -481,33 +514,36 @@ export function imprimirCupomFiscal(
     return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6, 9)}-${numeros.slice(9)}`;
   };
 
-  // Formatar CNPJ: XX.XXX.XXX/XXXX-XX
   const formatarCNPJ = (cnpj: string | undefined | null) => {
     if (!cnpj) return '';
     const numeros = cnpj.replace(/\D/g, '');
-    if (numeros.length !== 14) return cnpj; // Retorna original se não tiver 14 dígitos
+    if (numeros.length !== 14) return cnpj;
     return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8, 12)}-${numeros.slice(12)}`;
   };
 
-  // Formatar Telefone: (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
   const formatarTelefone = (telefone: string | undefined | null) => {
     if (!telefone) return '';
     const numeros = telefone.replace(/\D/g, '');
     
     if (numeros.length === 11) {
-      // Celular: (XX) XXXXX-XXXX
       return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 7)}-${numeros.slice(7)}`;
     } else if (numeros.length === 10) {
-      // Fixo: (XX) XXXX-XXXX
       return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 6)}-${numeros.slice(6)}`;
     } else if (numeros.length === 9) {
-      // Sem DDD celular: XXXXX-XXXX
       return `${numeros.slice(0, 5)}-${numeros.slice(5)}`;
     } else if (numeros.length === 8) {
-      // Sem DDD fixo: XXXX-XXXX
       return `${numeros.slice(0, 4)}-${numeros.slice(4)}`;
     }
-    return telefone; // Retorna original se não matching
+    return telefone;
+  };
+
+  const formatarCEP = (cep: string | undefined | null) => {
+    if (!cep) return '';
+    const numeros = cep.replace(/\D/g, '');
+    if (numeros.length === 8) {
+      return `${numeros.slice(0, 5)}-${numeros.slice(5)}`;
+    }
+    return cep;
   };
 
   // Construir cupom
@@ -532,9 +568,40 @@ export function imprimirCupomFiscal(
   }
   cupom += traco + '\n';
 
-  // Dados do cliente
-  if (cpfCliente || nomeCliente) {
-    cupom += 'CLIENTE\n';
+  // Dados do cliente - agora com dados completos do cliente cadastrado
+  if (cliente) {
+    cupom += 'CONSUMIDOR\n';
+    cupom += `Nome: ${cliente.nome_razao_social}\n`;
+    if (cliente.nome_fantasia) {
+      cupom += `Fantasia: ${cliente.nome_fantasia}\n`;
+    }
+    if (cliente.tipo_pessoa === '1') {
+      cupom += `CNPJ: ${formatarCNPJ(cliente.cnpj_cpf)}\n`;
+    } else {
+      cupom += `CPF: ${formatarCPF(cliente.cnpj_cpf)}\n`;
+    }
+    if (cliente.telefone || cliente.celular) {
+      cupom += `Tel: ${formatarTelefone(cliente.telefone || cliente.celular)}\n`;
+    }
+    if (cliente.email) {
+      cupom += `E-mail: ${cliente.email}\n`;
+    }
+    // Endereço do cliente se existir
+    if (cliente.logradouro) {
+      const endereco = [
+        cliente.logradouro,
+        cliente.numero,
+        cliente.complemento,
+        cliente.bairro,
+      ].filter(Boolean).join(', ');
+      const cidadeUf = [cliente.municipio, cliente.uf].filter(Boolean).join(' - ');
+      const cep = formatarCEP(cliente.cep);
+      cupom += `End: ${endereco}\n`;
+      if (cidadeUf) cupom += `      ${cidadeUf}${cep ? ` - ${cep}` : ''}\n`;
+    }
+    cupom += traco + '\n';
+  } else if (cpfCliente || nomeCliente) {
+    cupom += 'CONSUMIDOR\n';
     if (nomeCliente) cupom += `Nome: ${nomeCliente}\n`;
     if (cpfCliente) cupom += `CPF: ${formatarCPF(cpfCliente)}\n`;
     cupom += traco + '\n';
@@ -571,19 +638,16 @@ export function imprimirCupomFiscal(
   }
   cupom += separador + '\n';
 
-  // Rodapé com mensagem personalizada
+  // Rodapé
   mensagemRodape.split('\n').forEach((linha) => {
     cupom += centralizar(linha) + '\n';
   });
   cupom += '\n\n\n';
 
-  // Determinar peso da fonte baseado na intensidade
+  // Determinar peso da fonte
   const fontWeight = intensidade === 'normal' ? 400 : intensidade === 'escura' ? 600 : 700;
-
-  // Determinar tamanho do papel para CSS
   const tamanhoPapel = `${larguraMm}mm`;
 
-  // Criar janela de impressão
   const printWindow = window.open('', '_blank', 'width=400,height=600');
   if (!printWindow) {
     alert('Não foi possível abrir a janela de impressão. Verifique se pop-ups estão bloqueados.');

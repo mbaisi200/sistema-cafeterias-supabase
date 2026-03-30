@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProdutos, useCategorias, useMesas, useCaixa, useComandas, registrarLog } from '@/hooks/useFirestore';
 import { CupomFiscalModal, imprimirCupomFiscal, DadosCupomFiscal } from '@/components/pdv/CupomFiscal';
+import { BuscaCliente, ClienteEncontrado } from '@/components/pdv/BuscaCliente';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -105,6 +106,7 @@ export default function PDVPage() {
   const [deliveryInfo, setDeliveryInfo] = useState<DeliveryInfo>({
     nome: '', telefone: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', cep: '', observacao: '',
   });
+  const [deliveryCliente, setDeliveryCliente] = useState<ClienteEncontrado | null>(null);
   const [comandaSelecionada, setComandaSelecionada] = useState<any>(null);
   const [itensPedido, setItensPedido] = useState<ItemPedido[]>([]);
   const [dialogPagamento, setDialogPagamento] = useState(false);
@@ -547,6 +549,7 @@ export default function PDVPage() {
     if (tipoVenda === 'delivery') {
       setDeliverySelecionado('');
       setDeliveryInfo({ nome: '', telefone: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', cep: '', observacao: '' });
+      setDeliveryCliente(null);
     }
     if (tipoVenda === 'comanda') {
       setComandaSelecionada(null);
@@ -689,8 +692,10 @@ export default function PDVPage() {
             mesa_id: mesaSelecionada || null,
             total,
             forma_pagamento: formaPagamento,
+            cliente_id: dadosCupom.clienteId || deliveryCliente?.id || null,
             nome_cliente: dadosCupom.nomeCliente || deliveryInfo?.nome || null,
-            telefone_cliente: deliveryInfo?.telefone || null,
+            cpf_cliente: dadosCupom.cpfCliente || null,
+            telefone_cliente: dadosCupom.cliente?.telefone || dadosCupom.cliente?.celular || deliveryInfo?.telefone || null,
             // Campos de entrega para delivery
             entrega_logradouro: tipoVenda === 'delivery' ? deliveryInfo?.endereco : null,
             entrega_numero: tipoVenda === 'delivery' ? deliveryInfo?.numero : null,
@@ -814,6 +819,7 @@ export default function PDVPage() {
             tamanhoCupom: dadosCupom.tamanhoCupom,
             codigoVenda: vendaId.slice(-8).toUpperCase(),
             configuracoes: dadosCupom.configuracoes,
+            cliente: dadosCupom.cliente || deliveryCliente || undefined,
           });
         }
 
@@ -1311,17 +1317,48 @@ export default function PDVPage() {
       </Dialog>
 
       {/* DIALOG DELIVERY */}
-      <Dialog open={dialogDelivery} onOpenChange={setDialogDelivery}>
+      <Dialog open={dialogDelivery} onOpenChange={(open) => { if (!open) setDeliveryCliente(null); setDialogDelivery(open); }}>
         <DialogContent className="max-w-lg border border-blue-200">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-blue-600">
               <Truck className="h-6 w-6" />
               Novo Delivery
             </DialogTitle>
-            <DialogDescription className="text-gray-600">Preencha os dados do cliente</DialogDescription>
+            <DialogDescription className="text-gray-600">Identifique o cliente e preencha o endereço de entrega</DialogDescription>
           </DialogHeader>
           
           <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
+            {/* Busca de Cliente no Delivery */}
+            <BuscaCliente
+              onSelect={(cliente) => {
+                setDeliveryCliente(cliente);
+                if (cliente) {
+                  setDeliveryInfo({
+                    ...deliveryInfo,
+                    nome: cliente.nome_razao_social,
+                    telefone: cliente.telefone || cliente.celular || deliveryInfo.telefone,
+                    endereco: cliente.logradouro || deliveryInfo.endereco,
+                    numero: cliente.numero || deliveryInfo.numero,
+                    complemento: cliente.complemento || deliveryInfo.complemento,
+                    bairro: cliente.bairro || deliveryInfo.bairro,
+                    cidade: cliente.municipio || deliveryInfo.cidade,
+                    cep: cliente.cep || deliveryInfo.cep,
+                  });
+                }
+              }}
+              selected={deliveryCliente}
+              placeholder="Buscar cliente cadastrado por nome ou CPF..."
+              label="Buscar Cliente Cadastrado"
+              showActions={false}
+            />
+
+            {deliveryCliente && (
+              <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
+                <CheckCircle className="h-3.5 w-3.5" />
+                Dados preenchidos automaticamente. Edite se necessário.
+              </div>
+            )}
+
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label className="font-bold">Nome *</Label>
