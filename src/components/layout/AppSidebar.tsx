@@ -33,7 +33,7 @@ import {
   BarChart3,
   Wallet,
   Plug,
-  Printer,
+  FileText,
   Bike,
   ExternalLink,
   Users,
@@ -41,6 +41,7 @@ import {
   Settings,
   Zap,
   Database,
+  Receipt,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -71,7 +72,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
   { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
-  { title: 'Cupom Fiscal', url: '/admin/configuracoes-cupom', icon: Printer },
+  { title: 'Cupons e NFEs', url: '/admin/cupons-nfes', icon: FileText },
 ];
 
 // Itens do Atalho Rápido (Cardápio e configurações)
