@@ -71,6 +71,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
   { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
+  { title: 'Clientes', url: '/admin/clientes', icon: Users },
   { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
   { title: 'Cupons e NFEs', url: '/admin/cupons-nfes', icon: FileText },
 ];
