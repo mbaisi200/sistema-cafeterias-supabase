@@ -44,13 +44,14 @@ import {
 } from 'lucide-react';
 
 export default function CaixaPage() {
-  const { caixaAberto, movimentacoes, historico, loading, abrirCaixa, fecharCaixa, adicionarReforco, adicionarSangria, resumo } = useCaixa();
+  const { caixaAberto, movimentacoes, historico, loading, loadingDetalhes, abrirCaixa, fecharCaixa, adicionarReforco, adicionarSangria, resumo, detalhesCaixa, carregarDetalhesCaixa, limparDetalhesCaixa } = useCaixa();
   const { toast } = useToast();
   
   const [dialogAbertura, setDialogAbertura] = useState(false);
   const [dialogFechamento, setDialogFechamento] = useState(false);
   const [dialogReforco, setDialogReforco] = useState(false);
   const [dialogSangria, setDialogSangria] = useState(false);
+  const [dialogRelatorio, setDialogRelatorio] = useState(false);
   const [saving, setSaving] = useState(false);
   
   // Form states
@@ -178,10 +179,29 @@ export default function CaixaPage() {
   const getFormaIcon = (forma: string) => {
     switch (forma) {
       case 'dinheiro': return <Banknote className="h-4 w-4" />;
-      case 'credito': return <CreditCard className="h-4 w-4" />;
-      case 'debito': return <CreditCard className="h-4 w-4" />;
+      case 'credito': case 'cartao_credito': return <CreditCard className="h-4 w-4" />;
+      case 'debito': case 'cartao_debito': return <CreditCard className="h-4 w-4" />;
       case 'pix': return <Smartphone className="h-4 w-4" />;
       default: return <DollarSign className="h-4 w-4" />;
+    }
+  };
+
+  const getFormaLabel = (forma: string) => {
+    switch (forma) {
+      case 'dinheiro': return 'Dinheiro';
+      case 'credito': case 'cartao_credito': return 'Crédito';
+      case 'debito': case 'cartao_debito': return 'Débito';
+      case 'pix': return 'PIX';
+      default: return forma;
+    }
+  };
+
+  const handleVerRelatorio = async (caixaId: string) => {
+    try {
+      await carregarDetalhesCaixa(caixaId);
+      setDialogRelatorio(true);
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Erro ao carregar relatório do caixa' });
     }
   };
 
@@ -462,7 +482,8 @@ export default function CaixaPage() {
                     {historico.map((cx) => (
                       <div 
                         key={cx.id} 
-                        className="flex items-center justify-between p-4 rounded-lg border bg-gray-50"
+                        className="flex items-center justify-between p-4 rounded-lg border bg-gray-50 cursor-pointer hover:bg-gray-100 hover:border-blue-300 transition-all"
+                        onClick={() => handleVerRelatorio(cx.id)}
                       >
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
@@ -473,27 +494,30 @@ export default function CaixaPage() {
                               {cx.abertoEm?.toLocaleDateString('pt-BR')}
                             </p>
                             <p className="text-sm text-muted-foreground">
-                              Aberto por {cx.abertoPorNome} • Fechado por {cx.fechadoPorNome}
+                              Aberto por {cx.aberto_por_nome || cx.abertoPorNome} • Fechado por {cx.fechado_por_nome || '—'}
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-lg font-bold">R$ {(cx.valorFinal || 0).toFixed(2)}</p>
-                          <div className="flex items-center gap-2">
-                            {(cx.quebra || 0) !== 0 && (
-                              <Badge 
-                                variant={cx.quebra > 0 ? 'default' : 'destructive'}
-                                className="text-xs"
-                              >
-                                {cx.quebra > 0 ? 'Sobra' : 'Falta'}: R$ {Math.abs(cx.quebra).toFixed(2)}
-                              </Badge>
-                            )}
-                            {cx.quebra === 0 && (
-                              <Badge variant="outline" className="text-xs bg-green-100 text-green-700">
-                                Conferido
-                              </Badge>
-                            )}
+                        <div className="flex items-center gap-3">
+                          <div className="text-right">
+                            <p className="text-lg font-bold">R$ {(cx.valor_final || cx.valorFinal || 0).toFixed(2)}</p>
+                            <div className="flex items-center gap-2">
+                              {(cx.quebra || 0) !== 0 && (
+                                <Badge 
+                                  variant={cx.quebra > 0 ? 'default' : 'destructive'}
+                                  className="text-xs"
+                                >
+                                  {cx.quebra > 0 ? 'Sobra' : 'Falta'}: R$ {Math.abs(cx.quebra).toFixed(2)}
+                                </Badge>
+                              )}
+                              {(cx.quebra || 0) === 0 && cx.fechado_em && (
+                                <Badge variant="outline" className="text-xs bg-green-100 text-green-700">
+                                  Conferido
+                                </Badge>
+                              )}
+                            </div>
                           </div>
+                          <Receipt className="h-5 w-5 text-muted-foreground" />
                         </div>
                       </div>
                     ))}
@@ -689,6 +713,222 @@ export default function CaixaPage() {
                 Adicionar
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog Relatório de Caixa Fechado */}
+        <Dialog open={dialogRelatorio} onOpenChange={(open) => { if (!open) { setDialogRelatorio(false); limparDetalhesCaixa(); }}}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Receipt className="h-5 w-5 text-blue-600" />
+                Relatório de Caixa
+              </DialogTitle>
+              <DialogDescription>
+                Detalhamento completo de vendas e movimentações
+              </DialogDescription>
+            </DialogHeader>
+
+            {loadingDetalhes ? (
+              <div className="flex items-center justify-center py-16">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <span className="ml-3 text-muted-foreground">Carregando relatório...</span>
+              </div>
+            ) : detalhesCaixa ? (
+              <div className="space-y-6">
+                {/* Info do Caixa */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <p className="text-xs text-muted-foreground">Abertura</p>
+                    <p className="font-semibold text-sm">{detalhesCaixa.caixa.abertoEm?.toLocaleString('pt-BR')}</p>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <p className="text-xs text-muted-foreground">Fechamento</p>
+                    <p className="font-semibold text-sm">{detalhesCaixa.caixa.fechadoEm?.toLocaleString('pt-BR') || '—'}</p>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <p className="text-xs text-muted-foreground">Aberto por</p>
+                    <p className="font-semibold text-sm">{detalhesCaixa.caixa.aberto_por_nome || detalhesCaixa.caixa.abertoPorNome || '—'}</p>
+                  </div>
+                  <div className="p-3 bg-blue-50 rounded-lg">
+                    <p className="text-xs text-muted-foreground">Fechado por</p>
+                    <p className="font-semibold text-sm">{detalhesCaixa.caixa.fechado_por_nome || '—'}</p>
+                  </div>
+                </div>
+
+                {/* Resumo Financeiro */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <Card className="border-blue-200">
+                    <CardContent className="pt-4 pb-4">
+                      <p className="text-xs text-muted-foreground">Valor Inicial</p>
+                      <p className="text-xl font-bold text-blue-600">R$ {(detalhesCaixa.resumo.valorInicial || 0).toFixed(2)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-green-200">
+                    <CardContent className="pt-4 pb-4">
+                      <p className="text-xs text-muted-foreground">Total Vendas</p>
+                      <p className="text-xl font-bold text-green-600">R$ {(detalhesCaixa.resumo.totalVendas || 0).toFixed(2)}</p>
+                      <p className="text-xs text-muted-foreground">{detalhesCaixa.resumo.quantidadeVendas} vendas</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-amber-200">
+                    <CardContent className="pt-4 pb-4">
+                      <p className="text-xs text-muted-foreground">Reforços</p>
+                      <p className="text-xl font-bold text-amber-600">+ R$ {(detalhesCaixa.resumo.reforcos || 0).toFixed(2)}</p>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-red-200">
+                    <CardContent className="pt-4 pb-4">
+                      <p className="text-xs text-muted-foreground">Sangrias</p>
+                      <p className="text-xl font-bold text-red-600">- R$ {(detalhesCaixa.resumo.sangrias || 0).toFixed(2)}</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Resumo por Forma de Pagamento */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Vendas por Forma de Pagamento</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="flex items-center gap-2 p-2 rounded bg-gray-50">
+                        <Banknote className="h-4 w-4 text-blue-600" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Dinheiro</p>
+                          <p className="font-bold text-sm">R$ {(detalhesCaixa.resumo.vendasDinheiro || 0).toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded bg-gray-50">
+                        <CreditCard className="h-4 w-4 text-purple-600" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Crédito</p>
+                          <p className="font-bold text-sm">R$ {(detalhesCaixa.resumo.vendasCredito || 0).toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded bg-gray-50">
+                        <CreditCard className="h-4 w-4 text-teal-600" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">Débito</p>
+                          <p className="font-bold text-sm">R$ {(detalhesCaixa.resumo.vendasDebito || 0).toFixed(2)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 p-2 rounded bg-gray-50">
+                        <Smartphone className="h-4 w-4 text-green-600" />
+                        <div>
+                          <p className="text-xs text-muted-foreground">PIX</p>
+                          <p className="font-bold text-sm">R$ {(detalhesCaixa.resumo.vendasPix || 0).toFixed(2)}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Quebra/Sobra e Valor Final */}
+                <div className="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Valor Final Informado</p>
+                    <p className="text-2xl font-bold">R$ {(detalhesCaixa.resumo.valorFinal || 0).toFixed(2)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-muted-foreground">Diferença</p>
+                    {(() => {
+                      const esperado = (detalhesCaixa.resumo.valorInicial || 0) + (detalhesCaixa.resumo.totalVendas || 0) + (detalhesCaixa.resumo.reforcos || 0) - (detalhesCaixa.resumo.sangrias || 0);
+                      const diff = (detalhesCaixa.resumo.valorFinal || 0) - esperado;
+                      return (
+                        <Badge variant={diff === 0 ? 'outline' : diff > 0 ? 'default' : 'destructive'} className={diff === 0 ? 'bg-green-100 text-green-700 text-base px-3 py-1' : 'text-base px-3 py-1'}>
+                          {diff === 0 ? 'Conferido' : `${diff > 0 ? 'Sobra' : 'Falta'}: R$ ${Math.abs(diff).toFixed(2)}`}
+                        </Badge>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Lista de Vendas Detalhadas */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <Receipt className="h-4 w-4" />
+                      Vendas Realizadas ({detalhesCaixa.resumo.quantidadeVendas})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {detalhesCaixa.vendas.length === 0 ? (
+                      <p className="text-center text-muted-foreground py-6">Nenhuma venda registrada neste caixa</p>
+                    ) : (
+                      <ScrollArea className="h-72">
+                        <div className="space-y-2">
+                          {detalhesCaixa.vendas.map((venda: any) => (
+                            <div key={venda.id} className="p-3 border rounded-lg bg-gray-50">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">#{venda.id?.substring(0, 8)}</Badge>
+                                  <span className="text-xs text-muted-foreground">
+                                    {new Date(venda.criado_em).toLocaleString('pt-BR')}
+                                  </span>
+                                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                                    {getFormaIcon(venda.forma_pagamento)}
+                                    {getFormaLabel(venda.forma_pagamento)}
+                                  </span>
+                                </div>
+                                <p className="font-bold text-green-600">R$ {(venda.total || 0).toFixed(2)}</p>
+                              </div>
+                              {venda.itens && venda.itens.length > 0 && (
+                                <div className="ml-4 space-y-1">
+                                  {venda.itens.map((item: any, idx: number) => (
+                                    <div key={idx} className="flex justify-between text-sm text-muted-foreground">
+                                      <span>{item.quantidade}x {item.nome}</span>
+                                      <span>R$ {(item.total || (item.preco_unitario * item.quantidade) || 0).toFixed(2)}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {venda.nome_cliente && (
+                                <p className="text-xs text-muted-foreground mt-1 ml-4">Cliente: {venda.nome_cliente}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Outras Movimentações (Reforços e Sangrias) */}
+                {detalhesCaixa.movimentacoes.filter(m => m.tipo === 'reforco' || m.tipo === 'sangria').length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <ArrowUpCircle className="h-4 w-4" />
+                        Reforços e Sangrias
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2">
+                        {detalhesCaixa.movimentacoes
+                          .filter(m => m.tipo === 'reforco' || m.tipo === 'sangria')
+                          .map((mov: any) => (
+                            <div key={mov.id} className={`flex items-center justify-between p-3 rounded-lg border ${
+                              mov.tipo === 'sangria' ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
+                            }`}>
+                              <div className="flex items-center gap-3">
+                                {mov.tipo === 'sangria' ? <ArrowDownCircle className="h-4 w-4 text-red-600" /> : <ArrowUpCircle className="h-4 w-4 text-green-600" />}
+                                <div>
+                                  <p className="font-medium text-sm">{mov.descricao}</p>
+                                  <p className="text-xs text-muted-foreground">{mov.usuario_nome} • {new Date(mov.criado_em).toLocaleString('pt-BR')}</p>
+                                </div>
+                              </div>
+                              <p className={`font-bold ${mov.tipo === 'sangria' ? 'text-red-600' : 'text-green-600'}`}>
+                                {mov.tipo === 'sangria' ? '-' : '+'} R$ {(mov.valor || 0).toFixed(2)}
+                              </p>
+                            </div>
+                          ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            ) : null}
           </DialogContent>
         </Dialog>
 

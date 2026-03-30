@@ -948,7 +948,9 @@ export function useCaixa() {
   const [caixaAberto, setCaixaAberto] = useState<any | null>(null);
   const [movimentacoes, setMovimentacoes] = useState<any[]>([]);
   const [historico, setHistorico] = useState<any[]>([]);
+  const [detalhesCaixa, setDetalhesCaixa] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingDetalhes, setLoadingDetalhes] = useState(false);
   const { empresaId, user } = useAuth();
   const supabase = getSupabaseClient();
 
@@ -1206,6 +1208,101 @@ export function useCaixa() {
     await carregarDados();
   };
 
+  const carregarDetalhesCaixa = useCallback(async (caixaId: string) => {
+    setLoadingDetalhes(true);
+    try {
+      // Buscar dados do caixa
+      const { data: caixa, error: caixaError } = await supabase
+        .from('caixas')
+        .select('*')
+        .eq('id', caixaId)
+        .single();
+
+      if (caixaError) throw caixaError;
+
+      // Buscar movimentações desse caixa
+      const { data: movs, error: movsError } = await supabase
+        .from('movimentacoes_caixa')
+        .select('*')
+        .eq('caixa_id', caixaId)
+        .order('criado_em', { ascending: true });
+
+      if (movsError) throw movsError;
+
+      // Buscar vendas vinculadas a esse caixa (via movimentacoes_caixa.tipo = 'venda')
+      const vendaIds = movs?.filter(m => m.tipo === 'venda' && m.venda_id).map(m => m.venda_id) || [];
+      
+      let vendasDetalhadas: any[] = [];
+      if (vendaIds.length > 0) {
+        const { data: vendas, error: vendasError } = await supabase
+          .from('vendas')
+          .select('*')
+          .in('id', vendaIds)
+          .order('criado_em', { ascending: true });
+
+        if (!vendasError && vendas) {
+          // Buscar itens de cada venda
+          for (const venda of vendas) {
+            const { data: itens } = await supabase
+              .from('itens_venda')
+              .select('*')
+              .eq('venda_id', venda.id);
+
+            vendasDetalhadas.push({
+              ...venda,
+              itens: itens || [],
+            });
+          }
+        }
+      }
+
+      const movimentacoesMapeadas = (movs || []).map(m => ({
+        id: m.id,
+        ...m,
+        formaPagamento: m.forma_pagamento,
+        usuarioId: m.usuario_id,
+        usuarioNome: m.usuario_nome,
+        criadoEm: new Date(m.criado_em),
+      }));
+
+      // Calcular resumo do caixa fechado
+      const resumoCaixa = {
+        valorInicial: caixa.valor_inicial,
+        valorFinal: caixa.valor_final,
+        totalVendas: movimentacoesMapeadas.filter(m => m.tipo === 'venda').reduce((acc, m) => acc + (m.valor || 0), 0),
+        vendasDinheiro: movimentacoesMapeadas.filter(m => m.tipo === 'venda' && m.forma_pagamento === 'dinheiro').reduce((acc, m) => acc + (m.valor || 0), 0),
+        vendasCredito: movimentacoesMapeadas.filter(m => m.tipo === 'venda' && m.forma_pagamento === 'cartao_credito').reduce((acc, m) => acc + (m.valor || 0), 0),
+        vendasDebito: movimentacoesMapeadas.filter(m => m.tipo === 'venda' && m.forma_pagamento === 'cartao_debito').reduce((acc, m) => acc + (m.valor || 0), 0),
+        vendasPix: movimentacoesMapeadas.filter(m => m.tipo === 'venda' && m.forma_pagamento === 'pix').reduce((acc, m) => acc + (m.valor || 0), 0),
+        reforcos: movimentacoesMapeadas.filter(m => m.tipo === 'reforco').reduce((acc, m) => acc + (m.valor || 0), 0),
+        sangrias: movimentacoesMapeadas.filter(m => m.tipo === 'sangria').reduce((acc, m) => acc + (m.valor || 0), 0),
+        totalEntradas: movimentacoesMapeadas.filter(m => m.tipo === 'venda' || m.tipo === 'reforco' || m.tipo === 'abertura').reduce((acc, m) => acc + (m.valor || 0), 0),
+        totalSaidas: movimentacoesMapeadas.filter(m => m.tipo === 'sangria').reduce((acc, m) => acc + (m.valor || 0), 0),
+        quantidadeVendas: vendasDetalhadas.length,
+      };
+
+      setDetalhesCaixa({
+        caixa: {
+          ...caixa,
+          abertoEm: new Date(caixa.aberto_em),
+          fechadoEm: caixa.fechado_em ? new Date(caixa.fechado_em) : null,
+        },
+        movimentacoes: movimentacoesMapeadas,
+        vendas: vendasDetalhadas,
+        resumo: resumoCaixa,
+      });
+    } catch (error) {
+      console.error('Erro ao carregar detalhes do caixa:', error);
+      throw error;
+    } finally {
+      setLoadingDetalhes(false);
+    }
+  }, [empresaId, supabase]);
+
+  const limparDetalhesCaixa = useCallback(() => {
+    setDetalhesCaixa(null);
+  }, []);
+
   const resumo = {
     valorInicial: caixaAberto?.valorInicial || 0,
     valorAtual: caixaAberto?.valorAtual || 0,
@@ -1224,12 +1321,16 @@ export function useCaixa() {
     caixaAberto,
     movimentacoes,
     historico,
+    detalhesCaixa,
     loading,
+    loadingDetalhes,
     abrirCaixa,
     registrarVenda,
     adicionarReforco,
     adicionarSangria,
     fecharCaixa,
+    carregarDetalhesCaixa,
+    limparDetalhesCaixa,
     resumo,
   };
 }
