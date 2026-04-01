@@ -2,12 +2,14 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Dialog,
   DialogContent,
@@ -31,23 +33,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useProdutos } from '@/hooks/useFirestore';
+import { useProdutos, useFornecedores } from '@/hooks/useFirestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getSupabaseClient } from '@/lib/supabase';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Package,
   AlertTriangle,
   Warehouse,
   Plus,
-  Minus,
   Loader2,
   ArrowUp,
   ArrowDown,
   History,
   Search,
   Filter,
+  Layers,
+  Check,
+  X,
 } from 'lucide-react';
 
 interface MovimentacaoEstoque {
@@ -66,8 +70,17 @@ interface MovimentacaoEstoque {
   criadoEm: Date;
 }
 
+interface LoteItem {
+  produtoId: string;
+  produtoNome: string;
+  quantidade: string;
+  estoqueAtual: number;
+  unidade: string;
+}
+
 export default function EstoquePage() {
   const { produtos, loading: loadingProdutos, atualizarProduto } = useProdutos();
+  const { fornecedores, loading: loadingFornecedores } = useFornecedores();
   const { user, empresaId } = useAuth();
   const { toast } = useToast();
   
@@ -76,19 +89,53 @@ export default function EstoquePage() {
   const [dialogEntrada, setDialogEntrada] = useState(false);
   const [dialogSaida, setDialogSaida] = useState(false);
   const [dialogHistorico, setDialogHistorico] = useState(false);
+  const [dialogLote, setDialogLote] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   
   // Formulário de entrada
   const [quantidade, setQuantidade] = useState('');
   const [tipoEntrada, setTipoEntrada] = useState<'unidade' | 'caixa'>('unidade');
-  const [fornecedor, setFornecedor] = useState('');
+  const [fornecedorSelecionado, setFornecedorSelecionado] = useState('');
+  const [fornecedorOutro, setFornecedorOutro] = useState('');
   const [documentoRef, setDocumentoRef] = useState('');
   const [observacao, setObservacao] = useState('');
+  
+  // Formulário de lote
+  const [loteSearch, setLoteSearch] = useState('');
+  const [loteFornecedorSelecionado, setLoteFornecedorSelecionado] = useState('');
+  const [loteFornecedorOutro, setLoteFornecedorOutro] = useState('');
+  const [loteDocumentoRef, setLoteDocumentoRef] = useState('');
+  const [loteObservacao, setLoteObservacao] = useState('');
+  const [loteItens, setLoteItens] = useState<LoteItem[]>([]);
+  const [selectAllLote, setSelectAllLote] = useState(false);
   
   // Movimentações
   const [movimentacoes, setMovimentacoes] = useState<MovimentacaoEstoque[]>([]);
   const [loadingMovimentacoes, setLoadingMovimentacoes] = useState(false);
+
+  // Fornecedor resolvido (nome do registry ou texto livre)
+  const fornecedorResolvido = useMemo(() => {
+    if (fornecedorSelecionado === '__outro__') {
+      return fornecedorOutro.trim();
+    }
+    if (fornecedorSelecionado) {
+      const f = fornecedores.find(f => f.id === fornecedorSelecionado);
+      return f?.nome || fornecedorSelecionado;
+    }
+    return '';
+  }, [fornecedorSelecionado, fornecedorOutro, fornecedores]);
+
+  const loteFornecedorResolvido = useMemo(() => {
+    if (loteFornecedorSelecionado === '__outro__') {
+      return loteFornecedorOutro.trim();
+    }
+    if (loteFornecedorSelecionado) {
+      const f = fornecedores.find(f => f.id === loteFornecedorSelecionado);
+      return f?.nome || loteFornecedorSelecionado;
+    }
+    return '';
+  }, [loteFornecedorSelecionado, loteFornecedorOutro, fornecedores]);
 
   // Carregar movimentações
   const carregarMovimentacoes = useCallback(() => {
@@ -154,12 +201,30 @@ export default function EstoquePage() {
 
   const produtosBaixoEstoque = produtos.filter(p => (p.estoqueAtual || 0) <= (p.estoqueMinimo || 0));
 
+  // ===== LOTE: Produtos filtrados para o dialog de lote =====
+  const loteProdutosFiltrados = useMemo(() => {
+    if (!loteSearch.trim()) return produtos;
+    const q = loteSearch.toLowerCase();
+    return produtos.filter(p =>
+      p.nome.toLowerCase().includes(q) ||
+      (p.codigo && p.codigo.toLowerCase().includes(q)) ||
+      (p.codigoBarras && p.codigoBarras.includes(q))
+    );
+  }, [produtos, loteSearch]);
+
+  const loteItensMap = useMemo(() => {
+    const map: Record<string, LoteItem> = {};
+    loteItens.forEach(item => { map[item.produtoId] = item; });
+    return map;
+  }, [loteItens]);
+
   // Abrir dialog de entrada
   const handleEntrada = (produto: any) => {
     setProdutoSelecionado(produto);
     setQuantidade('');
     setTipoEntrada('unidade');
-    setFornecedor('');
+    setFornecedorSelecionado('');
+    setFornecedorOutro('');
     setDocumentoRef('');
     setObservacao('');
     setDialogEntrada(true);
@@ -171,6 +236,69 @@ export default function EstoquePage() {
     setQuantidade('');
     setObservacao('');
     setDialogSaida(true);
+  };
+
+  // Abrir dialog de lote
+  const handleAbrirLote = () => {
+    setLoteSearch('');
+    setLoteFornecedorSelecionado('');
+    setLoteFornecedorOutro('');
+    setLoteDocumentoRef('');
+    setLoteObservacao('');
+    setLoteItens([]);
+    setSelectAllLote(false);
+    setDialogLote(true);
+  };
+
+  // Toggle de seleção de produto no lote
+  const toggleLoteProduto = (produto: any, checked: boolean) => {
+    if (checked) {
+      if (!loteItensMap[produto.id]) {
+        setLoteItens(prev => [...prev, {
+          produtoId: produto.id,
+          produtoNome: produto.nome,
+          quantidade: '',
+          estoqueAtual: produto.estoqueAtual || 0,
+          unidade: produto.unidade || 'un',
+        }]);
+      }
+    } else {
+      setLoteItens(prev => prev.filter(i => i.produtoId !== produto.id));
+    }
+  };
+
+  // Atualizar quantidade de item no lote
+  const updateLoteQuantidade = (produtoId: string, qtd: string) => {
+    setLoteItens(prev => prev.map(item =>
+      item.produtoId === produtoId ? { ...item, quantidade: qtd } : item
+    ));
+  };
+
+  // Selecionar todos no lote
+  const handleSelectAllLote = (checked: boolean) => {
+    setSelectAllLote(checked);
+    if (checked) {
+      const novosItens: LoteItem[] = [];
+      loteProdutosFiltrados.forEach(p => {
+        if (!loteItensMap[p.id]) {
+          novosItens.push({
+            produtoId: p.id,
+            produtoNome: p.nome,
+            quantidade: '',
+            estoqueAtual: p.estoqueAtual || 0,
+            unidade: p.unidade || 'un',
+          });
+        }
+      });
+      setLoteItens(prev => [...prev, ...novosItens]);
+    } else {
+      setLoteItens([]);
+    }
+  };
+
+  // Remover item do lote
+  const removeLoteItem = (produtoId: string) => {
+    setLoteItens(prev => prev.filter(i => i.produtoId !== produtoId));
   };
 
   // Registrar entrada no estoque
@@ -217,7 +345,7 @@ export default function EstoquePage() {
           unidades_por_caixa: tipoEntrada === 'caixa' ? unidadesPorCaixa : null,
           estoque_anterior: estoqueAnterior,
           estoque_novo: estoqueNovo,
-          fornecedor: fornecedor || null,
+          fornecedor: fornecedorResolvido || null,
           documento_ref: documentoRef || null,
           observacao: observacao || null,
           criado_por: user?.id,
@@ -237,6 +365,69 @@ export default function EstoquePage() {
     } catch (error) {
       console.error('Erro ao registrar entrada:', error);
       toast({ variant: 'destructive', title: 'Erro ao registrar entrada' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Registrar entrada em lote
+  const registrarEntradaLote = async () => {
+    // Validar: pelo menos um item com quantidade
+    const itensValidos = loteItens.filter(i => i.quantidade && parseFloat(i.quantidade) > 0);
+    if (itensValidos.length === 0) {
+      toast({ variant: 'destructive', title: 'Selecione ao menos um produto com quantidade' });
+      return;
+    }
+
+    setSaving(true);
+    const supabase = getSupabaseClient();
+    if (!supabase || !empresaId) return;
+
+    try {
+      const movimentos = itensValidos.map(item => {
+        const qtd = parseFloat(item.quantidade);
+        const estoqueAnterior = item.estoqueAtual;
+        const estoqueNovo = estoqueAnterior + qtd;
+        return {
+          empresa_id: empresaId,
+          produto_id: item.produtoId,
+          produto_nome: item.produtoNome,
+          tipo: 'entrada',
+          quantidade: qtd,
+          quantidade_informada: qtd,
+          tipo_entrada: 'unidade',
+          unidades_por_caixa: null,
+          estoque_anterior: estoqueAnterior,
+          estoque_novo: estoqueNovo,
+          fornecedor: loteFornecedorResolvido || null,
+          documento_ref: loteDocumentoRef || null,
+          observacao: loteObservacao || null,
+          criado_por: user?.id,
+          criado_por_nome: user?.nome,
+          criado_em: new Date().toISOString(),
+        };
+      });
+
+      // Inserir todas as movimentações
+      const { error } = await supabase
+        .from('estoque_movimentos')
+        .insert(movimentos);
+
+      if (error) throw error;
+
+      // Atualizar estoque de cada produto
+      for (const item of itensValidos) {
+        const qtd = parseFloat(item.quantidade);
+        const estoqueNovo = item.estoqueAtual + qtd;
+        await atualizarProduto(item.produtoId, { estoqueAtual: estoqueNovo });
+      }
+
+      toast({ title: `✓ Entrada em lote: ${itensValidos.length} produto(s) registrados` });
+      setDialogLote(false);
+      carregarMovimentacoes();
+    } catch (error) {
+      console.error('Erro ao registrar entrada em lote:', error);
+      toast({ variant: 'destructive', title: 'Erro ao registrar entrada em lote' });
     } finally {
       setSaving(false);
     }
@@ -311,7 +502,7 @@ export default function EstoquePage() {
     ? movimentacoes.filter(m => m.produtoId === produtoSelecionado.id)
     : [];
 
-  if (loadingProdutos) {
+  if (loadingProdutos || loadingFornecedores) {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
         <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Estoque' }]}>
@@ -322,6 +513,67 @@ export default function EstoquePage() {
       </ProtectedRoute>
     );
   }
+
+  // Helper: renderizar select de fornecedor (reutilizável)
+  const renderFornecedorSelect = (
+    value: string,
+    onChange: (val: string) => void,
+    outroValue: string,
+    onOutroChange: (val: string) => void,
+  ) => (
+    <div className="space-y-2">
+      <Label htmlFor="fornecedor">Fornecedor</Label>
+      {fornecedores.length > 0 ? (
+        <>
+          <Select value={value} onValueChange={onChange}>
+            <SelectTrigger id="fornecedor">
+              <SelectValue placeholder="Selecione o fornecedor (opcional)" />
+            </SelectTrigger>
+            <SelectContent>
+              {fornecedores.map(f => (
+                <SelectItem key={f.id} value={f.id}>
+                  <div className="flex items-center gap-2">
+                    <span>{f.nome}</span>
+                    {f.cnpj && (
+                      <span className="text-xs text-muted-foreground">
+                        ({f.cnpj})
+                      </span>
+                    )}
+                  </div>
+                </SelectItem>
+              ))}
+              <SelectItem value="__outro__">
+                <span className="italic text-muted-foreground">Outro...</span>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+          {value === '__outro__' && (
+            <Input
+              placeholder="Digite o nome do fornecedor"
+              value={outroValue}
+              onChange={(e) => onOutroChange(e.target.value)}
+              className="mt-1"
+            />
+          )}
+        </>
+      ) : (
+        <div className="space-y-2">
+          <Input
+            id="fornecedor"
+            placeholder="Nome do fornecedor (opcional)"
+            value={outroValue}
+            onChange={(e) => onOutroChange(e.target.value)}
+          />
+          <p className="text-xs text-muted-foreground">
+            Nenhum fornecedor cadastrado.{' '}
+            <a href="/admin/fornecedores" className="text-blue-600 hover:underline">
+              Cadastrar fornecedores
+            </a>
+          </p>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <ProtectedRoute allowedRoles={['admin']}>
@@ -335,14 +587,24 @@ export default function EstoquePage() {
                 Gerencie o estoque do seu estabelecimento
               </p>
             </div>
-            <Button 
-              variant="outline" 
-              onClick={() => setDialogHistorico(true)}
-              className="gap-2"
-            >
-              <History className="h-4 w-4" />
-              Histórico Geral
-            </Button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button 
+                variant="outline"
+                onClick={handleAbrirLote}
+                className="gap-2"
+              >
+                <Layers className="h-4 w-4" />
+                Entrada em Lote
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={() => { setProdutoSelecionado(null); setDialogHistorico(true); }}
+                className="gap-2"
+              >
+                <History className="h-4 w-4" />
+                Histórico Geral
+              </Button>
+            </div>
           </div>
 
           {/* Resumo */}
@@ -650,15 +912,12 @@ export default function EstoquePage() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="fornecedor">Fornecedor</Label>
-                <Input
-                  id="fornecedor"
-                  placeholder="Nome do fornecedor (opcional)"
-                  value={fornecedor}
-                  onChange={(e) => setFornecedor(e.target.value)}
-                />
-              </div>
+              {renderFornecedorSelect(
+                fornecedorSelecionado,
+                setFornecedorSelecionado,
+                fornecedorOutro,
+                setFornecedorOutro,
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="documento">Documento / Nota Fiscal</Label>
@@ -705,6 +964,215 @@ export default function EstoquePage() {
               >
                 {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
                 Confirmar Entrada
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* DIALOG ENTRADA EM LOTE */}
+        <Dialog open={dialogLote} onOpenChange={(open) => {
+          setDialogLote(open);
+          if (!open) {
+            setLoteItens([]);
+            setSelectAllLote(false);
+          }
+        }}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-green-600">
+                <Layers className="h-5 w-5" />
+                Entrada em Lote
+              </DialogTitle>
+              <DialogDescription>
+                Selecione múltiplos produtos e registre a entrada de estoque de uma vez
+              </DialogDescription>
+            </DialogHeader>
+            
+            <div className="flex-1 overflow-hidden flex flex-col gap-4 py-2">
+              {/* Campos compartilhados */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {renderFornecedorSelect(
+                  loteFornecedorSelecionado,
+                  setLoteFornecedorSelecionado,
+                  loteFornecedorOutro,
+                  setLoteFornecedorOutro,
+                )}
+                <div className="space-y-2">
+                  <Label htmlFor="loteDocumento">Documento / Nota Fiscal</Label>
+                  <Input
+                    id="loteDocumento"
+                    placeholder="Ex: NF 12345 (opcional)"
+                    value={loteDocumentoRef}
+                    onChange={(e) => setLoteDocumentoRef(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="loteObservacao">Observação (aplicada a todos)</Label>
+                <Textarea
+                  id="loteObservacao"
+                  placeholder="Observação opcional..."
+                  value={loteObservacao}
+                  onChange={(e) => setLoteObservacao(e.target.value)}
+                  rows={2}
+                />
+              </div>
+
+              {/* Busca e Selecionar Todos */}
+              <div className="flex items-center gap-3">
+                <div className="flex-1 relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar produto..."
+                    value={loteSearch}
+                    onChange={(e) => setLoteSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex items-center gap-2 text-sm shrink-0">
+                  <Checkbox
+                    id="selectAllLote"
+                    checked={selectAllLote}
+                    onCheckedChange={handleSelectAllLote}
+                  />
+                  <Label htmlFor="selectAllLote" className="cursor-pointer whitespace-nowrap">
+                    {loteItens.length > 0 
+                      ? `${loteItens.length} selecionado(s)` 
+                      : 'Selecionar todos'}
+                  </Label>
+                </div>
+              </div>
+
+              {/* Lista de produtos selecionados com quantidades */}
+              {loteItens.length > 0 && (
+                <div className="border rounded-lg">
+                  <div className="bg-muted/50 px-3 py-2 border-b">
+                    <p className="text-sm font-medium flex items-center gap-2">
+                      <Check className="h-4 w-4 text-green-600" />
+                      Produtos selecionados ({loteItens.length})
+                    </p>
+                  </div>
+                  <div className="max-h-40 overflow-y-auto">
+                    <Table>
+                      <TableBody>
+                        {loteItens.map(item => (
+                          <TableRow key={item.produtoId}>
+                            <TableCell className="py-2">
+                              <div className="flex items-center gap-2">
+                                <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                                <span className="font-medium text-sm">{item.produtoNome}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground py-2 w-24 text-center">
+                              Atual: {item.estoqueAtual}
+                            </TableCell>
+                            <TableCell className="py-2 w-32">
+                              <Input
+                                type="number"
+                                min="1"
+                                step="1"
+                                placeholder="Qtd *"
+                                value={item.quantidade}
+                                onChange={(e) => updateLoteQuantidade(item.produtoId, e.target.value)}
+                                className="h-8 text-sm"
+                              />
+                            </TableCell>
+                            <TableCell className="py-2 w-10">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-red-500 hover:bg-red-50 hover:text-red-600"
+                                onClick={() => removeLoteItem(item.produtoId)}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+              )}
+
+              {/* Tabela de produtos disponíveis */}
+              <div className="border rounded-lg flex-1 min-h-0">
+                <ScrollArea className="h-[250px]">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10"></TableHead>
+                        <TableHead>Produto</TableHead>
+                        <TableHead className="text-center">Estoque</TableHead>
+                        <TableHead className="w-32">Quantidade</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {loteProdutosFiltrados.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                            Nenhum produto encontrado
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        loteProdutosFiltrados.map(produto => {
+                          const isChecked = !!loteItensMap[produto.id];
+                          return (
+                            <TableRow key={produto.id} className={isChecked ? 'bg-green-50' : ''}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={isChecked}
+                                  onCheckedChange={(checked) => toggleLoteProduto(produto, !!checked)}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Package className="h-4 w-4 text-muted-foreground shrink-0" />
+                                  <span className="font-medium text-sm">{produto.nome}</span>
+                                  {produto.codigo && (
+                                    <span className="text-xs text-muted-foreground">
+                                      ({produto.codigo})
+                                    </span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell className="text-center text-sm">
+                                {produto.estoqueAtual || 0} {produto.unidade || 'un'}
+                              </TableCell>
+                              <TableCell>
+                                {isChecked && (
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    placeholder="Qtd *"
+                                    value={loteItensMap[produto.id]?.quantidade || ''}
+                                    onChange={(e) => updateLoteQuantidade(produto.id, e.target.value)}
+                                    className="h-8 text-sm"
+                                  />
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
+                      )}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogLote(false)}>
+                Cancelar
+              </Button>
+              <Button 
+                className="bg-green-600 hover:bg-green-700"
+                onClick={registrarEntradaLote}
+                disabled={saving || loteItens.filter(i => i.quantidade && parseFloat(i.quantidade) > 0).length === 0}
+              >
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Layers className="h-4 w-4 mr-2" />}
+                Confirmar Lote ({loteItens.filter(i => i.quantidade && parseFloat(i.quantidade) > 0).length} produto(s))
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -810,7 +1278,7 @@ export default function EstoquePage() {
                       <TableHead className="text-center">Qtd</TableHead>
                       <TableHead className="text-center">Anterior</TableHead>
                       <TableHead className="text-center">Novo</TableHead>
-                      <TableHead>Observação</TableHead>
+                      <TableHead>Detalhes</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -838,8 +1306,27 @@ export default function EstoquePage() {
                         <TableCell className="text-center font-bold">
                           {mov.estoqueNovo}
                         </TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-[150px] truncate">
-                          {mov.observacao || mov.fornecedor || '-'}
+                        <TableCell className="text-sm max-w-[200px]">
+                          <div className="space-y-0.5">
+                            {mov.fornecedor && (
+                              <p className="text-xs">
+                                <span className="text-muted-foreground">Fornecedor: </span>
+                                <span className="font-medium">{mov.fornecedor}</span>
+                              </p>
+                            )}
+                            {mov.documentoRef && (
+                              <p className="text-xs">
+                                <span className="text-muted-foreground">Doc: </span>
+                                <span className="font-medium">{mov.documentoRef}</span>
+                              </p>
+                            )}
+                            {mov.observacao && (
+                              <p className="text-xs text-muted-foreground truncate">{mov.observacao}</p>
+                            )}
+                            {!mov.fornecedor && !mov.documentoRef && !mov.observacao && (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}

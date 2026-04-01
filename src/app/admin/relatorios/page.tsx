@@ -2,7 +2,7 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useVendas, useProdutos, useCategorias, useCaixa } from '@/hooks/useFirestore';
+import { useVendas, useProdutos, useCategorias, useMovimentacoesBI } from '@/hooks/useFirestore';
 import { useBIData } from '@/hooks/useBIData';
 import { KPICards } from '@/components/bi/KPICards';
 import { FiltrosBI } from '@/components/bi/FiltrosBI';
@@ -33,7 +33,7 @@ export default function RelatoriosPage() {
   const { vendas, loading: loadingVendas } = useVendas();
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
-  const { movimentacoes, loading: loadingCaixa } = useCaixa();
+  const { movimentacoes, loading: loadingCaixa } = useMovimentacoesBI();
 
   const loading = loadingVendas || loadingProdutos || loadingCategorias || loadingCaixa;
 

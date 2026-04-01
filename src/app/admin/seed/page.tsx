@@ -483,7 +483,10 @@ function SeedContent() {
       for (let i = 0; i < NUM_VENDAS; i++) {
         const dataVenda = gerarDataAleatoria(periodoInicio, periodoFim);
         const tipoVenda = TIPOS_VENDA[Math.floor(Math.random() * TIPOS_VENDA.length)];
-        const funcionarioId = funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)];
+        const formaPagamento = FORMAS_PAGAMENTO[Math.floor(Math.random() * FORMAS_PAGAMENTO.length)];
+        const funcionarioIdx = Math.floor(Math.random() * funcionariosIds.length);
+        const funcionarioId = funcionariosIds[funcionarioIdx];
+        const funcionarioNome = NOMES_FUNCIONARIOS[funcionarioIdx % NOMES_FUNCIONARIOS.length];
         
         const numItens = Math.floor(Math.random() * 5) + 1;
         let subtotal = 0;
@@ -514,14 +517,19 @@ function SeedContent() {
           mesa_id: mesaId,
           funcionario_id: funcionarioId,
           tipo: tipoVenda,
+          canal: tipoVenda === 'delivery' ? 'delivery' : tipoVenda === 'mesa' ? 'mesa' : 'balcao',
           status: 'fechada',
           subtotal,
           desconto,
           taxa_servico: taxaServico,
           total,
+          forma_pagamento: formaPagamento,
+          criado_por: funcionarioId,
+          criado_por_nome: funcionarioNome,
           observacao: Math.random() > 0.7 ? 'Sem observações' : '',
           criado_em: dataVenda.toISOString(),
-          atualizado_em: dataVenda.toISOString()
+          atualizado_em: dataVenda.toISOString(),
+          fechado_em: dataVenda.toISOString()
         };
 
         const { data: vendaInsert, error: vendaError } = await supabase
@@ -534,8 +542,6 @@ function SeedContent() {
         
         if (vendaInsert) {
           vendasIds.push(vendaInsert.id);
-          
-          const formaPagamento = FORMAS_PAGAMENTO[Math.floor(Math.random() * FORMAS_PAGAMENTO.length)];
           
           // Guardar info da venda para vincular ao caixa depois
           vendasSeedInfo.push({

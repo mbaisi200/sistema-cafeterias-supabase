@@ -541,13 +541,49 @@ export function useVendas() {
 
       if (itensError) throw itensError;
 
-      // Combinar vendas com itens
+      // Combinar vendas com itens - mapear snake_case para camelCase
       const vendasCompletas = (vendasData || []).map(venda => ({
         id: venda.id,
-        ...venda,
-        itens: (itensData || []).filter(item => item.venda_id === venda.id),
+        empresaId: venda.empresa_id,
+        tipo: venda.tipo,
+        canal: venda.canal,
+        status: venda.status,
+        mesaId: venda.mesa_id,
+        funcionarioId: venda.funcionario_id,
+        subtotal: parseFloat(venda.subtotal) || 0,
+        desconto: parseFloat(venda.desconto) || 0,
+        taxaServico: parseFloat(venda.taxa_servico) || 0,
+        taxaEntrega: parseFloat(venda.taxa_entrega) || 0,
+        total: parseFloat(venda.total) || 0,
+        formaPagamento: venda.forma_pagamento,
+        pedidoExternoId: venda.pedido_externo_id,
+        nomeCliente: venda.nome_cliente,
+        telefoneCliente: venda.telefone_cliente,
+        comandaId: venda.comanda_id,
+        comandaNumero: venda.comanda_numero,
+        observacao: venda.observacao,
+        criadoPor: venda.criado_por,
+        criadoPorNome: venda.criado_por_nome,
+        canceladoPor: venda.cancelado_por,
+        motivoCancelamento: venda.motivo_cancelamento,
         criadoEm: new Date(venda.criado_em),
         atualizadoEm: new Date(venda.atualizado_em),
+        fechadoEm: venda.fechado_em ? new Date(venda.fechado_em) : null,
+        // Itens mapeados para camelCase
+        itens: (itensData || [])
+          .filter(item => item.venda_id === venda.id)
+          .map(item => ({
+            id: item.id,
+            vendaId: item.venda_id,
+            produtoId: item.produto_id,
+            nome: item.nome,
+            quantidade: parseFloat(item.quantidade) || 0,
+            precoUnitario: parseFloat(item.preco_unitario) || 0,
+            preco: parseFloat(item.preco_unitario) || 0, // alias para compatibilidade
+            desconto: parseFloat(item.desconto) || 0,
+            total: parseFloat(item.total) || 0,
+            observacao: item.observacao,
+          })),
       }));
 
       setVendas(vendasCompletas);
@@ -1872,4 +1908,263 @@ export function useConfiguracoesCupom() {
     salvarConfiguracoes,
     carregarConfiguracoes,
   };
+}
+
+// =====================================================
+// HOOK: FORNECEDORES
+// =====================================================
+export function useFornecedores() {
+  const [fornecedores, setFornecedores] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { empresaId, user } = useAuth();
+  const supabase = getSupabaseClient();
+
+  const carregarDados = useCallback(async () => {
+    if (!user || !empresaId) {
+      setFornecedores([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('fornecedores')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .eq('ativo', true)
+        .order('nome');
+
+      if (error) throw error;
+      
+      setFornecedores(data?.map(f => ({
+        id: f.id,
+        nome: f.nome,
+        razaoSocial: f.razao_social,
+        cnpj: f.cnpj,
+        inscricaoEstadual: f.inscricao_estadual,
+        email: f.email,
+        telefone: f.telefone,
+        telefone2: f.telefone2,
+        logradouro: f.logradouro,
+        numero: f.numero,
+        complemento: f.complemento,
+        bairro: f.bairro,
+        cidade: f.cidade,
+        estado: f.estado,
+        cep: f.cep,
+        contato: f.contato,
+        cargo: f.cargo,
+        site: f.site,
+        observacoes: f.observacoes,
+        categorias: f.categorias || [],
+        ativo: f.ativo,
+        criadoEm: new Date(f.criado_em),
+        atualizadoEm: new Date(f.atualizado_em),
+      })) || []);
+    } catch (error) {
+      console.error('Erro ao carregar fornecedores:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [empresaId, user]);
+
+  useEffect(() => {
+    carregarDados();
+
+    // Realtime subscription
+    let channel: RealtimeChannel;
+    if (empresaId) {
+      channel = supabase
+        .channel('fornecedores-changes')
+        .on('postgres_changes', 
+          { event: '*', schema: 'public', table: 'fornecedores', filter: `empresa_id=eq.${empresaId}` },
+          () => carregarDados()
+        )
+        .subscribe();
+    }
+
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [carregarDados]);
+
+  const adicionarFornecedor = async (dados: any) => {
+    if (!empresaId) throw new Error('Empresa não definida');
+
+    const { data, error } = await supabase
+      .from('fornecedores')
+      .insert({
+        empresa_id: empresaId,
+        nome: dados.nome,
+        razao_social: dados.razaoSocial || null,
+        cnpj: dados.cnpj || null,
+        inscricao_estadual: dados.inscricaoEstadual || null,
+        email: dados.email || null,
+        telefone: dados.telefone || null,
+        telefone2: dados.telefone2 || null,
+        logradouro: dados.logradouro || null,
+        numero: dados.numero || null,
+        complemento: dados.complemento || null,
+        bairro: dados.bairro || null,
+        cidade: dados.cidade || null,
+        estado: dados.estado || null,
+        cep: dados.cep || null,
+        contato: dados.contato || null,
+        cargo: dados.cargo || null,
+        site: dados.site || null,
+        observacoes: dados.observacoes || null,
+        categorias: dados.categorias || [],
+        ativo: true,
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data.id;
+  };
+
+  const atualizarFornecedor = async (id: string, dados: any) => {
+    const updateData: any = {
+      atualizado_em: new Date().toISOString(),
+    };
+
+    if (dados.nome !== undefined) updateData.nome = dados.nome;
+    if (dados.razaoSocial !== undefined) updateData.razao_social = dados.razaoSocial || null;
+    if (dados.cnpj !== undefined) updateData.cnpj = dados.cnpj || null;
+    if (dados.inscricaoEstadual !== undefined) updateData.inscricao_estadual = dados.inscricaoEstadual || null;
+    if (dados.email !== undefined) updateData.email = dados.email || null;
+    if (dados.telefone !== undefined) updateData.telefone = dados.telefone || null;
+    if (dados.telefone2 !== undefined) updateData.telefone2 = dados.telefone2 || null;
+    if (dados.logradouro !== undefined) updateData.logradouro = dados.logradouro || null;
+    if (dados.numero !== undefined) updateData.numero = dados.numero || null;
+    if (dados.complemento !== undefined) updateData.complemento = dados.complemento || null;
+    if (dados.bairro !== undefined) updateData.bairro = dados.bairro || null;
+    if (dados.cidade !== undefined) updateData.cidade = dados.cidade || null;
+    if (dados.estado !== undefined) updateData.estado = dados.estado || null;
+    if (dados.cep !== undefined) updateData.cep = dados.cep || null;
+    if (dados.contato !== undefined) updateData.contato = dados.contato || null;
+    if (dados.cargo !== undefined) updateData.cargo = dados.cargo || null;
+    if (dados.site !== undefined) updateData.site = dados.site || null;
+    if (dados.observacoes !== undefined) updateData.observacoes = dados.observacoes || null;
+    if (dados.categorias !== undefined) updateData.categorias = dados.categorias;
+    if (dados.ativo !== undefined) updateData.ativo = dados.ativo;
+
+    const { error } = await supabase
+      .from('fornecedores')
+      .update(updateData)
+      .eq('id', id);
+
+    if (error) throw error;
+  };
+
+  const excluirFornecedor = async (id: string) => {
+    const { error } = await supabase
+      .from('fornecedores')
+      .update({ ativo: false })
+      .eq('id', id);
+
+    if (error) throw error;
+  };
+
+  return { fornecedores, loading, adicionarFornecedor, atualizarFornecedor, excluirFornecedor, refetch: carregarDados };
+}
+
+// Função standalone para buscar fornecedor por CNPJ
+export async function buscarFornecedorPorCNPJ(empresaId: string, cnpj: string) {
+  const supabase = getSupabaseClient();
+  
+  const cnpjLimpo = cnpj.replace(/\D/g, '');
+  
+  const { data, error } = await supabase
+    .from('fornecedores')
+    .select('*')
+    .eq('empresa_id', empresaId)
+    .eq('ativo', true)
+    .ilike('cnpj', `%${cnpjLimpo}%`)
+    .limit(1);
+
+  if (error) throw error;
+  
+  if (data && data.length > 0) {
+    const f = data[0];
+    return {
+      id: f.id,
+      nome: f.nome,
+      razaoSocial: f.razao_social,
+      cnpj: f.cnpj,
+      inscricaoEstadual: f.inscricao_estadual,
+      email: f.email,
+      telefone: f.telefone,
+      telefone2: f.telefone2,
+      logradouro: f.logradouro,
+      numero: f.numero,
+      complemento: f.complemento,
+      bairro: f.bairro,
+      cidade: f.cidade,
+      estado: f.estado,
+      cep: f.cep,
+      contato: f.contato,
+      cargo: f.cargo,
+      site: f.site,
+      observacoes: f.observacoes,
+      categorias: f.categorias || [],
+      ativo: f.ativo,
+      criadoEm: new Date(f.criado_em),
+      atualizadoEm: new Date(f.atualizado_em),
+    };
+  }
+  
+  return null;
+}
+
+// =====================================================
+// HOOK: MOVIMENTAÇÕES BI (todas as movimentações da empresa)
+// =====================================================
+export function useMovimentacoesBI() {
+  const [movimentacoes, setMovimentacoes] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const { empresaId, user } = useAuth();
+  const supabase = getSupabaseClient();
+
+  const carregarDados = useCallback(async () => {
+    if (!user || !empresaId) {
+      setMovimentacoes([]);
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('movimentacoes_caixa')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .order('criado_em', { ascending: false });
+
+      if (error) throw error;
+
+      setMovimentacoes((data || []).map(m => ({
+        id: m.id,
+        caixaId: m.caixa_id,
+        empresaId: m.empresa_id,
+        tipo: m.tipo,
+        valor: parseFloat(m.valor) || 0,
+        formaPagamento: m.forma_pagamento,
+        descricao: m.descricao,
+        vendaId: m.venda_id,
+        usuarioId: m.usuario_id,
+        usuarioNome: m.usuario_nome,
+        criadoEm: new Date(m.criado_em),
+      })));
+    } catch (error) {
+      console.error('Erro ao carregar movimentações BI:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [empresaId, user]);
+
+  useEffect(() => {
+    carregarDados();
+  }, [carregarDados]);
+
+  return { movimentacoes, loading };
 }

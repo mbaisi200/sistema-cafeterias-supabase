@@ -15,5 +15,8 @@ export {
   useComandas,
   useConfiguracoesCupom,
   configuracoesCupomPadrao,
+  useMovimentacoesBI,
+  useFornecedores,
+  buscarFornecedorPorCNPJ,
   type ConfiguracoesCupom,
 } from './useSupabase';

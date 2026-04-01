@@ -42,6 +42,8 @@ import {
   Zap,
   Database,
   Receipt,
+  Truck,
+  FileUp,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -67,6 +69,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Clientes', url: '/admin/clientes', icon: Users },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
   { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
+  { title: 'Fornecedores', url: '/admin/fornecedores', icon: Truck },
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
   { title: 'Delivery', url: '/admin/delivery', icon: Bike },
   { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
@@ -74,6 +77,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
   { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
   { title: 'Cupons e NFEs', url: '/admin/cupons-nfes', icon: FileText },
+  { title: 'Importar NFe', url: '/admin/nfe/importar', icon: FileUp },
 ];
 
 // Itens do Atalho Rápido (Cardápio e configurações)
