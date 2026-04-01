@@ -457,6 +457,7 @@ export function imprimirCupomFiscal(
   const config = configuracoes || configuracoesCupomPadrao;
   
   // SEMPRE usar dados da empresa das configurações do cupom se preenchidos
+  // A prioridade é: cupom_config > dados do PDV (empresa tabela)
   const nomeFantasia = (config.nomeEmpresa && config.nomeEmpresa.trim() !== '') 
     ? config.nomeEmpresa 
     : nomeEmpresaParam;
@@ -464,13 +465,26 @@ export function imprimirCupomFiscal(
   const cnpjEmpresa = (config.cnpj && config.cnpj.trim() !== '') 
     ? config.cnpj 
     : cnpjEmpresaParam;
-  const enderecoLogradouro = enderecoEmpresaParam;
+
+  // Endereço: tenta usar campos separados da empresa, com fallback para config.endereco
+  const enderecoLogradouro = enderecoEmpresaParam || config.endereco || '';
   const bairroEmpresa = bairroParam || '';
   const cidadeEmpresa = cidadeParam || '';
   const ufEmpresa = ufParam || '';
   const inscricaoEstadual = ieParam || '';
+
+  // Telefone: tenta cupom_config, depois o que vier do PDV
   const telefoneEmpresa = config.telefone || '';
   const vendedor = vendedorParam || 'ADMINISTRADOR';
+
+  // Se razaoSocial for igual ao nomeFantasia, não mostra duplicado
+  const razaoSocialNormalizada = razaoSocial.toUpperCase().trim();
+  const nomeFantasiaNormalizada = nomeFantasia.toUpperCase().trim();
+  const mostrarRazaoSocial = razaoSocialNormalizada !== '' && razaoSocialNormalizada !== nomeFantasiaNormalizada;
+
+  // Se tem endereço completo separado, usa formato detalhado; senão, usa config.endereco como linha única
+  const temEnderecoSeparado = !!(enderecoLogradouro && (bairroEmpresa || cidadeEmpresa || ufEmpresa));
+  const usarEnderecoUnico = !temEnderecoSeparado && (config.endereco && config.endereco.trim() !== '');
   
   // Determinar largura do papel
   const larguraMm = config.larguraPapel || (tamanhoCupom === '58mm' ? 58 : 80);
@@ -602,20 +616,26 @@ export function imprimirCupomFiscal(
 
   // === CABEÇALHO DO EMITENTE ===
   cupom += centralizar(nomeFantasia.toUpperCase()) + '\n';
-  cupom += centralizar(razaoSocial.toUpperCase()) + '\n';
+  if (mostrarRazaoSocial) {
+    cupom += centralizar(razaoSocial.toUpperCase()) + '\n';
+  }
   
-  // Endereço completo no estilo: LOGRADOURO, NUMERO
-  // BAIRRO
-  // CIDADE - UF
-  if (enderecoLogradouro) {
-    cupom += centralizar(enderecoLogradouro.toUpperCase()) + '\n';
-  }
-  if (bairroEmpresa) {
-    cupom += centralizar(bairroEmpresa.toUpperCase()) + '\n';
-  }
-  if (cidadeEmpresa || ufEmpresa) {
-    const cidadeUf = [cidadeEmpresa, ufEmpresa].filter(Boolean).join(' - ');
-    cupom += centralizar(cidadeUf.toUpperCase()) + '\n';
+  // Endereço: formato detalhado (logradouro + bairro + cidade-UF) ou linha única (config.endereco)
+  if (usarEnderecoUnico) {
+    // Formato simples: uma única linha de endereço do config
+    cupom += centralizar(config.endereco.toUpperCase()) + '\n';
+  } else {
+    // Formato detalhado: campos separados da tabela empresas
+    if (enderecoLogradouro) {
+      cupom += centralizar(enderecoLogradouro.toUpperCase()) + '\n';
+    }
+    if (bairroEmpresa) {
+      cupom += centralizar(bairroEmpresa.toUpperCase()) + '\n';
+    }
+    if (cidadeEmpresa || ufEmpresa) {
+      const cidadeUf = [cidadeEmpresa, ufEmpresa].filter(Boolean).join(' - ');
+      cupom += centralizar(cidadeUf.toUpperCase()) + '\n';
+    }
   }
   
   // Telefone e CNPJ
