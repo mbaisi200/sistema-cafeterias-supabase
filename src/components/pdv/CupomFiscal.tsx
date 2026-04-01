@@ -84,7 +84,16 @@ export function CupomFiscalModal({
   vendedor = '',
 }: CupomFiscalModalProps) {
   const { toast } = useToast();
-  const { configuracoes } = useConfiguracoesCupom();
+  const { configuracoes, carregarConfiguracoes } = useConfiguracoesCupom();
+
+  // Recarregar configurações sempre que o dialog abrir
+  // Isso garante que mudanças feitas na página de Configurações
+  // sejam refletidas imediatamente no cupom
+  useEffect(() => {
+    if (open) {
+      carregarConfiguracoes();
+    }
+  }, [open, carregarConfiguracoes]);
 
   // Estados de cliente
   const [clienteSelecionado, setClienteSelecionado] = useState<ClienteEncontrado | null>(null);
@@ -489,13 +498,13 @@ export function imprimirCupomFiscal(
   // Determinar largura do papel
   const larguraMm = config.larguraPapel || (tamanhoCupom === '58mm' ? 58 : 80);
   
-  // Configurações de fonte
-  const tamanhoFonte = config.tamanhoFonte || 9;
-  const espacamentoLinhas = config.espacamentoLinhas || 1.3;
-  const margemSuperior = config.margemSuperior ?? 0;
-  const margemInferior = config.margemInferior ?? 0;
-  const margemEsquerda = config.margemEsquerda ?? 1;
-  const margemDireita = config.margemDireita ?? 1;
+  // Configurações de fonte - usa SEMPRE o valor do config (nunca hardcode aqui)
+  const tamanhoFonte = config.tamanhoFonte || 12;
+  const espacamentoLinhas = config.espacamentoLinhas || 1.4;
+  const margemSuperior = config.margemSuperior ?? 2;
+  const margemInferior = config.margemInferior ?? 2;
+  const margemEsquerda = config.margemEsquerda ?? 2;
+  const margemDireita = config.margemDireita ?? 2;
   
   const larguraUtilMm = Math.max(20, larguraMm - margemEsquerda - margemDireita);
   const mmPorCaractere = (tamanhoFonte / 12) * 1.5;
