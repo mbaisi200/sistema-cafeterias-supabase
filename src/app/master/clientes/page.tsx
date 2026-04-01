@@ -247,38 +247,29 @@ export default function ClientesPage() {
       const adminEmail = formData.get('admin_email') as string;
       const adminSenha = senha;
 
-      const supabase = getSupabaseClient();
-
-      // Criar usuário no Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: adminEmail,
-        password: adminSenha,
+      // Usar API server-side para criar o admin com email_confirm: true
+      // Isso evita o erro "Email not confirmed" do Supabase Auth
+      const response = await fetch('/api/master/create-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: adminEmail,
+          password: adminSenha,
+          nome: adminNome,
+          empresaId: empresaId,
+          empresaNome: formData.get('nome') as string,
+        }),
       });
 
-      if (authError) throw authError;
+      const result = await response.json();
 
-      if (authData.user) {
-        // Criar registro na tabela usuarios
-        const { error: userError } = await supabase
-          .from('usuarios')
-          .insert({
-            id: authData.user.id,
-            auth_user_id: authData.user.id,
-            email: adminEmail,
-            nome: adminNome,
-            role: 'admin',
-            empresa_id: empresaId,
-            ativo: true,
-            criado_em: new Date().toISOString(),
-            atualizado_em: new Date().toISOString(),
-          });
-
-        if (userError) throw userError;
+      if (!response.ok) {
+        throw new Error(result.error || 'Erro ao criar administrador');
       }
 
       toast({
         title: 'Cliente cadastrado com sucesso!',
-        description: `Empresa e usuário admin criados. O admin pode logar com o email ${adminEmail}`,
+        description: `Empresa e usuário admin criados. O admin pode logar imediatamente com o email ${adminEmail}`,
       });
 
       setDialogOpen(false);
