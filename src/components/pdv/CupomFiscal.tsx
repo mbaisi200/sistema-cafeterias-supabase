@@ -505,6 +505,8 @@ export function imprimirCupomFiscal(
   const margemInferior = config.margemInferior ?? 2;
   const margemEsquerda = config.margemEsquerda ?? 2;
   const margemDireita = config.margemDireita ?? 2;
+  const intensidade = config.intensidadeImpressao || 'escura';
+  const fontWeight = intensidade === 'normal' ? 'normal' : intensidade === 'escura' ? '600' : '700';
   
   const larguraUtilMm = Math.max(20, larguraMm - margemEsquerda - margemDireita);
   const mmPorCaractere = (tamanhoFonte / 12) * 1.5;
@@ -513,17 +515,30 @@ export function imprimirCupomFiscal(
   
   const mensagemRodape = config.mensagemRodape || 'Obrigado pela preferencia!\nVolte sempre!';
 
-  console.log('Imprimindo cupom com configuracoes:', {
+  console.log('🖨️ [CUPOM] Imprimindo com configuracoes:', {
     nomeFantasia,
-    razaoSocial,
     cnpjEmpresa,
-    enderecoLogradouro,
-    bairroEmpresa,
-    cidadeEmpresa,
-    ufEmpresa,
     larguraMm,
     larguraCaracteres: largura,
     tamanhoFonte,
+    espacamentoLinhas,
+    margemSuperior,
+    margemInferior,
+    margemEsquerda,
+    margemDireita,
+    intensidade,
+    fontWeight,
+    mensagemRodape,
+    _configOriginal: {
+      tamanhoFonte: config.tamanhoFonte,
+      espacamentoLinhas: config.espacamentoLinhas,
+      margemSuperior: config.margemSuperior,
+      margemInferior: config.margemInferior,
+      margemEsquerda: config.margemEsquerda,
+      margemDireita: config.margemDireita,
+      larguraPapel: config.larguraPapel,
+      intensidadeImpressao: config.intensidadeImpressao,
+    },
     cliente: cliente?.nome_razao_social || nomeCliente,
   });
 
@@ -761,6 +776,7 @@ export function imprimirCupomFiscal(
         body {
           font-family: 'Courier New', 'Lucida Console', monospace;
           font-size: ${tamanhoFonte}px;
+          font-weight: ${fontWeight};
           line-height: ${espacamentoLinhas};
           margin: 0;
           padding: ${margemSuperior}mm ${margemDireita}mm ${margemInferior}mm ${margemEsquerda}mm;
