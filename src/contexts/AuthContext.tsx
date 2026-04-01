@@ -300,6 +300,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
 
+    // Se o erro for "Email not confirmed", confirmar via admin API e retry
+    if (error && (error.message.includes('Email not confirmed') || error.status === 400)) {
+      console.log('📧 Email não confirmado, tentando confirmar automaticamente...');
+      try {
+        const confirmResponse = await fetch('/api/auth/confirm-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+        const confirmResult = await confirmResponse.json();
+
+        if (confirmResponse.ok && confirmResult.success) {
+          console.log('✅ Email confirmado automaticamente, tentando login novamente...');
+          // Retry do login após confirmar o email
+          const retry = await getSupabase().auth.signInWithPassword({ email, password });
+          if (retry.error) throw retry.error;
+          if (retry.data.user) {
+            const userData = await fetchUserData(retry.data.user.id);
+            if (!userData) {
+              await getSupabase().auth.signOut();
+              throw new Error('Usuário não encontrado no sistema');
+            }
+            if (!userData.ativo) {
+              await getSupabase().auth.signOut();
+              throw new Error('Seu acesso foi revogado. Entre em contato com o administrador.');
+            }
+            setUser(userData);
+            clearFuncionarioSession();
+          }
+          return;
+        }
+      } catch (confirmError) {
+        console.error('❌ Erro ao confirmar email automaticamente:', confirmError);
+      }
+      // Se não conseguiu confirmar, lançar o erro original
+      throw error;
+    }
+
     if (error) throw error;
 
     if (data.user) {
