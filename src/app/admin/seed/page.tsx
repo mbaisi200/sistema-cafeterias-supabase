@@ -475,6 +475,7 @@ function SeedContent() {
       addLog('Criando vendas (isso pode levar alguns segundos)...');
 
       const vendasIds: string[] = [];
+      const vendasSeedInfo: {id: string, total: number, forma_pagamento: string, criado_em: number}[] = [];
       const NUM_VENDAS = 220;
       const itensVendaData: {empresa_id: string, venda_id: string, produto_id: string, nome: string, quantidade: number, preco_unitario: number, total: number, criado_em: string}[] = [];
       const pagamentosData: {empresa_id: string, venda_id: string, forma_pagamento: string, valor: number, criado_em: string}[] = [];
@@ -534,6 +535,16 @@ function SeedContent() {
         if (vendaInsert) {
           vendasIds.push(vendaInsert.id);
           
+          const formaPagamento = FORMAS_PAGAMENTO[Math.floor(Math.random() * FORMAS_PAGAMENTO.length)];
+          
+          // Guardar info da venda para vincular ao caixa depois
+          vendasSeedInfo.push({
+            id: vendaInsert.id,
+            total,
+            forma_pagamento: formaPagamento,
+            criado_em: dataVenda.getTime(),
+          });
+          
           for (const item of itensVenda) {
             const produtoInfo = produtosDataInfo.find(p => p.id === item.produtoId);
             itensVendaData.push({
@@ -548,7 +559,6 @@ function SeedContent() {
             });
           }
 
-          const formaPagamento = FORMAS_PAGAMENTO[Math.floor(Math.random() * FORMAS_PAGAMENTO.length)];
           pagamentosData.push({
             empresa_id: empresaId,
             venda_id: vendaInsert.id,
@@ -727,9 +737,14 @@ function SeedContent() {
 
       if (caixasError) console.error('Erro ao criar caixas:', caixasError);
 
-      // Criar movimentações de caixa
+      // Criar movimentações de caixa (abertura, vendas e fechamento)
+      // Primeiro, associar vendas aos caixas baseado na data
       caixasInsert?.forEach((caixa, i) => {
         const dataAbertura = new Date(caixa.aberto_em || new Date());
+        const dataFechamento = caixasData[i].status === 'fechado'
+          ? new Date(caixasData[i].fechado_em || dataAbertura.getTime() + 8 * 60 * 60 * 1000)
+          : new Date();
+
         movimentacoesCaixaData.push({
           caixa_id: caixa.id,
           empresa_id: empresaId,
@@ -742,8 +757,28 @@ function SeedContent() {
           criado_em: dataAbertura.toISOString()
         });
 
-        if (i < 18) {
-          const dataFechamento = new Date(dataAbertura.getTime() + 8 * 60 * 60 * 1000);
+        // Vincular vendas a este caixa como movimentações tipo 'venda'
+        // Buscar vendas cuja data está no período deste caixa
+        const vendasDoCaixa = vendasSeedInfo.filter(v =>
+          v.criado_em >= dataAbertura.getTime() && v.criado_em <= dataFechamento.getTime()
+        );
+
+        vendasDoCaixa.forEach(venda => {
+          movimentacoesCaixaData.push({
+            caixa_id: caixa.id,
+            empresa_id: empresaId,
+            tipo: 'venda',
+            valor: venda.total,
+            forma_pagamento: venda.forma_pagamento,
+            descricao: `Venda - ${venda.forma_pagamento}`,
+            venda_id: venda.id,
+            usuario_id: funcionariosIds[0],
+            usuario_nome: NOMES_FUNCIONARIOS[0],
+            criado_em: new Date(venda.criado_em).toISOString()
+          });
+        });
+
+        if (caixasData[i].status === 'fechado') {
           movimentacoesCaixaData.push({
             caixa_id: caixa.id,
             empresa_id: empresaId,
