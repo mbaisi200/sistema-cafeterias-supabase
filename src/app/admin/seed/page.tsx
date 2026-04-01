@@ -162,7 +162,7 @@ function SeedContent() {
   const [statusList, setStatusList] = useState<SeedStatus[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
   const [dataInicio, setDataInicio] = useState('2026-01-01');
-  const [dataFim, setDataFim] = useState('2026-03-31');
+  const [dataFim, setDataFim] = useState('2026-04-30');
 
   const addLog = (message: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);

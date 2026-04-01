@@ -47,7 +47,7 @@ interface Movimentacao {
 
 export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Categoria[], movimentacoes: Movimentacao[]) {
   const [filtros, setFiltros] = useState<FiltrosBI>({
-    periodo: 'mes',
+    periodo: 'ano',
     categorias: [],
     formasPagamento: [],
     tiposVenda: [],
@@ -447,7 +447,7 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
 
   // Resetar filtros
   const resetarFiltros = useCallback(() => {
-    setFiltros({ periodo: 'mes', categorias: [], formasPagamento: [], tiposVenda: [], produtos: [], status: [], canais: [] });
+    setFiltros({ periodo: 'ano', categorias: [], formasPagamento: [], tiposVenda: [], produtos: [], status: [], canais: [] });
   }, []);
 
   // Opções de filtros
