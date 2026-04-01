@@ -18,6 +18,7 @@ import {
   XCircle,
   AlertTriangle,
   Loader2,
+  Database,
 } from 'lucide-react';
 
 export default function MasterDashboardPage() {
@@ -72,12 +73,20 @@ export default function MasterDashboardPage() {
                 Bem-vindo, {user?.nome}! Visão geral de todos os clientes.
               </p>
             </div>
-            <Button asChild>
-              <a href="/master/clientes">
-                <Users className="mr-2 h-4 w-4" />
-                Gerenciar Clientes
-              </a>
-            </Button>
+            <div className="flex gap-3">
+              <Button asChild>
+                <a href="/master/clientes">
+                  <Users className="mr-2 h-4 w-4" />
+                  Gerenciar Clientes
+                </a>
+              </Button>
+              <Button asChild variant="outline">
+                <a href="/admin/seed">
+                  <Database className="mr-2 h-4 w-4" />
+                  Popular Dados
+                </a>
+              </Button>
+            </div>
           </div>
 
           {/* Stats Cards */}

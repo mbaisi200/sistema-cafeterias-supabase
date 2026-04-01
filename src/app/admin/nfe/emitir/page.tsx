@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { useEmitirNFe } from '@/hooks/useNFE';
 import { NFeService } from '@/services/nfe/nfe-service';
 import { Button } from '@/components/ui/button';
@@ -29,6 +31,9 @@ import {
   FileText,
   Printer,
   Download,
+  Search,
+  Loader2,
+  UserCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -102,6 +107,12 @@ export default function EmitirNFePage() {
     valor: 0,
   }]);
 
+  // Buscar Cliente
+  const [buscaCliente, setBuscaCliente] = useState('');
+  const [clientesResult, setClientesResult] = useState<any[]>([]);
+  const [buscandoCliente, setBuscandoCliente] = useState(false);
+  const [clienteSelecionado, setClienteSelecionado] = useState(false);
+
   // Informações adicionais
   const [informacoesAdicionais, setInformacoesAdicionais] = useState('');
   const [informacoesFisco, setInformacoesFisco] = useState('');
@@ -143,6 +154,49 @@ export default function EmitirNFePage() {
     const novos = [...pagamentos];
     (novos[index] as any)[field] = value;
     setPagamentos(novos);
+  };
+
+  const handleBuscarClientes = async () => {
+    if (!buscaCliente.trim()) {
+      setClientesResult([]);
+      return;
+    }
+    setBuscandoCliente(true);
+    try {
+      const params = new URLSearchParams({ busca: buscaCliente.trim() });
+      const res = await fetch(`/api/clientes?${params.toString()}`);
+      const data = await res.json();
+      if (data.sucesso) {
+        setClientesResult(data.clientes || []);
+      } else {
+        setClientesResult([]);
+      }
+    } catch {
+      setClientesResult([]);
+    } finally {
+      setBuscandoCliente(false);
+    }
+  };
+
+  const handleSelecionarCliente = (c: any) => {
+    setDestCPF_CNPJ(c.cnpj_cpf || '');
+    setDestNome(c.nome_razao_social || '');
+    setDestNomeFantasia(c.nome_fantasia || '');
+    setDestIE(c.inscricao_estadual || '');
+    setDestIndicadorIE(String(c.indicador_ie || '9'));
+    setDestEmail(c.email || '');
+    setDestTelefone(c.telefone || c.celular || '');
+    setDestLogradouro(c.logradouro || '');
+    setDestNumero(c.numero || '');
+    setDestComplemento(c.complemento || '');
+    setDestBairro(c.bairro || '');
+    setDestMunicipio(c.municipio || '');
+    setDestUF(c.uf || '');
+    setDestCEP(c.cep || '');
+    setDestCodMunicipio(c.codigo_municipio || '');
+    setClienteSelecionado(true);
+    setClientesResult([]);
+    setBuscaCliente(c.nome_razao_social || '');
   };
 
   const totalProdutos = produtos.reduce((acc, p) => acc + (p.valor_total || 0), 0);
@@ -199,22 +253,27 @@ export default function EmitirNFePage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/admin/cupons-nfes">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FileText className="h-7 w-7" />
-            Emitir NF-e
-          </h1>
-          <p className="text-muted-foreground text-sm">Nova Nota Fiscal Eletrônica - Modelo 55</p>
-        </div>
-      </div>
+    <ProtectedRoute allowedRoles={['admin', 'master']}>
+      <MainLayout breadcrumbs={[
+        { title: 'Cupons e NF-es', href: '/admin/cupons-nfes' },
+        { title: 'Emitir NF-e' },
+      ]}>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center gap-4">
+            <Link href="/admin/cupons-nfes">
+              <Button variant="ghost" size="icon">
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <FileText className="h-7 w-7" />
+                Emitir NF-e
+              </h1>
+              <p className="text-muted-foreground text-sm">Nova Nota Fiscal Eletrônica - Modelo 55</p>
+            </div>
+          </div>
 
       {/* Resultado da emissão */}
       {nfe && (
@@ -312,6 +371,74 @@ export default function EmitirNFePage() {
                   </SelectContent>
                 </Select>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Buscar Cliente Cadastrado */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <UserCheck className="h-5 w-5" />
+                Buscar Cliente Cadastrado
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome, CPF/CNPJ..."
+                    value={buscaCliente}
+                    onChange={(e) => setBuscaCliente(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleBuscarClientes()}
+                    className="pl-10"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleBuscarClientes}
+                  disabled={buscandoCliente}
+                >
+                  {buscandoCliente ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                  Buscar
+                </Button>
+              </div>
+              {clienteSelecionado && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Cliente selecionado. Os campos do destinatário foram preenchidos automaticamente.
+                </div>
+              )}
+              {clientesResult.length > 0 && (
+                <div className="mt-3 border rounded-lg max-h-60 overflow-y-auto">
+                  {clientesResult.map((c: any) => (
+                    <button
+                      key={c.id}
+                      onClick={() => handleSelecionarCliente(c)}
+                      className="w-full text-left p-3 hover:bg-accent border-b last:border-b-0 transition-colors"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-medium">{c.nome_razao_social}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {c.cnpj_cpf} • {c.municipio}/{c.uf}
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="shrink-0 ml-2">
+                          {c.tipo_pessoa === '1' ? 'PJ' : 'PF'}
+                        </Badge>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {buscaCliente.trim().length > 2 && !buscandoCliente && clientesResult.length === 0 && (
+                <p className="mt-2 text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+              )}
             </CardContent>
           </Card>
 
@@ -569,6 +696,8 @@ export default function EmitirNFePage() {
           </div>
         </div>
       )}
-    </div>
+        </div>
+      </MainLayout>
+    </ProtectedRoute>
   );
 }

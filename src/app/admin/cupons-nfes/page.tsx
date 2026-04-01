@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { useNFEs, useCancelarNFe, useConsultarNFe } from '@/hooks/useNFE';
 import { NFeService } from '@/services/nfe/nfe-service';
 import { Button } from '@/components/ui/button';
@@ -145,7 +147,9 @@ export default function CuponsNFEsPage() {
   const totalPaginas = Math.ceil(total / limite);
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <ProtectedRoute allowedRoles={['admin', 'master']}>
+      <MainLayout breadcrumbs={[{ title: 'Cupons e NFEs' }]}>
+        <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -560,6 +564,8 @@ export default function CuponsNFEsPage() {
         </DialogContent>
       </Dialog>
     </div>
+      </MainLayout>
+    </ProtectedRoute>
   );
 }
 

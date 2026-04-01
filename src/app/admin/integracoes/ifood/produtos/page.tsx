@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -538,12 +540,14 @@ function ProdutosIFoodContent() {
 
 export default function ProdutosIFoodPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-red-500" />
-      </div>
-    }>
-      <ProdutosIFoodContent />
-    </Suspense>
+    <ProtectedRoute allowedRoles={['admin', 'master']}>
+      <MainLayout breadcrumbs={[
+        { title: 'Integrações', href: '/admin/integracoes' },
+        { title: 'iFood', href: '/admin/integracoes/ifood' },
+        { title: 'Produtos' },
+      ]}>
+        <ProdutosIFoodContent />
+      </MainLayout>
+    </ProtectedRoute>
   );
 }

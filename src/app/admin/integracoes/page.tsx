@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -203,7 +205,7 @@ function IntegracoesContent() {
   }
 
   return (
-    <div className="container mx-auto py-6 px-4 max-w-6xl">
+      <div className="space-y-6">
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold">Integrações</h1>
@@ -295,12 +297,10 @@ function IntegracoesContent() {
 
 export default function IntegracoesPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
-      </div>
-    }>
-      <IntegracoesContent />
-    </Suspense>
+    <ProtectedRoute allowedRoles={['admin', 'master']}>
+      <MainLayout breadcrumbs={[{ title: 'Integrações' }]}>
+        <IntegracoesContent />
+      </MainLayout>
+    </ProtectedRoute>
   );
 }

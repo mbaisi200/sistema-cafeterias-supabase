@@ -56,6 +56,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
+  FileText,
+  Info,
 } from 'lucide-react';
 
 const colorOptions = [
@@ -83,6 +85,18 @@ interface Produto {
   ifoodExternalCode?: string;
   ifoodSyncStatus?: 'synced' | 'pending' | 'error' | 'not_synced';
   ifoodProductId?: string;
+  // NFE/NFCe fiscal fields
+  ncm?: string;
+  cest?: string;
+  cfop?: string;
+  cst?: string;
+  csosn?: string;
+  origem?: string;
+  unidadeTributavel?: string;
+  icms?: number;
+  ipiAliquota?: number;
+  pisAliquota?: number;
+  cofinsAliquota?: number;
 }
 
 export default function ProdutosPage() {
@@ -160,6 +174,18 @@ export default function ProdutosPage() {
         estoqueMinimo: parseInt(formData.get('estoqueMinimo') as string) || 0,
         destaque: formData.get('destaque') === 'on',
         disponivelIfood: formData.get('disponivelIfood') === 'on',
+        // NFE/NFCe fiscal fields
+        ncm: formData.get('ncm') as string || '00000000',
+        cest: formData.get('cest') as string || '',
+        cfop: formData.get('cfop') as string || '5102',
+        cst: formData.get('cst') as string || '00',
+        csosn: formData.get('csosn') as string || '102',
+        origem: formData.get('origem') as string || '0',
+        unidadeTributavel: formData.get('unidadeTributavel') as string || 'UN',
+        icms: parseFloat(formData.get('icms') as string) || 0,
+        ipiAliquota: parseFloat(formData.get('ipiAliquota') as string) || 0,
+        pisAliquota: parseFloat(formData.get('pisAliquota') as string) || 0,
+        cofinsAliquota: parseFloat(formData.get('cofinsAliquota') as string) || 0,
       };
 
       // Gerar código externo para iFood se não existir
@@ -381,110 +407,347 @@ export default function ProdutosPage() {
                   Novo Produto
                 </Button>
               </div>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editandoProduto ? 'Editar Produto' : 'Cadastrar Produto'}</DialogTitle>
                   <DialogDescription>Preencha os dados do produto</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSalvarProduto}>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="nome">Nome</Label>
-                        <Input id="nome" name="nome" placeholder="Nome do produto" required defaultValue={editandoProduto?.nome || ''} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="codigo">Código Interno</Label>
-                        <Input id="codigo" name="codigo" placeholder="Ex: PROD001" defaultValue={editandoProduto?.codigo || ''} />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="codigoBarras">Código de Barras <span className="text-muted-foreground font-normal">(opcional)</span></Label>
-                      <Input 
-                        id="codigoBarras" 
-                        name="codigoBarras" 
-                        placeholder="Ex: 7891234567890" 
-                        defaultValue={editandoProduto?.codigoBarras || ''}
-                      />
-                      <p className="text-xs text-muted-foreground">Use um leitor de código de barras ou digite manualmente</p>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="descricao">Descrição</Label>
-                      <Input id="descricao" name="descricao" placeholder="Descrição do produto" defaultValue={editandoProduto?.descricao || ''} />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="categoria">Categoria</Label>
-                        <Select name="categoria" required defaultValue={editandoProduto?.categoriaId || ''}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Selecione" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {categorias.map(cat => (
-                              <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="preco">Preço de Venda</Label>
-                        <Input id="preco" name="preco" type="number" step="0.01" placeholder="0.00" required defaultValue={editandoProduto?.preco || ''} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="custo">Custo</Label>
-                        <Input id="custo" name="custo" type="number" step="0.01" placeholder="0.00" defaultValue={editandoProduto?.custo || ''} />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="unidade">Unidade</Label>
-                        <Select name="unidade" defaultValue={editandoProduto?.unidade || 'un'}>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="un">Unidade</SelectItem>
-                            <SelectItem value="cx">Caixa</SelectItem>
-                            <SelectItem value="kg">Quilograma</SelectItem>
-                            <SelectItem value="lt">Litro</SelectItem>
-                            <SelectItem value="ml">Mililitro</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="unidadesPorCaixa">Unidades/Caixa</Label>
-                        <Input id="unidadesPorCaixa" name="unidadesPorCaixa" type="number" placeholder="Ex: 12" defaultValue={editandoProduto?.unidadesPorCaixa || ''} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="estoqueMinimo">Estoque Mínimo</Label>
-                        <Input id="estoqueMinimo" name="estoqueMinimo" type="number" placeholder="0" defaultValue={editandoProduto?.estoqueMinimo || ''} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="precoUnidade">Preço/Unidade</Label>
-                        <Input id="precoUnidade" name="precoUnidade" type="number" step="0.01" placeholder="0.00" defaultValue={editandoProduto?.precoUnidade || ''} />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-6 pt-2">
-                      <div className="flex items-center gap-2">
-                        <Switch id="destaque" name="destaque" defaultChecked={editandoProduto?.destaque} />
-                        <div>
-                          <Label htmlFor="destaque">Destaque</Label>
-                          <p className="text-xs text-muted-foreground">Aparece na tela inicial do PDV</p>
+                  <Tabs defaultValue="geral" className="mt-2">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="geral" className="gap-2">
+                        <Package className="h-4 w-4" />
+                        Dados Gerais
+                      </TabsTrigger>
+                      <TabsTrigger value="fiscal" className="gap-2">
+                        <FileText className="h-4 w-4" />
+                        Dados Fiscais (NF-e/NFC-e)
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* TAB: Dados Gerais */}
+                    <TabsContent value="geral" className="mt-4">
+                      <div className="grid gap-4 py-2">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="nome">Nome</Label>
+                            <Input id="nome" name="nome" placeholder="Nome do produto" required defaultValue={editandoProduto?.nome || ''} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="codigo">Código Interno</Label>
+                            <Input id="codigo" name="codigo" placeholder="Ex: PROD001" defaultValue={editandoProduto?.codigo || ''} />
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="codigoBarras">Código de Barras <span className="text-muted-foreground font-normal">(opcional)</span></Label>
+                          <Input
+                            id="codigoBarras"
+                            name="codigoBarras"
+                            placeholder="Ex: 7891234567890"
+                            defaultValue={editandoProduto?.codigoBarras || ''}
+                          />
+                          <p className="text-xs text-muted-foreground">Use um leitor de código de barras ou digite manualmente</p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="descricao">Descrição</Label>
+                          <Input id="descricao" name="descricao" placeholder="Descrição do produto" defaultValue={editandoProduto?.descricao || ''} />
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="categoria">Categoria</Label>
+                            <Select name="categoria" required defaultValue={editandoProduto?.categoriaId || ''}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Selecione" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {categorias.map(cat => (
+                                  <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="preco">Preço de Venda</Label>
+                            <Input id="preco" name="preco" type="number" step="0.01" placeholder="0.00" required defaultValue={editandoProduto?.preco || ''} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="custo">Custo</Label>
+                            <Input id="custo" name="custo" type="number" step="0.01" placeholder="0.00" defaultValue={editandoProduto?.custo || ''} />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="unidade">Unidade</Label>
+                            <Select name="unidade" defaultValue={editandoProduto?.unidade || 'un'}>
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="un">Unidade</SelectItem>
+                                <SelectItem value="cx">Caixa</SelectItem>
+                                <SelectItem value="kg">Quilograma</SelectItem>
+                                <SelectItem value="lt">Litro</SelectItem>
+                                <SelectItem value="ml">Mililitro</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="unidadesPorCaixa">Unidades/Caixa</Label>
+                            <Input id="unidadesPorCaixa" name="unidadesPorCaixa" type="number" placeholder="Ex: 12" defaultValue={editandoProduto?.unidadesPorCaixa || ''} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="estoqueMinimo">Estoque Mínimo</Label>
+                            <Input id="estoqueMinimo" name="estoqueMinimo" type="number" placeholder="0" defaultValue={editandoProduto?.estoqueMinimo || ''} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="precoUnidade">Preço/Unidade</Label>
+                            <Input id="precoUnidade" name="precoUnidade" type="number" step="0.01" placeholder="0.00" defaultValue={editandoProduto?.precoUnidade || ''} />
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-6 pt-2">
+                          <div className="flex items-center gap-2">
+                            <Switch id="destaque" name="destaque" defaultChecked={editandoProduto?.destaque} />
+                            <div>
+                              <Label htmlFor="destaque">Destaque</Label>
+                              <p className="text-xs text-muted-foreground">Aparece na tela inicial do PDV</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch id="disponivelIfood" name="disponivelIfood" defaultChecked={editandoProduto?.disponivelIfood} />
+                            <div>
+                              <Label htmlFor="disponivelIfood" className="flex items-center gap-1">
+                                <ShoppingCart className="h-4 w-4 text-red-500" />
+                                Enviar para iFood
+                              </Label>
+                              <p className="text-xs text-muted-foreground">Incluir no catálogo do iFood</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Switch id="disponivelIfood" name="disponivelIfood" defaultChecked={editandoProduto?.disponivelIfood} />
+                    </TabsContent>
+
+                    {/* TAB: Dados Fiscais (NFE/NFCe) */}
+                    <TabsContent value="fiscal" className="mt-4">
+                      <div className="grid gap-4 py-2">
+                        {/* Info banner */}
+                        <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+                          <Info className="h-5 w-5 text-blue-500 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-blue-800">Dados para emissão de NF-e / NFC-e</p>
+                            <p className="text-xs text-blue-600 mt-0.5">
+                              Preencha os campos fiscais para automatizar a emissão de notas fiscais.
+                              Os valores padrão serão usados caso não preenchidos. Consulte seu contador em caso de dúvidas.
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Classificação Fiscal */}
                         <div>
-                          <Label htmlFor="disponivelIfood" className="flex items-center gap-1">
-                            <ShoppingCart className="h-4 w-4 text-red-500" />
-                            Enviar para iFood
-                          </Label>
-                          <p className="text-xs text-muted-foreground">Incluir no catálogo do iFood</p>
+                          <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Classificação Fiscal</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="ncm">
+                                NCM
+                                <span className="text-xs text-muted-foreground font-normal ml-1">(8 dígitos)</span>
+                              </Label>
+                              <Input
+                                id="ncm"
+                                name="ncm"
+                                placeholder="00000000"
+                                maxLength={8}
+                                defaultValue={editandoProduto?.ncm || '00000000'}
+                              />
+                              <p className="text-xs text-muted-foreground">Nomenclatura Comum do Mercosul</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="cest">
+                                CEST
+                                <span className="text-xs text-muted-foreground font-normal ml-1">(7 dígitos)</span>
+                              </Label>
+                              <Input
+                                id="cest"
+                                name="cest"
+                                placeholder="Ex: 0100100"
+                                maxLength={7}
+                                defaultValue={editandoProduto?.cest || ''}
+                              />
+                              <p className="text-xs text-muted-foreground">Código Espec. Subst. Tributária</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="cfop">
+                                CFOP
+                                <span className="text-xs text-muted-foreground font-normal ml-1">(4 dígitos)</span>
+                              </Label>
+                              <Input
+                                id="cfop"
+                                name="cfop"
+                                placeholder="5102"
+                                maxLength={4}
+                                defaultValue={editandoProduto?.cfop || '5102'}
+                              />
+                              <p className="text-xs text-muted-foreground">Código Fiscal de Operações</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Situação Tributária */}
+                        <div>
+                          <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Situação Tributária</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="cst">
+                                CST
+                                <span className="text-xs text-muted-foreground font-normal ml-1">(Regime Normal)</span>
+                              </Label>
+                              <Input
+                                id="cst"
+                                name="cst"
+                                placeholder="00"
+                                maxLength={3}
+                                defaultValue={editandoProduto?.cst || '00'}
+                              />
+                              <p className="text-xs text-muted-foreground">Cód. Situação Tributária</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="csosn">
+                                CSOSN
+                                <span className="text-xs text-muted-foreground font-normal ml-1">(Simples)</span>
+                              </Label>
+                              <Input
+                                id="csosn"
+                                name="csosn"
+                                placeholder="102"
+                                maxLength={3}
+                                defaultValue={editandoProduto?.csosn || '102'}
+                              />
+                              <p className="text-xs text-muted-foreground">Situação Operação Simples</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="origem">Origem</Label>
+                              <Select name="origem" defaultValue={editandoProduto?.origem || '0'}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="0">0 - Nacional</SelectItem>
+                                  <SelectItem value="1">1 - Importado direto</SelectItem>
+                                  <SelectItem value="2">2 - Importado (merc. interno)</SelectItem>
+                                  <SelectItem value="3">3 - Nacional (MF 40%)</SelectItem>
+                                  <SelectItem value="4">4 - Nacional (MF 70%)</SelectItem>
+                                  <SelectItem value="5">5 - Nacional (proc. produtivo)</SelectItem>
+                                  <SelectItem value="6">6 - Importado (proc. produtivo)</SelectItem>
+                                  <SelectItem value="7">7 - Nacional (MF 60%)</SelectItem>
+                                  <SelectItem value="8">8 - Nacional (sem similar)</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="unidadeTributavel">Unidade Tributável</Label>
+                              <Select name="unidadeTributavel" defaultValue={editandoProduto?.unidadeTributavel || 'UN'}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Selecione" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="UN">UN - Unidade</SelectItem>
+                                  <SelectItem value="KG">KG - Quilograma</SelectItem>
+                                  <SelectItem value="LT">LT - Litro</SelectItem>
+                                  <SelectItem value="L">L - Litro (abrev.)</SelectItem>
+                                  <SelectItem value="M">M - Metro</SelectItem>
+                                  <SelectItem value="M2">M2 - Metro Quadrado</SelectItem>
+                                  <SelectItem value="M3">M3 - Metro Cúbico</SelectItem>
+                                  <SelectItem value="MM">MM - Milímetro</SelectItem>
+                                  <SelectItem value="CX">CX - Caixa</SelectItem>
+                                  <SelectItem value="PCT">PCT - Pacote</SelectItem>
+                                  <SelectItem value="ML">ML - Mililitro</SelectItem>
+                                  <SelectItem value="G">G - Grama</SelectItem>
+                                  <SelectItem value="KWH">KWH - Quilowatt-hora</SelectItem>
+                                  <SelectItem value="SC">SC - Saco</SelectItem>
+                                  <SelectItem value="FD">FD - Fardo</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Alíquotas de Impostos */}
+                        <div>
+                          <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Alíquotas de Impostos (%)</h4>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="icms" className="flex items-center gap-1">
+                                ICMS
+                                <span className="text-xs text-muted-foreground font-normal">%</span>
+                              </Label>
+                              <Input
+                                id="icms"
+                                name="icms"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                placeholder="0.00"
+                                defaultValue={editandoProduto?.icms || ''}
+                              />
+                              <p className="text-xs text-muted-foreground">Imposto sobre Circ. Merc. Serviços</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="ipiAliquota" className="flex items-center gap-1">
+                                IPI
+                                <span className="text-xs text-muted-foreground font-normal">%</span>
+                              </Label>
+                              <Input
+                                id="ipiAliquota"
+                                name="ipiAliquota"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                placeholder="0.00"
+                                defaultValue={editandoProduto?.ipiAliquota || ''}
+                              />
+                              <p className="text-xs text-muted-foreground">Imposto Prod. Industrializados</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="pisAliquota" className="flex items-center gap-1">
+                                PIS
+                                <span className="text-xs text-muted-foreground font-normal">%</span>
+                              </Label>
+                              <Input
+                                id="pisAliquota"
+                                name="pisAliquota"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                placeholder="0.00"
+                                defaultValue={editandoProduto?.pisAliquota || ''}
+                              />
+                              <p className="text-xs text-muted-foreground">Programa Integração Social</p>
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="cofinsAliquota" className="flex items-center gap-1">
+                                COFINS
+                                <span className="text-xs text-muted-foreground font-normal">%</span>
+                              </Label>
+                              <Input
+                                id="cofinsAliquota"
+                                name="cofinsAliquota"
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                max="100"
+                                placeholder="0.00"
+                                defaultValue={editandoProduto?.cofinsAliquota || ''}
+                              />
+                              <p className="text-xs text-muted-foreground">Financiamento Seguridade Social</p>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
-                  <DialogFooter>
+                    </TabsContent>
+                  </Tabs>
+
+                  <DialogFooter className="mt-4 pt-4 border-t">
                     <Button variant="outline" type="button" onClick={() => { setDialogOpen(false); setEditandoProduto(null); }}>
                       Cancelar
                     </Button>

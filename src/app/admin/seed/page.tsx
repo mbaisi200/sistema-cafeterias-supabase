@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -8,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getSupabaseClient } from '@/lib/supabase';
-import { Database, CheckCircle, XCircle, Loader2, AlertTriangle, Building2, Trash2 } from 'lucide-react';
+import { Database, CheckCircle, XCircle, Loader2, AlertTriangle, Building2, Trash2, CalendarDays } from 'lucide-react';
 
 interface SeedStatus {
   step: string;
@@ -141,6 +143,16 @@ const TABELAS_PARA_LIMPAR = [
 ];
 
 export default function SeedPage() {
+  return (
+    <ProtectedRoute allowedRoles={['admin', 'master']}>
+      <MainLayout breadcrumbs={[{ title: 'Seed de Dados' }]}>
+        <SeedContent />
+      </MainLayout>
+    </ProtectedRoute>
+  );
+}
+
+function SeedContent() {
   const [loading, setLoading] = useState(false);
   const [loadingEmpresas, setLoadingEmpresas] = useState(true);
   const [empresas, setEmpresas] = useState<Empresa[]>([]);
@@ -149,6 +161,8 @@ export default function SeedPage() {
   const [progress, setProgress] = useState(0);
   const [statusList, setStatusList] = useState<SeedStatus[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
+  const [dataInicio, setDataInicio] = useState('2026-01-01');
+  const [dataFim, setDataFim] = useState('2026-03-31');
 
   const addLog = (message: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
@@ -216,10 +230,16 @@ export default function SeedPage() {
     return String(Math.floor(1000 + Math.random() * 9000));
   };
 
-  // Gera datas aleatórias entre Janeiro e Fevereiro de 2026
-  const gerarDataAleatoria = (meses: number = 2) => {
-    const inicio = new Date(2026, 0, 1); // 1 de Janeiro de 2026
-    const fim = new Date(2026, meses, 0); // Último dia de Fevereiro de 2026
+  // Gera datas aleatórias entre dataInicio e dataFim
+  const gerarDataAleatoria = (dtInicio: Date, dtFim: Date) => {
+    const inicio = new Date(dtInicio);
+    inicio.setHours(7, 0, 0, 0);
+    const fim = new Date(dtFim);
+    fim.setHours(23, 59, 59, 999);
+    
+    if (fim.getTime() <= inicio.getTime()) {
+      return inicio;
+    }
     
     const diferencaMs = fim.getTime() - inicio.getTime();
     const randomMs = Math.floor(Math.random() * diferencaMs);
@@ -265,6 +285,11 @@ export default function SeedPage() {
     };
 
     try {
+      // Converter datas do período
+      const periodoInicio = new Date(dataInicio + 'T00:00:00');
+      const periodoFim = new Date(dataFim + 'T23:59:59');
+      addLog(`📅 Período selecionado: ${dataInicio} a ${dataFim}`);
+
       // ==========================================
       // 0. LIMPAR DADOS EXISTENTES
       // ==========================================
@@ -457,7 +482,7 @@ export default function SeedPage() {
       const pagamentosData: {empresa_id: string, venda_id: string, forma_pagamento: string, valor: number, criado_em: string}[] = [];
 
       for (let i = 0; i < NUM_VENDAS; i++) {
-        const dataVenda = gerarDataAleatoria();
+        const dataVenda = gerarDataAleatoria(periodoInicio, periodoFim);
         const tipoVenda = TIPOS_VENDA[Math.floor(Math.random() * TIPOS_VENDA.length)];
         const funcionarioId = funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)];
         
@@ -583,7 +608,7 @@ export default function SeedPage() {
           preco_unitario: produto.custo,
           observacao: tipo === 'entrada' ? 'Reposição de estoque' : tipo === 'saida' ? 'Saída manual' : 'Ajuste de inventário',
           usuario_id: funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)],
-          criado_em: gerarDataAleatoria().toISOString()
+          criado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString()
         };
       });
 
@@ -606,7 +631,7 @@ export default function SeedPage() {
       const contasData: {empresa_id: string, tipo: string, descricao: string, valor: number, vencimento: string, categoria: string, fornecedor?: string, status: string, data_pagamento?: string, valor_pago?: number, forma_pagamento?: string, criado_em: string, atualizado_em: string}[] = [];
 
       for (let i = 0; i < 25; i++) {
-        const vencimento = gerarDataAleatoria();
+        const vencimento = gerarDataAleatoria(periodoInicio, periodoFim);
         const status = Math.random() > 0.4 ? 'pago' : 'pendente';
 
         contasData.push({
@@ -621,13 +646,13 @@ export default function SeedPage() {
           data_pagamento: status === 'pago' ? new Date(vencimento.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
           valor_pago: status === 'pago' ? Math.floor(Math.random() * 3000) + 200 : undefined,
           forma_pagamento: status === 'pago' ? 'pix' : undefined,
-          criado_em: gerarDataAleatoria().toISOString(),
-          atualizado_em: gerarDataAleatoria().toISOString()
+          criado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString(),
+          atualizado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString()
         });
       }
 
       for (let i = 0; i < 15; i++) {
-        const vencimento = gerarDataAleatoria();
+        const vencimento = gerarDataAleatoria(periodoInicio, periodoFim);
         const status = Math.random() > 0.4 ? 'pago' : 'pendente';
 
         contasData.push({
@@ -641,8 +666,8 @@ export default function SeedPage() {
           data_pagamento: status === 'pago' ? vencimento.toISOString() : undefined,
           valor_pago: status === 'pago' ? Math.floor(Math.random() * 5000) + 500 : undefined,
           forma_pagamento: status === 'pago' ? 'pix' : undefined,
-          criado_em: gerarDataAleatoria().toISOString(),
-          atualizado_em: gerarDataAleatoria().toISOString()
+          criado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString(),
+          atualizado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString()
         });
       }
 
@@ -666,7 +691,7 @@ export default function SeedPage() {
       const movimentacoesCaixaData: {caixa_id: string, empresa_id: string, tipo: string, valor: number, forma_pagamento: string, descricao: string, usuario_id: string, usuario_nome: string, criado_em: string}[] = [];
 
       for (let i = 0; i < 20; i++) {
-        const dataAbertura = gerarDataAleatoria();
+        const dataAbertura = gerarDataAleatoria(periodoInicio, periodoFim);
         const dataFechamento = new Date(dataAbertura.getTime() + 8 * 60 * 60 * 1000);
         const valorInicial = Math.floor(Math.random() * 300) + 100;
         const totalVendas = Math.floor(Math.random() * 3000) + 500;
@@ -764,7 +789,7 @@ export default function SeedPage() {
         acao: acoes[Math.floor(Math.random() * acoes.length)],
         detalhes: 'Ação realizada automaticamente via seed',
         tipo: ['venda', 'produto', 'estoque', 'funcionario', 'financeiro', 'outro'][Math.floor(Math.random() * 6)],
-        data_hora: gerarDataAleatoria().toISOString()
+        data_hora: gerarDataAleatoria(periodoInicio, periodoFim).toISOString()
       }));
 
       const { error: logsError } = await supabase
@@ -862,6 +887,41 @@ export default function SeedPage() {
             )}
           </div>
 
+          {/* Período de dados */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4" />
+              Período dos Dados
+            </Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label htmlFor="dataInicio" className="text-sm text-muted-foreground">Data Início</Label>
+                <input
+                  id="dataInicio"
+                  type="date"
+                  value={dataInicio}
+                  onChange={(e) => setDataInicio(e.target.value)}
+                  disabled={loading}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor="dataFim" className="text-sm text-muted-foreground">Data Fim</Label>
+                <input
+                  id="dataFim"
+                  type="date"
+                  value={dataFim}
+                  onChange={(e) => setDataFim(e.target.value)}
+                  disabled={loading}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+            </div>
+            {dataInicio && dataFim && new Date(dataFim) <= new Date(dataInicio) && (
+              <p className="text-sm text-red-500">A data fim deve ser posterior à data início.</p>
+            )}
+          </div>
+
           {/* Status da empresa selecionada */}
           {empresaId && (
             <div className="flex items-center gap-2 p-4 bg-green-50 rounded-lg border border-green-200">
@@ -907,7 +967,7 @@ export default function SeedPage() {
           {/* Botão de executar */}
           <Button
             onClick={executarSeed}
-            disabled={loading || !empresaId || empresas.length === 0}
+            disabled={loading || !empresaId || empresas.length === 0 || !dataInicio || !dataFim || new Date(dataFim) <= new Date(dataInicio)}
             className="w-full h-12 text-lg bg-orange-600 hover:bg-orange-700"
             size="lg"
           >
@@ -985,7 +1045,7 @@ export default function SeedPage() {
             </div>
           </div>
           <p className="text-center mt-4 text-sm text-muted-foreground">
-            <strong>Total: ~550+ lançamentos</strong> com dados de Janeiro e Fevereiro de 2026
+            <strong>Total: ~550+ lançamentos</strong> distribuídos no período selecionado
           </p>
         </CardContent>
       </Card>

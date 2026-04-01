@@ -54,9 +54,9 @@ interface MenuItem {
 const masterMenuItems: MenuItem[] = [
   { title: 'Dashboard', url: '/master/dashboard', icon: LayoutDashboard },
   { title: 'Clientes', url: '/master/clientes', icon: Users },
-  { title: 'Consumo de Dados', url: '/master/consumo-dados', icon: Database },
+  { title: 'Popular Dados', url: '/admin/seed', icon: Database },
+  { title: 'Consumo de Dados', url: '/master/consumo-dados', icon: BarChart3 },
   { title: 'Integrações', url: '/master/integracoes', icon: Plug },
-  { title: 'Métricas', url: '/master/metricas', icon: BarChart3 },
   { title: 'Configurações', url: '/master/configuracoes', icon: Coffee },
 ];
 

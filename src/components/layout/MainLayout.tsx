@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/layout/AppSidebar';
 import { Separator } from '@/components/ui/separator';
@@ -19,8 +20,10 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children, breadcrumbs = [] }: MainLayoutProps) {
+  const pathname = usePathname();
+
   return (
-    <SidebarProvider>
+    <SidebarProvider defaultOpen={true}>
       <AppSidebar />
       <SidebarInset>
         <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
@@ -49,7 +52,7 @@ export function MainLayout({ children, breadcrumbs = [] }: MainLayoutProps) {
             </Breadcrumb>
           )}
         </header>
-        <main className="flex-1 overflow-auto p-4 md:p-6">
+        <main key={pathname} className="flex-1 overflow-auto p-4 md:p-6">
           {children}
         </main>
       </SidebarInset>

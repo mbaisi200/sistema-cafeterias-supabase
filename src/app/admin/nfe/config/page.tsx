@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { useNFeConfig } from '@/hooks/useNFE';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -161,20 +163,25 @@ export default function NFeConfigPage() {
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Link href="/admin/cupons-nfes">
-          <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Settings className="h-7 w-7" />
-            Configuração NF-e
-          </h1>
-          <p className="text-muted-foreground text-sm">Configure os dados para emissão de Notas Fiscais Eletrônicas (Modelo 55)</p>
-        </div>
-      </div>
+    <ProtectedRoute allowedRoles={['admin', 'master']}>
+      <MainLayout breadcrumbs={[
+        { title: 'Cupons e NF-es', href: '/admin/cupons-nfes' },
+        { title: 'Configuração NF-e' },
+      ]}>
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex items-center gap-4">
+            <Link href="/admin/cupons-nfes">
+              <Button variant="ghost" size="icon"><ArrowLeft className="h-5 w-5" /></Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Settings className="h-7 w-7" />
+                Configuração NF-e
+              </h1>
+              <p className="text-muted-foreground text-sm">Configure os dados para emissão de Notas Fiscais Eletrônicas (Modelo 55)</p>
+            </div>
+          </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-12">
@@ -453,6 +460,8 @@ export default function NFeConfigPage() {
           </div>
         </div>
       )}
-    </div>
+        </div>
+      </MainLayout>
+    </ProtectedRoute>
   );
 }

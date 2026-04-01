@@ -1240,19 +1240,25 @@ export function useCaixa() {
           .in('id', vendaIds)
           .order('criado_em', { ascending: true });
 
-        if (!vendasError && vendas) {
-          // Buscar itens de cada venda
-          for (const venda of vendas) {
-            const { data: itens } = await supabase
-              .from('itens_venda')
-              .select('*')
-              .eq('venda_id', venda.id);
+        if (!vendasError && vendas && vendas.length > 0) {
+          // Fetch ALL items in a single query
+          const { data: todosItens } = await supabase
+            .from('itens_venda')
+            .select('*')
+            .in('venda_id', vendaIds);
 
-            vendasDetalhadas.push({
-              ...venda,
-              itens: itens || [],
-            });
-          }
+          // Group items by venda_id
+          const itensMap = new Map<string, any[]>();
+          (todosItens || []).forEach(item => {
+            const existing = itensMap.get(item.venda_id) || [];
+            existing.push(item);
+            itensMap.set(item.venda_id, existing);
+          });
+
+          vendasDetalhadas = vendas.map(venda => ({
+            ...venda,
+            itens: itensMap.get(venda.id) || [],
+          }));
         }
       }
 

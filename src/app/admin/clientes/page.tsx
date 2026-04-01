@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -256,21 +258,23 @@ export default function ClientesPage() {
   const labelIE = indicadorIE === '2' ? 'Isento' : indicadorIE === '1' ? 'Contribuinte ICMS' : 'Não Contribuinte';
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Users className="h-7 w-7" />
-            Clientes
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Cadastro de clientes para emissão de NF-e ({clientes.length} cliente{clientes.length !== 1 ? 's' : ''})
-          </p>
-        </div>
-        <Button onClick={handleNovo} className="gap-2">
-          <Plus className="h-4 w-4" /> Novo Cliente
-        </Button>
-      </div>
+    <ProtectedRoute allowedRoles={['admin', 'master']}>
+      <MainLayout breadcrumbs={[{ title: 'Clientes', href: '/admin/clientes' }]}>
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Users className="h-7 w-7" />
+                Clientes
+              </h1>
+              <p className="text-muted-foreground text-sm mt-1">
+                Cadastro de clientes para emissão de NF-e ({clientes.length} cliente{clientes.length !== 1 ? 's' : ''})
+              </p>
+            </div>
+            <Button onClick={handleNovo} className="gap-2">
+              <Plus className="h-4 w-4" /> Novo Cliente
+            </Button>
+          </div>
 
       {/* Busca */}
       <Card>
@@ -391,7 +395,7 @@ export default function ClientesPage() {
 
       {/* Dialog Criar/Editar */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               {editando ? <Pencil className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
@@ -400,8 +404,8 @@ export default function ClientesPage() {
           </DialogHeader>
 
           <div className="space-y-6 py-2">
-            {/* Tipo + CNPJ/CPF + Nome */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Tipo + CPF/CNPJ */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label>Tipo *</Label>
                 <Select value={tipoPessoa} onValueChange={setTipoPessoa}>
@@ -421,6 +425,9 @@ export default function ClientesPage() {
                   maxLength={tipoPessoa === '1' ? 18 : 14}
                 />
               </div>
+            </div>
+            {/* Razão Social / Nome Completo */}
+            <div className="grid grid-cols-1 gap-4">
               <div>
                 <Label>Razão Social / Nome Completo *</Label>
                 <Input
@@ -548,6 +555,8 @@ export default function ClientesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+        </div>
+      </MainLayout>
+    </ProtectedRoute>
   );
 }

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -10,6 +12,13 @@ import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   AlertCircle, 
   CheckCircle2, 
@@ -35,6 +44,10 @@ interface IFoodConfig {
   clientId: string;
   clientSecret: string;
   merchantId: string;
+  apiEnvironment: 'production' | 'sandbox';
+  grantType: 'client_credentials' | 'authorization_code';
+  callbackUrl: string;
+  webhookSignatureKey: string;
   sincronizarProdutos: boolean;
   sincronizarEstoque: boolean;
   sincronizarPrecos: boolean;
@@ -68,6 +81,10 @@ function IFoodIntegracaoContent() {
     clientId: '',
     clientSecret: '',
     merchantId: '',
+    apiEnvironment: 'sandbox',
+    grantType: 'client_credentials',
+    callbackUrl: '',
+    webhookSignatureKey: '',
     sincronizarProdutos: true,
     sincronizarEstoque: true,
     sincronizarPrecos: true,
@@ -114,6 +131,10 @@ function IFoodIntegracaoContent() {
           clientId: configData.client_id || '',
           clientSecret: configData.client_secret || '',
           merchantId: configData.merchant_id || '',
+          apiEnvironment: configData.api_environment || 'sandbox',
+          grantType: configData.grant_type || 'client_credentials',
+          callbackUrl: configData.callback_url || '',
+          webhookSignatureKey: configData.webhook_signature_key || '',
           sincronizarProdutos: configData.sincronizar_produtos ?? true,
           sincronizarEstoque: configData.sincronizar_estoque ?? true,
           sincronizarPrecos: configData.sincronizar_precos ?? true,
@@ -132,6 +153,10 @@ function IFoodIntegracaoContent() {
           clientId: '',
           clientSecret: '',
           merchantId: '',
+          apiEnvironment: 'sandbox',
+          grantType: 'client_credentials',
+          callbackUrl: '',
+          webhookSignatureKey: '',
           sincronizarProdutos: true,
           sincronizarEstoque: true,
           sincronizarPrecos: true,
@@ -202,6 +227,10 @@ function IFoodIntegracaoContent() {
         client_id: config.clientId,
         client_secret: config.clientSecret,
         merchant_id: config.merchantId,
+        api_environment: config.apiEnvironment,
+        grant_type: config.grantType,
+        callback_url: config.callbackUrl,
+        webhook_signature_key: config.webhookSignatureKey,
         sincronizar_produtos: config.sincronizarProdutos,
         sincronizar_estoque: config.sincronizarEstoque,
         sincronizar_precos: config.sincronizarPrecos,
@@ -378,6 +407,85 @@ function IFoodIntegracaoContent() {
                   onChange={(e) => setConfig(prev => ({ ...prev, merchantId: e.target.value }))}
                   placeholder="ID do seu estabelecimento no iFood"
                 />
+              </div>
+
+              <Separator />
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label>Ambiente da API</Label>
+                  <Select
+                    value={config.apiEnvironment}
+                    onValueChange={(value) => setConfig(prev => ({ ...prev, apiEnvironment: value as 'production' | 'sandbox' }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="sandbox">Sandbox (Teste)</SelectItem>
+                      <SelectItem value="production">Produção</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Use sandbox para desenvolvimento e testes</p>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tipo de Concessão (Grant Type)</Label>
+                  <Select
+                    value={config.grantType}
+                    onValueChange={(value) => setConfig(prev => ({ ...prev, grantType: value as 'client_credentials' | 'authorization_code' }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="client_credentials">Client Credentials</SelectItem>
+                      <SelectItem value="authorization_code">Authorization Code</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">Define o fluxo de autenticação OAuth</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="callbackUrl">URL de Callback (OAuth)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="callbackUrl"
+                    value={config.callbackUrl}
+                    onChange={(e) => setConfig(prev => ({ ...prev, callbackUrl: e.target.value }))}
+                    placeholder={`${typeof window !== 'undefined' ? window.location.origin : ''}/api/ifood/callback`}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="shrink-0"
+                    onClick={() => {
+                      const url = `${typeof window !== 'undefined' ? window.location.origin : ''}/api/ifood/callback`;
+                      setConfig(prev => ({ ...prev, callbackUrl: url }));
+                    }}
+                    title="Auto-preencher com URL padrão"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  URL de retorno após autorização OAuth. Configure no portal do iFood.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="webhookSignatureKey">Chave de Assinatura do Webhook</Label>
+                <Input
+                  id="webhookSignatureKey"
+                  type="password"
+                  value={config.webhookSignatureKey}
+                  onChange={(e) => setConfig(prev => ({ ...prev, webhookSignatureKey: e.target.value }))}
+                  placeholder="Chave para verificação de autenticidade dos webhooks"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Usada para validar que os webhooks recebidos são realmente do iFood
+                </p>
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -651,12 +759,13 @@ function IFoodIntegracaoContent() {
 
 export default function IFoodIntegracaoPage() {
   return (
-    <Suspense fallback={
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="h-8 w-8 animate-spin text-red-500" />
-      </div>
-    }>
-      <IFoodIntegracaoContent />
-    </Suspense>
+    <ProtectedRoute allowedRoles={['admin', 'master']}>
+      <MainLayout breadcrumbs={[
+        { title: 'Integrações', href: '/admin/integracoes' },
+        { title: 'iFood' },
+      ]}>
+        <IFoodIntegracaoContent />
+      </MainLayout>
+    </ProtectedRoute>
   );
 }
