@@ -19,6 +19,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -133,6 +134,11 @@ export default function PDVPage() {
     telefone: string;
   } | null>(null);
 
+  // Mobile responsiveness states
+  const [isMobile, setIsMobile] = useState(false);
+  const [showCartMobile, setShowCartMobile] = useState(false);
+  const [showSidePanelMobile, setShowSidePanelMobile] = useState(false);
+
   // Carregar dados da empresa
   useEffect(() => {
     const carregarEmpresa = async () => {
@@ -177,6 +183,14 @@ export default function PDVPage() {
 
     carregarEmpresa();
   }, [empresaId]);
+
+  // Mobile detection via media query
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const loading = loadingProdutos || loadingCategorias || loadingMesas || loadingComandas;
 
@@ -944,15 +958,15 @@ export default function PDVPage() {
           </div>
           
           <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${caixaAberto ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} shadow-sm`}>
+            <div className={`flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-full text-xs font-semibold ${caixaAberto ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} shadow-sm`}>
               <CheckCircle className="h-3.5 w-3.5" />
-              {caixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'}
+              <span className="hidden sm:inline">{caixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'}</span>
             </div>
 
             {!caixaAberto ? (
               <Button
                 size="sm"
-                className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm"
+                className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm hidden sm:inline-flex"
                 onClick={() => abrirCaixa(0)}
               >
                 Abrir Caixa
@@ -960,14 +974,14 @@ export default function PDVPage() {
             ) : (
               <Button
                 size="sm"
-                className="h-7 text-xs bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm"
+                className="h-7 text-xs bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm hidden sm:inline-flex"
                 onClick={() => fecharCaixa(caixaAberto.valor_atual || 0)}
               >
                 Fechar Caixa
               </Button>
             )}
 
-            <Badge className="bg-blue-100 text-blue-700 px-3 py-1 text-xs font-bold shadow-sm">
+            <Badge className="bg-blue-100 text-blue-700 px-2 sm:px-3 py-1 text-xs font-bold shadow-sm">
               {getTipoVendaLabel()}
             </Badge>
 
@@ -977,7 +991,7 @@ export default function PDVPage() {
               className="gap-1 h-7 text-xs bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm"
             >
               <LogOut className="h-3.5 w-3.5" />
-              SAIR
+              <span className="hidden sm:inline">SAIR</span>
             </Button>
           </div>
         </header>
@@ -1021,13 +1035,29 @@ export default function PDVPage() {
             <Truck className="h-3.5 w-3.5 mr-1" />
             Delivery
           </Button>
+
+          {/* Mobile trigger for mesas/comandas side panel */}
+          {isMobile && (tipoVenda === 'mesa' || tipoVenda === 'comanda') && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs font-bold transition-all whitespace-nowrap border border-orange-300 text-orange-600 hover:bg-orange-50 lg:hidden"
+              onClick={() => setShowSidePanelMobile(true)}
+            >
+              {tipoVenda === 'mesa' ? (
+                <><UtensilsCrossed className="h-3.5 w-3.5 mr-1" /> Mesas</>
+              ) : (
+                <><ClipboardList className="h-3.5 w-3.5 mr-1" /> Comandas</>
+              )}
+            </Button>
+          )}
         </div>
 
         {/* CONTEÚDO PRINCIPAL */}
         <div className="flex-1 flex overflow-hidden gap-2 p-2">
           
-          {/* COLUNA ESQUERDA - MESAS (se selecionado) */}
-          {tipoVenda === 'mesa' && (
+          {/* COLUNA ESQUERDA - MESAS (se selecionado) - DESKTOP ONLY */}
+          {!isMobile && tipoVenda === 'mesa' && (
             <div className="w-40 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden">
               <div className="bg-blue-50 border-b border-blue-100 px-3 py-2 text-blue-700 font-bold text-xs">
                 MESAS
@@ -1059,8 +1089,8 @@ export default function PDVPage() {
             </div>
           )}
 
-          {/* COLUNA ESQUERDA - COMANDAS (se selecionado) */}
-          {tipoVenda === 'comanda' && (
+          {/* COLUNA ESQUERDA - COMANDAS (se selecionado) - DESKTOP ONLY */}
+          {!isMobile && tipoVenda === 'comanda' && (
             <div className="w-48 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden">
               <div className="bg-blue-50 border-b border-blue-100 px-4 py-3 flex items-center justify-between">
                 <span className="text-blue-700 font-bold">COMANDAS</span>
@@ -1189,7 +1219,8 @@ export default function PDVPage() {
             </div>
           </div>
 
-          {/* COLUNA DIREITA - CARRINHO */}
+          {/* COLUNA DIREITA - CARRINHO - DESKTOP ONLY */}
+          {!isMobile && (
           <div className="w-64 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden h-full">
             
             {/* HEADER CARRINHO */}
@@ -1321,7 +1352,245 @@ export default function PDVPage() {
               )}
             </div>
           </div>
+          )}
         </div>
+
+        {/* MOBILE FLOATING CART BUTTON */}
+        {isMobile && itensPedido.length > 0 && (
+          <button
+            onClick={() => setShowCartMobile(true)}
+            className="fixed bottom-4 right-4 z-50 bg-green-600 text-white rounded-full shadow-2xl flex items-center gap-2 px-4 py-3 font-bold text-sm hover:bg-green-700 active:scale-95 transition-all border-2 border-green-400"
+          >
+            <ShoppingCart className="h-5 w-5" />
+            <span>{itensPedido.length}</span>
+            <span className="bg-white/20 rounded-full px-2 py-0.5 text-xs">
+              R$ {total.toFixed(2)}
+            </span>
+          </button>
+        )}
+
+        {/* MOBILE CART SHEET */}
+        <Sheet open={showCartMobile && isMobile} onOpenChange={setShowCartMobile}>
+          <SheetContent side="right" className="w-full sm:w-96 p-0 flex flex-col">
+            <SheetHeader className="bg-blue-50 border-b border-blue-100 px-4 py-3 shrink-0">
+              <SheetTitle className="flex items-center gap-2 text-sm font-bold text-gray-800">
+                <ShoppingCart className="h-4 w-4 text-blue-600" />
+                PEDIDO
+                {itensPedido.length > 0 && (
+                  <Badge className="bg-blue-100 text-blue-700 font-bold text-xs px-2 py-0.5">
+                    {itensPedido.length}
+                  </Badge>
+                )}
+              </SheetTitle>
+            </SheetHeader>
+
+            <div className="px-4 py-2 border-b border-blue-100 bg-white shrink-0">
+              <p className="text-xs text-gray-600 font-semibold">
+                {getTipoVendaLabel()}
+                {tipoVenda === 'comanda' && comandaSelecionada && (
+                  <span className="ml-2 text-purple-600">
+                    - {comandaSelecionada.nomeCliente}
+                  </span>
+                )}
+              </p>
+              {tipoVenda === 'comanda' && !comandaSelecionada && (
+                <Button
+                  size="sm"
+                  className="w-full mt-2 bg-purple-600 hover:bg-purple-700"
+                  onClick={() => { setShowCartMobile(false); setDialogComanda(true); }}
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Criar Nova Comanda
+                </Button>
+              )}
+              {(tipoVenda === 'delivery' || tipoVenda === 'comanda') && itensPedido.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={imprimirComanda}
+                  className="w-full mt-2 border border-blue-200 text-blue-600 hover:bg-blue-50 font-bold"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Imprimir Comanda
+                </Button>
+              )}
+            </div>
+
+            <ScrollArea className="flex-1 p-3">
+              {itensPedido.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                  <ShoppingCart className="h-12 w-12 mb-2 opacity-20" />
+                  <p className="font-bold text-gray-600 text-sm">Carrinho vazio</p>
+                  <p className="text-xs text-gray-500 mt-1">Clique nos produtos</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {(itensPedido || []).map((item, index) => (
+                    <div key={item.id} className="bg-blue-50 rounded-lg p-2 border border-blue-100 hover:border-blue-300 transition-all shadow-sm">
+                      <div className="flex justify-between items-start mb-1">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded-full shrink-0">#{index + 1}</span>
+                            <p className="font-bold text-gray-800 text-sm truncate">{item.nome}</p>
+                          </div>
+                        </div>
+                        <button
+                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-1 rounded transition-all shrink-0"
+                          onClick={() => removerItem(item.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            className="w-7 h-7 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
+                            onClick={() => alterarQtd(item.id, -1, item.quantidade)}
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </button>
+                          <span className="w-7 text-center font-bold text-base text-gray-800">{item.quantidade}</span>
+                          <button
+                            className="w-7 h-7 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
+                            onClick={() => alterarQtd(item.id, 1, item.quantidade)}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <p className="font-bold text-base text-green-600">
+                          R$ {(item.preco * item.quantidade).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+
+            <div className="p-3 border-t border-blue-100 space-y-1.5 bg-white shrink-0">
+              <div className="flex justify-between items-center">
+                <span className="text-sm font-bold text-gray-700">TOTAL:</span>
+                <span className="text-xl font-extrabold text-green-600">
+                  R$ {total.toFixed(2)}
+                </span>
+              </div>
+              <Button
+                className="w-full h-9 text-sm font-bold bg-green-600 hover:bg-green-700 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={itensPedido.length === 0 || processando || (tipoVenda === 'comanda' && !comandaSelecionada)}
+                onClick={() => { setShowCartMobile(false); setDialogPagamento(true); }}
+              >
+                <CreditCard className="h-4 w-4 mr-1.5" />
+                {processando ? 'Processando...' : 'FINALIZAR VENDA'}
+              </Button>
+              {itensPedido.length > 0 && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full border border-red-300 text-red-600 hover:bg-red-50 font-bold h-7 text-xs"
+                  onClick={limparPedido}
+                >
+                  <Trash2 className="h-3 w-3 mr-1" />
+                  Limpar Carrinho
+                </Button>
+              )}
+            </div>
+          </SheetContent>
+        </Sheet>
+
+        {/* MOBILE SIDE PANEL SHEET (MESAS / COMANDAS) */}
+        <Sheet open={showSidePanelMobile && isMobile && (tipoVenda === 'mesa' || tipoVenda === 'comanda')} onOpenChange={setShowSidePanelMobile}>
+          <SheetContent side="left" className="w-72 p-0 flex flex-col">
+            {tipoVenda === 'mesa' && (
+              <>
+                <SheetHeader className="bg-blue-50 border-b border-blue-100 px-4 py-3 shrink-0">
+                  <SheetTitle className="text-blue-700 font-bold text-sm">MESAS</SheetTitle>
+                </SheetHeader>
+                <ScrollArea className="flex-1 p-3">
+                  <div className="space-y-1.5">
+                    {mesasOrdenadas.map(mesa => (
+                      <button
+                        key={mesa.id}
+                        onClick={() => { selecionarMesa(mesa.id, mesa.numero, mesa.status); setShowSidePanelMobile(false); }}
+                        className={`w-full p-2 rounded-lg font-bold transition-all transform hover:scale-105 ${
+                          mesaSelecionada === mesa.id
+                            ? 'bg-blue-600 text-white shadow-md'
+                            : mesa.status === 'livre'
+                            ? 'bg-green-50 text-green-700 hover:shadow-sm'
+                            : 'bg-red-50 text-red-700 hover:shadow-sm'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm">Mesa {mesa.numero}</span>
+                          <Badge className={`text-[10px] font-bold ${mesa.status === 'livre' ? 'bg-green-500' : 'bg-red-500'} text-white`}>
+                            {mesa.status === 'livre' ? 'Livre' : 'Ocupada'}
+                          </Badge>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </>
+            )}
+            {tipoVenda === 'comanda' && (
+              <>
+                <SheetHeader className="bg-blue-50 border-b border-blue-100 px-4 py-3 shrink-0">
+                  <div className="flex items-center justify-between w-full">
+                    <SheetTitle className="text-blue-700 font-bold text-sm">COMANDAS</SheetTitle>
+                    <Button
+                      size="sm"
+                      className="h-7 bg-green-600 hover:bg-green-700"
+                      onClick={() => { setShowSidePanelMobile(false); setDialogComanda(true); }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </SheetHeader>
+                <ScrollArea className="flex-1 p-3">
+                  {comandas.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400">
+                      <ClipboardList className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">Nenhuma comanda aberta</p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="mt-3"
+                        onClick={() => { setShowSidePanelMobile(false); setDialogComanda(true); }}
+                      >
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Nova Comanda
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {comandas.map(comanda => (
+                        <button
+                          key={comanda.id}
+                          onClick={() => { selecionarComanda(comanda); setShowSidePanelMobile(false); }}
+                          className={`w-full p-3 rounded-lg font-bold transition-all transform hover:scale-105 text-left ${
+                            comandaSelecionada?.id === comanda.id
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'bg-purple-50 text-purple-700 hover:shadow-sm'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-lg">#{comanda.numero}</span>
+                            <Badge className="bg-purple-500 text-white text-xs">
+                              R$ {(comanda.total || 0).toFixed(2)}
+                            </Badge>
+                          </div>
+                          <p className="text-sm truncate opacity-80">{comanda.nomeCliente}</p>
+                          <p className="text-xs opacity-60">
+                            {comanda.itens?.length || 0} itens
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </ScrollArea>
+              </>
+            )}
+          </SheetContent>
+        </Sheet>
       </div>
 
       {/* DIALOG NOVA COMANDA */}

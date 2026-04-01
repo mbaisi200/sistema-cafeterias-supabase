@@ -52,6 +52,20 @@ export function useProdutos() {
         ifoodProductId: p.ifood_product_id,
         isCombo: p.is_combo,
         comboPreco: p.combo_preco,
+        unidadesPorCaixa: p.unidades_por_caixa,
+        precoUnidade: p.preco_unidade,
+        // NFE/NFCe fiscal fields
+        ncm: p.ncm,
+        cest: p.cest,
+        cfop: p.cfop,
+        cst: p.cst,
+        csosn: p.csosn,
+        origem: p.origem,
+        unidadeTributavel: p.unidade_tributavel,
+        icms: p.icms,
+        ipiAliquota: p.ipi_aliquota,
+        pisAliquota: p.pis_aliquota,
+        cofinsAliquota: p.cofins_aliquota,
         criadoEm: new Date(p.criado_em),
         atualizadoEm: new Date(p.atualizado_em),
       })) || []);
@@ -85,26 +99,46 @@ export function useProdutos() {
   const adicionarProduto = async (dados: any) => {
     if (!empresaId) throw new Error('Empresa não definida');
 
+    const insertData: any = {
+      empresa_id: empresaId,
+      nome: dados.nome,
+      descricao: dados.descricao || null,
+      codigo: dados.codigo || null,
+      codigo_barras: dados.codigoBarras || null,
+      preco: dados.preco || 0,
+      custo: dados.custo || 0,
+      unidade: dados.unidade || 'un',
+      categoria_id: dados.categoriaId || null,
+      estoque_atual: dados.estoqueAtual || 0,
+      estoque_minimo: dados.estoqueMinimo || 0,
+      destaque: dados.destaque || false,
+      disponivel_ifood: dados.disponivelIfood || false,
+      ifood_external_code: dados.ifoodExternalCode || null,
+      ifood_sync_status: dados.ifoodSyncStatus || 'not_synced',
+      ativo: true,
+      // Unidades por caixa e preço unidade
+      unidades_por_caixa: dados.unidadesPorCaixa || 0,
+      preco_unidade: dados.precoUnidade || 0,
+      // Combo
+      is_combo: dados.isCombo || false,
+      combo_preco: dados.comboPreco || 0,
+      // NFE/NFCe fiscal fields
+      ncm: dados.ncm || '00000000',
+      cest: dados.cest || '',
+      cfop: dados.cfop || '5102',
+      cst: dados.cst || '00',
+      csosn: dados.csosn || '102',
+      origem: dados.origem || '0',
+      unidade_tributavel: dados.unidadeTributavel || 'UN',
+      icms: dados.icms || 0,
+      ipi_aliquota: dados.ipiAliquota || 0,
+      pis_aliquota: dados.pisAliquota || 0,
+      cofins_aliquota: dados.cofinsAliquota || 0,
+    };
+
     const { data, error } = await supabase
       .from('produtos')
-      .insert({
-        empresa_id: empresaId,
-        nome: dados.nome,
-        descricao: dados.descricao || null,
-        codigo: dados.codigo || null,
-        codigo_barras: dados.codigoBarras || null,
-        preco: dados.preco || 0,
-        custo: dados.custo || 0,
-        unidade: dados.unidade || 'un',
-        categoria_id: dados.categoriaId || null,
-        estoque_atual: dados.estoqueAtual || 0,
-        estoque_minimo: dados.estoqueMinimo || 0,
-        destaque: dados.destaque || false,
-        disponivel_ifood: dados.disponivelIfood || false,
-        ifood_external_code: dados.ifoodExternalCode || null,
-        ifood_sync_status: dados.ifoodSyncStatus || 'not_synced',
-        ativo: true,
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -130,7 +164,7 @@ export function useProdutos() {
     if (dados.estoqueMinimo !== undefined) updateData.estoque_minimo = dados.estoqueMinimo;
     if (dados.destaque !== undefined) updateData.destaque = dados.destaque;
 
-    // Campos de iFood (podem não existir na tabela se migration não foi executada)
+    // Campos de iFood
     if (dados.disponivelIfood !== undefined) updateData.disponivel_ifood = dados.disponivelIfood;
     if (dados.ifoodExternalCode !== undefined) updateData.ifood_external_code = dados.ifoodExternalCode;
     if (dados.ifoodSyncStatus !== undefined) updateData.ifood_sync_status = dados.ifoodSyncStatus;
@@ -139,6 +173,23 @@ export function useProdutos() {
     if (dados.isCombo !== undefined) updateData.is_combo = dados.isCombo;
     if (dados.comboPreco !== undefined) updateData.combo_preco = dados.comboPreco;
 
+    // Campos de Unidades
+    if (dados.unidadesPorCaixa !== undefined) updateData.unidades_por_caixa = dados.unidadesPorCaixa;
+    if (dados.precoUnidade !== undefined) updateData.preco_unidade = dados.precoUnidade;
+
+    // Campos NFE/NFCe
+    if (dados.ncm !== undefined) updateData.ncm = dados.ncm || '00000000';
+    if (dados.cest !== undefined) updateData.cest = dados.cest || '';
+    if (dados.cfop !== undefined) updateData.cfop = dados.cfop || '5102';
+    if (dados.cst !== undefined) updateData.cst = dados.cst || '00';
+    if (dados.csosn !== undefined) updateData.csosn = dados.csosn || '102';
+    if (dados.origem !== undefined) updateData.origem = dados.origem || '0';
+    if (dados.unidadeTributavel !== undefined) updateData.unidade_tributavel = dados.unidadeTributavel || 'UN';
+    if (dados.icms !== undefined) updateData.icms = dados.icms || 0;
+    if (dados.ipiAliquota !== undefined) updateData.ipi_aliquota = dados.ipiAliquota || 0;
+    if (dados.pisAliquota !== undefined) updateData.pis_aliquota = dados.pisAliquota || 0;
+    if (dados.cofinsAliquota !== undefined) updateData.cofins_aliquota = dados.cofinsAliquota || 0;
+
     // Atualizar todos os dados de uma vez
     const { error } = await supabase
       .from('produtos')
@@ -146,18 +197,24 @@ export function useProdutos() {
       .eq('id', id);
 
     if (error) {
-      // Se o erro for coluna de iFood não existente, tentar atualizar sem esses campos
-      if (error.message?.includes('disponivel_ifood') ||
-          error.message?.includes('ifood_external_code') ||
-          error.message?.includes('ifood_sync_status') ||
-          error.message?.includes('column') ||
-          error.message?.includes('does not exist')) {
-
-        // Remover campos de iFood e tentar novamente
+      // Se o erro for de coluna não existente, tentar remover campos problemáticos
+      if (error.message?.includes('column') || error.message?.includes('does not exist')) {
+        console.warn('Aviso: Coluna não encontrada no banco. Verifique se as migrations foram executadas. Erro:', error.message);
+        
+        // Remover campos que podem não existir e tentar novamente
+        const optionalFields = [
+          'disponivel_ifood', 'ifood_external_code', 'ifood_sync_status', 'ifood_product_id',
+          'is_combo', 'combo_preco', 'unidades_por_caixa', 'preco_unidade',
+          'ncm', 'cest', 'cfop', 'cst', 'csosn', 'origem', 'unidade_tributavel',
+          'icms', 'ipi_aliquota', 'pis_aliquota', 'cofins_aliquota', 'codigo_barras'
+        ];
+        
         const basicData = { ...updateData };
-        delete basicData.disponivel_ifood;
-        delete basicData.ifood_external_code;
-        delete basicData.ifood_sync_status;
+        for (const field of optionalFields) {
+          if (error.message?.includes(field)) {
+            delete basicData[field];
+          }
+        }
 
         const { error: basicError } = await supabase
           .from('produtos')
@@ -165,7 +222,7 @@ export function useProdutos() {
           .eq('id', id);
 
         if (basicError) throw basicError;
-        console.warn('Aviso: Campos de iFood não atualizados (execute a migration SQL)');
+        console.warn('Aviso: Alguns campos não foram atualizados. Execute a migration SQL fix_produtos_campos.sql');
       } else {
         throw error;
       }
