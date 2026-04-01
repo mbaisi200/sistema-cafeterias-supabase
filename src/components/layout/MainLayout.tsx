@@ -52,7 +52,7 @@ export function MainLayout({ children, breadcrumbs = [] }: MainLayoutProps) {
             </Breadcrumb>
           )}
         </header>
-        <main key={pathname} className="flex-1 overflow-auto p-4 md:p-6">
+        <main key={pathname} className="flex-1 overflow-auto p-4 md:px-8 lg:px-10 md:py-6">
           {children}
         </main>
       </SidebarInset>

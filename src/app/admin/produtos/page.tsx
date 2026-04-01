@@ -407,7 +407,7 @@ export default function ProdutosPage() {
                   Novo Produto
                 </Button>
               </div>
-              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editandoProduto ? 'Editar Produto' : 'Cadastrar Produto'}</DialogTitle>
                   <DialogDescription>Preencha os dados do produto</DialogDescription>
@@ -593,7 +593,7 @@ export default function ProdutosPage() {
                         {/* Situação Tributária */}
                         <div>
                           <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Situação Tributária</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="cst">
                                 CST
@@ -640,6 +640,7 @@ export default function ProdutosPage() {
                                   <SelectItem value="8">8 - Nacional (sem similar)</SelectItem>
                                 </SelectContent>
                               </Select>
+                              <p className="text-xs text-muted-foreground">Origem da mercadoria (tabela IBGE)</p>
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor="unidadeTributavel">Unidade Tributável</Label>
@@ -665,6 +666,7 @@ export default function ProdutosPage() {
                                   <SelectItem value="FD">FD - Fardo</SelectItem>
                                 </SelectContent>
                               </Select>
+                              <p className="text-xs text-muted-foreground">Unidade de medida fiscal</p>
                             </div>
                           </div>
                         </div>
@@ -672,7 +674,7 @@ export default function ProdutosPage() {
                         {/* Alíquotas de Impostos */}
                         <div>
                           <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Alíquotas de Impostos (%)</h4>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                             <div className="space-y-2">
                               <Label htmlFor="icms" className="flex items-center gap-1">
                                 ICMS
