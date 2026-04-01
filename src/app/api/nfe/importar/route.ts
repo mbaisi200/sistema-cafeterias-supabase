@@ -30,41 +30,55 @@ export async function POST(request: NextRequest) {
 
     const resultado = {
       produtosCriados: 0,
+      produtosAtualizados: 0,
       estoqueAtualizado: 0,
       contaGerada: false,
       fornecedorCriado: false,
       fornecedorNome: '',
+      fornecedorId: null as string | null,
       erros: [] as string[],
+      detalhes: [] as { descricao: string; acao: string; status: string }[],
     };
 
     // ========================================
     // 1. CRIAR FORNECEDOR (se necessário e solicitado)
     // ========================================
+    let fornecedorId: string | null = null;
+
     if (opcoes.criarFornecedor && nfeData.emitente?.cnpj) {
       try {
-        // Verificar se já existe
+        // Verificar se já existe por CNPJ exato (apenas dígitos)
         const cnpjLimpo = nfeData.emitente.cnpj.replace(/\D/g, '');
         const { data: fornecedorExistente } = await supabase
           .from('fornecedores')
-          .select('id, nome')
+          .select('id, nome, cnpj')
           .eq('empresa_id', empresaId)
           .eq('ativo', true)
-          .ilike('cnpj', `%${cnpjLimpo}%`)
+          .eq('cnpj', cnpjLimpo)
           .limit(1)
           .single();
 
         if (fornecedorExistente) {
           resultado.fornecedorNome = fornecedorExistente.nome;
+          fornecedorId = fornecedorExistente.id;
+          resultado.fornecedorId = fornecedorId;
+          resultado.detalhes.push({
+            descricao: `Fornecedor: ${fornecedorExistente.nome}`,
+            acao: 'Já cadastrado (CNPJ encontrado)',
+            status: 'existente',
+          });
         } else {
-          // Criar fornecedor
+          // Criar fornecedor com todos os dados do emitente
           const { data: novoFornecedor, error: errorFornecedor } = await supabase
             .from('fornecedores')
             .insert({
               empresa_id: empresaId,
               nome: nfeData.emitente.nome || 'Fornecedor NFe',
               razao_social: nfeData.emitente.nome || null,
-              cnpj: nfeData.emitente.cnpj || null,
+              cnpj: nfeData.emitente.cnpj.replace(/\D/g, '') || null,
               inscricao_estadual: nfeData.emitente.ie || null,
+              email: nfeData.emitente.email || null,
+              telefone: nfeData.emitente.telefone || null,
               logradouro: nfeData.emitente.logradouro || null,
               numero: nfeData.emitente.numero || null,
               complemento: nfeData.emitente.complemento || null,
@@ -72,7 +86,6 @@ export async function POST(request: NextRequest) {
               cidade: nfeData.emitente.cidade || null,
               estado: nfeData.emitente.uf || null,
               cep: nfeData.emitente.cep || null,
-              telefone: nfeData.emitente.telefone || null,
               ativo: true,
             })
             .select('id, nome')
@@ -83,6 +96,13 @@ export async function POST(request: NextRequest) {
           } else if (novoFornecedor) {
             resultado.fornecedorCriado = true;
             resultado.fornecedorNome = novoFornecedor.nome;
+            fornecedorId = novoFornecedor.id;
+            resultado.fornecedorId = fornecedorId;
+            resultado.detalhes.push({
+              descricao: `Fornecedor: ${novoFornecedor.nome}`,
+              acao: `Novo cadastro criado (CNPJ: ${nfeData.emitente.cnpj})`,
+              status: 'criado',
+            });
           }
         }
       } catch (err: any) {
@@ -97,7 +117,7 @@ export async function POST(request: NextRequest) {
       for (const item of produtosImportar) {
         try {
           if (item.status === 'novo') {
-            // Criar novo produto
+            // ---- CRIAR NOVO PRODUTO COM TODOS OS DADOS FISCAIS ----
             const precoCusto = item.valorUnitario || 0;
             const markup = opcoes.markupPercentual || 30;
             const precoVenda = precoCusto * (1 + markup / 100);
@@ -117,21 +137,43 @@ export async function POST(request: NextRequest) {
                 estoque_atual: opcoes.atualizarEstoque ? (item.quantidade || 0) : 0,
                 estoque_minimo: 0,
                 ativo: true,
+                // === Campos Fiscais ===
+                ncm: item.ncm || '00000000',
+                cest: item.cest || null,
+                cfop: item.cfop || '5102',
+                cst: item.cst || item.csosn || '00',
+                csosn: item.csosn || null,
+                origem: item.origem || '0',
+                icms: item.icmsAliquota || 0,
+                unidade_tributavel: item.unidadeTributavel || item.unidade || 'UN',
+                ipi_aliquota: item.ipiAliquota || 0,
+                pis_aliquota: item.pisAliquota || 0,
+                cofins_aliquota: item.cofinsAliquota || 0,
               })
               .select('id')
               .single();
 
             if (errorProduto) {
               resultado.erros.push(`Erro ao criar produto "${item.descricao}": ${errorProduto.message}`);
+              resultado.detalhes.push({
+                descricao: item.descricao,
+                acao: `Erro: ${errorProduto.message}`,
+                status: 'erro',
+              });
               continue;
             }
 
             resultado.produtosCriados++;
+            resultado.detalhes.push({
+              descricao: item.descricao,
+              acao: `Novo produto criado (R$ ${precoVenda.toFixed(2)} com ${markup}% markup)`,
+              status: 'criado',
+            });
 
             // Registrar movimentação de estoque para produto novo
             if (opcoes.atualizarEstoque && item.quantidade > 0) {
               const qtd = item.quantidade;
-              await supabase.from('estoque_movimentos').insert({
+              const { error: errorEstoque } = await supabase.from('estoque_movimentos').insert({
                 empresa_id: empresaId,
                 produto_id: novoProduto!.id,
                 produto_nome: item.descricao,
@@ -141,22 +183,74 @@ export async function POST(request: NextRequest) {
                 tipo_entrada: 'unidade',
                 estoque_anterior: 0,
                 estoque_novo: qtd,
+                preco_unitario: precoCusto,
                 fornecedor: resultado.fornecedorNome || nfeData.emitente?.nome || null,
                 documento_ref: `NFe ${nfeData.numero}/${nfeData.serie}`,
-                observacao: 'Importação via NFe XML',
+                observacao: `Importação NFe ${nfeData.numero}/${nfeData.serie} - ${resultado.fornecedorNome || nfeData.emitente?.nome || ''}`,
                 criado_por: userId || null,
                 criado_por_nome: userName || null,
                 criado_em: new Date().toISOString(),
               });
-              resultado.estoqueAtualizado++;
+              if (!errorEstoque) {
+                resultado.estoqueAtualizado++;
+              }
             }
           } else if (item.status === 'cadastrado' && item.produtoId) {
-            // Produto já cadastrado - atualizar estoque
+            // ---- PRODUTO JÁ CADASTRADO - ATUALIZAR DADOS FISCAIS E ESTOQUE ----
+            const updateData: any = {
+              atualizado_em: new Date().toISOString(),
+            };
+
+            // Atualizar custo
+            if (item.valorUnitario) {
+              updateData.custo = item.valorUnitario;
+            }
+
+            // Atualizar campos fiscais se opção ativada
+            if (opcoes.atualizarDadosFiscais) {
+              if (item.ncm) updateData.ncm = item.ncm;
+              if (item.cest) updateData.cest = item.cest;
+              if (item.cfop) updateData.cfop = item.cfop;
+              if (item.cst) updateData.cst = item.cst;
+              if (item.csosn) updateData.csosn = item.csosn;
+              if (item.origem) updateData.origem = item.origem;
+              if (item.icmsAliquota) updateData.icms = item.icmsAliquota;
+              if (item.unidadeTributavel) updateData.unidade_tributavel = item.unidadeTributavel;
+              if (item.ipiAliquota) updateData.ipi_aliquota = item.ipiAliquota;
+              if (item.pisAliquota) updateData.pis_aliquota = item.pisAliquota;
+              if (item.cofinsAliquota) updateData.cofins_aliquota = item.cofinsAliquota;
+            }
+
+            // Atualizar EAN se o produto não tem e a NFe tem
+            if (item.ean) {
+              const { data: prodAtual } = await supabase
+                .from('produtos')
+                .select('codigo_barras')
+                .eq('id', item.produtoId)
+                .single();
+              if (!(prodAtual as any)?.codigo_barras && item.ean && item.ean !== 'SEM GTIN') {
+                updateData.codigo_barras = item.ean;
+              }
+            }
+
+            // Aplicar atualizações
+            if (Object.keys(updateData).length > 1) {
+              await supabase
+                .from('produtos')
+                .update(updateData)
+                .eq('id', item.produtoId);
+            }
+
+            const acoes: string[] = [];
+            if (opcoes.atualizarDadosFiscais) acoes.push('dados fiscais atualizados');
+            if (item.valorUnitario) acoes.push(`custo atualizado R$ ${item.valorUnitario.toFixed(2)}`);
+
+            // Atualizar estoque
             if (opcoes.atualizarEstoque && item.quantidade > 0) {
               // Buscar estoque atual
               const { data: produtoAtual } = await supabase
                 .from('produtos')
-                .select('estoque_atual, custo')
+                .select('estoque_atual')
                 .eq('id', item.produtoId)
                 .single();
 
@@ -167,11 +261,7 @@ export async function POST(request: NextRequest) {
               // Atualizar estoque do produto
               await supabase
                 .from('produtos')
-                .update({
-                  estoque_atual: estoqueNovo,
-                  custo: item.valorUnitario || (produtoAtual as any)?.custo,
-                  atualizado_em: new Date().toISOString(),
-                })
+                .update({ estoque_atual: estoqueNovo })
                 .eq('id', item.produtoId);
 
               // Registrar movimentação
@@ -185,19 +275,33 @@ export async function POST(request: NextRequest) {
                 tipo_entrada: 'unidade',
                 estoque_anterior: estoqueAnterior,
                 estoque_novo: estoqueNovo,
+                preco_unitario: item.valorUnitario || 0,
                 fornecedor: resultado.fornecedorNome || nfeData.emitente?.nome || null,
                 documento_ref: `NFe ${nfeData.numero}/${nfeData.serie}`,
-                observacao: 'Importação via NFe XML',
+                observacao: `Importação NFe ${nfeData.numero}/${nfeData.serie} - ${resultado.fornecedorNome || nfeData.emitente?.nome || ''}`,
                 criado_por: userId || null,
                 criado_por_nome: userName || null,
                 criado_em: new Date().toISOString(),
               });
 
               resultado.estoqueAtualizado++;
+              acoes.push(`estoque +${qtd} ${item.unidade || 'un'}`);
             }
+
+            resultado.produtosAtualizados++;
+            resultado.detalhes.push({
+              descricao: item.descricao,
+              acao: acoes.length > 0 ? acoes.join(', ') : 'Nenhuma alteração necessária',
+              status: 'atualizado',
+            });
           }
         } catch (err: any) {
           resultado.erros.push(`Erro ao processar produto "${item.descricao}": ${err.message}`);
+          resultado.detalhes.push({
+            descricao: item.descricao,
+            acao: `Erro: ${err.message}`,
+            status: 'erro',
+          });
         }
       }
     }
@@ -220,12 +324,18 @@ export async function POST(request: NextRequest) {
           categoria: 'Fornecedores',
           fornecedor: resultado.fornecedorNome || nfeData.emitente?.nome || null,
           status: 'pendente',
+          observacao_pagamento: `Importação automática - NFe ${nfeData.numero}/${nfeData.serie}${nfeData.chaveAcesso ? ` - Chave: ${nfeData.chaveAcesso}` : ''}`,
         });
 
         if (errorConta) {
           resultado.erros.push(`Erro ao gerar conta a pagar: ${errorConta.message}`);
         } else {
           resultado.contaGerada = true;
+          resultado.detalhes.push({
+            descricao: `Conta a Pagar - NFe ${nfeData.numero}/${nfeData.serie}`,
+            acao: `R$ ${nfeData.valorTotal.toFixed(2)} - Vencimento: ${new Date(vencimento).toLocaleDateString('pt-BR')}`,
+            status: 'criado',
+          });
         }
       } catch (err: any) {
         resultado.erros.push(`Erro ao gerar conta a pagar: ${err.message}`);

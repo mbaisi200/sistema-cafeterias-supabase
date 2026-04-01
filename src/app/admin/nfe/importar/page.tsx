@@ -64,6 +64,11 @@ import {
   Warehouse,
   CreditCard,
   Search,
+  Eye,
+  Info,
+  ShieldCheck,
+  FilePlus2,
+  RefreshCw,
 } from 'lucide-react';
 
 // =====================================================
@@ -94,6 +99,7 @@ export default function NFeImportarPage() {
   const [produtosImportacao, setProdutosImportacao] = useState<ProdutoImportacao[]>([]);
   const [dialogPreview, setDialogPreview] = useState(false);
   const [dialogSucesso, setDialogSucesso] = useState(false);
+  const [dialogDetalhes, setDialogDetalhes] = useState<number | null>(null);
   const [importando, setImportando] = useState(false);
   const [fileName, setFileName] = useState('');
   const [parseError, setParseError] = useState('');
@@ -102,6 +108,7 @@ export default function NFeImportarPage() {
   // Opções de importação
   const [criarFornecedor, setCriarFornecedor] = useState(true);
   const [atualizarEstoque, setAtualizarEstoque] = useState(true);
+  const [atualizarDadosFiscais, setAtualizarDadosFiscais] = useState(true);
   const [gerarContaPagar, setGerarContaPagar] = useState(true);
   const [markupPercentual, setMarkupPercentual] = useState('30');
 
@@ -276,6 +283,7 @@ export default function NFeImportarPage() {
           opcoes: {
             criarFornecedor,
             atualizarEstoque,
+            atualizarDadosFiscais,
             gerarContaPagar,
             vencimentoConta,
             markupPercentual: parseFloat(markupPercentual) || 30,
@@ -285,12 +293,29 @@ export default function NFeImportarPage() {
             ean: p.nfeProduto.ean,
             descricao: p.nfeProduto.descricao,
             unidade: p.nfeProduto.unidade,
+            unidadeTributavel: p.nfeProduto.unidadeTributavel,
             quantidade: p.nfeProduto.quantidade,
             valorUnitario: p.nfeProduto.valorUnitario,
             valorTotal: p.nfeProduto.valorTotal,
             status: p.status,
             produtoId: p.produtoId,
             categoriaId: p.categoriaId,
+            // Campos fiscais completos
+            ncm: p.nfeProduto.ncm,
+            cest: p.nfeProduto.cest,
+            cfop: p.nfeProduto.cfop,
+            cst: p.nfeProduto.cst,
+            csosn: p.nfeProduto.csosn,
+            origem: p.nfeProduto.origem,
+            icmsAliquota: p.nfeProduto.icmsAliquota,
+            icmsValor: p.nfeProduto.icmsValor,
+            icmsBaseCalculo: p.nfeProduto.icmsBaseCalculo,
+            ipiAliquota: p.nfeProduto.ipiAliquota,
+            ipiValor: p.nfeProduto.ipiValor,
+            pisAliquota: p.nfeProduto.pisAliquota,
+            pisValor: p.nfeProduto.pisValor,
+            cofinsAliquota: p.nfeProduto.cofinsAliquota,
+            cofinsValor: p.nfeProduto.cofinsValor,
           })),
         }),
       });
@@ -371,7 +396,7 @@ export default function NFeImportarPage() {
               Importar Nota Fiscal de Entrada
             </h1>
             <p className="text-muted-foreground mt-1">
-              Importe produtos de uma NFe XML automaticamente. Crie produtos, atualize estoque e gere contas a pagar.
+              Importe produtos de uma NFe XML automaticamente. Crie produtos com dados fiscais completos, atualize estoque e gere contas a pagar.
             </p>
           </div>
 
@@ -492,7 +517,7 @@ export default function NFeImportarPage() {
                     <div>
                       <p className="font-semibold">2. Revise os dados</p>
                       <p className="text-sm text-muted-foreground">
-                        Confira produtos, fornecedor e opções de importação
+                        Confira produtos, fornecedor, dados fiscais e opções de importação
                       </p>
                     </div>
                   </div>
@@ -503,7 +528,7 @@ export default function NFeImportarPage() {
                     <div>
                       <p className="font-semibold">3. Confirme</p>
                       <p className="text-sm text-muted-foreground">
-                        Produtos, estoque e contas a pagar serão criados automaticamente
+                        Produtos, estoque, dados fiscais e contas a pagar serão criados automaticamente
                       </p>
                     </div>
                   </div>
@@ -517,7 +542,7 @@ export default function NFeImportarPage() {
         {/* DIALOG PREVIEW DA IMPORTAÇÃO                 */}
         {/* ============================================= */}
         <Dialog open={dialogPreview} onOpenChange={setDialogPreview}>
-          <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-orange-500" />
@@ -554,6 +579,16 @@ export default function NFeImportarPage() {
                   </div>
                 </div>
 
+                {/* Natureza da operação */}
+                {nfeData.naturezaOperacao && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-2">
+                    <p className="text-xs text-blue-600">
+                      <span className="font-semibold">Natureza da Operação:</span>{' '}
+                      {nfeData.naturezaOperacao}
+                    </p>
+                  </div>
+                )}
+
                 {/* Chave de acesso */}
                 {nfeData.chaveAcesso && (
                   <div className="bg-muted/50 rounded-lg p-2">
@@ -564,7 +599,9 @@ export default function NFeImportarPage() {
                   </div>
                 )}
 
-                {/* Fornecedor */}
+                {/* ============================================= */}
+                {/* FORNECEDOR                                    */}
+                {/* ============================================= */}
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base flex items-center gap-2">
@@ -587,6 +624,11 @@ export default function NFeImportarPage() {
                         {nfeData.emitente.telefone && (
                           <p className="text-sm text-muted-foreground">
                             Tel: {nfeData.emitente.telefone}
+                          </p>
+                        )}
+                        {nfeData.emitente.email && (
+                          <p className="text-sm text-muted-foreground">
+                            Email: {nfeData.emitente.email}
                           </p>
                         )}
                       </div>
@@ -615,21 +657,33 @@ export default function NFeImportarPage() {
                           Verificando fornecedor...
                         </div>
                       ) : fornecedorEncontrado ? (
-                        <Badge className="bg-green-500 text-xs">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Fornecedor cadastrado: {fornecedorEncontrado.nome}
-                        </Badge>
+                        <div className="flex items-center gap-3">
+                          <Badge className="bg-green-500 text-xs">
+                            <CheckCircle2 className="h-3 w-3 mr-1" />
+                            Fornecedor já cadastrado: {fornecedorEncontrado.nome}
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Não será duplicado
+                          </span>
+                        </div>
                       ) : (
-                        <Badge variant="outline" className="border-orange-400 text-orange-600 text-xs">
-                          <AlertTriangle className="h-3 w-3 mr-1" />
-                          Fornecedor não cadastrado no sistema
-                        </Badge>
+                        <div className="flex items-center gap-3">
+                          <Badge variant="outline" className="border-orange-400 text-orange-600 text-xs">
+                            <AlertTriangle className="h-3 w-3 mr-1" />
+                            Fornecedor NÃO cadastrado
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Será criado automaticamente com os dados acima
+                          </span>
+                        </div>
                       )}
                     </div>
                   </CardContent>
                 </Card>
 
-                {/* Tabela de Produtos */}
+                {/* ============================================= */}
+                {/* TABELA DE PRODUTOS                            */}
+                {/* ============================================= */}
                 <Card>
                   <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
@@ -638,17 +692,13 @@ export default function NFeImportarPage() {
                         Produtos ({produtosImportacao.length})
                       </CardTitle>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs text-orange-600">
                           {novosCount} novo(s)
                         </Badge>
-                        <Badge variant="outline" className="text-xs">
+                        <Badge variant="outline" className="text-xs text-green-600">
                           {cadastradosCount} cadastrado(s)
                         </Badge>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => toggleTodos(true)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => toggleTodos(true)}>
                           Todos
                         </Button>
                         <Button
@@ -666,7 +716,7 @@ export default function NFeImportarPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <div className="max-h-80 overflow-y-auto">
+                    <div className="max-h-[400px] overflow-y-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -686,10 +736,11 @@ export default function NFeImportarPage() {
                             <TableHead>Código</TableHead>
                             <TableHead>Produto</TableHead>
                             <TableHead className="text-center">Qtd</TableHead>
-                            <TableHead className="text-right">Unitário</TableHead>
+                            <TableHead className="text-right">Custo</TableHead>
                             <TableHead className="text-right">Total</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-center">Categoria</TableHead>
+                            <TableHead className="w-10"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -708,15 +759,38 @@ export default function NFeImportarPage() {
                                 {item.nfeProduto.codigo || '-'}
                               </TableCell>
                               <TableCell>
-                                <div className="max-w-[250px]">
+                                <div className="max-w-[280px]">
                                   <p className="font-medium text-sm truncate">
                                     {item.nfeProduto.descricao}
                                   </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {item.nfeProduto.ncm ? `NCM: ${item.nfeProduto.ncm}` : ''}
-                                    {item.nfeProduto.cfop ? ` • CFOP: ${item.nfeProduto.cfop}` : ''}
-                                  </p>
-                                  {item.nfeProduto.ean && (
+                                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                                    {item.nfeProduto.ncm && item.nfeProduto.ncm !== '00000000' && (
+                                      <span className="text-xs text-muted-foreground">
+                                        NCM: {item.nfeProduto.ncm}
+                                      </span>
+                                    )}
+                                    {item.nfeProduto.cest && (
+                                      <span className="text-xs text-muted-foreground">
+                                        CEST: {item.nfeProduto.cest}
+                                      </span>
+                                    )}
+                                    {item.nfeProduto.cfop && (
+                                      <span className="text-xs text-muted-foreground">
+                                        CFOP: {item.nfeProduto.cfop}
+                                      </span>
+                                    )}
+                                    {item.nfeProduto.cst && (
+                                      <span className="text-xs text-muted-foreground">
+                                        CST: {item.nfeProduto.cst}
+                                      </span>
+                                    )}
+                                    {item.nfeProduto.csosn && (
+                                      <span className="text-xs text-muted-foreground">
+                                        CSOSN: {item.nfeProduto.csosn}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {item.nfeProduto.ean && item.nfeProduto.ean !== 'SEM GTIN' && (
                                     <p className="text-xs text-muted-foreground">
                                       EAN: {item.nfeProduto.ean}
                                     </p>
@@ -740,7 +814,7 @@ export default function NFeImportarPage() {
                                   </Badge>
                                 ) : (
                                   <Badge variant="outline" className="border-orange-400 text-orange-600 text-xs">
-                                    <AlertTriangle className="h-3 w-3 mr-1" />
+                                    <FilePlus2 className="h-3 w-3 mr-1" />
                                     Novo
                                   </Badge>
                                 )}
@@ -774,6 +848,17 @@ export default function NFeImportarPage() {
                                   </span>
                                 )}
                               </TableCell>
+                              <TableCell>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 w-7 p-0"
+                                  onClick={() => setDialogDetalhes(index)}
+                                  title="Ver dados fiscais"
+                                >
+                                  <Eye className="h-3.5 w-3.5" />
+                                </Button>
+                              </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
@@ -789,7 +874,9 @@ export default function NFeImportarPage() {
                   </CardContent>
                 </Card>
 
-                {/* Opções de Importação */}
+                {/* ============================================= */}
+                {/* OPÇÕES DE IMPORTAÇÃO                         */}
+                {/* ============================================= */}
                 <Card>
                   <CardHeader className="pb-3">
                     <CardTitle className="text-base">Opções de Importação</CardTitle>
@@ -811,7 +898,7 @@ export default function NFeImportarPage() {
                           <p className="text-xs text-muted-foreground mt-0.5">
                             {!fornecedorEncontrado
                               ? 'Criará um novo cadastro com os dados do emitente da NFe'
-                              : 'Fornecedor já cadastrado no sistema'}
+                              : 'Fornecedor já cadastrado — não será duplicado'}
                           </p>
                         </div>
                       </div>
@@ -834,6 +921,26 @@ export default function NFeImportarPage() {
                         </div>
                       </div>
 
+                      {/* Atualizar Dados Fiscais */}
+                      {cadastradosCount > 0 && (
+                        <div className="flex items-start gap-3 p-3 rounded-lg border bg-blue-50/50">
+                          <Checkbox
+                            id="atualizarDadosFiscais"
+                            checked={atualizarDadosFiscais}
+                            onCheckedChange={(checked) => setAtualizarDadosFiscais(!!checked)}
+                          />
+                          <div className="flex-1">
+                            <Label htmlFor="atualizarDadosFiscais" className="font-semibold cursor-pointer flex items-center gap-1.5">
+                              <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+                              Atualizar Dados Fiscais
+                            </Label>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              Para produtos já cadastrados, atualiza NCM, CEST, CFOP, CST, CSOSN, ICMS, IPI, PIS, COFINS
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {/* Gerar Conta a Pagar */}
                       <div className="flex items-start gap-3 p-3 rounded-lg border">
                         <Checkbox
@@ -850,14 +957,25 @@ export default function NFeImportarPage() {
                             Cria uma conta a pagar com o valor total da NFe
                           </p>
                           {gerarContaPagar && (
-                            <div className="mt-2">
-                              <Label className="text-xs">Vencimento</Label>
-                              <Input
-                                type="date"
-                                value={vencimentoConta}
-                                onChange={(e) => setVencimentoConta(e.target.value)}
-                                className="h-8 text-xs w-44"
-                              />
+                            <div className="mt-2 space-y-2">
+                              <div>
+                                <Label className="text-xs">Valor</Label>
+                                <Input
+                                  type="text"
+                                  value={`R$ ${nfeData.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                  disabled
+                                  className="h-8 text-xs w-44 bg-muted"
+                                />
+                              </div>
+                              <div>
+                                <Label className="text-xs">Vencimento</Label>
+                                <Input
+                                  type="date"
+                                  value={vencimentoConta}
+                                  onChange={(e) => setVencimentoConta(e.target.value)}
+                                  className="h-8 text-xs w-44"
+                                />
+                              </div>
                             </div>
                           )}
                         </div>
@@ -871,7 +989,7 @@ export default function NFeImportarPage() {
                             Margem de Lucro (Markup)
                           </Label>
                           <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                            Usado para calcular preço de venda = custo × (1 + markup%)
+                            Usado para calcular preço de venda = custo × (1 + markup%). Aplicado apenas nos produtos NOVOS.
                           </p>
                           <div className="flex items-center gap-2">
                             <Input
@@ -906,14 +1024,18 @@ export default function NFeImportarPage() {
 
                     {/* Resumo */}
                     <div className="bg-muted rounded-lg p-4">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
                         <div>
-                          <p className="text-muted-foreground">Produtos selecionados</p>
+                          <p className="text-muted-foreground">Selecionados</p>
                           <p className="font-bold text-lg">{totalSelecionados}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Novos a cadastrar</p>
                           <p className="font-bold text-lg text-orange-600">{novosCount}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Já cadastrados</p>
+                          <p className="font-bold text-lg text-blue-600">{cadastradosCount}</p>
                         </div>
                         <div>
                           <p className="text-muted-foreground">Estoque a atualizar</p>
@@ -959,10 +1081,38 @@ export default function NFeImportarPage() {
         </Dialog>
 
         {/* ============================================= */}
+        {/* DIALOG DETALHES DO PRODUTO (Fiscais)          */}
+        {/* ============================================= */}
+        <Dialog open={dialogDetalhes !== null} onOpenChange={() => setDialogDetalhes(null)}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-blue-500" />
+                {dialogDetalhes !== null && produtosImportacao[dialogDetalhes]?.status === 'novo'
+                  ? 'Como este produto será cadastrado'
+                  : 'Dados fiscais do produto'}
+              </DialogTitle>
+              <DialogDescription>
+                {dialogDetalhes !== null && produtosImportacao[dialogDetalhes]?.nfeProduto.descricao}
+              </DialogDescription>
+            </DialogHeader>
+
+            {dialogDetalhes !== null && (
+              <div className="flex-1 overflow-y-auto">
+                <ProdutoFiscalDetail
+                  item={produtosImportacao[dialogDetalhes]}
+                  markup={parseFloat(markupPercentual) || 30}
+                />
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+
+        {/* ============================================= */}
         {/* DIALOG SUCESSO                               */}
         {/* ============================================= */}
         <Dialog open={dialogSucesso} onOpenChange={setDialogSucesso}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-lg max-h-[85vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-green-600">
                 <CheckCircle2 className="h-6 w-6" />
@@ -974,21 +1124,30 @@ export default function NFeImportarPage() {
             </DialogHeader>
 
             {resultadoImportacao && (
-              <div className="space-y-4 py-4">
+              <div className="flex-1 overflow-y-auto space-y-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   {/* Produtos Criados */}
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                    <Package className="h-8 w-8 text-green-600 mx-auto mb-2" />
+                    <FilePlus2 className="h-8 w-8 text-green-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-green-600">
                       {resultadoImportacao.produtosCriados}
                     </p>
                     <p className="text-xs text-muted-foreground">Produtos criados</p>
                   </div>
 
-                  {/* Estoque Atualizado */}
+                  {/* Produtos Atualizados */}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                    <Warehouse className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+                    <RefreshCw className="h-8 w-8 text-blue-600 mx-auto mb-2" />
                     <p className="text-2xl font-bold text-blue-600">
+                      {resultadoImportacao.produtosAtualizados}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Produtos atualizados</p>
+                  </div>
+
+                  {/* Estoque Atualizado */}
+                  <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 text-center">
+                    <Warehouse className="h-8 w-8 text-cyan-600 mx-auto mb-2" />
+                    <p className="text-2xl font-bold text-cyan-600">
                       {resultadoImportacao.estoqueAtualizado}
                     </p>
                     <p className="text-xs text-muted-foreground">Estoque atualizado</p>
@@ -1010,24 +1169,65 @@ export default function NFeImportarPage() {
                     </p>
                     <p className="text-xs text-muted-foreground">Conta a pagar gerada</p>
                   </div>
+                </div>
 
-                  {/* Fornecedor */}
-                  <div className={`border rounded-lg p-4 text-center ${
-                    resultadoImportacao.fornecedorCriado
-                      ? 'bg-orange-50 border-orange-200'
-                      : 'bg-muted border-muted'
-                  }`}>
-                    <Truck className={`h-8 w-8 mx-auto mb-2 ${
-                      resultadoImportacao.fornecedorCriado ? 'text-orange-600' : 'text-muted-foreground'
-                    }`} />
-                    <p className={`text-sm font-bold ${
-                      resultadoImportacao.fornecedorCriado ? 'text-orange-600' : 'text-muted-foreground'
-                    }`}>
-                      {resultadoImportacao.fornecedorCriado ? 'Criado' : 'Existente'}
+                {/* Fornecedor */}
+                <div className={`border rounded-lg p-3 flex items-center gap-3 ${
+                  resultadoImportacao.fornecedorCriado
+                    ? 'bg-orange-50 border-orange-200'
+                    : 'bg-muted border-muted'
+                }`}>
+                  <Truck className={`h-5 w-5 ${
+                    resultadoImportacao.fornecedorCriado ? 'text-orange-600' : 'text-muted-foreground'
+                  }`} />
+                  <div>
+                    <p className="text-sm font-semibold">
+                      Fornecedor: {resultadoImportacao.fornecedorNome}
                     </p>
-                    <p className="text-xs text-muted-foreground">Fornecedor</p>
+                    <p className="text-xs text-muted-foreground">
+                      {resultadoImportacao.fornecedorCriado ? 'Novo cadastro criado' : 'Fornecedor já existente no sistema'}
+                    </p>
                   </div>
                 </div>
+
+                {/* Detalhes */}
+                {resultadoImportacao.detalhes && resultadoImportacao.detalhes.length > 0 && (
+                  <div>
+                    <p className="text-sm font-semibold mb-2">Detalhes da importação:</p>
+                    <div className="space-y-1 max-h-40 overflow-y-auto">
+                      {resultadoImportacao.detalhes.map((det: any, i: number) => (
+                        <div
+                          key={i}
+                          className={`flex items-start gap-2 text-xs p-1.5 rounded ${
+                            det.status === 'criado'
+                              ? 'bg-green-50'
+                              : det.status === 'atualizado'
+                              ? 'bg-blue-50'
+                              : det.status === 'existente'
+                              ? 'bg-muted'
+                              : 'bg-red-50'
+                          }`}
+                        >
+                          <span className={`mt-0.5 flex-shrink-0 ${
+                            det.status === 'criado'
+                              ? 'text-green-600'
+                              : det.status === 'atualizado'
+                              ? 'text-blue-600'
+                              : det.status === 'existente'
+                              ? 'text-muted-foreground'
+                              : 'text-red-600'
+                          }`}>
+                            {det.status === 'criado' ? '✓' : det.status === 'atualizado' ? '↻' : det.status === 'existente' ? '●' : '✗'}
+                          </span>
+                          <div>
+                            <p className="font-medium">{det.descricao}</p>
+                            <p className="text-muted-foreground">{det.acao}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Erros */}
                 {resultadoImportacao.erros.length > 0 && (
@@ -1063,5 +1263,171 @@ export default function NFeImportarPage() {
         </Dialog>
       </MainLayout>
     </ProtectedRoute>
+  );
+}
+
+// =====================================================
+// Componente: Detalhes Fiscais do Produto
+// =====================================================
+
+function ProdutoFiscalDetail({ item, markup }: { item: ProdutoImportacao; markup: number }) {
+  const p = item.nfeProduto;
+  const precoVenda = p.valorUnitario * (1 + markup / 100);
+
+  return (
+    <div className="space-y-4">
+      {/* Se for novo, mostra como será cadastrado */}
+      {item.status === 'novo' && (
+        <Alert className="border-blue-300 bg-blue-50">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertTitle className="text-blue-700">Produto NOVO</AlertTitle>
+          <AlertDescription className="text-blue-600">
+            Este produto será criado com os dados abaixo. O preço de venda será calculado com {markup}% de margem.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {item.status === 'cadastrado' && (
+        <Alert className="border-green-300 bg-green-50">
+          <CheckCircle2 className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-700">Produto JÁ CADASTRADO</AlertTitle>
+          <AlertDescription className="text-green-600">
+            {item.produtoNome ? `Encontrado como: ${item.produtoNome}` : 'Encontrado no sistema por código ou EAN.'}
+            {' '}O estoque será atualizado e os dados fiscais podem ser atualizados conforme a opção marcada.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Dados Básicos */}
+      <div>
+        <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+          <Tag className="h-3.5 w-3.5" />
+          Dados Básicos
+        </h4>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm bg-muted/50 rounded-lg p-3">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Código:</span>
+            <span className="font-mono">{p.codigo || '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">EAN:</span>
+            <span className="font-mono">{p.ean || '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Unidade:</span>
+            <span>{p.unidade}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Un. Tributável:</span>
+            <span>{p.unidadeTributavel}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Qtd Comercial:</span>
+            <span className="font-mono">{p.quantidade}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Qtd Tributável:</span>
+            <span className="font-mono">{p.quantidadeTributavel || p.quantidade}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Vl. Unit. Comercial:</span>
+            <span className="font-mono">R$ {p.valorUnitario.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Vl. Unit. Tributável:</span>
+            <span className="font-mono">R$ {(p.valorUnitarioTributavel || p.valorUnitario).toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between col-span-2">
+            <span className="text-muted-foreground font-semibold">Custo (valor unitário):</span>
+            <span className="font-mono font-bold text-orange-600">R$ {p.valorUnitario.toFixed(2)}</span>
+          </div>
+          {item.status === 'novo' && (
+            <div className="flex justify-between col-span-2">
+              <span className="text-muted-foreground font-semibold">Preço de venda ({markup}% markup):</span>
+              <span className="font-mono font-bold text-green-600">R$ {precoVenda.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Dados Fiscais */}
+      <div>
+        <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+          <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
+          Dados Fiscais (NFe)
+        </h4>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm bg-blue-50/50 border border-blue-100 rounded-lg p-3">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">NCM:</span>
+            <span className="font-mono font-semibold">{p.ncm || '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">CEST:</span>
+            <span className="font-mono font-semibold">{p.cest || '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">CFOP:</span>
+            <span className="font-mono font-semibold">{p.cfop || '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Origem:</span>
+            <span className="font-mono">{p.origem || '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">CST:</span>
+            <span className="font-mono font-semibold">{p.cst || '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">CSOSN:</span>
+            <span className="font-mono font-semibold">{p.csosn || '-'}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Impostos */}
+      <div>
+        <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+          <DollarSign className="h-3.5 w-3.5 text-green-600" />
+          Impostos
+        </h4>
+        <div className="grid grid-cols-3 gap-3">
+          {/* ICMS */}
+          <div className="bg-muted/50 rounded-lg p-3 text-center">
+            <p className="text-xs text-muted-foreground">ICMS</p>
+            <p className="text-lg font-bold font-mono">{p.icmsAliquota.toFixed(1)}%</p>
+            <p className="text-xs text-muted-foreground">
+              Base: R$ {p.icmsBaseCalculo.toFixed(2)}
+            </p>
+            <p className="text-xs font-semibold text-green-600">
+              Valor: R$ {p.icmsValor.toFixed(2)}
+            </p>
+          </div>
+          {/* IPI */}
+          <div className="bg-muted/50 rounded-lg p-3 text-center">
+            <p className="text-xs text-muted-foreground">IPI</p>
+            <p className="text-lg font-bold font-mono">{p.ipiAliquota.toFixed(1)}%</p>
+            <p className="text-xs font-semibold text-green-600">
+              Valor: R$ {p.ipiValor.toFixed(2)}
+            </p>
+          </div>
+          {/* PIS */}
+          <div className="bg-muted/50 rounded-lg p-3 text-center">
+            <p className="text-xs text-muted-foreground">PIS</p>
+            <p className="text-lg font-bold font-mono">{p.pisAliquota.toFixed(1)}%</p>
+            <p className="text-xs font-semibold text-green-600">
+              Valor: R$ {p.pisValor.toFixed(2)}
+            </p>
+          </div>
+          {/* COFINS */}
+          <div className="bg-muted/50 rounded-lg p-3 text-center col-start-2">
+            <p className="text-xs text-muted-foreground">COFINS</p>
+            <p className="text-lg font-bold font-mono">{p.cofinsAliquota.toFixed(1)}%</p>
+            <p className="text-xs font-semibold text-green-600">
+              Valor: R$ {p.cofinsValor.toFixed(2)}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }

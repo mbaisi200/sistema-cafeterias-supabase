@@ -4,16 +4,36 @@
 // =====================================================
 
 export interface NFeProduto {
+  // Dados básicos
   codigo: string;
   ean: string;
   descricao: string;
   ncm: string;
+  cest: string;
   cfop: string;
   cst: string;
+  csosn: string;
   unidade: string;
+  unidadeTributavel: string;
   quantidade: number;
+  quantidadeTributavel: number;
   valorUnitario: number;
+  valorUnitarioTributavel: number;
   valorTotal: number;
+
+  // Impostos
+  origem: string;
+  icmsCst: string;
+  icmsCsosn: string;
+  icmsAliquota: number;
+  icmsValor: number;
+  icmsBaseCalculo: number;
+  ipiAliquota: number;
+  ipiValor: number;
+  pisAliquota: number;
+  pisValor: number;
+  cofinsAliquota: number;
+  cofinsValor: number;
 }
 
 export interface NFeParsed {
@@ -21,6 +41,7 @@ export interface NFeParsed {
   serie: string;
   dataEmissao: Date;
   chaveAcesso?: string;
+  naturezaOperacao?: string;
   emitente: {
     nome: string;
     cnpj: string;
@@ -33,6 +54,7 @@ export interface NFeParsed {
     uf: string;
     cep: string;
     telefone: string;
+    email?: string;
   };
   destinatario: {
     nome: string;
@@ -40,6 +62,10 @@ export interface NFeParsed {
   };
   valorTotal: number;
   valorProdutos: number;
+  valorFrete: number;
+  valorSeguro: number;
+  valorDesconto: number;
+  valorOutrasDespesas: number;
   produtos: NFeProduto[];
 }
 
@@ -97,6 +123,28 @@ function findElement(parent: Element | Document, tagName: string): Element | nul
 }
 
 /**
+ * Busca um elemento de imposto dentro de uma hierarquia variável de ICMS.
+ * O elemento ICMS pode ter subtipos como ICMS00, ICMS10, ICMS20, ICMS30, ICMS40,
+ * ICMS41, ICMS50, ICMS51, ICMS60, ICMS70, ICMS90, ICMSSN101, ICMSSN102, ICMSSN201,
+ * ICMSSN202, ICMSSN500, ICMSSN900, etc.
+ */
+function findICMSTipo(impostoEl: Element): Element | null {
+  // Busca qualquer elemento cujo nome comece com ICMS
+  const allElements = impostoEl.getElementsByTagName('*');
+  for (let i = 0; i < allElements.length; i++) {
+    const localName = allElements[i].localName;
+    if (
+      (localName.startsWith('ICMS') || localName.startsWith('Icms')) &&
+      localName !== 'ICMSTot' &&
+      localName !== 'ICMSUFDest'
+    ) {
+      return allElements[i];
+    }
+  }
+  return null;
+}
+
+/**
  * Parse de uma string XML de NFe e retorna os dados estruturados
  */
 export function parseNFeXML(xmlString: string): NFeParsed {
@@ -123,6 +171,7 @@ export function parseNFeXML(xmlString: string): NFeParsed {
   const numero = getTextContent(ide, 'nNF');
   const serie = getTextContent(ide, 'serie');
   const dhEmi = getTextContent(ide, 'dhEmi');
+  const natOp = getTextContent(ide, 'natOp');
 
   // Parse da data de emissão (formato ISO 8601: 2024-01-15T10:30:00-03:00)
   let dataEmissao = new Date();
@@ -154,6 +203,7 @@ export function parseNFeXML(xmlString: string): NFeParsed {
     uf: getTextContent(enderEmit, 'UF'),
     cep: getTextContent(enderEmit, 'CEP'),
     telefone: getTextContent(enderEmit, 'fone'),
+    email: getTextContent(emit, 'email') || undefined,
   };
 
   // --- Dados do destinatário ---
@@ -168,6 +218,10 @@ export function parseNFeXML(xmlString: string): NFeParsed {
   const icmsTot = findElement(total, 'ICMSTot') || total;
   const valorTotal = getNumberContent(icmsTot, 'vNF');
   const valorProdutos = getNumberContent(icmsTot, 'vProd');
+  const valorFrete = getNumberContent(icmsTot, 'vFrete');
+  const valorSeguro = getNumberContent(icmsTot, 'vSeg');
+  const valorDesconto = getNumberContent(icmsTot, 'vDesc');
+  const valorOutrasDespesas = getNumberContent(icmsTot, 'vOutro');
 
   // --- Produtos (det) ---
   const produtos: NFeProduto[] = [];
@@ -196,19 +250,67 @@ export function parseNFeXML(xmlString: string): NFeParsed {
     const descricao = getTextContent(prod, 'xProd');
     if (!descricao) continue; // Pula se não tiver descrição
 
-    const cst = getTextContent(prod, 'CST') || getTextContent(prod, 'CSOSN') || '';
+    const cst = getTextContent(prod, 'CST') || '';
+    const csosn = getTextContent(prod, 'CSOSN') || '';
+
+    // --- Dados tributários ---
+    const imposto = findElement(det, 'imposto') || det;
+    const icmsEl = findElement(imposto, 'ICMS') || imposto;
+    const icmsTipo = findICMSTipo(icmsEl);
+
+    const origem = icmsTipo ? getTextContent(icmsTipo, 'orig') : '';
+    const icmsCst = icmsTipo ? (getTextContent(icmsTipo, 'CST') || '') : '';
+    const icmsCsosn = icmsTipo ? (getTextContent(icmsTipo, 'CSOSN') || '') : '';
+    const icmsAliquota = icmsTipo ? getNumberContent(icmsTipo, 'pICMS') : 0;
+    const icmsValor = icmsTipo ? getNumberContent(icmsTipo, 'vICMS') : 0;
+    const icmsBaseCalculo = icmsTipo ? getNumberContent(icmsTipo, 'vBC') : 0;
+
+    // IPI
+    const ipiEl = findElement(imposto, 'IPI') || imposto;
+    const ipiTrib = findElement(ipiEl, 'IPITrib') || ipiEl;
+    const ipiAliquota = getNumberContent(ipiTrib, 'pIPI');
+    const ipiValor = getNumberContent(ipiTrib, 'vIPI');
+
+    // PIS
+    const pisEl = findElement(imposto, 'PIS') || imposto;
+    const pisAliq = findElement(pisEl, 'PISAliq') || pisEl;
+    const pisAliquota = getNumberContent(pisAliq, 'pPIS');
+    const pisValor = getNumberContent(pisAliq, 'vPIS');
+
+    // COFINS
+    const cofinsEl = findElement(imposto, 'COFINS') || imposto;
+    const cofinsAliq = findElement(cofinsEl, 'COFINSAliq') || cofinsEl;
+    const cofinsAliquota = getNumberContent(cofinsAliq, 'pCOFINS');
+    const cofinsValor = getNumberContent(cofinsAliq, 'vCOFINS');
 
     produtos.push({
       codigo,
       ean: getTextContent(prod, 'cEAN') || getTextContent(prod, 'CEAN') || '',
       descricao,
       ncm: getTextContent(prod, 'NCM') || '',
+      cest: getTextContent(prod, 'CEST') || '',
       cfop: getTextContent(prod, 'CFOP') || '',
-      cst,
-      unidade: getTextContent(prod, 'uCom') || getTextContent(prod, 'uTrib') || 'UN',
+      cst: cst || icmsCst,
+      csosn: csosn || icmsCsosn,
+      unidade: getTextContent(prod, 'uCom') || 'UN',
+      unidadeTributavel: getTextContent(prod, 'uTrib') || getTextContent(prod, 'uCom') || 'UN',
       quantidade: getNumberContent(prod, 'qCom'),
+      quantidadeTributavel: getNumberContent(prod, 'qTrib'),
       valorUnitario: getNumberContent(prod, 'vUnCom'),
+      valorUnitarioTributavel: getNumberContent(prod, 'vUnTrib'),
       valorTotal: getNumberContent(prod, 'vProd'),
+      origem,
+      icmsCst,
+      icmsCsosn,
+      icmsAliquota,
+      icmsValor,
+      icmsBaseCalculo,
+      ipiAliquota,
+      ipiValor,
+      pisAliquota,
+      pisValor,
+      cofinsAliquota,
+      cofinsValor,
     });
   }
 
@@ -217,10 +319,15 @@ export function parseNFeXML(xmlString: string): NFeParsed {
     serie,
     dataEmissao,
     chaveAcesso,
+    naturezaOperacao: natOp || undefined,
     emitente,
     destinatario,
     valorTotal,
     valorProdutos,
+    valorFrete,
+    valorSeguro,
+    valorDesconto,
+    valorOutrasDespesas,
     produtos,
   };
 }
