@@ -476,7 +476,7 @@ function SeedContent() {
 
       const vendasIds: string[] = [];
       const NUM_VENDAS = 220;
-      const itensVendaData: {venda_id: string, produto_id: string, nome: string, quantidade: number, preco_unitario: number, total: number, criado_em: string}[] = [];
+      const itensVendaData: {empresa_id: string, venda_id: string, produto_id: string, nome: string, quantidade: number, preco_unitario: number, total: number, criado_em: string}[] = [];
       const pagamentosData: {empresa_id: string, venda_id: string, forma_pagamento: string, valor: number, criado_em: string}[] = [];
 
       for (let i = 0; i < NUM_VENDAS; i++) {
@@ -535,10 +535,12 @@ function SeedContent() {
           vendasIds.push(vendaInsert.id);
           
           for (const item of itensVenda) {
+            const produtoInfo = produtosDataInfo.find(p => p.id === item.produtoId);
             itensVendaData.push({
+              empresa_id: empresaId,
               venda_id: vendaInsert.id,
               produto_id: item.produtoId,
-              nome: '',
+              nome: produtoInfo?.nome || '',
               quantidade: item.quantidade,
               preco_unitario: item.precoUnitario,
               total: item.precoUnitario * item.quantidade,

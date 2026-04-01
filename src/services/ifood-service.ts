@@ -490,11 +490,13 @@ export async function processIFoodOrder(
 
   // Criar itens da venda
   const itensVenda = order.items.map(item => ({
+    empresa_id: empresaId,
     venda_id: venda.id,
     produto_id: item.externalCode || '',
-    produto_nome: item.name,
+    nome: item.name,
     quantidade: item.quantity,
     preco_unitario: item.unitPrice,
+    total: item.totalPrice || (item.quantity * item.unitPrice),
     desconto: 0,
     observacao: item.observations,
     criado_em: new Date().toISOString(),
