@@ -34,6 +34,7 @@ import {
   Search,
   Loader2,
   UserCheck,
+  Package,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -112,6 +113,55 @@ export default function EmitirNFePage() {
   const [clientesResult, setClientesResult] = useState<any[]>([]);
   const [buscandoCliente, setBuscandoCliente] = useState(false);
   const [clienteSelecionado, setClienteSelecionado] = useState(false);
+
+  // Buscar Produto
+  const [buscaProduto, setBuscaProduto] = useState('');
+  const [produtosResult, setProdutosResult] = useState<any[]>([]);
+  const [buscandoProduto, setBuscandoProduto] = useState(false);
+
+  const handleBuscarProdutos = async () => {
+    if (!buscaProduto.trim()) {
+      setProdutosResult([]);
+      return;
+    }
+    setBuscandoProduto(true);
+    try {
+      const params = new URLSearchParams({ busca: buscaProduto.trim() });
+      const res = await fetch(`/api/produtos?${params.toString()}`);
+      const data = await res.json();
+      if (data.sucesso) {
+        setProdutosResult(data.produtos || []);
+      } else {
+        setProdutosResult([]);
+      }
+    } catch {
+      setProdutosResult([]);
+    } finally {
+      setBuscandoProduto(false);
+    }
+  };
+
+  const handleSelecionarProduto = (p: any) => {
+    const novoProduto: ProdutoForm = {
+      codigo: p.codigo || '',
+      descricao: p.nome || '',
+      ncm: p.ncm || '00000000',
+      cfop: p.cfop || '5102',
+      unidade_comercial: p.unidade_tributavel || p.unidade || 'UN',
+      quantidade_comercial: 1,
+      valor_unitario_comercial: p.preco || 0,
+      valor_total: p.preco || 0,
+      valor_desconto: 0,
+      icms_origem: p.origem || '0',
+      icms_aliquota: p.icms || 0,
+    };
+    setProdutos(prev => {
+      const novos = [...prev, novoProduto];
+      return novos;
+    });
+    setProdutosResult([]);
+    setBuscaProduto('');
+  };
 
   // Informações adicionais
   const [informacoesAdicionais, setInformacoesAdicionais] = useState('');
@@ -527,12 +577,76 @@ export default function EmitirNFePage() {
             </CardContent>
           </Card>
 
+          {/* Buscar Produto Cadastrado */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Package className="h-5 w-5" />
+                Buscar Produto do Cadastro
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por nome, código ou código de barras..."
+                    value={buscaProduto}
+                    onChange={(e) => setBuscaProduto(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleBuscarProdutos()}
+                    className="pl-10"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={handleBuscarProdutos}
+                  disabled={buscandoProduto}
+                >
+                  {buscandoProduto ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Search className="h-4 w-4" />
+                  )}
+                  Buscar
+                </Button>
+              </div>
+              {produtosResult.length > 0 && (
+                <div className="mt-3 border rounded-lg max-h-60 overflow-y-auto">
+                  {produtosResult.map((p: any) => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleSelecionarProduto(p)}
+                      className="w-full text-left p-3 hover:bg-accent border-b last:border-b-0 transition-colors"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{p.nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {p.codigo ? `Cód: ${p.codigo}` : ''} {p.codigo_barras ? `• Barras: ${p.codigo_barras}` : ''} {p.ncm && p.ncm !== '00000000' ? `• NCM: ${p.ncm}` : ''}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0 ml-2">
+                          <Badge variant="outline" className="font-semibold text-green-600">
+                            R$ {(p.preco || 0).toFixed(2)}
+                          </Badge>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {buscaProduto.trim().length > 2 && !buscandoProduto && produtosResult.length === 0 && (
+                <p className="mt-2 text-sm text-muted-foreground">Nenhum produto encontrado.</p>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Produtos */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">Produtos ({produtos.length})</CardTitle>
               <Button variant="outline" size="sm" onClick={addProduto} className="gap-2">
-                <Plus className="h-4 w-4" /> Adicionar Produto
+                <Plus className="h-4 w-4" /> Adicionar Produto Manualmente
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
