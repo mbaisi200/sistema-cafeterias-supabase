@@ -509,7 +509,10 @@ export function imprimirCupomFiscal(
   const fontWeight = intensidade === 'normal' ? 'normal' : intensidade === 'escura' ? '600' : '700';
   
   const larguraUtilMm = Math.max(20, larguraMm - margemEsquerda - margemDireita);
-  const mmPorCaractere = (tamanhoFonte / 12) * 1.5;
+  // Courier New: largura real de cada caractere ≈ 0.60 × tamanhoFonte (em pt → mm)
+  // Fórmula mais precisa: mmPorCaractere ≈ tamanhoFonte × 0.1587
+  // Usamos fator conservador (+10%) para nunca estourar o papel
+  const mmPorCaractere = (tamanhoFonte * 0.1746);
   const larguraCalculada = Math.floor(larguraUtilMm / mmPorCaractere);
   const largura = Math.max(16, larguraCalculada - 1);
   
