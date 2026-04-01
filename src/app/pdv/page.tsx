@@ -985,6 +985,23 @@ export default function PDVPage() {
               {getTipoVendaLabel()}
             </Badge>
 
+            {/* Botão carrinho mobile no header - sempre visível */}
+            {isMobile && (
+              <Button
+                variant="outline"
+                onClick={() => setShowCartMobile(true)}
+                className="gap-1 h-7 text-xs font-bold shadow-sm border-blue-200 text-blue-600 hover:bg-blue-50 relative"
+              >
+                <ShoppingCart className="h-3.5 w-3.5" />
+                {itensPedido.length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-green-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {itensPedido.length}
+                  </span>
+                )}
+                <span className="hidden sm:inline">Pedido</span>
+              </Button>
+            )}
+
             <Button 
               variant="destructive" 
               onClick={handleLogout} 
@@ -1355,7 +1372,7 @@ export default function PDVPage() {
           )}
         </div>
 
-        {/* MOBILE FLOATING CART BUTTON */}
+        {/* MOBILE FLOATING CART BUTTON - aparece quando há itens no carrinho */}
         {isMobile && itensPedido.length > 0 && (
           <button
             onClick={() => setShowCartMobile(true)}
@@ -1366,6 +1383,17 @@ export default function PDVPage() {
             <span className="bg-white/20 rounded-full px-2 py-0.5 text-xs">
               R$ {total.toFixed(2)}
             </span>
+          </button>
+        )}
+
+        {/* MOBILE FLOATING CART BUTTON - quando carrinho vazio */}
+        {isMobile && itensPedido.length === 0 && (
+          <button
+            onClick={() => setShowCartMobile(true)}
+            className="fixed bottom-4 right-4 z-50 bg-white text-blue-600 rounded-full shadow-lg flex items-center gap-1.5 px-3 py-2.5 font-bold text-xs hover:bg-blue-50 active:scale-95 transition-all border-2 border-blue-200"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            <span>Pedido</span>
           </button>
         )}
 
