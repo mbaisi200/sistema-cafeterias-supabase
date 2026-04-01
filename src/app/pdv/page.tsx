@@ -209,6 +209,7 @@ export default function PDVPage() {
           quantidade: item.quantidade,
           codigo: item.codigo || '',
           unidade: item.unidade || 'UN',
+          isCombo: item.is_combo || false,
           atendenteId: item.atendente_id,
           atendenteNome: item.atendente_nome,
           tipoVenda: item.tipo_venda,
@@ -370,6 +371,7 @@ export default function PDVPage() {
             quantidade: 1,
             codigo: produto.codigo || '',
             unidade: produto.unidade || 'UN',
+            is_combo: produto.isCombo || false,
             atendente_id: user?.id,
             atendente_nome: user?.nome,
             tipo_venda: tipoVenda,
@@ -437,6 +439,7 @@ export default function PDVPage() {
           quantidade: 1,
           codigo: produto.codigo || '',
           unidade: produto.unidade || 'UN',
+          isCombo: produto.isCombo || false,
           atendenteId: user?.id || '',
           atendenteNome: user?.nome || '',
           tipoVenda: 'balcao',
@@ -741,6 +744,53 @@ export default function PDVPage() {
           .insert(itensVenda);
         
         if (itensError) console.error('Erro ao criar itens:', itensError);
+
+        // Baixar estoque dos itens componentes dos combos
+        try {
+          const combosVendidos = itensPedido.filter(item => item.isCombo);
+          if (combosVendidos.length > 0) {
+            const comboIds = combosVendidos.map(item => item.produtoId);
+            const { data: comboData, error: comboError } = await supabase
+              .from('combo_itens')
+              .select('combo_produto_id, item_produto_id, quantidade, custo_incluido')
+              .in('combo_produto_id', comboIds);
+
+            if (!comboError && comboData) {
+              // Agrupar redução de estoque por produto componente
+              const reducoes = new Map<string, number>();
+              for (const ci of comboData) {
+                if (!ci.custo_incluido) continue;
+                const comboVendido = combosVendidos.find(i => i.produtoId === ci.combo_produto_id);
+                if (comboVendido) {
+                  const qtd = ci.quantidade * comboVendido.quantidade;
+                  reducoes.set(ci.item_produto_id, (reducoes.get(ci.item_produto_id) || 0) + qtd);
+                }
+              }
+              // Aplicar reduções de estoque
+              for (const [prodId, qtdTotal] of reducoes) {
+                await supabase.rpc('decrementar_estoque_produto', {
+                  p_produto_id: prodId,
+                  p_quantidade: qtdTotal,
+                }).catch(async () => {
+                  // Fallback: update direto
+                  const { data: prod } = await supabase
+                    .from('produtos')
+                    .select('estoque_atual')
+                    .eq('id', prodId)
+                    .single();
+                  if (prod) {
+                    await supabase
+                      .from('produtos')
+                      .update({ estoque_atual: Math.max(0, parseFloat(prod.estoque_atual) - qtdTotal) })
+                      .eq('id', prodId);
+                  }
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.error('Erro ao baixar estoque dos combos:', err);
+        }
 
         // Criar pagamento(s) - usando campos do schema correto
         const pagamentosParaSalvar = pagamentos.length > 0 ? pagamentos : [{ forma: formaPagamento, valor: total }];

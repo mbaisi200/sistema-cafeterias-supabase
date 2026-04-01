@@ -18,5 +18,6 @@ export {
   useMovimentacoesBI,
   useFornecedores,
   buscarFornecedorPorCNPJ,
+  useCombos,
   type ConfiguracoesCupom,
 } from './useSupabase';

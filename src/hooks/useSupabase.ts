@@ -50,6 +50,8 @@ export function useProdutos() {
         ifoodExternalCode: p.ifood_external_code,
         ifoodSyncStatus: p.ifood_sync_status,
         ifoodProductId: p.ifood_product_id,
+        isCombo: p.is_combo,
+        comboPreco: p.combo_preco,
         criadoEm: new Date(p.criado_em),
         atualizadoEm: new Date(p.atualizado_em),
       })) || []);
@@ -132,6 +134,10 @@ export function useProdutos() {
     if (dados.disponivelIfood !== undefined) updateData.disponivel_ifood = dados.disponivelIfood;
     if (dados.ifoodExternalCode !== undefined) updateData.ifood_external_code = dados.ifoodExternalCode;
     if (dados.ifoodSyncStatus !== undefined) updateData.ifood_sync_status = dados.ifoodSyncStatus;
+
+    // Campos de Combo
+    if (dados.isCombo !== undefined) updateData.is_combo = dados.isCombo;
+    if (dados.comboPreco !== undefined) updateData.combo_preco = dados.comboPreco;
 
     // Atualizar todos os dados de uma vez
     const { error } = await supabase
@@ -2167,4 +2173,114 @@ export function useMovimentacoesBI() {
   }, [carregarDados]);
 
   return { movimentacoes, loading };
+}
+
+// =====================================================
+// HOOK: COMBOS
+// =====================================================
+export function useCombos() {
+  const [comboItens, setComboItens] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const { empresaId } = useAuth();
+  const supabase = getSupabaseClient();
+
+  // Obter itens de um combo
+  const obterItensCombo = useCallback(async (comboProdutoId: string) => {
+    if (!empresaId) return [];
+
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('combo_itens')
+        .select('*, produtos!inner(nome, preco, estoque_atual, unidade)')
+        .eq('combo_produto_id', comboProdutoId)
+        .order('criado_em', { ascending: true });
+
+      if (error) throw error;
+
+      return (data || []).map(item => ({
+        id: item.id,
+        comboProdutoId: item.combo_produto_id,
+        itemProdutoId: item.item_produto_id,
+        quantidade: parseFloat(item.quantidade) || 1,
+        custoIncluido: item.custo_incluido,
+        produto: item.produtos ? {
+          id: item.produtos.id,
+          nome: item.produtos.nome,
+          preco: parseFloat(item.produtos.preco) || 0,
+          estoqueAtual: parseFloat(item.produtos.estoque_atual) || 0,
+          unidade: item.produtos.unidade || 'un',
+        } : null,
+      }));
+    } catch (error) {
+      console.error('Erro ao carregar itens do combo:', error);
+      return [];
+    } finally {
+      setLoading(false);
+    }
+  }, [empresaId]);
+
+  // Salvar itens do combo (delete existing + insert new)
+  const salvarComboItens = async (comboProdutoId: string, itens: Array<{
+    itemProdutoId: string;
+    quantidade: number;
+    custoIncluido: boolean;
+  }>) => {
+    if (!empresaId) throw new Error('Empresa não definida');
+    const supabase = getSupabaseClient();
+
+    // Delete existing combo items
+    const { error: deleteError } = await supabase
+      .from('combo_itens')
+      .delete()
+      .eq('combo_produto_id', comboProdutoId);
+
+    if (deleteError) throw deleteError;
+
+    // Insert new combo items
+    if (itens.length > 0) {
+      const insertData = itens.map(item => ({
+        empresa_id: empresaId,
+        combo_produto_id: comboProdutoId,
+        item_produto_id: item.itemProdutoId,
+        quantidade: item.quantidade,
+        custo_incluido: item.custoIncluido,
+      }));
+
+      const { error: insertError } = await supabase
+        .from('combo_itens')
+        .insert(insertData);
+
+      if (insertError) throw insertError;
+    }
+  };
+
+  // Obter itens de combo para venda (para PDV - sem loading state)
+  const obterItensComboParaVenda = async (comboProdutoId: string) => {
+    if (!empresaId) return [];
+
+    const { data, error } = await supabase
+      .from('combo_itens')
+      .select('item_produto_id, quantidade, custo_incluido')
+      .eq('combo_produto_id', comboProdutoId);
+
+    if (error) {
+      console.error('Erro ao carregar itens do combo para venda:', error);
+      return [];
+    }
+
+    return (data || []).map(item => ({
+      itemProdutoId: item.item_produto_id,
+      quantidade: parseFloat(item.quantidade) || 1,
+      custoIncluido: item.custo_incluido,
+    }));
+  };
+
+  return {
+    comboItens,
+    loading,
+    obterItensCombo,
+    salvarComboItens,
+    obterItensComboParaVenda,
+  };
 }

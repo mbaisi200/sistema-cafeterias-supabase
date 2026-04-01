@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useProdutos, useCategorias } from '@/hooks/useFirestore';
+import { useProdutos, useCategorias, useCombos } from '@/hooks/useFirestore';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';
@@ -58,6 +58,8 @@ import {
   Clock,
   FileText,
   Info,
+  Layers,
+  Settings2,
 } from 'lucide-react';
 
 const colorOptions = [
@@ -97,6 +99,8 @@ interface Produto {
   ipiAliquota?: number;
   pisAliquota?: number;
   cofinsAliquota?: number;
+  isCombo?: boolean;
+  comboPreco?: number;
 }
 
 export default function ProdutosPage() {
@@ -120,6 +124,14 @@ export default function ProdutosPage() {
   const [syncing, setSyncing] = useState(false);
   const [ifoodConfig, setIfoodConfig] = useState<any>(null);
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
+
+  // Estados de Combos
+  const { obterItensCombo, salvarComboItens, loading: loadingCombos } = useCombos();
+  const [dialogComboOpen, setDialogComboOpen] = useState(false);
+  const [comboProdutoSelecionado, setComboProdutoSelecionado] = useState<Produto | null>(null);
+  const [comboItensState, setComboItensState] = useState<Array<{ itemProdutoId: string; quantidade: number; custoIncluido: boolean }>>([]);
+  const [savingCombo, setSavingCombo] = useState(false);
+  const [comboSearch, setComboSearch] = useState('');
 
   const loading = loadingProdutos || loadingCategorias;
 
@@ -174,6 +186,8 @@ export default function ProdutosPage() {
         estoqueMinimo: parseInt(formData.get('estoqueMinimo') as string) || 0,
         destaque: formData.get('destaque') === 'on',
         disponivelIfood: formData.get('disponivelIfood') === 'on',
+        isCombo: formData.get('isCombo') === 'on',
+        comboPreco: parseFloat(formData.get('comboPreco') as string) || 0,
         // NFE/NFCe fiscal fields
         ncm: formData.get('ncm') as string || '00000000',
         cest: formData.get('cest') as string || '',
@@ -391,6 +405,10 @@ export default function ProdutosPage() {
                 <ShoppingCart className="h-4 w-4 mr-2" />
                 iFood ({produtosIfood.length})
               </TabsTrigger>
+              <TabsTrigger value="combos">
+                <Layers className="h-4 w-4 mr-2" />
+                Combos ({produtos.filter(p => p.isCombo).length})
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -504,7 +522,7 @@ export default function ProdutosPage() {
                             <Input id="precoUnidade" name="precoUnidade" type="number" step="0.01" placeholder="0.00" defaultValue={editandoProduto?.precoUnidade || ''} />
                           </div>
                         </div>
-                        <div className="flex items-center gap-6 pt-2">
+                        <div className="flex flex-wrap items-center gap-6 pt-2">
                           <div className="flex items-center gap-2">
                             <Switch id="destaque" name="destaque" defaultChecked={editandoProduto?.destaque} />
                             <div>
@@ -520,6 +538,16 @@ export default function ProdutosPage() {
                                 Enviar para iFood
                               </Label>
                               <p className="text-xs text-muted-foreground">Incluir no catálogo do iFood</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch id="isCombo" name="isCombo" defaultChecked={editandoProduto?.isCombo} />
+                            <div>
+                              <Label htmlFor="isCombo" className="flex items-center gap-1">
+                                <Layers className="h-4 w-4 text-purple-500" />
+                                É Combo?
+                              </Label>
+                              <p className="text-xs text-muted-foreground">Produto virtual com itens agregados</p>
                             </div>
                           </div>
                         </div>
@@ -1132,7 +1160,317 @@ export default function ProdutosPage() {
               </Card>
             )}
           </TabsContent>
+
+          {/* Tab Combos */}
+          <TabsContent value="combos" className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold flex items-center gap-2">
+                <Layers className="h-5 w-5 text-purple-500" />
+                Gerenciamento de Combos
+              </h2>
+              <p className="text-sm text-muted-foreground">
+                Crie combos combinando produtos existentes. Ao vender um combo, o estoque dos itens componentes será reduzido automaticamente.
+              </p>
+            </div>
+
+            {/* Info */}
+            <Card className="bg-purple-50 border-purple-200">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                    <Layers className="h-5 w-5 text-purple-600" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-purple-800">Como funcionam os combos?</p>
+                    <p className="text-sm text-purple-700">
+                      1. Edite um produto e ative "É Combo?" na aba Dados Gerais.
+                      2. Volte aqui e clique em "Configurar Itens" para definir os componentes.
+                      3. Ao vender o combo no PDV, o estoque dos itens será reduzido automaticamente.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Lista de combos */}
+            {produtos.filter(p => p.isCombo).length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center h-64">
+                  <Layers className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium">Nenhum combo criado</p>
+                  <p className="text-sm text-muted-foreground">
+                    Edite um produto e ative a opção "É Combo?" para começar
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Combos cadastrados ({produtos.filter(p => p.isCombo).length})</CardTitle>
+                  <CardDescription>
+                    Configure os itens de cada combo
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Combo</TableHead>
+                        <TableHead className="text-right">Preço</TableHead>
+                        <TableHead className="text-center">Itens</TableHead>
+                        <TableHead className="w-[160px] text-center">Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {produtos.filter(p => p.isCombo).map((combo) => (
+                        <TableRow key={combo.id}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-50 to-purple-100 flex items-center justify-center flex-shrink-0">
+                                <Layers className="h-5 w-5 text-purple-400" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{combo.nome}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {combo.codigo || '-'}
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-right font-semibold text-green-600">
+                            R$ {(combo.preco || 0).toFixed(2)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="text-purple-600 border-purple-200">
+                              <Settings2 className="h-3 w-3 mr-1" />
+                              Configurar
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
+                                setComboProdutoSelecionado(combo);
+                                setComboItensState([]);
+                                setComboSearch('');
+                                const itens = await obterItensCombo(combo.id);
+                                setComboItensState(itens.map(i => ({
+                                  itemProdutoId: i.itemProdutoId,
+                                  quantidade: i.quantidade,
+                                  custoIncluido: i.custoIncluido,
+                                })));
+                                setDialogComboOpen(true);
+                              }}
+                              className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                            >
+                              <Settings2 className="mr-2 h-4 w-4" />
+                              Configurar Itens
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            )}
+          </TabsContent>
         </Tabs>
+
+        {/* Dialog: Configurar Itens do Combo */}
+        <Dialog open={dialogComboOpen} onOpenChange={(open) => {
+          setDialogComboOpen(open);
+          if (!open) setComboProdutoSelecionado(null);
+        }}>
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                <span className="flex items-center gap-2">
+                  <Layers className="h-5 w-5 text-purple-500" />
+                  Configurar Itens do Combo
+                </span>
+              </DialogTitle>
+              <DialogDescription>
+                {comboProdutoSelecionado?.nome}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 mt-4">
+              {/* Busca de produtos */}
+              <div className="space-y-2">
+                <Label>Adicionar Produto</Label>
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar produto por nome ou código..."
+                    value={comboSearch}
+                    onChange={(e) => setComboSearch(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+
+                {/* Lista de produtos disponíveis para adicionar */}
+                {comboSearch.length > 0 && (
+                  <div className="border rounded-lg max-h-48 overflow-y-auto">
+                    {produtos
+                      .filter(p => 
+                        !p.isCombo && 
+                        p.id !== comboProdutoSelecionado?.id &&
+                        !comboItensState.some(ci => ci.itemProdutoId === p.id) &&
+                        (
+                          p.nome.toLowerCase().includes(comboSearch.toLowerCase()) || 
+                          (p.codigo && p.codigo.toLowerCase().includes(comboSearch.toLowerCase()))
+                        )
+                      )
+                      .slice(0, 10)
+                      .map((produto) => (
+                        <button
+                          key={produto.id}
+                          type="button"
+                          onClick={() => {
+                            setComboItensState([...comboItensState, {
+                              itemProdutoId: produto.id,
+                              quantidade: 1,
+                              custoIncluido: true,
+                            }]);
+                            setComboSearch('');
+                          }}
+                          className="w-full text-left px-4 py-3 hover:bg-accent flex items-center justify-between border-b last:border-b-0 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <Package className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div>
+                              <p className="text-sm font-medium">{produto.nome}</p>
+                              <p className="text-xs text-muted-foreground">
+                                R$ {(produto.preco || 0).toFixed(2)} · Estoque: {(produto.estoqueAtual || 0).toFixed(1)} {produto.unidade || 'un'}
+                              </p>
+                            </div>
+                          </div>
+                          <Plus className="h-4 w-4 text-muted-foreground" />
+                        </button>
+                      ))
+                    }
+                  </div>
+                )}
+              </div>
+
+              {/* Itens atuais do combo */}
+              <div className="space-y-2">
+                <Label>Itens do Combo ({comboItensState.length})</Label>
+                {comboItensState.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground border rounded-lg border-dashed">
+                    <Layers className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm">Nenhum item adicionado</p>
+                    <p className="text-xs">Busque e adicione produtos acima</p>
+                  </div>
+                ) : (
+                  <div className="border rounded-lg max-h-64 overflow-y-auto">
+                    {comboItensState.map((item, index) => {
+                      const produto = produtos.find(p => p.id === item.itemProdutoId);
+                      return (
+                        <div key={item.itemProdutoId} className="flex items-center gap-3 p-3 border-b last:border-b-0">
+                          <div className="h-8 w-8 rounded bg-purple-50 flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs font-bold text-purple-600">{index + 1}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{produto?.nome || 'Produto não encontrado'}</p>
+                            <p className="text-xs text-muted-foreground">
+                              R$ {(produto?.preco || 0).toFixed(2)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1">
+                              <Label className="text-xs text-muted-foreground whitespace-nowrap">Qtd:</Label>
+                              <Input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={item.quantidade}
+                                onChange={(e) => {
+                                  const newItens = [...comboItensState];
+                                  newItens[index] = { ...newItens[index], quantidade: parseFloat(e.target.value) || 0 };
+                                  setComboItensState(newItens);
+                                }}
+                                className="w-20 h-8 text-xs"
+                              />
+                            </div>
+                            <label className="flex items-center gap-1.5 cursor-pointer">
+                              <Checkbox
+                                checked={item.custoIncluido}
+                                onCheckedChange={(checked) => {
+                                  const newItens = [...comboItensState];
+                                  newItens[index] = { ...newItens[index], custoIncluido: checked };
+                                  setComboItensState(newItens);
+                                }}
+                              />
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">Baixa estoque</span>
+                            </label>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const newItens = comboItensState.filter((_, i) => i !== index);
+                                setComboItensState(newItens);
+                              }}
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Preview do custo total */}
+              {comboItensState.length > 0 && (
+                <div className="rounded-lg bg-muted/50 p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Custo estimado dos itens (soma):</span>
+                    <span className="font-semibold">
+                      R$ {comboItensState.reduce((acc, item) => {
+                        const produto = produtos.find(p => p.id === item.itemProdutoId);
+                        return acc + ((produto?.custo || 0) * item.quantidade);
+                      }, 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <DialogFooter className="mt-4 pt-4 border-t">
+              <Button variant="outline" type="button" onClick={() => setDialogComboOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                disabled={savingCombo || comboItensState.length === 0}
+                onClick={async () => {
+                  if (!comboProdutoSelecionado) return;
+                  setSavingCombo(true);
+                  try {
+                    await salvarComboItens(comboProdutoSelecionado.id, comboItensState);
+                    toast({ title: 'Itens do combo salvo com sucesso!' });
+                    setDialogComboOpen(false);
+                    refetchProdutos();
+                  } catch (error) {
+                    console.error('Erro ao salvar itens do combo:', error);
+                    toast({ variant: 'destructive', title: 'Erro ao salvar itens do combo' });
+                  } finally {
+                    setSavingCombo(false);
+                  }
+                }}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                {savingCombo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Salvar Itens
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </MainLayout>
     </ProtectedRoute>
   );
