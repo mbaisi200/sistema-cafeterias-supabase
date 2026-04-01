@@ -56,6 +56,8 @@ interface ItemPedido {
   nome: string;
   preco: number;
   quantidade: number;
+  codigo: string;
+  unidade: string;
   atendenteId: string;
   atendenteNome: string;
   tipoVenda: 'balcao' | 'mesa' | 'delivery' | 'comanda';
@@ -125,6 +127,10 @@ export default function PDVPage() {
     nome: string;
     cnpj: string;
     endereco: string;
+    bairro: string;
+    cidade: string;
+    estado: string;
+    telefone: string;
   } | null>(null);
 
   // Carregar dados da empresa
@@ -138,29 +144,30 @@ export default function PDVPage() {
       try {
         const { data, error } = await supabase
           .from('empresas')
-          .select('nome, cnpj, logradouro, numero, complemento, bairro, cidade, estado')
+          .select('nome, cnpj, telefone, logradouro, numero, complemento, bairro, cidade, estado')
           .eq('id', empresaId)
           .single();
 
         if (!error && data) {
-          // Montar endereço completo a partir dos campos separados
-          const partesEndereco = [
+          // Montar logradouro completo (rua + número + complemento)
+          const partesLogradouro = [
             data.logradouro,
             data.numero,
             data.complemento,
-            data.bairro,
-            data.cidade,
-            data.estado
           ].filter(Boolean);
 
-          const enderecoCompleto = partesEndereco.length > 0
-            ? partesEndereco.join(', ')
+          const logradouroCompleto = partesLogradouro.length > 0
+            ? partesLogradouro.join(', ')
             : '';
 
           setEmpresa({
             nome: data.nome || 'Sistema PDV',
             cnpj: data.cnpj || '',
-            endereco: enderecoCompleto,
+            endereco: logradouroCompleto,
+            bairro: data.bairro || '',
+            cidade: data.cidade || '',
+            estado: data.estado || '',
+            telefone: data.telefone || '',
           });
         }
       } catch (error) {
@@ -200,6 +207,8 @@ export default function PDVPage() {
           nome: item.nome,
           preco: item.preco,
           quantidade: item.quantidade,
+          codigo: item.codigo || '',
+          unidade: item.unidade || 'UN',
           atendenteId: item.atendente_id,
           atendenteNome: item.atendente_nome,
           tipoVenda: item.tipo_venda,
@@ -359,6 +368,8 @@ export default function PDVPage() {
             nome: produto.nome,
             preco: produto.preco,
             quantidade: 1,
+            codigo: produto.codigo || '',
+            unidade: produto.unidade || 'UN',
             atendente_id: user?.id,
             atendente_nome: user?.nome,
             tipo_venda: tipoVenda,
@@ -424,6 +435,8 @@ export default function PDVPage() {
           nome: produto.nome,
           preco: produto.preco,
           quantidade: 1,
+          codigo: produto.codigo || '',
+          unidade: produto.unidade || 'UN',
           atendenteId: user?.id || '',
           atendenteNome: user?.nome || '',
           tipoVenda: 'balcao',
@@ -810,6 +823,8 @@ export default function PDVPage() {
               nome: item.nome,
               quantidade: item.quantidade,
               preco: item.preco,
+              codigo: item.codigo || '',
+              unidade: item.unidade || 'UN',
             })),
             total,
             formaPagamento,
@@ -817,6 +832,10 @@ export default function PDVPage() {
             codigoVenda: vendaId.slice(-8).toUpperCase(),
             configuracoes: dadosCupom.configuracoes,
             cliente: dadosCupom.cliente || deliveryCliente || undefined,
+            bairroEmpresa: empresa?.bairro || '',
+            cidadeEmpresa: empresa?.cidade || '',
+            ufEmpresa: empresa?.estado || '',
+            vendedor: user?.nome || 'ADMINISTRADOR',
           });
         }
 
@@ -1646,11 +1665,17 @@ export default function PDVPage() {
           nome: item.nome,
           quantidade: item.quantidade,
           preco: item.preco,
+          codigo: item.codigo,
+          unidade: item.unidade,
         }))}
         nomeEmpresa={empresa?.nome || 'Sistema PDV'}
         cnpjEmpresa={empresa?.cnpj || ''}
         enderecoEmpresa={empresa?.endereco || ''}
         processando={processando}
+        bairroEmpresa={empresa?.bairro || ''}
+        cidadeEmpresa={empresa?.cidade || ''}
+        ufEmpresa={empresa?.estado || ''}
+        vendedor={user?.nome || 'ADMINISTRADOR'}
       />
 
     </ProtectedRoute>

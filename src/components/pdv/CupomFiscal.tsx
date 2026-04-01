@@ -29,6 +29,14 @@ export interface DadosCupomFiscal {
   configuracoes?: ConfiguracoesCupom;
   clienteId?: string;
   cliente?: ClienteEncontrado;
+  razaoSocial?: string;
+  inscricaoEstadual?: string;
+  bairroEmpresa?: string;
+  cidadeEmpresa?: string;
+  ufEmpresa?: string;
+  codigoBarras?: string;
+  unidade?: string;
+  vendedor?: string;
 }
 
 interface CupomFiscalModalProps {
@@ -41,12 +49,20 @@ interface CupomFiscalModalProps {
     nome: string;
     quantidade: number;
     preco: number;
+    codigo?: string;
+    unidade?: string;
   }>;
   nomeEmpresa?: string;
   cnpjEmpresa?: string;
   enderecoEmpresa?: string;
   processando?: boolean;
   pagamentosMultiplos?: Array<{ forma: string; valor: number }>;
+  razaoSocial?: string;
+  inscricaoEstadual?: string;
+  bairroEmpresa?: string;
+  cidadeEmpresa?: string;
+  ufEmpresa?: string;
+  vendedor?: string;
 }
 
 export function CupomFiscalModal({
@@ -60,6 +76,12 @@ export function CupomFiscalModal({
   cnpjEmpresa = '',
   enderecoEmpresa = '',
   processando = false,
+  razaoSocial = '',
+  inscricaoEstadual = '',
+  bairroEmpresa = '',
+  cidadeEmpresa = '',
+  ufEmpresa = '',
+  vendedor = '',
 }: CupomFiscalModalProps) {
   const { toast } = useToast();
   const { configuracoes } = useConfiguracoesCupom();
@@ -180,6 +202,12 @@ export function CupomFiscalModal({
       configuracoes: configuracoes || configuracoesCupomPadrao,
       clienteId: clienteSelecionado?.id,
       cliente: clienteSelecionado || undefined,
+      razaoSocial,
+      inscricaoEstadual,
+      bairroEmpresa,
+      cidadeEmpresa,
+      ufEmpresa,
+      vendedor,
     }, formaPagamento);
   };
 
@@ -379,7 +407,7 @@ export function CupomFiscalModal({
   );
 }
 
-// Função para gerar e imprimir cupom
+// Função para gerar e imprimir cupom (formato estilo MarketUp)
 export function imprimirCupomFiscal(
   dados: {
     nomeEmpresa: string;
@@ -387,7 +415,7 @@ export function imprimirCupomFiscal(
     enderecoEmpresa: string;
     cpfCliente: string;
     nomeCliente: string;
-    itens: Array<{ nome: string; quantidade: number; preco: number }>;
+    itens: Array<{ nome: string; quantidade: number; preco: number; codigo?: string; unidade?: string }>;
     total: number;
     formaPagamento: string;
     tamanhoCupom: '58mm' | '80mm';
@@ -395,6 +423,12 @@ export function imprimirCupomFiscal(
     pagamentosMultiplos?: Array<{ forma: string; valor: number }>;
     configuracoes?: ConfiguracoesCupom;
     cliente?: ClienteEncontrado;
+    razaoSocial?: string;
+    inscricaoEstadual?: string;
+    bairroEmpresa?: string;
+    cidadeEmpresa?: string;
+    ufEmpresa?: string;
+    vendedor?: string;
   }
 ) {
   const {
@@ -411,45 +445,59 @@ export function imprimirCupomFiscal(
     pagamentosMultiplos,
     configuracoes,
     cliente,
+    razaoSocial: razaoSocialParam,
+    inscricaoEstadual: ieParam,
+    bairroEmpresa: bairroParam,
+    cidadeEmpresa: cidadeParam,
+    ufEmpresa: ufParam,
+    vendedor: vendedorParam,
   } = dados;
 
   // Usar configurações salvas ou padrão
   const config = configuracoes || configuracoesCupomPadrao;
   
   // SEMPRE usar dados da empresa das configurações do cupom se preenchidos
-  const nomeEmpresa = (config.nomeEmpresa && config.nomeEmpresa.trim() !== '') 
+  const nomeFantasia = (config.nomeEmpresa && config.nomeEmpresa.trim() !== '') 
     ? config.nomeEmpresa 
     : nomeEmpresaParam;
+  const razaoSocial = razaoSocialParam || nomeFantasia;
   const cnpjEmpresa = (config.cnpj && config.cnpj.trim() !== '') 
     ? config.cnpj 
     : cnpjEmpresaParam;
-  const enderecoEmpresa = (config.endereco && config.endereco.trim() !== '') 
-    ? config.endereco 
-    : enderecoEmpresaParam;
+  const enderecoLogradouro = enderecoEmpresaParam;
+  const bairroEmpresa = bairroParam || '';
+  const cidadeEmpresa = cidadeParam || '';
+  const ufEmpresa = ufParam || '';
+  const inscricaoEstadual = ieParam || '';
+  const telefoneEmpresa = config.telefone || '';
+  const vendedor = vendedorParam || 'ADMINISTRADOR';
   
   // Determinar largura do papel
   const larguraMm = config.larguraPapel || (tamanhoCupom === '58mm' ? 58 : 80);
   
   // Configurações de fonte
-  const tamanhoFonte = config.tamanhoFonte || 12;
-  const intensidade = config.intensidadeImpressao || 'escura';
-  const espacamentoLinhas = config.espacamentoLinhas || 1.4;
-  const margemSuperior = config.margemSuperior ?? 2;
-  const margemInferior = config.margemInferior ?? 2;
-  const margemEsquerda = config.margemEsquerda ?? 2;
-  const margemDireita = config.margemDireita ?? 2;
+  const tamanhoFonte = config.tamanhoFonte || 9;
+  const espacamentoLinhas = config.espacamentoLinhas || 1.3;
+  const margemSuperior = config.margemSuperior ?? 0;
+  const margemInferior = config.margemInferior ?? 0;
+  const margemEsquerda = config.margemEsquerda ?? 1;
+  const margemDireita = config.margemDireita ?? 1;
   
   const larguraUtilMm = Math.max(20, larguraMm - margemEsquerda - margemDireita);
   const mmPorCaractere = (tamanhoFonte / 12) * 1.5;
   const larguraCalculada = Math.floor(larguraUtilMm / mmPorCaractere);
   const largura = Math.max(16, larguraCalculada - 1);
   
-  const mensagemRodape = config.mensagemRodape || 'Obrigado pela preferência!\nVolte sempre!';
+  const mensagemRodape = config.mensagemRodape || 'Obrigado pela preferencia!\nVolte sempre!';
 
-  console.log('Imprimindo cupom com configurações:', {
-    nomeEmpresa,
+  console.log('Imprimindo cupom com configuracoes:', {
+    nomeFantasia,
+    razaoSocial,
     cnpjEmpresa,
-    enderecoEmpresa,
+    enderecoLogradouro,
+    bairroEmpresa,
+    cidadeEmpresa,
+    ufEmpresa,
     larguraMm,
     larguraCaracteres: largura,
     tamanhoFonte,
@@ -457,15 +505,16 @@ export function imprimirCupomFiscal(
   });
 
   const formaPagamentoLabel: Record<string, string> = {
-    dinheiro: 'Dinheiro',
-    credito: 'Cartão Crédito',
-    debito: 'Cartão Débito',
+    dinheiro: 'DINHEIRO',
+    credito: 'CARTAO DE CREDITO',
+    debito: 'CARTAO DE DEBITO',
     pix: 'PIX',
   };
 
-  const separador = '='.repeat(largura);
+  const separadorDuplo = '='.repeat(largura);
   const traco = '-'.repeat(largura);
 
+  // ---------- Funções de formatação de texto ----------
   const quebrarTexto = (texto: string): string[] => {
     if (texto.length <= largura) return [texto];
     const linhas: string[] = [];
@@ -493,16 +542,14 @@ export function imprimirCupomFiscal(
     }).join('\n');
   };
 
+  const alinharDireita = (texto: string) => {
+    const espacos = Math.max(0, largura - texto.length);
+    return ' '.repeat(espacos) + texto;
+  };
+
   const formatarLinha = (esquerda: string, direita: string) => {
     const espacos = Math.max(1, largura - esquerda.length - direita.length);
     return esquerda + ' '.repeat(espacos) + direita;
-  };
-
-  const formatarCPF = (cpf: string | undefined | null) => {
-    if (!cpf) return '';
-    const numeros = cpf.replace(/\D/g, '');
-    if (numeros.length !== 11) return cpf;
-    return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6, 9)}-${numeros.slice(9)}`;
   };
 
   const formatarCNPJ = (cnpj: string | undefined | null) => {
@@ -512,131 +559,155 @@ export function imprimirCupomFiscal(
     return `${numeros.slice(0, 2)}.${numeros.slice(2, 5)}.${numeros.slice(5, 8)}/${numeros.slice(8, 12)}-${numeros.slice(12)}`;
   };
 
+  const formatarCPF = (cpf: string | undefined | null) => {
+    if (!cpf) return '';
+    const numeros = cpf.replace(/\D/g, '');
+    if (numeros.length !== 11) return cpf;
+    return `${numeros.slice(0, 3)}.${numeros.slice(3, 6)}.${numeros.slice(6, 9)}-${numeros.slice(9)}`;
+  };
+
   const formatarTelefone = (telefone: string | undefined | null) => {
     if (!telefone) return '';
     const numeros = telefone.replace(/\D/g, '');
-    
     if (numeros.length === 11) {
       return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 7)}-${numeros.slice(7)}`;
     } else if (numeros.length === 10) {
       return `(${numeros.slice(0, 2)}) ${numeros.slice(2, 6)}-${numeros.slice(6)}`;
     } else if (numeros.length === 9) {
       return `${numeros.slice(0, 5)}-${numeros.slice(5)}`;
-    } else if (numeros.length === 8) {
-      return `${numeros.slice(0, 4)}-${numeros.slice(4)}`;
     }
     return telefone;
   };
 
-  const formatarCEP = (cep: string | undefined | null) => {
-    if (!cep) return '';
-    const numeros = cep.replace(/\D/g, '');
-    if (numeros.length === 8) {
-      return `${numeros.slice(0, 5)}-${numeros.slice(5)}`;
+  // Gerar chave de acesso estilo UUID (se não tiver codigoVenda)
+  const gerarChaveAcesso = () => {
+    const chars = '0123456789ABCDEF';
+    let uuid = '';
+    for (let i = 0; i < 32; i++) {
+      if (i === 8 || i === 12 || i === 16 || i === 20) uuid += '-';
+      uuid += chars[Math.floor(Math.random() * chars.length)];
     }
-    return cep;
+    return uuid;
   };
 
-  // Construir cupom
+  const chaveAcesso = codigoVenda 
+    ? `${codigoVenda.slice(0, 8)}-${codigoVenda.slice(8, 12)}-${codigoVenda.slice(12, 16)}-${codigoVenda.slice(16, 20)}`
+    : gerarChaveAcesso();
+
+  // ---------- Construir cupom no formato MarketUp ----------
   let cupom = '';
 
+  // Espaço inicial
   cupom += '\n';
-  cupom += centralizar(nomeEmpresa || 'EMPRESA') + '\n';
-  if (cnpjEmpresa) cupom += centralizar(`CNPJ: ${formatarCNPJ(cnpjEmpresa)}`) + '\n';
-  if (enderecoEmpresa) cupom += centralizar(enderecoEmpresa) + '\n';
-  if (config.telefone) cupom += centralizar(`Tel: ${formatarTelefone(config.telefone)}`) + '\n';
-  cupom += separador + '\n';
-  cupom += centralizar('CUPOM FISCAL') + '\n';
-  cupom += separador + '\n';
 
-  // Data e hora
+  // === CABEÇALHO DO EMITENTE ===
+  cupom += centralizar(nomeFantasia.toUpperCase()) + '\n';
+  cupom += centralizar(razaoSocial.toUpperCase()) + '\n';
+  
+  // Endereço completo no estilo: LOGRADOURO, NUMERO
+  // BAIRRO
+  // CIDADE - UF
+  if (enderecoLogradouro) {
+    cupom += centralizar(enderecoLogradouro.toUpperCase()) + '\n';
+  }
+  if (bairroEmpresa) {
+    cupom += centralizar(bairroEmpresa.toUpperCase()) + '\n';
+  }
+  if (cidadeEmpresa || ufEmpresa) {
+    const cidadeUf = [cidadeEmpresa, ufEmpresa].filter(Boolean).join(' - ');
+    cupom += centralizar(cidadeUf.toUpperCase()) + '\n';
+  }
+  
+  // Telefone e CNPJ
+  if (telefoneEmpresa) {
+    cupom += centralizar(`Tel: ${formatarTelefone(telefoneEmpresa)}`) + '\n';
+  }
+  if (cnpjEmpresa) {
+    cupom += centralizar(`CNPJ: ${formatarCNPJ(cnpjEmpresa)}`) + '\n';
+  }
+  if (inscricaoEstadual) {
+    cupom += centralizar(`I.E: ${inscricaoEstadual}`) + '\n';
+  }
+
+  cupom += '\n';
+
+  // === DADOS DO DOCUMENTO ===
+  cupom += centralizar('CUPOM NAO FISCAL') + '\n';
+  cupom += '\n';
+
   const agora = new Date();
   const data = agora.toLocaleDateString('pt-BR');
   const hora = agora.toLocaleTimeString('pt-BR');
-  cupom += formatarLinha(`Data: ${data}`, `Hora: ${hora}`) + '\n';
-  if (codigoVenda) {
-    cupom += formatarLinha('Código:', codigoVenda) + '\n';
-  }
+
+  cupom += `Data Emissao: ${data}\n`;
+  cupom += `Hora Emissao:  ${hora}\n`;
+  cupom += `Chave: ${chaveAcesso}\n`;
+  cupom += `Software: SISTEMA-CAFETERIAS\n`;
+
+  cupom += '\n';
+
+  // === DADOS DO CLIENTE ===
+  const nomeClienteFinal = cliente?.nome_razao_social || nomeCliente || 'AO CONSUMIDOR';
+  cupom += `Cliente: ${nomeClienteFinal.toUpperCase()}\n`;
+  cupom += `Vendedor: ${vendedor.toUpperCase()}\n`;
+
+  cupom += '\n';
   cupom += traco + '\n';
 
-  // Dados do cliente - agora com dados completos do cliente cadastrado
-  if (cliente) {
-    cupom += 'CONSUMIDOR\n';
-    cupom += `Nome: ${cliente.nome_razao_social}\n`;
-    if (cliente.nome_fantasia) {
-      cupom += `Fantasia: ${cliente.nome_fantasia}\n`;
-    }
-    if (cliente.tipo_pessoa === '1') {
-      cupom += `CNPJ: ${formatarCNPJ(cliente.cnpj_cpf)}\n`;
-    } else {
-      cupom += `CPF: ${formatarCPF(cliente.cnpj_cpf)}\n`;
-    }
-    if (cliente.telefone || cliente.celular) {
-      cupom += `Tel: ${formatarTelefone(cliente.telefone || cliente.celular)}\n`;
-    }
-    if (cliente.email) {
-      cupom += `E-mail: ${cliente.email}\n`;
-    }
-    // Endereço do cliente se existir
-    if (cliente.logradouro) {
-      const endereco = [
-        cliente.logradouro,
-        cliente.numero,
-        cliente.complemento,
-        cliente.bairro,
-      ].filter(Boolean).join(', ');
-      const cidadeUf = [cliente.municipio, cliente.uf].filter(Boolean).join(' - ');
-      const cep = formatarCEP(cliente.cep);
-      cupom += `End: ${endereco}\n`;
-      if (cidadeUf) cupom += `      ${cidadeUf}${cep ? ` - ${cep}` : ''}\n`;
-    }
-    cupom += traco + '\n';
-  } else if (cpfCliente || nomeCliente) {
-    cupom += 'CONSUMIDOR\n';
-    if (nomeCliente) cupom += `Nome: ${nomeCliente}\n`;
-    if (cpfCliente) cupom += `CPF: ${formatarCPF(cpfCliente)}\n`;
-    cupom += traco + '\n';
-  }
-
-  // Itens
-  cupom += 'ITENS\n';
+  // === ITENS ===
+  // Cabeçalho dos itens (compacto)
+  cupom += centralizar('ITENS DO PEDIDO') + '\n';
   cupom += traco + '\n';
-  
+
   itens.forEach((item) => {
-    cupom += `${item.nome}\n`;
-    cupom += formatarLinha(
-      `  ${item.quantidade} x R$ ${item.preco.toFixed(2)}`,
-      `R$ ${(item.quantidade * item.preco).toFixed(2)}`
-    ) + '\n';
+    const codigoStr = (item.codigo || '').padEnd(16, ' ');
+    const unidade = (item.unidade || 'UN').toUpperCase();
+    const valorUnitStr = item.preco.toFixed(2);
+    const valorTotalStr = (item.quantidade * item.preco).toFixed(2);
+
+    // Linha 1: Código (se tiver) + Descrição
+    if (item.codigo) {
+      cupom += `${codigoStr}${item.nome}\n`;
+    } else {
+      cupom += `${item.nome}\n`;
+    }
+
+    // Linha 2: Qtde x UN R$ V.Unit R$ V.Total
+    const detalhe = `${item.quantidade} ${unidade.padEnd(3, ' ')} x R$ ${valorUnitStr}`;
+    cupom += formatarLinha(`  ${detalhe}`, `R$ ${valorTotalStr}`) + '\n';
   });
-  
+
   cupom += traco + '\n';
 
-  // Total
-  cupom += formatarLinha('TOTAL:', `R$ ${total.toFixed(2)}`) + '\n';
-  
-  // Forma(s) de pagamento
+  // === TOTAIS ===
+  const subtotal = total; // Sem desconto por enquanto
+  cupom += formatarLinha('  SUBTOTAL:', `R$ ${subtotal.toFixed(2)}`) + '\n';
+  cupom += formatarLinha('  TOTAL GERAL:', `R$ ${total.toFixed(2)}`) + '\n';
+
+  cupom += '\n';
+
+  // === PAGAMENTO ===
   if (pagamentosMultiplos && pagamentosMultiplos.length > 1) {
-    cupom += 'PAGAMENTOS:\n';
     pagamentosMultiplos.forEach((pg) => {
-      cupom += formatarLinha(
-        `  ${formaPagamentoLabel[pg.forma] || pg.forma}:`,
-        `R$ ${pg.valor.toFixed(2)}`
-      ) + '\n';
+      cupom += `Pgto: ${formaPagamentoLabel[pg.forma] || pg.forma.toUpperCase()}\n`;
+      cupom += formatarLinha('  Valor Pago:', `R$ ${pg.valor.toFixed(2)}`) + '\n';
     });
   } else {
-    cupom += formatarLinha('Forma Pgto:', formaPagamentoLabel[formaPagamento] || formaPagamento) + '\n';
+    cupom += `Pagamento: ${formaPagamentoLabel[formaPagamento] || formaPagamento.toUpperCase()}\n`;
+    cupom += formatarLinha('  Valor Pago:', `R$ ${total.toFixed(2)}`) + '\n';
   }
-  cupom += separador + '\n';
 
-  // Rodapé
+  cupom += '\n';
+
+  // === RODAPÉ ===
+  cupom += separadorDuplo + '\n';
   mensagemRodape.split('\n').forEach((linha) => {
     cupom += centralizar(linha) + '\n';
   });
+  cupom += separadorDuplo + '\n';
   cupom += '\n\n\n';
 
-  // Determinar peso da fonte
-  const fontWeight = intensidade === 'normal' ? 400 : intensidade === 'escura' ? 600 : 700;
+  // ---------- Abrir janela de impressão ----------
   const tamanhoPapel = `${larguraMm}mm`;
 
   const printWindow = window.open('', '_blank', 'width=400,height=600');
@@ -649,30 +720,37 @@ export function imprimirCupomFiscal(
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Cupom Fiscal</title>
+      <title>Cupom Não Fiscal</title>
       <style>
         @page {
           size: ${tamanhoPapel} auto;
           margin: ${margemSuperior}mm ${margemDireita}mm ${margemInferior}mm ${margemEsquerda}mm;
         }
+        * {
+          box-sizing: border-box;
+        }
         body {
-          font-family: 'Courier New', monospace;
+          font-family: 'Courier New', 'Lucida Console', monospace;
           font-size: ${tamanhoFonte}px;
-          font-weight: ${fontWeight};
           line-height: ${espacamentoLinhas};
           margin: 0;
           padding: ${margemSuperior}mm ${margemDireita}mm ${margemInferior}mm ${margemEsquerda}mm;
-          white-space: pre-wrap;
+          white-space: pre;
           word-wrap: break-word;
+          overflow-wrap: break-word;
           width: ${larguraMm}mm;
           max-width: ${larguraMm}mm;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
         @media print {
-          body {
-            padding: 0;
+          html, body {
             width: ${larguraMm}mm;
+            margin: 0;
+            padding: 0;
+          }
+          body {
+            padding: ${margemSuperior}mm ${margemDireita}mm ${margemInferior}mm ${margemEsquerda}mm;
           }
         }
       </style>
