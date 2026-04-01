@@ -724,19 +724,30 @@ export function imprimirCupomFiscal(
   cupom += traco + '\n';
 
   // === TOTAIS ===
-  const subtotal = total; // Sem desconto por enquanto
-  cupom += formatarLinha('  SUBTOTAL:', `R$ ${subtotal.toFixed(2)}`) + '\n';
-  cupom += formatarLinha('  TOTAL GERAL:', `R$ ${total.toFixed(2)}`) + '\n';
+  cupom += formatarLinha('  SUBTOTAL:', `R$ ${total.toFixed(2)}`) + '\n';
+  cupom += separadorDuplo + '\n';
+  cupom += formatarLinha('  TOTAL DA VENDA:', `R$ ${total.toFixed(2)}`) + '\n';
+  cupom += separadorDuplo + '\n';
 
   cupom += '\n';
 
   // === PAGAMENTO ===
   if (pagamentosMultiplos && pagamentosMultiplos.length > 1) {
+    // Múltiplos pagamentos: mostra cada um com saldo restante
+    let saldoRestante = total;
     pagamentosMultiplos.forEach((pg) => {
-      cupom += `Pgto: ${formaPagamentoLabel[pg.forma] || pg.forma.toUpperCase()}\n`;
+      cupom += `Pagamento: ${formaPagamentoLabel[pg.forma] || pg.forma.toUpperCase()}\n`;
       cupom += formatarLinha('  Valor Pago:', `R$ ${pg.valor.toFixed(2)}`) + '\n';
+      saldoRestante -= pg.valor;
+      if (saldoRestante > 0.005) {
+        cupom += formatarLinha('  Restante:', `R$ ${saldoRestante.toFixed(2)}`) + '\n';
+      } else {
+        cupom += '  RESTANTE: R$ 0.00\n';
+      }
+      cupom += '\n';
     });
   } else {
+    // Pagamento único
     cupom += `Pagamento: ${formaPagamentoLabel[formaPagamento] || formaPagamento.toUpperCase()}\n`;
     cupom += formatarLinha('  Valor Pago:', `R$ ${total.toFixed(2)}`) + '\n';
   }
