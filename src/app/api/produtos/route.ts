@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const busca = searchParams.get('busca');
-    const limite = parseInt(searchParams.get('limite') || '50');
+    const limite = parseInt(searchParams.get('limite') || '200');
 
     let query = supabase
       .from('produtos')
@@ -34,7 +34,8 @@ export async function GET(request: NextRequest) {
       .eq('ativo', true);
 
     if (busca) {
-      query = query.or(`nome.ilike.%${busca}%,codigo.ilike.%${busca}%,codigo_barras.ilike.%${busca}%`);
+      const termo = `%${busca}%`;
+      query = query.or(`nome.ilike.${termo},descricao.ilike.${termo},codigo.ilike.${termo},codigo_barras.ilike.${termo}`);
     }
 
     query = query.order('nome', { ascending: true }).limit(limite);
