@@ -455,12 +455,12 @@ export function useFuncionarios() {
         telefone: dados.telefone,
         pin: dados.pin,
         empresa_id: empresaId,
-        perm_pdv: dados.permissoes?.pdv ?? true,
-        perm_estoque: dados.permissoes?.estoque ?? false,
-        perm_financeiro: dados.permissoes?.financeiro ?? false,
-        perm_relatorios: dados.permissoes?.relatorios ?? false,
-        perm_cancelar_venda: dados.permissoes?.cancelarVenda ?? false,
-        perm_dar_desconto: dados.permissoes?.darDesconto ?? false,
+        perm_pdv: dados.perm_pdv ?? dados.permissoes?.pdv ?? true,
+        perm_estoque: dados.perm_estoque ?? dados.permissoes?.estoque ?? false,
+        perm_financeiro: dados.perm_financeiro ?? dados.permissoes?.financeiro ?? false,
+        perm_relatorios: dados.perm_relatorios ?? dados.permissoes?.relatorios ?? false,
+        perm_cancelar_venda: dados.perm_cancelar_venda ?? dados.permissoes?.cancelarVenda ?? false,
+        perm_dar_desconto: dados.perm_dar_desconto ?? dados.permissoes?.darDesconto ?? false,
         ativo: dados.ativo ?? true,
       })
       .select()
@@ -472,7 +472,9 @@ export function useFuncionarios() {
 
   const atualizarFuncionario = async (id: string, dados: any) => {
     const updateData: any = { ...dados };
+    // Mapear campos diretos (novo formato)
     if (dados.permissoes) {
+      // Compatibilidade com formato antigo (objeto permissoes)
       updateData.perm_pdv = dados.permissoes.pdv;
       updateData.perm_estoque = dados.permissoes.estoque;
       updateData.perm_financeiro = dados.permissoes.financeiro;
@@ -480,6 +482,9 @@ export function useFuncionarios() {
       updateData.perm_cancelar_venda = dados.permissoes.cancelarVenda;
       updateData.perm_dar_desconto = dados.permissoes.darDesconto;
       delete updateData.permissoes;
+    } else {
+      // Novo formato: campos booleanos diretos já estão em updateData
+      // Apenas remover campos indefinidos para não sobrescrever
     }
 
     const { error } = await supabase

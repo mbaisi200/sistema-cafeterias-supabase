@@ -60,14 +60,12 @@ interface Funcionario {
   email?: string;
   telefone?: string;
   pin: string;
-  permissoes?: {
-    pdv?: boolean;
-    estoque?: boolean;
-    financeiro?: boolean;
-    relatorios?: boolean;
-    cancelarVenda?: boolean;
-    darDesconto?: boolean;
-  };
+  perm_pdv?: boolean;
+  perm_estoque?: boolean;
+  perm_financeiro?: boolean;
+  perm_relatorios?: boolean;
+  perm_cancelar_venda?: boolean;
+  perm_dar_desconto?: boolean;
   ativo: boolean;
 }
 
@@ -163,14 +161,12 @@ export default function FuncionariosPage() {
           cargo: formData.get('cargo') as string,
           telefone: unmask(telefoneValue),
           pin: pin,
-          permissoes: {
-            pdv: formData.get('perm_pdv') === 'on',
-            estoque: formData.get('perm_estoque') === 'on',
-            financeiro: formData.get('perm_financeiro') === 'on',
-            relatorios: formData.get('perm_relatorios') === 'on',
-            cancelarVenda: formData.get('perm_cancelar') === 'on',
-            darDesconto: formData.get('perm_desconto') === 'on',
-          },
+          perm_pdv: formData.get('perm_pdv') === 'on',
+          perm_estoque: formData.get('perm_estoque') === 'on',
+          perm_financeiro: formData.get('perm_financeiro') === 'on',
+          perm_relatorios: formData.get('perm_relatorios') === 'on',
+          perm_cancelar_venda: formData.get('perm_cancelar') === 'on',
+          perm_dar_desconto: formData.get('perm_desconto') === 'on',
           ativo: formData.get('ativo') === 'on',
         });
 
@@ -196,14 +192,12 @@ export default function FuncionariosPage() {
           cargo: formData.get('cargo') as string,
           telefone: unmask(telefoneValue),
           pin: pin,
-          permissoes: {
-            pdv: formData.get('perm_pdv') === 'on',
-            estoque: formData.get('perm_estoque') === 'on',
-            financeiro: formData.get('perm_financeiro') === 'on',
-            relatorios: formData.get('perm_relatorios') === 'on',
-            cancelarVenda: formData.get('perm_cancelar') === 'on',
-            darDesconto: formData.get('perm_desconto') === 'on',
-          },
+          perm_pdv: formData.get('perm_pdv') === 'on',
+          perm_estoque: formData.get('perm_estoque') === 'on',
+          perm_financeiro: formData.get('perm_financeiro') === 'on',
+          perm_relatorios: formData.get('perm_relatorios') === 'on',
+          perm_cancelar_venda: formData.get('perm_cancelar') === 'on',
+          perm_dar_desconto: formData.get('perm_desconto') === 'on',
           ativo: formData.get('ativo') === 'on',
         });
 
@@ -459,7 +453,7 @@ export default function FuncionariosPage() {
                         <Switch 
                           id="perm_pdv" 
                           name="perm_pdv" 
-                          defaultChecked={editandoFuncionario?.permissoes?.pdv ?? true}
+                          defaultChecked={editandoFuncionario?.perm_pdv ?? true}
                         />
                       </div>
                       <div className="flex items-center justify-between">
@@ -467,7 +461,7 @@ export default function FuncionariosPage() {
                         <Switch 
                           id="perm_estoque" 
                           name="perm_estoque"
-                          defaultChecked={editandoFuncionario?.permissoes?.estoque ?? false}
+                          defaultChecked={editandoFuncionario?.perm_estoque ?? false}
                         />
                       </div>
                       <div className="flex items-center justify-between">
@@ -475,7 +469,7 @@ export default function FuncionariosPage() {
                         <Switch 
                           id="perm_financeiro" 
                           name="perm_financeiro"
-                          defaultChecked={editandoFuncionario?.permissoes?.financeiro ?? false}
+                          defaultChecked={editandoFuncionario?.perm_financeiro ?? false}
                         />
                       </div>
                       <div className="flex items-center justify-between">
@@ -483,7 +477,7 @@ export default function FuncionariosPage() {
                         <Switch 
                           id="perm_relatorios" 
                           name="perm_relatorios"
-                          defaultChecked={editandoFuncionario?.permissoes?.relatorios ?? false}
+                          defaultChecked={editandoFuncionario?.perm_relatorios ?? false}
                         />
                       </div>
                       <div className="flex items-center justify-between">
@@ -491,7 +485,7 @@ export default function FuncionariosPage() {
                         <Switch 
                           id="perm_cancelar" 
                           name="perm_cancelar"
-                          defaultChecked={editandoFuncionario?.permissoes?.cancelarVenda ?? false}
+                          defaultChecked={editandoFuncionario?.perm_cancelar_venda ?? false}
                         />
                       </div>
                       <div className="flex items-center justify-between">
@@ -499,7 +493,7 @@ export default function FuncionariosPage() {
                         <Switch 
                           id="perm_desconto" 
                           name="perm_desconto"
-                          defaultChecked={editandoFuncionario?.permissoes?.darDesconto ?? false}
+                          defaultChecked={editandoFuncionario?.perm_dar_desconto ?? false}
                         />
                       </div>
                     </div>
@@ -632,10 +626,10 @@ export default function FuncionariosPage() {
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
                             <div className="flex flex-wrap gap-1">
-                              {func.permissoes?.pdv && <Badge variant="secondary" className="text-xs">PDV</Badge>}
-                              {func.permissoes?.estoque && <Badge variant="secondary" className="text-xs">Estoque</Badge>}
-                              {func.permissoes?.financeiro && <Badge variant="secondary" className="text-xs">Financeiro</Badge>}
-                              {func.permissoes?.relatorios && <Badge variant="secondary" className="text-xs">Relatórios</Badge>}
+                              {func.perm_pdv && <Badge variant="secondary" className="text-xs">PDV</Badge>}
+                              {func.perm_estoque && <Badge variant="secondary" className="text-xs">Estoque</Badge>}
+                              {func.perm_financeiro && <Badge variant="secondary" className="text-xs">Financeiro</Badge>}
+                              {func.perm_relatorios && <Badge variant="secondary" className="text-xs">Relatórios</Badge>}
                             </div>
                           </TableCell>
                           <TableCell>

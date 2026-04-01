@@ -101,7 +101,7 @@ export default function EstoquePage() {
     
     // Buscar movimentações
     supabase
-      .from('movimentacoes_estoque')
+      .from('estoque_movimentos')
       .select('*')
       .eq('empresa_id', empresaId)
       .order('criado_em', { ascending: false })
@@ -205,7 +205,7 @@ export default function EstoquePage() {
 
       // Registrar movimentação
       const { error } = await supabase
-        .from('movimentacoes_estoque')
+        .from('estoque_movimentos')
         .insert({
           empresa_id: empresaId,
           produto_id: produtoSelecionado.id,
@@ -272,7 +272,7 @@ export default function EstoquePage() {
 
       // Registrar movimentação
       const { error } = await supabase
-        .from('movimentacoes_estoque')
+        .from('estoque_movimentos')
         .insert({
           empresa_id: empresaId,
           produto_id: produtoSelecionado.id,

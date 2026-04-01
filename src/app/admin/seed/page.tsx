@@ -135,7 +135,7 @@ const TABELAS_PARA_LIMPAR = [
   'vendas',
   'itens_venda',
   'pagamentos',
-  'movimentacoes_estoque',
+  'estoque_movimentos',
   'contas',
   'caixas',
   'movimentacoes_caixa',
@@ -367,14 +367,12 @@ function SeedContent() {
         email: `${nome.toLowerCase().replace(' ', '.')}@email.com`,
         telefone: `(11) 9${Math.floor(1000 + Math.random() * 9000)}-${Math.floor(1000 + Math.random() * 9000)}`,
         pin: gerarPIN(),
-        permissoes: {
-          pdv: true,
-          estoque: i < 3,
-          financeiro: i < 2,
-          relatorios: i < 2,
-          cancelar_venda: i < 3,
-          dar_desconto: i < 3
-        },
+        perm_pdv: true,
+        perm_estoque: i < 3,
+        perm_financeiro: i < 2,
+        perm_relatorios: i < 2,
+        perm_cancelar_venda: i < 3,
+        perm_dar_desconto: i < 3,
         ativo: true,
         criado_em: new Date().toISOString(),
         atualizado_em: new Date().toISOString()
@@ -602,7 +600,6 @@ function SeedContent() {
         return {
           empresa_id: empresaId,
           produto_id: produto.id,
-          produto_nome: produto.nome,
           tipo,
           quantidade,
           preco_unitario: produto.custo,
@@ -613,7 +610,7 @@ function SeedContent() {
       });
 
       const { error: movError } = await supabase
-        .from('movimentacoes_estoque')
+        .from('estoque_movimentos')
         .insert(movimentosData);
 
       if (movError) console.error('Erro ao criar movimentos:', movError);
