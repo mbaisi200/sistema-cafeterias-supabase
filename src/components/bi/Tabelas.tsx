@@ -167,22 +167,22 @@ export function FluxoCaixaResumo({ dados }: FluxoCaixaResumoProps) {
           <CardDescription>Resumo financeiro</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 gap-3 mb-6">
             <div className="text-center p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30">
-              <p className="text-xs text-muted-foreground">Entradas</p>
-              <p className="text-lg font-bold text-emerald-600">
+              <p className="text-xs text-muted-foreground mb-0.5">Entradas</p>
+              <p className="text-base font-bold text-emerald-600 truncate">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dados.entradas)}
               </p>
             </div>
             <div className="text-center p-3 rounded-lg bg-red-50 dark:bg-red-950/30">
-              <p className="text-xs text-muted-foreground">Saídas</p>
-              <p className="text-lg font-bold text-red-600">
+              <p className="text-xs text-muted-foreground mb-0.5">Saídas</p>
+              <p className="text-base font-bold text-red-600 truncate">
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dados.saidas)}
               </p>
             </div>
             <div className={`text-center p-3 rounded-lg ${saldoPositivo ? 'bg-blue-50 dark:bg-blue-950/30' : 'bg-orange-50 dark:bg-orange-950/30'}`}>
-              <p className="text-xs text-muted-foreground">Saldo</p>
-              <p className={`text-lg font-bold ${saldoPositivo ? 'text-blue-600' : 'text-orange-600'}`}>
+              <p className="text-xs text-muted-foreground mb-0.5">Saldo</p>
+              <p className={`text-base font-bold truncate ${saldoPositivo ? 'text-blue-600' : 'text-orange-600'}`}>
                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(dados.saldo)}
               </p>
             </div>
