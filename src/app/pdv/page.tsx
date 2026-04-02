@@ -134,6 +134,11 @@ export default function PDVPage() {
     telefone: string;
   } | null>(null);
 
+  // Caixa dialog states
+  const [dialogAberturaCaixa, setDialogAberturaCaixa] = useState(false);
+  const [valorAberturaCaixa, setValorAberturaCaixa] = useState('');
+  const [abrindoCaixa, setAbrindoCaixa] = useState(false);
+
   // Mobile responsiveness states
   const [isMobile, setIsMobile] = useState(false);
   const [showCartMobile, setShowCartMobile] = useState(false);
@@ -1028,6 +1033,35 @@ export default function PDVPage() {
     window.print();
   };
 
+  // Abrir caixa com tratamento de erro
+  const handleAbrirCaixa = async () => {
+    const valor = parseFloat(valorAberturaCaixa) || 0;
+    if (valor < 0) {
+      toast({ variant: 'destructive', title: 'Informe um valor válido' });
+      return;
+    }
+
+    setAbrindoCaixa(true);
+    try {
+      await abrirCaixa(valor, '');
+      toast({ title: '✓ Caixa aberto com sucesso!' });
+      setDialogAberturaCaixa(false);
+      setValorAberturaCaixa('');
+    } catch (error: any) {
+      console.error('Erro ao abrir caixa:', error);
+      const msg = error?.message || 'Erro desconhecido';
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao abrir caixa',
+        description: msg.includes('406')
+          ? 'Permissão negada. Execute o script SQL de correção (fix-caixas-rls.sql) no Supabase.'
+          : msg,
+      });
+    } finally {
+      setAbrindoCaixa(false);
+    }
+  };
+
   // Logout
   const handleLogout = async () => {
     await logout();
@@ -1069,15 +1103,15 @@ export default function PDVPage() {
             {!caixaAberto ? (
               <Button
                 size="sm"
-                className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm hidden sm:inline-flex"
-                onClick={() => abrirCaixa(0)}
+                className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm inline-flex"
+                onClick={() => setDialogAberturaCaixa(true)}
               >
                 Abrir Caixa
               </Button>
             ) : (
               <Button
                 size="sm"
-                className="h-7 text-xs bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm hidden sm:inline-flex"
+                className="h-7 text-xs bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm inline-flex"
                 onClick={() => fecharCaixa(caixaAberto.valor_atual || 0)}
               >
                 Fechar Caixa
@@ -2127,6 +2161,43 @@ export default function PDVPage() {
         ufEmpresa={empresa?.estado || ''}
         vendedor={user?.nome || 'ADMINISTRADOR'}
       />
+
+      {/* DIALOG ABERTURA DE CAIXA */}
+      <Dialog open={dialogAberturaCaixa} onOpenChange={setDialogAberturaCaixa}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-green-600" />
+              Abrir Caixa
+            </DialogTitle>
+            <DialogDescription>
+              Informe o valor inicial em dinheiro no caixa
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Valor Inicial (R$)</Label>
+              <Input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={valorAberturaCaixa}
+                onChange={(e) => setValorAberturaCaixa(e.target.value)}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogAberturaCaixa(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleAbrirCaixa} disabled={abrindoCaixa} className="bg-green-600 hover:bg-green-700">
+              {abrindoCaixa && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Abrir Caixa
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </ProtectedRoute>
   );
