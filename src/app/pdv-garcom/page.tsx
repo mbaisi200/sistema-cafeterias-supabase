@@ -986,9 +986,6 @@ export default function PDVGarcomPage() {
     router.push('/');
   };
 
-  // ── Logout confirmation state ──
-  const [confirmarLogout, setConfirmarLogout] = useState(false);
-
   // ============================================================
   // Loading
   // ============================================================
@@ -1047,32 +1044,19 @@ export default function PDVGarcomPage() {
               <span className="hidden sm:inline">{caixaEstaAberto ? 'Caixa Aberto' : 'Abrir Caixa'}</span>
             </button>
             <button
-              onClick={async () => {
+              onClick={() => {
                 if (tela === 'mesas') {
-                  // Na tela de mesas, pedir confirmação antes de sair
-                  if (confirmarLogout) {
+                  if (window.confirm('Deseja realmente sair do sistema?')) {
                     handleLogout();
-                    return;
                   }
-                  setConfirmarLogout(true);
-                  // Auto-esconder confirmação após 4 segundos
-                  setTimeout(() => setConfirmarLogout(false), 4000);
                   return;
                 }
                 handleLogout();
               }}
-              className={`p-2 rounded-xl transition-colors ${
-                confirmarLogout
-                  ? 'bg-red-500 text-white active:bg-red-600'
-                  : 'hover:bg-red-50 active:bg-red-100 text-gray-500 hover:text-red-600'
-              }`}
-              title={tela === 'mesas' ? 'Sair do sistema' : 'Sair do sistema'}
+              className="p-2 rounded-xl hover:bg-red-50 active:bg-red-100 text-gray-500 hover:text-red-600 transition-colors"
+              title="Sair do sistema"
             >
-              {confirmarLogout ? (
-                <span className="text-xs font-bold whitespace-nowrap">Sair?</span>
-              ) : (
-                <LogOut className="h-5 w-5" />
-              )}
+              <LogOut className="h-5 w-5" />
             </button>
           </div>
         </header>
@@ -1670,8 +1654,8 @@ function CartBottomSheet({
           </div>
         </div>
 
-        {/* Items */}
-        <ScrollArea className="flex-1 px-5 py-3">
+        {/* Items - usando div nativa em vez de ScrollArea para compatibilidade mobile */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-3 overscroll-contain -webkit-overflow-scrolling-touch">
           <div className="space-y-2">
             {itensPedido.map((item) => (
               <div
@@ -1748,7 +1732,7 @@ function CartBottomSheet({
               </div>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
         {/* Actions */}
         {itensPedido.length > 0 && (
