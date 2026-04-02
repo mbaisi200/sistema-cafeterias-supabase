@@ -380,6 +380,7 @@ export default function PDVGarcomPage() {
     setSearch('');
     setShowCart(false);
     setPagamentos([]);
+    setLastComandaRefresh(Date.now());
   };
 
   const adicionarProduto = async (produto: (typeof produtos)[0]) => {
@@ -510,10 +511,14 @@ export default function PDVGarcomPage() {
       // Free the mesa
       await atualizarMesa(mesaSelecionada, { status: 'livre' });
 
-      // Clear local state
+      // Clear local state and go back to mesas
       setItensPedido([]);
       setShowCart(false);
       setPagamentos([]);
+      setMesaSelecionada('');
+      setNumeroMesaSelecionada(0);
+      setTela('mesas');
+      setLastComandaRefresh(Date.now());
 
       toast({ title: '✓ Pedido limpo e mesa liberada' });
     } catch (error) {
@@ -841,6 +846,7 @@ export default function PDVGarcomPage() {
       setMesaSelecionada('');
       setNumeroMesaSelecionada(0);
       setTela('mesas');
+      setLastComandaRefresh(Date.now());
     } catch (error) {
       console.error('Erro ao finalizar venda:', error);
       toast({ variant: 'destructive', title: 'Erro ao finalizar venda' });
