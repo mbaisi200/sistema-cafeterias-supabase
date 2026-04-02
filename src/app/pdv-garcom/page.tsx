@@ -459,12 +459,13 @@ export default function PDVGarcomPage() {
       // Mark mesa as occupied if free - direct Supabase call
       const mesaAtual = mesas.find((m) => m.id === mesaSelecionada);
       if (mesaAtual && mesaAtual.status === 'livre') {
-        const { error } = await supabase
+        const { error: mesaError } = await supabase
           .from('mesas')
           .update({ status: 'ocupada' })
           .eq('id', mesaSelecionada);
-        if (error) console.error('Erro ao ocupar mesa:', error);
-        else setTimeout(() => window.location.reload(), 400);
+        if (mesaError) console.error('Erro ao ocupar mesa:', mesaError);
+        // Reload to update mesa status on screen
+        window.location.href = window.location.pathname;
       }
     } catch (error) {
       console.error('Erro ao adicionar produto:', error);
@@ -505,31 +506,24 @@ export default function PDVGarcomPage() {
 
     try {
       // Delete ALL items for this mesa by mesa_id
-      await supabase
+      const { error: delError } = await supabase
         .from('pedidos_temp')
         .delete()
         .eq('empresa_id', empresaId)
         .eq('mesa_id', mesaSelecionada);
 
+      if (delError) throw delError;
+
       // Free the mesa - direct Supabase call
-      await supabase
+      const { error: mesaError } = await supabase
         .from('mesas')
         .update({ status: 'livre' })
         .eq('id', mesaSelecionada);
 
-      // Clear local state and go back to mesas
-      setItensPedido([]);
-      setShowCart(false);
-      setPagamentos([]);
-      setMesaSelecionada('');
-      setNumeroMesaSelecionada(0);
-      setTela('mesas');
-      setLastComandaRefresh(Date.now());
+      if (mesaError) throw mesaError;
 
-      // Force full page reload to refresh mesas status from Supabase
-      setTimeout(() => window.location.reload(), 400);
-
-      toast({ title: '✓ Pedido limpo e mesa liberada' });
+      // Reload page immediately - state is already saved in Supabase
+      window.location.href = window.location.pathname;
     } catch (error) {
       console.error('Erro ao limpar pedido:', error);
       toast({ variant: 'destructive', title: 'Erro ao limpar pedido' });
@@ -773,16 +767,13 @@ export default function PDVGarcomPage() {
       const deletePromises = itensPedido.map((item) => supabase.from('pedidos_temp').delete().eq('id', item.id));
       await Promise.all(deletePromises);
 
-      // Free mesa - direct Supabase call for reliability
+      // Free mesa - direct Supabase call
       if (mesaSelecionada) {
         const { error: mesaError } = await supabase
           .from('mesas')
           .update({ status: 'livre' })
           .eq('id', mesaSelecionada);
-        if (mesaError) {
-          console.error('Erro ao liberar mesa na finalização:', mesaError);
-          await atualizarMesa(mesaSelecionada, { status: 'livre' }).catch(() => {});
-        }
+        if (mesaError) console.error('Erro ao liberar mesa na finalização:', mesaError);
       }
 
       // Register in caixa
