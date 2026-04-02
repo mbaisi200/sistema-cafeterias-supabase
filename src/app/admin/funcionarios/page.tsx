@@ -61,6 +61,7 @@ interface Funcionario {
   telefone?: string;
   pin: string;
   perm_pdv?: boolean;
+  perm_pdv_garcom?: boolean;
   perm_estoque?: boolean;
   perm_financeiro?: boolean;
   perm_relatorios?: boolean;
@@ -162,6 +163,7 @@ export default function FuncionariosPage() {
           telefone: unmask(telefoneValue),
           pin: pin,
           perm_pdv: formData.get('perm_pdv') === 'on',
+          perm_pdv_garcom: formData.get('perm_pdv_garcom') === 'on',
           perm_estoque: formData.get('perm_estoque') === 'on',
           perm_financeiro: formData.get('perm_financeiro') === 'on',
           perm_relatorios: formData.get('perm_relatorios') === 'on',
@@ -193,6 +195,7 @@ export default function FuncionariosPage() {
           telefone: unmask(telefoneValue),
           pin: pin,
           perm_pdv: formData.get('perm_pdv') === 'on',
+          perm_pdv_garcom: formData.get('perm_pdv_garcom') === 'on',
           perm_estoque: formData.get('perm_estoque') === 'on',
           perm_financeiro: formData.get('perm_financeiro') === 'on',
           perm_relatorios: formData.get('perm_relatorios') === 'on',
@@ -457,6 +460,14 @@ export default function FuncionariosPage() {
                         />
                       </div>
                       <div className="flex items-center justify-between">
+                        <Label htmlFor="perm_pdv_garcom" className="text-sm">PDV Garçon (Mobile)</Label>
+                        <Switch 
+                          id="perm_pdv_garcom" 
+                          name="perm_pdv_garcom"
+                          defaultChecked={editandoFuncionario?.perm_pdv_garcom ?? false}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
                         <Label htmlFor="perm_estoque" className="text-sm">Controle de Estoque</Label>
                         <Switch 
                           id="perm_estoque" 
@@ -627,6 +638,7 @@ export default function FuncionariosPage() {
                           <TableCell className="hidden lg:table-cell">
                             <div className="flex flex-wrap gap-1">
                               {func.perm_pdv && <Badge variant="secondary" className="text-xs">PDV</Badge>}
+                              {func.perm_pdv_garcom && <Badge variant="secondary" className="text-xs">PDV Garçon</Badge>}
                               {func.perm_estoque && <Badge variant="secondary" className="text-xs">Estoque</Badge>}
                               {func.perm_financeiro && <Badge variant="secondary" className="text-xs">Financeiro</Badge>}
                               {func.perm_relatorios && <Badge variant="secondary" className="text-xs">Relatórios</Badge>}

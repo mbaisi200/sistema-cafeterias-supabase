@@ -313,6 +313,18 @@ export default function PDVPage() {
     setPagamentos(pagamentos.filter((_, i) => i !== index));
   };
 
+  // Auto-fill payment amount when dialog opens or when payments change
+  useEffect(() => {
+    if (dialogPagamento) {
+      const restante = total - totalPago;
+      setValorPagamentoAtual(restante > 0 ? restante.toFixed(2) : '');
+      // Reset payments when dialog opens fresh (no prior payments)
+      if (totalPago === 0) {
+        setPagamentos([]);
+      }
+    }
+  }, [dialogPagamento]);
+
   // Finalizar com múltiplos pagamentos
   const handleFinalizarComPagamentos = () => {
     if (totalPago < total) {

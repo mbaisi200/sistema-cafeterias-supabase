@@ -471,6 +471,7 @@ export function useFuncionarios() {
         ...f,
         permissoes: {
           pdv: f.perm_pdv,
+          pdv_garcom: f.perm_pdv_garcom,
           estoque: f.perm_estoque,
           financeiro: f.perm_financeiro,
           relatorios: f.perm_relatorios,
@@ -519,6 +520,7 @@ export function useFuncionarios() {
         pin: dados.pin,
         empresa_id: empresaId,
         perm_pdv: dados.perm_pdv ?? dados.permissoes?.pdv ?? true,
+        perm_pdv_garcom: dados.perm_pdv_garcom ?? dados.permissoes?.pdv_garcom ?? false,
         perm_estoque: dados.perm_estoque ?? dados.permissoes?.estoque ?? false,
         perm_financeiro: dados.perm_financeiro ?? dados.permissoes?.financeiro ?? false,
         perm_relatorios: dados.perm_relatorios ?? dados.permissoes?.relatorios ?? false,

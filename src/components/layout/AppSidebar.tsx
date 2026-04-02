@@ -65,6 +65,7 @@ const masterMenuItems: MenuItem[] = [
 const adminMenuItems: MenuItem[] = [
   { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
+  { title: 'PDV Garçon', url: '/pdv-garcom', icon: UtensilsCrossed },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
   { title: 'Cadastros', url: '/admin/cadastros', icon: Users },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
@@ -87,6 +88,7 @@ const atalhoRapidoMenuItems: MenuItem[] = [
 
 const funcionarioMenuItems: MenuItem[] = [
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
+  { title: 'PDV Garçon', url: '/pdv-garcom', icon: UtensilsCrossed },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
 ];
 
