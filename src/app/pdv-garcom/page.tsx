@@ -231,7 +231,7 @@ export default function PDVGarcomPage() {
         .eq('empresa_id', empresaId)
         .order('criado_em', { ascending: true });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         // Group by mesa_id
         const grouped = new Map<string, any[]>();
         for (const item of data) {
@@ -263,12 +263,11 @@ export default function PDVGarcomPage() {
         // Sort by mesa number
         result.sort((a, b) => a.mesa_numero - b.mesa_numero);
         setComandas(result);
-      } else {
-        setComandas([]);
       }
+      // Se data.length === 0, mantém o último estado (não limpa comandas)
     } catch (err) {
       console.error('Erro ao carregar comandas:', err);
-      setComandas([]);
+      // Em caso de erro de rede, mantém o último estado conhecido
     } finally {
       setLoadingComandas(false);
     }
@@ -564,21 +563,36 @@ export default function PDVGarcomPage() {
     const novaQtd = quantidadeAtual + delta;
 
     if (novaQtd <= 0) {
-      await supabase.from('pedidos_temp').delete().eq('id', itemId);
-      // OPTIMISTIC: if this was the last item, remove comanda for this mesa
-      const currentComanda = comandas.find((c) => c.mesa_id === mesaSelecionada);
-      if (currentComanda && currentComanda.totalItens <= 1) {
-        setComandas((prev) => prev.filter((c) => c.mesa_id !== mesaSelecionada));
-      } else if (currentComanda) {
-        setComandas((prev) =>
-          prev.map((c) =>
-            c.mesa_id === mesaSelecionada
-              ? { ...c, totalItens: Math.max(0, c.totalItens - 1) }
-              : c
-          )
-        );
+      // Otimistic: remove item do estado local IMEDIATAMENTE
+      const itemParaRemover = itensPedido.find((i) => i.id === itemId);
+      setItensPedido((prev) => prev.filter((i) => i.id !== itemId));
+
+      // Otimistic: atualizar comandas localmente
+      if (itemParaRemover) {
+        const currentComanda = comandas.find((c) => c.mesa_id === mesaSelecionada);
+        if (currentComanda && currentComanda.totalItens <= 1) {
+          setComandas((prev) => prev.filter((c) => c.mesa_id !== mesaSelecionada));
+        } else if (currentComanda) {
+          setComandas((prev) =>
+            prev.map((c) =>
+              c.mesa_id === mesaSelecionada
+                ? { ...c, totalItens: Math.max(0, c.totalItens - (itemParaRemover.quantidade || 1)), totalValor: Math.max(0, c.totalValor - (itemParaRemover.preco * itemParaRemover.quantidade)) }
+                : c
+            )
+          );
+        }
       }
+
+      // Deletar no servidor em background
+      supabase.from('pedidos_temp').delete().eq('id', itemId).catch((err) => {
+        console.error('Erro ao deletar item:', err);
+        toast({ variant: 'destructive', title: 'Erro ao remover item' });
+      });
     } else {
+      // Otimistic: atualizar quantidade localmente
+      setItensPedido((prev) =>
+        prev.map((i) => (i.id === itemId ? { ...i, quantidade: novaQtd } : i))
+      );
       await supabase.from('pedidos_temp').update({ quantidade: novaQtd }).eq('id', itemId);
     }
   };
@@ -586,20 +600,32 @@ export default function PDVGarcomPage() {
   const removerItem = async (itemId: string) => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
-    await supabase.from('pedidos_temp').delete().eq('id', itemId);
-    // OPTIMISTIC: if this was the last item, remove comanda for this mesa
-    const currentComanda = comandas.find((c) => c.mesa_id === mesaSelecionada);
-    if (currentComanda && currentComanda.totalItens <= 1) {
-      setComandas((prev) => prev.filter((c) => c.mesa_id !== mesaSelecionada));
-    } else if (currentComanda) {
-      setComandas((prev) =>
-        prev.map((c) =>
-          c.mesa_id === mesaSelecionada
-            ? { ...c, totalItens: Math.max(0, c.totalItens - 1) }
-            : c
-        )
-      );
+
+    // Otimistic: remove item do estado local IMEDIATAMENTE
+    const itemParaRemover = itensPedido.find((i) => i.id === itemId);
+    setItensPedido((prev) => prev.filter((i) => i.id !== itemId));
+
+    // Otimistic: atualizar comandas localmente
+    if (itemParaRemover) {
+      const currentComanda = comandas.find((c) => c.mesa_id === mesaSelecionada);
+      if (currentComanda && currentComanda.totalItens <= 1) {
+        setComandas((prev) => prev.filter((c) => c.mesa_id !== mesaSelecionada));
+      } else if (currentComanda) {
+        setComandas((prev) =>
+          prev.map((c) =>
+            c.mesa_id === mesaSelecionada
+              ? { ...c, totalItens: Math.max(0, c.totalItens - (itemParaRemover.quantidade || 1)), totalValor: Math.max(0, c.totalValor - (itemParaRemover.preco * itemParaRemover.quantidade)) }
+              : c
+          )
+        );
+      }
     }
+
+    // Deletar no servidor em background
+    supabase.from('pedidos_temp').delete().eq('id', itemId).catch((err) => {
+      console.error('Erro ao deletar item:', err);
+      toast({ variant: 'destructive', title: 'Erro ao remover item' });
+    });
   };
 
   const limparPedido = async () => {
@@ -1045,13 +1071,9 @@ export default function PDVGarcomPage() {
             </button>
             <button
               onClick={() => {
-                if (tela === 'mesas') {
-                  if (window.confirm('Deseja realmente sair do sistema?')) {
-                    handleLogout();
-                  }
-                  return;
+                if (window.confirm('Deseja realmente sair do sistema?')) {
+                  handleLogout();
                 }
-                handleLogout();
               }}
               className="p-2 rounded-xl hover:bg-red-50 active:bg-red-100 text-gray-500 hover:text-red-600 transition-colors"
               title="Sair do sistema"
