@@ -89,11 +89,8 @@ export default function PDVGarcomPage() {
   const { toast } = useToast();
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
-  const { mesas, loading: loadingMesas, atualizarMesa, refreshMesas } = useMesas();
+  const { mesas, loading: loadingMesas } = useMesas();
   const { caixaAberto, abrirCaixa } = useCaixa();
-
-  // ── Mesa status override (instant local updates, syncs with hook) ──
-  const [mesaStatusOverrides, setMesaStatusOverrides] = useState<Record<string, string>>({});
 
   // ── Screen States ──
   const [tela, setTela] = useState<'mesas' | 'produtos'>('mesas');
@@ -236,13 +233,13 @@ export default function PDVGarcomPage() {
     }
   }, [empresaId]);
 
-  // Load comandas when on mesas screen + auto-refresh every 10s
+  // Load comandas ALWAYS (not just on mesas screen) + auto-refresh every 5s
+  // This ensures mesa status derived from comandas is always up-to-date
   useEffect(() => {
-    if (tela !== 'mesas') return;
     carregarComandas();
-    const interval = setInterval(carregarComandas, 10000);
+    const interval = setInterval(carregarComandas, 5000);
     return () => clearInterval(interval);
-  }, [tela, empresaId, carregarComandas, lastComandaRefresh]);
+  }, [empresaId, carregarComandas, lastComandaRefresh]);
 
   // ============================================================
   // Load pedidos for selected mesa
@@ -323,12 +320,19 @@ export default function PDVGarcomPage() {
   // ============================================================
   const loading = loadingProdutos || loadingCategorias || loadingMesas;
 
+  // Derive mesa status from actual pedidos_temp data (comandas)
+  // If a mesa has active items in pedidos_temp, it's occupied; otherwise, free.
+  // This is ALWAYS correct regardless of the mesas.status column.
   const mesasOrdenadas = useMemo(() => {
+    const mesaHasItems = new Set<string>();
+    for (const comanda of comandas) {
+      mesaHasItems.add(comanda.mesa_id);
+    }
     return (mesas || []).map((m) => ({
       ...m,
-      status: mesaStatusOverrides[m.id] || m.status,
+      status: mesaHasItems.has(m.id) ? 'ocupada' : 'livre',
     })).sort((a, b) => a.numero - b.numero);
-  }, [mesas, mesaStatusOverrides]);
+  }, [mesas, comandas]);
 
   // Build a map of mesa_id -> item count from comandas
   const mesaItemCounts = useMemo(() => {
@@ -462,19 +466,16 @@ export default function PDVGarcomPage() {
         )
       );
 
-      // Mark mesa as occupied - update local state instantly
-      setMesaStatusOverrides((prev) => ({ ...prev, [mesaSelecionada]: 'ocupada' }));
-      // Update Supabase and refresh mesas
-      try {
-        const { error: mesaErr } = await supabase
-          .from('mesas')
-          .update({ status: 'ocupada' })
-          .eq('id', mesaSelecionada);
-        if (mesaErr) console.error('Erro ao ocupar mesa no DB:', mesaErr);
-        await refreshMesas();
-      } catch (mesaErr) {
-        console.error('Erro ao ocupar mesa:', mesaErr);
-      }
+      // Mark mesa as occupied in DB (for other components that use mesas.status)
+      supabase
+        .from('mesas')
+        .update({ status: 'ocupada' })
+        .eq('id', mesaSelecionada)
+        .then(({ error }) => {
+          if (error) console.error('Erro ao ocupar mesa no DB:', error);
+        });
+      // Refresh comandas immediately so mesa status is derived from real data
+      setLastComandaRefresh(Date.now());
     } catch (error) {
       console.error('Erro ao adicionar produto:', error);
       // Rollback: remove the optimistic item
@@ -522,21 +523,14 @@ export default function PDVGarcomPage() {
 
       if (delError) throw delError;
 
-      // Update local state instantly - mesa becomes free
-      const mesaId = mesaSelecionada;
-      setMesaStatusOverrides((prev) => ({ ...prev, [mesaId]: 'livre' }));
-
-      // Update Supabase and refresh
-      try {
-        const { error: mesaErr } = await supabase
-          .from('mesas')
-          .update({ status: 'livre' })
-          .eq('id', mesaId);
-        if (mesaErr) console.error('Erro ao liberar mesa no DB (limpar):', mesaErr);
-        await refreshMesas();
-      } catch (mesaErr) {
-        console.error('Erro ao liberar mesa (limpar):', mesaErr);
-      }
+      // Free mesa in DB (for other components that use mesas.status)
+      supabase
+        .from('mesas')
+        .update({ status: 'livre' })
+        .eq('id', mesaSelecionada)
+        .then(({ error }) => {
+          if (error) console.error('Erro ao liberar mesa no DB (limpar):', error);
+        });
 
       // Clear local state and go back to mesas
       setItensPedido([]);
@@ -791,20 +785,15 @@ export default function PDVGarcomPage() {
       const deletePromises = itensPedido.map((item) => supabase.from('pedidos_temp').delete().eq('id', item.id));
       await Promise.all(deletePromises);
 
-      // Free mesa - update local state instantly
+      // Free mesa in DB (for other components that use mesas.status)
       if (mesaSelecionada) {
-        const mesaId = mesaSelecionada;
-        setMesaStatusOverrides((prev) => ({ ...prev, [mesaId]: 'livre' }));
-        try {
-          const { error: mesaErr } = await supabase
-            .from('mesas')
-            .update({ status: 'livre' })
-            .eq('id', mesaId);
-          if (mesaErr) console.error('Erro ao liberar mesa no DB (finalizar):', mesaErr);
-          await refreshMesas();
-        } catch (mesaErr) {
-          console.error('Erro ao liberar mesa (finalizar):', mesaErr);
-        }
+        supabase
+          .from('mesas')
+          .update({ status: 'livre' })
+          .eq('id', mesaSelecionada)
+          .then(({ error }) => {
+            if (error) console.error('Erro ao liberar mesa no DB (finalizar):', error);
+          });
       }
 
       // Register in caixa
