@@ -506,24 +506,18 @@ export default function PDVGarcomPage() {
     if (!supabase || !mesaSelecionada || !empresaId) return;
 
     try {
-      // Delete ALL items for this mesa by mesa_id (more reliable than by item IDs)
+      // Delete ALL items for this mesa by mesa_id
       await supabase
         .from('pedidos_temp')
         .delete()
         .eq('empresa_id', empresaId)
         .eq('mesa_id', mesaSelecionada);
 
-      // Free the mesa - direct Supabase call for reliability
-      const { error: mesaError } = await supabase
+      // Free the mesa - direct Supabase call
+      await supabase
         .from('mesas')
         .update({ status: 'livre' })
         .eq('id', mesaSelecionada);
-
-      if (mesaError) {
-        console.error('Erro ao liberar mesa:', mesaError);
-        // Fallback: try via hook
-        await atualizarMesa(mesaSelecionada, { status: 'livre' }).catch(() => {});
-      }
 
       // Clear local state and go back to mesas
       setItensPedido([]);
@@ -533,6 +527,9 @@ export default function PDVGarcomPage() {
       setNumeroMesaSelecionada(0);
       setTela('mesas');
       setLastComandaRefresh(Date.now());
+
+      // Force full page reload to refresh mesas status from Supabase
+      setTimeout(() => window.location.reload(), 400);
 
       toast({ title: '✓ Pedido limpo e mesa liberada' });
     } catch (error) {
