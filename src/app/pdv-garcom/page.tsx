@@ -89,7 +89,7 @@ export default function PDVGarcomPage() {
   const { toast } = useToast();
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
-  const { mesas, loading: loadingMesas, atualizarMesa } = useMesas();
+  const { mesas, loading: loadingMesas, atualizarMesa, refreshMesas } = useMesas();
   const { caixaAberto, abrirCaixa } = useCaixa();
 
   // ── Mesa status override (instant local updates, syncs with hook) ──
@@ -462,16 +462,18 @@ export default function PDVGarcomPage() {
         )
       );
 
-      // Mark mesa as occupied if free - update local state instantly
-      const mesaAtual = mesas.find((m) => m.id === mesaSelecionada);
-      if (mesaAtual && mesaAtual.status === 'livre') {
-        setMesaStatusOverrides((prev) => ({ ...prev, [mesaSelecionada]: 'ocupada' }));
-        // Update Supabase in background (fire-and-forget)
-        supabase
+      // Mark mesa as occupied - update local state instantly
+      setMesaStatusOverrides((prev) => ({ ...prev, [mesaSelecionada]: 'ocupada' }));
+      // Update Supabase and refresh mesas
+      try {
+        const { error: mesaErr } = await supabase
           .from('mesas')
           .update({ status: 'ocupada' })
-          .eq('id', mesaSelecionada)
-          .catch((err) => console.error('Erro ao ocupar mesa:', err));
+          .eq('id', mesaSelecionada);
+        if (mesaErr) console.error('Erro ao ocupar mesa no DB:', mesaErr);
+        await refreshMesas();
+      } catch (mesaErr) {
+        console.error('Erro ao ocupar mesa:', mesaErr);
       }
     } catch (error) {
       console.error('Erro ao adicionar produto:', error);
@@ -524,12 +526,17 @@ export default function PDVGarcomPage() {
       const mesaId = mesaSelecionada;
       setMesaStatusOverrides((prev) => ({ ...prev, [mesaId]: 'livre' }));
 
-      // Update Supabase in background
-      supabase
-        .from('mesas')
-        .update({ status: 'livre' })
-        .eq('id', mesaId)
-        .catch((err) => console.error('Erro ao liberar mesa:', err));
+      // Update Supabase and refresh
+      try {
+        const { error: mesaErr } = await supabase
+          .from('mesas')
+          .update({ status: 'livre' })
+          .eq('id', mesaId);
+        if (mesaErr) console.error('Erro ao liberar mesa no DB (limpar):', mesaErr);
+        await refreshMesas();
+      } catch (mesaErr) {
+        console.error('Erro ao liberar mesa (limpar):', mesaErr);
+      }
 
       // Clear local state and go back to mesas
       setItensPedido([]);
@@ -788,11 +795,16 @@ export default function PDVGarcomPage() {
       if (mesaSelecionada) {
         const mesaId = mesaSelecionada;
         setMesaStatusOverrides((prev) => ({ ...prev, [mesaId]: 'livre' }));
-        supabase
-          .from('mesas')
-          .update({ status: 'livre' })
-          .eq('id', mesaId)
-          .catch((err) => console.error('Erro ao liberar mesa na finalização:', err));
+        try {
+          const { error: mesaErr } = await supabase
+            .from('mesas')
+            .update({ status: 'livre' })
+            .eq('id', mesaId);
+          if (mesaErr) console.error('Erro ao liberar mesa no DB (finalizar):', mesaErr);
+          await refreshMesas();
+        } catch (mesaErr) {
+          console.error('Erro ao liberar mesa (finalizar):', mesaErr);
+        }
       }
 
       // Register in caixa
@@ -1101,12 +1113,21 @@ export default function PDVGarcomPage() {
             valorAbertura={valorAberturaCaixa}
             setValorAbertura={setValorAberturaCaixa}
             onAbrirCaixa={async () => {
+              if (caixaAberto) {
+                toast({ title: 'Caixa já está aberto com R$ ' + (caixaAberto.valor_atual || caixaAberto.valorAtual || 0).toFixed(2) });
+                setDialogCaixa(false);
+                return;
+              }
               try {
-                await abrirCaixa(parseFloat(valorAberturaCaixa) || 0);
+                const valor = parseFloat(valorAberturaCaixa) || 0;
+                console.log('[PDV-Garçom] Abrindo caixa com valor:', valor);
+                const caixaId = await abrirCaixa(valor);
+                console.log('[PDV-Garçom] Caixa aberto com sucesso, ID:', caixaId);
                 toast({ title: '✓ Caixa aberto com sucesso!' });
                 setDialogCaixa(false);
               } catch (err: any) {
-                toast({ variant: 'destructive', title: err.message || 'Erro ao abrir caixa' });
+                console.error('[PDV-Garçom] Erro ao abrir caixa:', err);
+                toast({ variant: 'destructive', title: err.message || 'Erro ao abrir caixa', description: 'Verifique o console para detalhes.' });
               }
             }}
             onClose={() => setDialogCaixa(false)}

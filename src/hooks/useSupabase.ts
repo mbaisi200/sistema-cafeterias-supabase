@@ -438,7 +438,7 @@ export function useMesas() {
     if (error) throw error;
   };
 
-  return { mesas, loading, adicionarMesa, atualizarMesa, excluirMesa };
+  return { mesas, loading, adicionarMesa, atualizarMesa, excluirMesa, refreshMesas: carregarDados };
 }
 
 // =====================================================
