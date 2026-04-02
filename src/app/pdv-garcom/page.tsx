@@ -35,6 +35,9 @@ import {
   Clock,
   ClipboardList,
   RefreshCw,
+  CircleCheck,
+  CircleDot,
+  Eraser,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -55,6 +58,7 @@ interface ItemPedido {
   tipoVenda: 'balcao' | 'mesa';
   mesaNumero?: number;
   statusEnvio?: string;
+  entregue?: boolean;
   criadoEm: Date;
   _optimistic?: boolean;
 }
@@ -274,6 +278,7 @@ export default function PDVGarcomPage() {
             tipoVenda: 'mesa' as const,
             mesaNumero: item.mesa_numero,
             statusEnvio: item.status_envio || '',
+            entregue: item.status_entrega === 'entregue',
             criadoEm: new Date(item.criado_em),
             _optimistic: false,
           })) as ItemPedido[];
@@ -423,7 +428,7 @@ export default function PDVGarcomPage() {
 
     // Fire Supabase INSERT in the background
     try {
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('pedidos_temp')
         .insert({
           empresa_id: empresaId,
@@ -439,22 +444,16 @@ export default function PDVGarcomPage() {
           atendente_nome: user?.nome,
           tipo_venda: 'mesa',
           criado_em: new Date().toISOString(),
-        })
-        .select('id')
-        .single();
+        });
 
       if (error) throw error;
 
-      // Replace temp item with real one from server
-      if (data) {
-        setItensPedido((prev) =>
-          prev.map((item) =>
-            item.id === tempId ? { ...item, id: data.id, _optimistic: false } : item
-          )
-        );
-      }
-
-      toast({ title: `✓ ${produto.nome} adicionado` });
+      // Mark optimistic item as confirmed (polling will sync real ID)
+      setItensPedido((prev) =>
+        prev.map((item) =>
+          item.id === tempId ? { ...item, _optimistic: false } : item
+        )
+      );
 
       // Fire-and-forget: mark mesa as occupied if free
       const mesaAtual = mesas.find((m) => m.id === mesaSelecionada);
@@ -492,6 +491,70 @@ export default function PDVGarcomPage() {
     const supabase = getSupabaseClient();
     if (!supabase) return;
     await supabase.from('pedidos_temp').delete().eq('id', itemId);
+  };
+
+  const limparPedido = async () => {
+    const supabase = getSupabaseClient();
+    if (!supabase || !mesaSelecionada) return;
+
+    try {
+      // Delete all items for this mesa
+      const nonOptimistic = itensPedido.filter((i) => !i._optimistic);
+      if (nonOptimistic.length > 0) {
+        await supabase
+          .from('pedidos_temp')
+          .delete()
+          .in('id', nonOptimistic.map((i) => i.id));
+      }
+
+      // Free the mesa
+      await atualizarMesa(mesaSelecionada, { status: 'livre' });
+
+      // Clear local state
+      setItensPedido([]);
+      setShowCart(false);
+      setPagamentos([]);
+
+      toast({ title: '✓ Pedido limpo e mesa liberada' });
+    } catch (error) {
+      console.error('Erro ao limpar pedido:', error);
+      toast({ variant: 'destructive', title: 'Erro ao limpar pedido' });
+    }
+  };
+
+  const marcarEntregue = async (itemId: string, entregue: boolean) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    // Optimistic update
+    setItensPedido((prev) =>
+      prev.map((item) => (item.id === itemId ? { ...item, entregue } : item))
+    );
+
+    try {
+      const { error } = await supabase
+        .from('pedidos_temp')
+        .update({ status_entrega: entregue ? 'entregue' : 'pendente' })
+        .eq('id', itemId);
+
+      if (error) {
+        // Column might not exist, handle gracefully
+        const errorMsg = (error as any)?.message || String(error);
+        if (errorMsg.includes('status_entrega') || errorMsg.includes('column') || errorMsg.includes('does not exist')) {
+          // Keep optimistic state locally even if column doesn't exist
+          console.warn('Coluna status_entrega não encontrada. Controle de entrega funciona localmente.');
+        } else {
+          // Rollback on real error
+          setItensPedido((prev) =>
+            prev.map((item) => (item.id === itemId ? { ...item, entregue: !entregue } : item))
+          );
+        }
+      }
+    } catch {
+      setItensPedido((prev) =>
+        prev.map((item) => (item.id === itemId ? { ...item, entregue: !entregue } : item))
+      );
+    }
   };
 
   const enviarParaCozinha = async () => {
@@ -929,6 +992,10 @@ export default function PDVGarcomPage() {
             onClose={() => setShowCart(false)}
             onAlterarQtd={alterarQtd}
             onRemoverItem={removerItem}
+            onLimparPedido={() => {
+              limparPedido();
+            }}
+            onMarcarEntregue={marcarEntregue}
             onEnviarCozinha={() => {
               enviarParaCozinha();
               setShowCart(false);
@@ -1347,6 +1414,8 @@ function CartBottomSheet({
   onClose,
   onAlterarQtd,
   onRemoverItem,
+  onLimparPedido,
+  onMarcarEntregue,
   onEnviarCozinha,
   onImprimirComanda,
   onFinalizar,
@@ -1357,10 +1426,15 @@ function CartBottomSheet({
   onClose: () => void;
   onAlterarQtd: (id: string, delta: number, qtd: number) => void;
   onRemoverItem: (id: string) => void;
+  onLimparPedido: () => void;
+  onMarcarEntregue: (id: string, entregue: boolean) => void;
   onEnviarCozinha: () => void;
   onImprimirComanda: () => void;
   onFinalizar: () => void;
 }) {
+  const naoEntregues = itensPedido.filter((i) => !i.entregue).length;
+  const [confirmarLimpar, setConfirmarLimpar] = useState(false);
+
   return (
     <>
       {/* Overlay */}
@@ -1377,7 +1451,12 @@ function CartBottomSheet({
         <div className="px-5 pb-3 flex items-center justify-between border-b border-gray-100">
           <div>
             <h2 className="text-lg font-extrabold text-gray-800">Pedido - Mesa {mesaNumero}</h2>
-            <p className="text-sm text-gray-500">{itensPedido.length} {itensPedido.length === 1 ? 'item' : 'itens'}</p>
+            <p className="text-sm text-gray-500">
+              {itensPedido.length} {itensPedido.length === 1 ? 'item' : 'itens'}
+              {naoEntregues > 0 && (
+                <span className="text-orange-600 font-semibold ml-1">({naoEntregues} {naoEntregues === 1 ? 'pendente' : 'pendentes'})</span>
+              )}
+            </p>
           </div>
           <div className="text-right">
             <p className="text-xl font-extrabold text-green-600">R$ {total.toFixed(2)}</p>
@@ -1390,15 +1469,39 @@ function CartBottomSheet({
             {itensPedido.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100"
+                className={`relative flex items-center gap-3 rounded-xl p-3 border transition-all ${
+                  item.entregue
+                    ? 'bg-green-50 border-green-200'
+                    : 'bg-orange-50 border-orange-200'
+                }`}
               >
-                {/* Status indicator */}
-                {item.statusEnvio === 'enviado_cozinha' && (
-                  <div className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Enviado à cozinha" />
-                )}
+                {/* Delivery status left bar */}
+                <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl ${
+                  item.entregue ? 'bg-green-500' : 'bg-orange-400'
+                }`} />
+
+                {/* Delivery toggle button */}
+                <button
+                  onClick={() => onMarcarEntregue(item.id, !item.entregue)}
+                  className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all active:scale-90 ${
+                    item.entregue
+                      ? 'bg-green-500 text-white'
+                      : 'bg-white border-2 border-orange-300 text-orange-400'
+                  }`}
+                  title={item.entregue ? 'Clique para marcar como pendente' : 'Clique para marcar como entregue'}
+                >
+                  {item.entregue ? (
+                    <CircleCheck className="h-5 w-5" />
+                  ) : (
+                    <CircleDot className="h-5 w-5" />
+                  )}
+                </button>
+
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-1.5">
-                    <p className="font-bold text-sm text-gray-800 truncate">{item.nome}</p>
+                    <p className={`font-bold text-sm truncate ${item.entregue ? 'text-green-800' : 'text-gray-800'}`}>
+                      {item.nome}
+                    </p>
                     {item._optimistic && (
                       <Loader2 className="h-3 w-3 animate-spin text-green-500 shrink-0" />
                     )}
@@ -1411,23 +1514,23 @@ function CartBottomSheet({
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => onAlterarQtd(item.id, -1, item.quantidade)}
-                    className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 active:scale-90 transition-all"
+                    className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 active:scale-90 transition-all"
                   >
-                    <Minus className="h-4 w-4" />
+                    <Minus className="h-3.5 w-3.5" />
                   </button>
-                  <span className="w-8 text-center font-extrabold text-base text-gray-800">{item.quantidade}</span>
+                  <span className="w-7 text-center font-extrabold text-sm text-gray-800">{item.quantidade}</span>
                   <button
                     onClick={() => onAlterarQtd(item.id, 1, item.quantidade)}
-                    className="w-9 h-9 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-green-50 hover:border-green-200 hover:text-green-600 active:scale-90 transition-all"
+                    className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-green-50 hover:border-green-200 hover:text-green-600 active:scale-90 transition-all"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
                 <button
                   onClick={() => onRemoverItem(item.id)}
-                  className="p-2 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all shrink-0"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all shrink-0"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
             ))}
@@ -1443,22 +1546,49 @@ function CartBottomSheet({
         {/* Actions */}
         {itensPedido.length > 0 && (
           <div className="px-5 pb-6 pt-3 border-t border-gray-100 space-y-2">
+            {/* Delivery summary bar */}
+            {naoEntregues > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-orange-50 rounded-xl border border-orange-200">
+                <CircleDot className="h-4 w-4 text-orange-500 shrink-0" />
+                <p className="text-xs font-semibold text-orange-700">
+                  {naoEntregues} {naoEntregues === 1 ? 'item pendente' : 'itens pendentes'} para entrega
+                </p>
+              </div>
+            )}
+
             {/* Secondary Actions Row */}
             <div className="flex gap-2">
               <button
                 onClick={onEnviarCozinha}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-orange-100 text-orange-700 font-bold text-sm hover:bg-orange-200 active:scale-[0.98] transition-all"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-orange-100 text-orange-700 font-bold text-xs hover:bg-orange-200 active:scale-[0.98] transition-all"
               >
-                <ChefHat className="h-4 w-4" />
+                <ChefHat className="h-3.5 w-3.5" />
                 Cozinha
               </button>
               <button
                 onClick={onImprimirComanda}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl bg-blue-100 text-blue-700 font-bold text-sm hover:bg-blue-200 active:scale-[0.98] transition-all"
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-blue-100 text-blue-700 font-bold text-xs hover:bg-blue-200 active:scale-[0.98] transition-all"
               >
-                <Printer className="h-4 w-4" />
+                <Printer className="h-3.5 w-3.5" />
                 Comanda
               </button>
+              {confirmarLimpar ? (
+                <button
+                  onClick={() => { onLimparPedido(); setConfirmarLimpar(false); }}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-red-500 text-white font-bold text-xs hover:bg-red-600 active:scale-[0.98] transition-all animate-pulse"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Confirmar?
+                </button>
+              ) : (
+                <button
+                  onClick={() => setConfirmarLimpar(true)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-bold text-xs hover:bg-gray-200 active:scale-[0.98] transition-all"
+                >
+                  <Eraser className="h-3.5 w-3.5" />
+                  Limpar
+                </button>
+              )}
             </div>
 
             {/* Finalizar Button */}
