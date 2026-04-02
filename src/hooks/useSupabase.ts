@@ -388,6 +388,7 @@ export function useMesas() {
     carregarDados();
 
     let channel: RealtimeChannel;
+    let pedidosTempChannel: RealtimeChannel;
     if (empresaId) {
       channel = supabase
         .channel('mesas-changes')
@@ -396,10 +397,21 @@ export function useMesas() {
           () => carregarDados()
         )
         .subscribe();
+
+      // Also listen to pedidos_temp changes to refresh mesas status immediately
+      // This ensures mesa status stays in sync across all PDVs
+      pedidosTempChannel = supabase
+        .channel('pedidos-temp-mesas-sync')
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'pedidos_temp', filter: `empresa_id=eq.${empresaId}` },
+          () => carregarDados()
+        )
+        .subscribe();
     }
 
     return () => {
       if (channel) supabase.removeChannel(channel);
+      if (pedidosTempChannel) supabase.removeChannel(pedidosTempChannel);
     };
   }, [carregarDados]);
 

@@ -89,7 +89,7 @@ export default function PDVGarcomPage() {
   const { toast } = useToast();
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
-  const { mesas, loading: loadingMesas } = useMesas();
+  const { mesas, loading: loadingMesas, atualizarMesa } = useMesas();
   const { caixaAberto, abrirCaixa } = useCaixa();
 
   // ── Screen States ──

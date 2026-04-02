@@ -574,24 +574,52 @@ export default function PDVPage() {
 
   // Limpar pedido
   const limparPedido = async () => {
-    if ((tipoVenda === 'mesa' || tipoVenda === 'delivery') && mesaSelecionada) {
-      const supabase = getSupabaseClient();
-      if (supabase) {
-        const deletePromises = itensPedido.map(item => 
-          supabase.from('pedidos_temp').delete().eq('id', item.id)
-        );
-        await Promise.all(deletePromises);
+    const supabase = getSupabaseClient();
+
+    if (tipoVenda === 'mesa' && mesaSelecionada && empresaId && supabase) {
+      try {
+        // Delete ALL pedidos_temp items for this mesa (not just local state items)
+        const { error: delError } = await supabase
+          .from('pedidos_temp')
+          .delete()
+          .eq('empresa_id', empresaId)
+          .eq('mesa_id', mesaSelecionada);
+
+        if (delError) {
+          console.error('Erro ao limpar pedido:', delError);
+          toast({ variant: 'destructive', title: 'Erro ao limpar pedido' });
+          return;
+        }
+
+        // Free the mesa in DB so other devices see it as available
+        try {
+          await atualizarMesa(mesaSelecionada, { status: 'livre' });
+        } catch (err) {
+          console.error('Erro ao liberar mesa:', err);
+        }
+
+        // Clear local cart state
+        setItensPedido([]);
+        toast({ title: '✓ Pedido limpo e mesa liberada' });
+      } catch (error) {
+        console.error('Erro ao limpar pedido:', error);
+        toast({ variant: 'destructive', title: 'Erro ao limpar pedido' });
       }
-    } else {
-      setItensPedido([]);
-    }
-    if (tipoVenda === 'delivery') {
+    } else if (tipoVenda === 'delivery' && mesaSelecionada && supabase) {
+      const deletePromises = itensPedido.map(item =>
+        supabase.from('pedidos_temp').delete().eq('id', item.id)
+      );
+      await Promise.all(deletePromises);
       setDeliverySelecionado('');
       setDeliveryInfo({ nome: '', telefone: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', cep: '', observacao: '' });
       setDeliveryCliente(null);
-    }
-    if (tipoVenda === 'comanda') {
+      setItensPedido([]);
+      toast({ title: '✓ Pedido limpo' });
+    } else if (tipoVenda === 'comanda') {
       setComandaSelecionada(null);
+      setItensPedido([]);
+    } else {
+      setItensPedido([]);
     }
   };
 
