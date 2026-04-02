@@ -459,14 +459,12 @@ export default function PDVGarcomPage() {
       // Mark mesa as occupied if free - direct Supabase call
       const mesaAtual = mesas.find((m) => m.id === mesaSelecionada);
       if (mesaAtual && mesaAtual.status === 'livre') {
-        supabase
+        const { error } = await supabase
           .from('mesas')
           .update({ status: 'ocupada' })
-          .eq('id', mesaSelecionada)
-          .then(({ error }) => {
-            if (error) console.error('Erro ao ocupar mesa:', error);
-          })
-          .catch(() => {});
+          .eq('id', mesaSelecionada);
+        if (error) console.error('Erro ao ocupar mesa:', error);
+        else setTimeout(() => window.location.reload(), 400);
       }
     } catch (error) {
       console.error('Erro ao adicionar produto:', error);
