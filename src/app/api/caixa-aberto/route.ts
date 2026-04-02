@@ -43,17 +43,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Buscar caixa aberto para esta empresa
-    const { data: caixa, error: caixaError } = await supabase
+    // Usar .limit(1) em vez de .single() para evitar erro PGRST116 quando há múltiplos
+    const { data: caixas, error: caixaError } = await supabase
       .from('caixas')
       .select('*')
       .eq('empresa_id', empresaId)
       .eq('status', 'aberto')
-      .single();
+      .order('aberto_em', { ascending: false })
+      .limit(1);
 
-    console.log('[API caixa-aberto] Resultado para empresa', empresaId?.substring(0,8) + ':', caixa ? 'ENCONTRADO id=' + caixa.id : 'NÃO ENCONTRADO', caixaError?.code || '', caixaError?.message || '');
+    const caixa = caixas && caixas.length > 0 ? caixas[0] : null;
 
-    if (caixaError && caixaError.code !== 'PGRST116') {
+    console.log('[API caixa-aberto] Resultado para empresa', empresaId?.substring(0,8) + ':', caixa ? 'ENCONTRADO id=' + caixa.id : 'NÃO ENCONTRADO', caixaError?.code || '', caixaError?.message || '', 'total_abertos:', caixas?.length || 0);
+
+    if (caixaError) {
       console.error('[API caixa-aberto] Erro na query:', caixaError);
+    }
+
+    // Se há mais de 1 caixa aberto, fechar os antigos automaticamente
+    if (caixas && caixas.length > 1) {
+      console.log('[API caixa-aberto] ATENÇÃO: Há', caixas.length, 'caixas abertos! Fechando antigos...');
+      const idsParaFechar = caixas.slice(1).map((c: any) => c.id);
+      await supabase
+        .from('caixas')
+        .update({
+          status: 'fechado',
+          fechado_em: new Date().toISOString(),
+          observacao_fechamento: 'Fechado automaticamente (duplicidade)',
+        })
+        .in('id', idsParaFechar);
     }
 
     // Buscar movimentações do caixa

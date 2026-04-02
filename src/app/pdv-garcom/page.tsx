@@ -1052,14 +1052,6 @@ export default function PDVGarcomPage() {
           </div>
         </header>
 
-        {/* ── DEBUG BANNER (temporário - remover após corrigir) ── */}
-        <div className="bg-yellow-100 text-yellow-800 text-[10px] px-3 py-1 flex items-center justify-between shrink-0 border-b border-yellow-200">
-          <span>EMP: {empresaId?.substring(0, 8) || 'N/A'}</span>
-          <span>CAIXA: {caixaEstaAberto ? '✅ ABERTO' : '❌ FECHADO'}</span>
-          <span>VERIFICADO: {caixaVerificado ? 'SIM' : 'NÃO'}</span>
-          <span>USER: {user?.role || 'N/A'} ({user?.nome?.substring(0, 10) || 'N/A'})</span>
-        </div>
-
         {/* ── MESA INFO BAR (when in product view) ── */}
         {tela === 'produtos' && (
           <div className="bg-green-600 text-white px-4 py-2.5 flex items-center justify-between shrink-0">
