@@ -855,31 +855,49 @@ export default function PDVGarcomPage() {
       const mesaIdToFree = mesaSelecionada;
       setComandas((prev) => prev.filter((c) => c.mesa_id !== mesaIdToFree));
 
-      // Register in caixa
-      if (caixaAberto) {
-        await supabase
-          .from('movimentacoes_caixa')
-          .insert({
-            caixa_id: caixaAberto.id,
-            empresa_id: empresaId,
-            tipo: 'venda',
-            valor: total,
-            forma_pagamento: formaPagamento,
-            venda_id: vendaData.id,
-            descricao: `Venda - Mesa ${numeroMesaSelecionada}`,
-            usuario_id: user?.id,
-            usuario_nome: user?.nome,
-            criado_em: new Date().toISOString(),
-          });
+      // Register in caixa (usar API com service role para bypass RLS do funcionário)
+      let caixaIdToUse = caixaAberto?.id || null;
 
-        await supabase
-          .from('caixas')
-          .update({
-            valor_atual: (caixaAberto.valor_atual || 0) + total,
-            total_vendas: (caixaAberto.total_vendas || 0) + total,
-            total_entradas: (caixaAberto.total_entradas || 0) + total,
-          })
-          .eq('id', caixaAberto.id);
+      // Se não temos caixaAberto no estado, buscar via API
+      if (!caixaIdToUse && empresaId) {
+        try {
+          const caixaResponse = await fetch('/api/caixa-aberto', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ empresaId }),
+          });
+          if (caixaResponse.ok) {
+            const caixaResult = await caixaResponse.json();
+            if (caixaResult.caixa) {
+              caixaIdToUse = caixaResult.caixa.id;
+            }
+          }
+        } catch (e) {
+          console.warn('[PDV-Garçom] Não conseguiu buscar caixa para registrar venda:', e);
+        }
+      }
+
+      if (caixaIdToUse) {
+        try {
+          await fetch('/api/caixa-registrar-venda', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              empresaId,
+              caixaId: caixaIdToUse,
+              valor: total,
+              formaPagamento,
+              vendaId: vendaData.id,
+              descricao: `Venda - Mesa ${numeroMesaSelecionada}`,
+              usuarioId: user?.id,
+              usuarioNome: user?.nome,
+            }),
+          });
+        } catch (e) {
+          console.warn('[PDV-Garçom] Não conseguiu registrar venda no caixa:', e);
+        }
+      } else {
+        console.warn('[PDV-Garçom] Nenhum caixa aberto encontrado para registrar venda');
       }
 
       // Log
@@ -1093,15 +1111,49 @@ export default function PDVGarcomPage() {
               setShowCart(false);
             }}
             onImprimirComanda={imprimirComanda}
-            onFinalizar={() => {
-              if (!caixaAberto) {
+            onFinalizar={async () => {
+              // Se já temos caixaAberto no estado, seguir direto
+              if (caixaAberto) {
+                setPagamentos([]);
+                setDialogPagamento(true);
+                setShowCart(false);
+                return;
+              }
+
+              // caixaAberto está null — tentar buscar na API antes de exigir abertura
+              // (funcionários via PIN podem não conseguir buscar via RLS no hook)
+              if (!empresaId) {
                 toast({ variant: 'destructive', title: 'Abra o caixa antes de finalizar' });
                 setDialogCaixa(true);
                 return;
               }
-              setPagamentos([]);
-              setDialogPagamento(true);
-              setShowCart(false);
+
+              try {
+                toast({ title: 'Verificando caixa...', description: 'Aguarde um momento' });
+                const response = await fetch('/api/caixa-aberto', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ empresaId }),
+                });
+
+                if (response.ok) {
+                  const result = await response.json();
+                  if (result.caixa) {
+                    // Caixa está aberto! Atualizar estado local e prosseguir
+                    toast({ title: 'Caixa aberto detectado!' });
+                    setPagamentos([]);
+                    setDialogPagamento(true);
+                    setShowCart(false);
+                    return;
+                  }
+                }
+              } catch (e) {
+                console.warn('[PDV-Garçom] Erro ao verificar caixa via API:', e);
+              }
+
+              // Realmente não há caixa aberto
+              toast({ variant: 'destructive', title: 'Abra o caixa antes de finalizar' });
+              setDialogCaixa(true);
             }}
           />
         )}
