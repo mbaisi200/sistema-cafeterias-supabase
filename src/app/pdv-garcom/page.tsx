@@ -92,6 +92,9 @@ export default function PDVGarcomPage() {
   const { mesas, loading: loadingMesas, atualizarMesa } = useMesas();
   const { caixaAberto, abrirCaixa } = useCaixa();
 
+  // ── Mesa status override (instant local updates, syncs with hook) ──
+  const [mesaStatusOverrides, setMesaStatusOverrides] = useState<Record<string, string>>({});
+
   // ── Screen States ──
   const [tela, setTela] = useState<'mesas' | 'produtos'>('mesas');
 
@@ -321,8 +324,11 @@ export default function PDVGarcomPage() {
   const loading = loadingProdutos || loadingCategorias || loadingMesas;
 
   const mesasOrdenadas = useMemo(() => {
-    return (mesas || []).sort((a, b) => a.numero - b.numero);
-  }, [mesas]);
+    return (mesas || []).map((m) => ({
+      ...m,
+      status: mesaStatusOverrides[m.id] || m.status,
+    })).sort((a, b) => a.numero - b.numero);
+  }, [mesas, mesaStatusOverrides]);
 
   // Build a map of mesa_id -> item count from comandas
   const mesaItemCounts = useMemo(() => {
@@ -456,16 +462,16 @@ export default function PDVGarcomPage() {
         )
       );
 
-      // Mark mesa as occupied if free - direct Supabase call
+      // Mark mesa as occupied if free - update local state instantly
       const mesaAtual = mesas.find((m) => m.id === mesaSelecionada);
       if (mesaAtual && mesaAtual.status === 'livre') {
-        const { error: mesaError } = await supabase
+        setMesaStatusOverrides((prev) => ({ ...prev, [mesaSelecionada]: 'ocupada' }));
+        // Update Supabase in background (fire-and-forget)
+        supabase
           .from('mesas')
           .update({ status: 'ocupada' })
-          .eq('id', mesaSelecionada);
-        if (mesaError) console.error('Erro ao ocupar mesa:', mesaError);
-        // Reload to update mesa status on screen
-        window.location.href = window.location.pathname;
+          .eq('id', mesaSelecionada)
+          .catch((err) => console.error('Erro ao ocupar mesa:', err));
       }
     } catch (error) {
       console.error('Erro ao adicionar produto:', error);
@@ -514,16 +520,27 @@ export default function PDVGarcomPage() {
 
       if (delError) throw delError;
 
-      // Free the mesa - direct Supabase call
-      const { error: mesaError } = await supabase
+      // Update local state instantly - mesa becomes free
+      const mesaId = mesaSelecionada;
+      setMesaStatusOverrides((prev) => ({ ...prev, [mesaId]: 'livre' }));
+
+      // Update Supabase in background
+      supabase
         .from('mesas')
         .update({ status: 'livre' })
-        .eq('id', mesaSelecionada);
+        .eq('id', mesaId)
+        .catch((err) => console.error('Erro ao liberar mesa:', err));
 
-      if (mesaError) throw mesaError;
+      // Clear local state and go back to mesas
+      setItensPedido([]);
+      setShowCart(false);
+      setPagamentos([]);
+      setMesaSelecionada('');
+      setNumeroMesaSelecionada(0);
+      setTela('mesas');
+      setLastComandaRefresh(Date.now());
 
-      // Reload page immediately - state is already saved in Supabase
-      window.location.href = window.location.pathname;
+      toast({ title: '✓ Pedido limpo e mesa liberada' });
     } catch (error) {
       console.error('Erro ao limpar pedido:', error);
       toast({ variant: 'destructive', title: 'Erro ao limpar pedido' });
@@ -767,13 +784,15 @@ export default function PDVGarcomPage() {
       const deletePromises = itensPedido.map((item) => supabase.from('pedidos_temp').delete().eq('id', item.id));
       await Promise.all(deletePromises);
 
-      // Free mesa - direct Supabase call
+      // Free mesa - update local state instantly
       if (mesaSelecionada) {
-        const { error: mesaError } = await supabase
+        const mesaId = mesaSelecionada;
+        setMesaStatusOverrides((prev) => ({ ...prev, [mesaId]: 'livre' }));
+        supabase
           .from('mesas')
           .update({ status: 'livre' })
-          .eq('id', mesaSelecionada);
-        if (mesaError) console.error('Erro ao liberar mesa na finalização:', mesaError);
+          .eq('id', mesaId)
+          .catch((err) => console.error('Erro ao liberar mesa na finalização:', err));
       }
 
       // Register in caixa
