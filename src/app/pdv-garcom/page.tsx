@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase';
 import {
@@ -32,6 +32,9 @@ import {
   DollarSign,
   QrCode,
   StickyNote,
+  Clock,
+  ClipboardList,
+  RefreshCw,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -51,7 +54,26 @@ interface ItemPedido {
   atendenteNome: string;
   tipoVenda: 'balcao' | 'mesa';
   mesaNumero?: number;
+  statusEnvio?: string;
   criadoEm: Date;
+  _optimistic?: boolean;
+}
+
+interface Comanda {
+  mesa_id: string;
+  mesa_numero: number;
+  itens: any[];
+  totalItens: number;
+  totalValor: number;
+  atendenteNome: string;
+  todosEnviados: boolean;
+}
+
+// ============================================================
+// Helper: generate temp UUID
+// ============================================================
+function generateTempId(): string {
+  return `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
 }
 
 // ============================================================
@@ -92,6 +114,17 @@ export default function PDVGarcomPage() {
   // ── Caixa Dialog ──
   const [dialogCaixa, setDialogCaixa] = useState(false);
   const [valorAberturaCaixa, setValorAberturaCaixa] = useState('0');
+
+  // ── Comandas State (for mesas screen) ──
+  const [comandas, setComandas] = useState<Comanda[]>([]);
+  const [loadingComandas, setLoadingComandas] = useState(false);
+  const [lastComandaRefresh, setLastComandaRefresh] = useState<number>(Date.now());
+
+  // ── Adding product indicator ──
+  const [adicionandoIds, setAdicionandoIds] = useState<Set<string>>(new Set());
+
+  // ── Bounce animation for added products ──
+  const [bounceProdutoId, setBounceProdutoId] = useState<string | null>(null);
 
   // ── Empresa Data ──
   const [empresa, setEmpresa] = useState<{
@@ -138,6 +171,73 @@ export default function PDVGarcomPage() {
   }, [empresaId]);
 
   // ============================================================
+  // Load comandas (all active pedidos_temp for empresa) for mesas screen
+  // ============================================================
+  const carregarComandas = useCallback(async () => {
+    if (!empresaId) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    setLoadingComandas(true);
+    try {
+      const { data, error } = await supabase
+        .from('pedidos_temp')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .order('criado_em', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        // Group by mesa_id
+        const grouped = new Map<string, any[]>();
+        for (const item of data) {
+          const key = item.mesa_id;
+          if (!grouped.has(key)) {
+            grouped.set(key, []);
+          }
+          grouped.get(key)!.push(item);
+        }
+
+        const result: Comanda[] = [];
+        grouped.forEach((itens: any[], mesaId: string) => {
+          const totalItens = itens.reduce((acc: number, i: any) => acc + (i.quantidade || 1), 0);
+          const totalValor = itens.reduce((acc: number, i: any) => acc + (i.preco || 0) * (i.quantidade || 1), 0);
+          const todosEnviados = itens.every((i: any) => i.status_envio === 'enviado_cozinha');
+          const atendente = itens[0]?.atendente_nome || '';
+
+          result.push({
+            mesa_id: mesaId,
+            mesa_numero: itens[0]?.mesa_numero || 0,
+            itens,
+            totalItens,
+            totalValor,
+            atendenteNome: atendente,
+            todosEnviados,
+          });
+        });
+
+        // Sort by mesa number
+        result.sort((a, b) => a.mesa_numero - b.mesa_numero);
+        setComandas(result);
+      } else {
+        setComandas([]);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar comandas:', err);
+      setComandas([]);
+    } finally {
+      setLoadingComandas(false);
+    }
+  }, [empresaId]);
+
+  // Load comandas when on mesas screen + auto-refresh every 10s
+  useEffect(() => {
+    if (tela !== 'mesas') return;
+    carregarComandas();
+    const interval = setInterval(carregarComandas, 10000);
+    return () => clearInterval(interval);
+  }, [tela, empresaId, carregarComandas, lastComandaRefresh]);
+
+  // ============================================================
   // Load pedidos for selected mesa
   // ============================================================
   useEffect(() => {
@@ -157,8 +257,10 @@ export default function PDVGarcomPage() {
         .order('criado_em', { ascending: true });
 
       if (!error && data) {
-        setItensPedido(
-          data.map((item) => ({
+        // Only update from server if there are no optimistic items, or merge intelligently
+        setItensPedido((prev) => {
+          const optimisticIds = new Set(prev.filter((i) => i._optimistic).map((i) => i.id));
+          const serverItems = data.map((item) => ({
             id: item.id,
             produtoId: item.produto_id,
             nome: item.nome,
@@ -171,9 +273,22 @@ export default function PDVGarcomPage() {
             atendenteNome: item.atendente_nome,
             tipoVenda: 'mesa' as const,
             mesaNumero: item.mesa_numero,
+            statusEnvio: item.status_envio || '',
             criadoEm: new Date(item.criado_em),
-          })) as ItemPedido[]
-        );
+            _optimistic: false,
+          })) as ItemPedido[];
+
+          // If no optimistic items, just use server data
+          if (optimisticIds.size === 0) return serverItems;
+
+          // Otherwise, keep optimistic items that haven't appeared in server yet
+          const serverProductIds = new Set(serverItems.map((i) => i.produtoId));
+          const remainingOptimistic = prev.filter(
+            (i) => i._optimistic && !serverItems.some((s) => s.produtoId === i.produtoId && s.nome === i.nome)
+          );
+
+          return [...serverItems, ...remainingOptimistic];
+        });
       }
     };
 
@@ -203,6 +318,15 @@ export default function PDVGarcomPage() {
   const mesasOrdenadas = useMemo(() => {
     return (mesas || []).sort((a, b) => a.numero - b.numero);
   }, [mesas]);
+
+  // Build a map of mesa_id -> item count from comandas
+  const mesaItemCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const comanda of comandas) {
+      counts.set(comanda.mesa_id, comanda.totalItens);
+    }
+    return counts;
+  }, [comandas]);
 
   const produtosFiltrados = useMemo(() => {
     let lista = produtos || [];
@@ -266,35 +390,89 @@ export default function PDVGarcomPage() {
     const supabase = getSupabaseClient();
     if (!supabase) return;
 
+    // Generate temp ID for optimistic update
+    const tempId = generateTempId();
+
+    // Optimistic local state update - add item IMMEDIATELY
+    const optimisticItem: ItemPedido = {
+      id: tempId,
+      produtoId: produto.id,
+      nome: produto.nome,
+      preco: produto.preco,
+      quantidade: 1,
+      codigo: produto.codigo || '',
+      unidade: produto.unidade || 'UN',
+      isCombo: produto.isCombo || false,
+      atendenteId: user?.id || '',
+      atendenteNome: user?.nome || '',
+      tipoVenda: 'mesa',
+      mesaNumero: numeroMesaSelecionada,
+      statusEnvio: '',
+      criadoEm: new Date(),
+      _optimistic: true,
+    };
+
+    setItensPedido((prev) => [...prev, optimisticItem]);
+
+    // Track adding state
+    setAdicionandoIds((prev) => new Set(prev).add(tempId));
+
+    // Trigger bounce animation
+    setBounceProdutoId(produto.id);
+    setTimeout(() => setBounceProdutoId(null), 300);
+
+    // Fire Supabase INSERT in the background
     try {
-      const { error } = await supabase.from('pedidos_temp').insert({
-        empresa_id: empresaId,
-        mesa_id: mesaSelecionada,
-        mesa_numero: numeroMesaSelecionada,
-        produto_id: produto.id,
-        nome: produto.nome,
-        preco: produto.preco,
-        quantidade: 1,
-        codigo: produto.codigo || '',
-        unidade: produto.unidade || 'UN',
-        atendente_id: user?.id,
-        atendente_nome: user?.nome,
-        tipo_venda: 'mesa',
-        criado_em: new Date().toISOString(),
-      });
+      const { data, error } = await supabase
+        .from('pedidos_temp')
+        .insert({
+          empresa_id: empresaId,
+          mesa_id: mesaSelecionada,
+          mesa_numero: numeroMesaSelecionada,
+          produto_id: produto.id,
+          nome: produto.nome,
+          preco: produto.preco,
+          quantidade: 1,
+          codigo: produto.codigo || '',
+          unidade: produto.unidade || 'UN',
+          atendente_id: user?.id,
+          atendente_nome: user?.nome,
+          tipo_venda: 'mesa',
+          criado_em: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
 
-      // Mark mesa as occupied if free
-      const mesaAtual = mesas.find((m) => m.id === mesaSelecionada);
-      if (mesaAtual && mesaAtual.status === 'livre') {
-        await atualizarMesa(mesaSelecionada, { status: 'ocupada' });
+      // Replace temp item with real one from server
+      if (data) {
+        setItensPedido((prev) =>
+          prev.map((item) =>
+            item.id === tempId ? { ...item, id: data.id, _optimistic: false } : item
+          )
+        );
       }
 
       toast({ title: `✓ ${produto.nome} adicionado` });
+
+      // Fire-and-forget: mark mesa as occupied if free
+      const mesaAtual = mesas.find((m) => m.id === mesaSelecionada);
+      if (mesaAtual && mesaAtual.status === 'livre') {
+        atualizarMesa(mesaSelecionada, { status: 'ocupada' }).catch(() => {});
+      }
     } catch (error) {
       console.error('Erro ao adicionar produto:', error);
+      // Rollback: remove the optimistic item
+      setItensPedido((prev) => prev.filter((item) => item.id !== tempId));
       toast({ variant: 'destructive', title: 'Erro ao adicionar produto' });
+    } finally {
+      // Clear adding state
+      setAdicionandoIds((prev) => {
+        const next = new Set(prev);
+        next.delete(tempId);
+        return next;
+      });
     }
   };
 
@@ -326,24 +504,45 @@ export default function PDVGarcomPage() {
     if (!supabase) return;
 
     try {
-      // Mark all items as sent to kitchen
-      for (const item of itensPedido) {
-        await supabase
-          .from('pedidos_temp')
-          .update({ status_envio: 'enviado_cozinha' })
-          .eq('id', item.id);
+      // Use single batch update with .in() instead of sequential loop
+      const itemIds = itensPedido.map((item) => item.id);
+
+      const { error } = await supabase
+        .from('pedidos_temp')
+        .update({ status_envio: 'enviado_cozinha' })
+        .in('id', itemIds);
+
+      if (error) {
+        // Handle the case where status_envio column might not exist
+        const errorMsg = (error as any)?.message || String(error);
+        if (errorMsg.includes('status_envio') || errorMsg.includes('column') || errorMsg.includes('does not exist')) {
+          console.warn('Coluna status_envio não encontrada na tabela pedidos_temp. Ação de enviar para cozinha foi logada.');
+          toast({
+            title: '⚠️ Coluna status_envio não encontrada',
+            description: 'Adicione a coluna status_envio (text) à tabela pedidos_temp para habilitar o rastreamento.',
+            variant: 'destructive',
+          });
+        } else {
+          throw error;
+        }
+      } else {
+        // Immediately update local state to reflect the change
+        setItensPedido((prev) =>
+          prev.map((item) => ({ ...item, statusEnvio: 'enviado_cozinha' }))
+        );
       }
 
       toast({ title: `✓ Pedido da Mesa ${numeroMesaSelecionada} enviado para a cozinha!` });
 
-      await registrarLog({
+      // Log the action (fire-and-forget)
+      registrarLog({
         empresaId: empresaId || '',
         usuarioId: user?.id || '',
         usuarioNome: user?.nome || '',
         acao: 'PEDIDO_ENVIADO_Cozinha',
         detalhes: `Mesa ${numeroMesaSelecionada} - ${itensPedido.length} itens - R$ ${total.toFixed(2)}`,
         tipo: 'venda',
-      });
+      }).catch((err) => console.error('Erro ao registrar log:', err));
     } catch (error) {
       console.error('Erro ao enviar para cozinha:', error);
       toast({ variant: 'destructive', title: 'Erro ao enviar para cozinha' });
@@ -673,11 +872,15 @@ export default function PDVGarcomPage() {
         {/* ── MAIN CONTENT ── */}
         <div className="flex-1 overflow-hidden flex flex-col">
           {tela === 'mesas' ? (
-            // ── MESA SELECTION SCREEN ──
+            // ── MESA SELECTION SCREEN (with Comandas) ──
             <MesaSelectionView
               mesas={mesasOrdenadas}
               mesaSelecionada={mesaSelecionada}
+              mesaItemCounts={mesaItemCounts}
               onSelectMesa={selecionarMesa}
+              comandas={comandas}
+              loadingComandas={loadingComandas}
+              onRefreshComandas={() => setLastComandaRefresh(Date.now())}
             />
           ) : (
             // ── PRODUCT VIEW ──
@@ -690,6 +893,8 @@ export default function PDVGarcomPage() {
               produtos={produtosFiltrados}
               getCorCategoria={getCorCategoria}
               onAddProduto={adicionarProduto}
+              adicionandoIds={adicionandoIds}
+              bounceProdutoId={bounceProdutoId}
             />
           )}
         </div>
@@ -814,16 +1019,24 @@ export default function PDVGarcomPage() {
 }
 
 // ============================================================
-// Sub-component: Mesa Selection View
+// Sub-component: Mesa Selection View (with Comandas)
 // ============================================================
 function MesaSelectionView({
   mesas,
   mesaSelecionada,
+  mesaItemCounts,
   onSelectMesa,
+  comandas,
+  loadingComandas,
+  onRefreshComandas,
 }: {
   mesas: any[];
   mesaSelecionada: string;
+  mesaItemCounts: Map<string, number>;
   onSelectMesa: (id: string, numero: number) => void;
+  comandas: Comanda[];
+  loadingComandas: boolean;
+  onRefreshComandas: () => void;
 }) {
   const livres = mesas.filter((m) => m.status === 'livre');
   const ocupadas = mesas.filter((m) => m.status === 'ocupada');
@@ -838,27 +1051,40 @@ function MesaSelectionView({
           <span className="text-xs text-gray-400">({lista.length})</span>
         </div>
         <div className="grid grid-cols-3 gap-3 px-1">
-          {lista.map((mesa) => (
-            <button
-              key={mesa.id}
-              onClick={() => onSelectMesa(mesa.id, mesa.numero)}
-              className={`relative rounded-2xl p-4 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 shadow-sm border-2 ${
-                mesaSelecionada === mesa.id
-                  ? 'bg-green-600 border-green-600 text-white shadow-md shadow-green-600/30'
-                  : mesa.status === 'livre'
-                  ? 'bg-white border-gray-200 hover:border-green-300 hover:shadow-md'
-                  : 'bg-red-50 border-red-200 hover:border-red-300'
-              }`}
-            >
-              <UtensilsCrossed className={`h-6 w-6 ${mesaSelecionada === mesa.id ? 'text-white' : mesa.status === 'livre' ? 'text-green-600' : 'text-red-500'}`} />
-              <span className={`font-extrabold text-xl ${mesaSelecionada === mesa.id ? 'text-white' : 'text-gray-800'}`}>
-                {mesa.numero}
-              </span>
-              <span className={`text-[10px] font-semibold uppercase ${mesaSelecionada === mesa.id ? 'text-green-100' : mesa.status === 'livre' ? 'text-green-600' : 'text-red-500'}`}>
-                {mesa.status === 'livre' ? 'Livre' : 'Ocupada'}
-              </span>
-            </button>
-          ))}
+          {lista.map((mesa) => {
+            const itemCount = mesaItemCounts.get(mesa.id) || 0;
+            return (
+              <button
+                key={mesa.id}
+                onClick={() => onSelectMesa(mesa.id, mesa.numero)}
+                className={`relative rounded-2xl p-4 flex flex-col items-center justify-center gap-1 transition-all active:scale-95 shadow-sm border-2 ${
+                  mesaSelecionada === mesa.id
+                    ? 'bg-green-600 border-green-600 text-white shadow-md shadow-green-600/30'
+                    : mesa.status === 'livre'
+                    ? 'bg-white border-gray-200 hover:border-green-300 hover:shadow-md'
+                    : 'bg-red-50 border-red-200 hover:border-red-300'
+                }`}
+              >
+                {/* Item count badge for occupied mesas */}
+                {itemCount > 0 && (
+                  <span className={`absolute -top-2 -right-2 text-[10px] font-extrabold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 shadow-sm ${
+                    mesaSelecionada === mesa.id
+                      ? 'bg-white text-green-600'
+                      : 'bg-green-600 text-white'
+                  }`}>
+                    {itemCount}
+                  </span>
+                )}
+                <UtensilsCrossed className={`h-6 w-6 ${mesaSelecionada === mesa.id ? 'text-white' : mesa.status === 'livre' ? 'text-green-600' : 'text-red-500'}`} />
+                <span className={`font-extrabold text-xl ${mesaSelecionada === mesa.id ? 'text-white' : 'text-gray-800'}`}>
+                  {mesa.numero}
+                </span>
+                <span className={`text-[10px] font-semibold uppercase ${mesaSelecionada === mesa.id ? 'text-green-100' : mesa.status === 'livre' ? 'text-green-600' : 'text-red-500'}`}>
+                  {mesa.status === 'livre' ? 'Livre' : 'Ocupada'}
+                </span>
+              </button>
+            );
+          })}
         </div>
       </div>
     );
@@ -879,12 +1105,97 @@ function MesaSelectionView({
           <p className="text-sm mt-1">Cadastre mesas nas configurações</p>
         </div>
       )}
+
+      {/* ── COMANDAS ATIVAS SECTION ── */}
+      {comandas.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between mb-4 px-1">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-green-600" />
+              <span className="text-sm font-bold text-gray-500 uppercase tracking-wide">Comandas Ativas</span>
+              <span className="text-xs text-gray-400">({comandas.length})</span>
+            </div>
+            <button
+              onClick={onRefreshComandas}
+              disabled={loadingComandas}
+              className="p-2 rounded-xl hover:bg-gray-100 active:bg-gray-200 text-gray-500 hover:text-green-600 transition-all disabled:opacity-50"
+            >
+              <RefreshCw className={`h-4 w-4 ${loadingComandas ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            {comandas.map((comanda) => (
+              <div
+                key={comanda.mesa_id}
+                className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:shadow-md transition-all"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center">
+                      <UtensilsCrossed className="h-5 w-5 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="font-extrabold text-gray-800 text-sm">Mesa {comanda.mesa_numero}</p>
+                      <p className="text-[11px] text-gray-400">
+                        {comanda.atendenteNome && <span>{comanda.atendenteNome} (garçom)</span>}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-extrabold text-green-600 text-base">
+                      R$ {comanda.totalValor.toFixed(2)}
+                    </p>
+                    <p className="text-[11px] text-gray-400">
+                      {comanda.totalItens} {comanda.totalItens === 1 ? 'item' : 'itens'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-between">
+                  {/* Status badge */}
+                  {comanda.todosEnviados ? (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-green-100 text-green-700 text-[11px] font-bold">
+                      <CheckCircle className="h-3 w-3" />
+                      Enviado à Cozinha
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-orange-100 text-orange-700 text-[11px] font-bold">
+                      <Clock className="h-3 w-3" />
+                      Pendente
+                    </span>
+                  )}
+                  <button
+                    onClick={() => onSelectMesa(comanda.mesa_id, comanda.mesa_numero)}
+                    className="px-4 py-2 rounded-xl bg-green-600 text-white text-xs font-bold hover:bg-green-700 active:scale-95 transition-all"
+                  >
+                    Ver Pedido
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty comandas state */}
+      {comandas.length === 0 && !loadingComandas && mesas.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <div className="flex items-center gap-2 mb-3 px-1">
+            <ClipboardList className="h-5 w-5 text-gray-300" />
+            <span className="text-sm font-bold text-gray-300 uppercase tracking-wide">Comandas Ativas</span>
+          </div>
+          <div className="bg-gray-50 rounded-2xl p-6 text-center border border-gray-100">
+            <p className="text-sm text-gray-400 font-medium">Nenhuma comanda ativa no momento</p>
+            <p className="text-xs text-gray-300 mt-1">Os pedidos ativos aparecerão aqui</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 // ============================================================
-// Sub-component: Product View
+// Sub-component: Product View (with bounce animation)
 // ============================================================
 function ProdutoView({
   categorias,
@@ -895,6 +1206,8 @@ function ProdutoView({
   produtos,
   getCorCategoria,
   onAddProduto,
+  adicionandoIds,
+  bounceProdutoId,
 }: {
   categorias: any[];
   categoriaAtiva: string;
@@ -904,6 +1217,8 @@ function ProdutoView({
   produtos: any[];
   getCorCategoria: (id: string) => string;
   onAddProduto: (p: any) => void;
+  adicionandoIds: Set<string>;
+  bounceProdutoId: string | null;
 }) {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
@@ -973,11 +1288,16 @@ function ProdutoView({
           <div className="grid grid-cols-2 gap-3">
             {produtos.map((produto) => {
               const corCat = getCorCategoria(produto.categoriaId);
+              const isBouncing = bounceProdutoId === produto.id;
               return (
                 <button
                   key={produto.id}
                   onClick={() => onAddProduto(produto)}
-                  className="bg-white rounded-2xl p-3 text-left shadow-sm border border-gray-100 hover:shadow-md transition-all active:scale-[0.97] relative overflow-hidden group"
+                  className={`bg-white rounded-2xl p-3 text-left shadow-sm border border-gray-100 hover:shadow-md transition-all relative overflow-hidden group ${
+                    isBouncing
+                      ? 'animate-[bounce_0.3s_ease-in-out]'
+                      : 'active:scale-[0.97]'
+                  }`}
                   style={{ borderLeftWidth: '4px', borderLeftColor: corCat }}
                 >
                   <div className="flex-1 min-h-0">
@@ -993,6 +1313,15 @@ function ProdutoView({
                       </div>
                     </div>
                   </div>
+                  {/* Adicionando overlay indicator */}
+                  {isBouncing && (
+                    <div className="absolute inset-0 bg-green-50/60 flex items-center justify-center rounded-2xl pointer-events-none">
+                      <div className="bg-white/90 rounded-lg px-3 py-1.5 shadow-sm flex items-center gap-1.5">
+                        <Loader2 className="h-3 w-3 animate-spin text-green-600" />
+                        <span className="text-[10px] font-bold text-green-700">adicionando...</span>
+                      </div>
+                    </div>
+                  )}
                 </button>
               );
             })}
@@ -1063,8 +1392,17 @@ function CartBottomSheet({
                 key={item.id}
                 className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100"
               >
+                {/* Status indicator */}
+                {item.statusEnvio === 'enviado_cozinha' && (
+                  <div className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Enviado à cozinha" />
+                )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm text-gray-800 truncate">{item.nome}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-bold text-sm text-gray-800 truncate">{item.nome}</p>
+                    {item._optimistic && (
+                      <Loader2 className="h-3 w-3 animate-spin text-green-500 shrink-0" />
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500 mt-0.5">
                     R$ {item.preco.toFixed(2)} x {item.quantidade} ={' '}
                     <span className="font-bold text-gray-700">R$ {(item.preco * item.quantidade).toFixed(2)}</span>
