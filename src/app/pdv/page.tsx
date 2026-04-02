@@ -409,6 +409,7 @@ export default function PDVPage() {
         if (tipoVenda === 'mesa' && mesaSelecionada) {
           const mesaAtual = mesas.find(m => m.id === mesaSelecionada);
           if (mesaAtual && mesaAtual.status === 'livre') {
+            // Usar atualizarMesa do hook que agora garante o timestamp atualizado para Realtime
             await atualizarMesa(mesaSelecionada, { status: 'ocupada' });
           }
         }

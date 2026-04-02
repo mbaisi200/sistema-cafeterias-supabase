@@ -423,7 +423,10 @@ export function useMesas() {
   const atualizarMesa = async (id: string, dados: any) => {
     const { error } = await supabase
       .from('mesas')
-      .update(dados)
+      .update({
+        ...dados,
+        atualizado_em: new Date().toISOString()
+      })
       .eq('id', id);
 
     if (error) throw error;
