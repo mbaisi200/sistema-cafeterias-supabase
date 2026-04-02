@@ -986,6 +986,9 @@ export default function PDVGarcomPage() {
     router.push('/');
   };
 
+  // ── Logout confirmation state ──
+  const [confirmarLogout, setConfirmarLogout] = useState(false);
+
   // ============================================================
   // Loading
   // ============================================================
@@ -1044,10 +1047,32 @@ export default function PDVGarcomPage() {
               <span className="hidden sm:inline">{caixaEstaAberto ? 'Caixa Aberto' : 'Abrir Caixa'}</span>
             </button>
             <button
-              onClick={handleLogout}
-              className="p-2 rounded-xl hover:bg-red-50 active:bg-red-100 text-gray-500 hover:text-red-600 transition-colors"
+              onClick={async () => {
+                if (tela === 'mesas') {
+                  // Na tela de mesas, pedir confirmação antes de sair
+                  if (confirmarLogout) {
+                    handleLogout();
+                    return;
+                  }
+                  setConfirmarLogout(true);
+                  // Auto-esconder confirmação após 4 segundos
+                  setTimeout(() => setConfirmarLogout(false), 4000);
+                  return;
+                }
+                handleLogout();
+              }}
+              className={`p-2 rounded-xl transition-colors ${
+                confirmarLogout
+                  ? 'bg-red-500 text-white active:bg-red-600'
+                  : 'hover:bg-red-50 active:bg-red-100 text-gray-500 hover:text-red-600'
+              }`}
+              title={tela === 'mesas' ? 'Sair do sistema' : 'Sair do sistema'}
             >
-              <LogOut className="h-5 w-5" />
+              {confirmarLogout ? (
+                <span className="text-xs font-bold whitespace-nowrap">Sair?</span>
+              ) : (
+                <LogOut className="h-5 w-5" />
+              )}
             </button>
           </div>
         </header>
@@ -1614,6 +1639,8 @@ function CartBottomSheet({
 }) {
   const naoEntregues = itensPedido.filter((i) => !i.entregue).length;
   const [confirmarLimpar, setConfirmarLimpar] = useState(false);
+  const { toast } = useToast();
+  const itensEnviadosCozinha = itensPedido.some((i) => i.statusEnvio === 'enviado_cozinha');
 
   return (
     <>
@@ -1621,7 +1648,7 @@ function CartBottomSheet({
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
 
       {/* Sheet */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl flex flex-col animate-slide-up max-h-[85dvh]">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl flex flex-col animate-slide-up max-h-[85dvh] min-h-0 overflow-hidden">
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
           <div className="w-10 h-1 rounded-full bg-gray-300" />
@@ -1762,8 +1789,24 @@ function CartBottomSheet({
                 </button>
               ) : (
                 <button
-                  onClick={() => setConfirmarLimpar(true)}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-gray-100 text-gray-600 font-bold text-xs hover:bg-gray-200 active:scale-[0.98] transition-all"
+                  onClick={() => {
+                    if (itensEnviadosCozinha) {
+                      toast({
+                        variant: 'destructive',
+                        title: 'Não é possível limpar',
+                        description: 'Existem itens já enviados à cozinha. Finalize a venda para encerrar o pedido.',
+                      });
+                      return;
+                    }
+                    setConfirmarLimpar(true);
+                  }}
+                  disabled={itensEnviadosCozinha}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl font-bold text-xs transition-all ${
+                    itensEnviadosCozinha
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:scale-[0.98]'
+                  }`}
+                  title={itensEnviadosCozinha ? 'Itens já enviados à cozinha' : 'Limpar pedido'}
                 >
                   <Eraser className="h-3.5 w-3.5" />
                   Limpar
