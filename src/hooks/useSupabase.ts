@@ -1187,23 +1187,63 @@ export function useCaixa() {
       .select()
       .single();
 
-    if (caixaError) throw caixaError;
+    if (caixaError) {
+      console.error('Erro ao inserir caixa:', caixaError);
+      throw caixaError;
+    }
 
-    // Registrar movimentação inicial
-    await supabase
-      .from('movimentacoes_caixa')
-      .insert({
-        caixa_id: caixa.id,
-        empresa_id: empresaId,
-        tipo: 'abertura',
-        valor: valorInicial,
-        forma_pagamento: 'dinheiro',
-        descricao: 'Abertura de caixa',
-        usuario_id: user.id,
-        usuario_nome: user.nome,
-      });
+    // Definir caixaAberto diretamente com os dados do INSERT
+    // (não depender apenas de carregarDados que pode falhar com RLS)
+    const novoCaixa = {
+      id: caixa.id,
+      ...caixa,
+      valorInicial: caixa.valor_inicial,
+      valorAtual: caixa.valor_atual,
+      totalEntradas: caixa.total_entradas,
+      totalSaidas: caixa.total_saidas,
+      totalVendas: caixa.total_vendas,
+      abertoEm: new Date(caixa.aberto_em),
+      fechadoEm: caixa.fechado_em ? new Date(caixa.fechado_em) : null,
+    };
+    setCaixaAberto(novoCaixa);
+    setMovimentacoes([{
+      id: crypto.randomUUID(),
+      caixa_id: caixa.id,
+      empresa_id: empresaId,
+      tipo: 'abertura',
+      valor: valorInicial,
+      forma_pagamento: 'dinheiro',
+      descricao: 'Abertura de caixa',
+      usuario_id: user.id,
+      usuario_nome: user.nome,
+      criadoEm: new Date(),
+      formaPagamento: 'dinheiro',
+      usuarioNome: user.nome,
+    }]);
 
-    await carregarDados();
+    // Registrar movimentação inicial no banco (não bloqueia o fluxo)
+    try {
+      await supabase
+        .from('movimentacoes_caixa')
+        .insert({
+          caixa_id: caixa.id,
+          empresa_id: empresaId,
+          tipo: 'abertura',
+          valor: valorInicial,
+          forma_pagamento: 'dinheiro',
+          descricao: 'Abertura de caixa',
+          usuario_id: user.id,
+          usuario_nome: user.nome,
+        });
+    } catch (movError) {
+      console.warn('Aviso: movimentação de abertura não registrada:', movError);
+    }
+
+    // NOTA: Não chamamos carregarDados() aqui porque se a query SELECT
+    // falhar (RLS, rede, etc), ela resetaria caixaAberto para null.
+    // O estado já foi definido acima com os dados do INSERT.
+    // O useEffect com [carregarDados] vai recarregar quando empresaId/user mudar.
+
     return caixa.id;
   };
 
