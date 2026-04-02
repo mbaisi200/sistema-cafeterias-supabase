@@ -20,11 +20,10 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useVendasPDV } from '@/hooks/useVendasPDV';
-import { RealtimeChannel } from '@supabase/supabase-js';
 import {
   Search,
   Plus,
@@ -283,10 +282,9 @@ export default function PDVPage() {
     return lista;
   }, [produtos, categoriaAtiva, search]);
 
-  // Derive occupied mesas from pedidos_temp (Realtime-based, same pattern as PDV Garçom)
-  // This ensures mesa status is always accurate and instant across all PDVs
+  // Derive occupied mesas from pedidos_temp (polling + optimistic updates)
+  // Polling every 3s guarantees sync even without Supabase Realtime enabled
   const [mesasOcupadas, setMesasOcupadas] = useState<Set<string>>(new Set());
-  const mesasOcupadasRef = useRef<Set<string>>(new Set());
 
   const carregarMesasOcupadas = useCallback(async () => {
     if (!empresaId) return;
@@ -302,7 +300,6 @@ export default function PDVPage() {
 
       if (!error && data) {
         const ocupadas = new Set(data.map((row: any) => row.mesa_id));
-        mesasOcupadasRef.current = ocupadas;
         setMesasOcupadas(ocupadas);
       }
     } catch (err) {
@@ -310,28 +307,34 @@ export default function PDVPage() {
     }
   }, [empresaId]);
 
-  // Load occupied mesas + Realtime subscription on pedidos_temp
+  // Polling every 3 seconds (guaranteed sync, no dependency on Realtime)
   useEffect(() => {
     carregarMesasOcupadas();
-
-    const supabase = getSupabaseClient();
-    let channel: RealtimeChannel;
-    if (empresaId && supabase) {
-      channel = supabase
-        .channel('pdv-pedidos-temp-mesas')
-        .on('postgres_changes',
-          { event: '*', schema: 'public', table: 'pedidos_temp', filter: `empresa_id=eq.${empresaId}` },
-          () => carregarMesasOcupadas()
-        )
-        .subscribe();
-    }
-
-    return () => {
-      if (channel) supabase?.removeChannel(channel);
-    };
+    const interval = setInterval(carregarMesasOcupadas, 3000);
+    return () => clearInterval(interval);
   }, [empresaId, carregarMesasOcupadas]);
 
-  // Mesas organizadas por status (derived from pedidos_temp for instant accuracy)
+  // Helper: optimistically mark a mesa as occupied (instant, no DB wait)
+  const marcarMesaOcupada = useCallback((mesaId: string) => {
+    setMesasOcupadas(prev => {
+      if (prev.has(mesaId)) return prev;
+      const next = new Set(prev);
+      next.add(mesaId);
+      return next;
+    });
+  }, []);
+
+  // Helper: optimistically mark a mesa as free (instant, no DB wait)
+  const marcarMesaLivre = useCallback((mesaId: string) => {
+    setMesasOcupadas(prev => {
+      if (!prev.has(mesaId)) return prev;
+      const next = new Set(prev);
+      next.delete(mesaId);
+      return next;
+    });
+  }, []);
+
+  // Mesas organizadas por status (derived from pedidos_temp)
   const mesasOrdenadas = useMemo(() => {
     return (mesas || []).map((m: any) => ({
       ...m,
@@ -457,12 +460,17 @@ export default function PDVPage() {
         
         if (error) throw error;
         
-        // Se a mesa estava livre, marcar como ocupada
+        // OPTIMISTIC: mark mesa as occupied immediately (no DB wait)
+        if (tipoVenda === 'mesa' && mesaSelecionada) {
+          marcarMesaOcupada(mesaSelecionada);
+        }
+        
+        // Also update mesa.status in DB for any other consumers
         if (tipoVenda === 'mesa' && mesaSelecionada) {
           const mesaAtual = mesas.find(m => m.id === mesaSelecionada);
           if (mesaAtual && mesaAtual.status === 'livre') {
-            // Usar atualizarMesa do hook que agora garante o timestamp atualizado para Realtime
-            await atualizarMesa(mesaSelecionada, { status: 'ocupada' });
+            atualizarMesa(mesaSelecionada, { status: 'ocupada' })
+              .catch(() => {}); // fire-and-forget, optimistic already done
           }
         }
       } catch (error) {
@@ -643,7 +651,10 @@ export default function PDVPage() {
           return;
         }
 
-        // Free the mesa in DB so other devices see it as available
+        // OPTIMISTIC: mark mesa as free immediately (no DB wait)
+        marcarMesaLivre(mesaSelecionada);
+
+        // Also update mesa.status in DB for other consumers
         try {
           await atualizarMesa(mesaSelecionada, { status: 'livre' });
         } catch (err) {
