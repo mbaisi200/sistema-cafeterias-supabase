@@ -1146,46 +1146,12 @@ export default function PDVGarcomPage() {
               setShowCart(false);
             }}
             onImprimirComanda={imprimirComanda}
-            onFinalizar={async () => {
-              // Verificação primária: usar estado derivado (hook + API)
-              if (caixaEstaAberto) {
-                setPagamentos([]);
-                setDialogPagamento(true);
-                setShowCart(false);
-                return;
-              }
-
-              // Verificação em tempo real via API (fallback robusto)
-              if (!empresaId) {
-                toast({ variant: 'destructive', title: 'Empresa não identificada. Faça login novamente.' });
-                return;
-              }
-
-              try {
-                const response = await fetch('/api/caixa-aberto', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ empresaId }),
-                });
-
-                if (response.ok) {
-                  const result = await response.json();
-                  if (result.caixa) {
-                    // Atualizar estado local e prosseguir
-                    setCaixaStatus(result.caixa);
-                    setPagamentos([]);
-                    setDialogPagamento(true);
-                    setShowCart(false);
-                    return;
-                  }
-                }
-              } catch (e) {
-                console.warn('[PDV-Garçom] Erro ao verificar caixa via API:', e);
-              }
-
-              // Realmente não há caixa aberto — pedir abertura
-              toast({ variant: 'destructive', title: 'Nenhum caixa aberto encontrado. Abra o caixa para finalizar.' });
-              setDialogCaixa(true);
+            onPedirConta={async () => {
+              setShowCart(false);
+              toast({
+                title: `📋 Conta solicitada - Mesa ${numeroMesaSelecionada}`,
+                description: 'Finalize o pagamento no PDV principal (caixa).',
+              });
             }}
           />
         )}
@@ -1607,7 +1573,7 @@ function CartBottomSheet({
   onMarcarEntregue,
   onEnviarCozinha,
   onImprimirComanda,
-  onFinalizar,
+  onPedirConta,
 }: {
   itensPedido: ItemPedido[];
   total: number;
@@ -1619,7 +1585,7 @@ function CartBottomSheet({
   onMarcarEntregue: (id: string, entregue: boolean) => void;
   onEnviarCozinha: () => void;
   onImprimirComanda: () => void;
-  onFinalizar: () => void;
+  onPedirConta: () => void;
 }) {
   const naoEntregues = itensPedido.filter((i) => !i.entregue).length;
   const [confirmarLimpar, setConfirmarLimpar] = useState(false);
@@ -1649,8 +1615,17 @@ function CartBottomSheet({
               )}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-xl font-extrabold text-green-600">R$ {total.toFixed(2)}</p>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onClose}
+              className="px-3 py-2 rounded-xl bg-green-100 text-green-700 text-xs font-bold hover:bg-green-200 active:scale-95 transition-all flex items-center gap-1"
+            >
+              <Plus className="h-4 w-4" />
+              Adicionar Itens
+            </button>
+            <div className="text-right">
+              <p className="text-xl font-extrabold text-green-600">R$ {total.toFixed(2)}</p>
+            </div>
           </div>
         </div>
 
@@ -1798,13 +1773,13 @@ function CartBottomSheet({
               )}
             </div>
 
-            {/* Finalizar Button */}
+            {/* Pedir Conta Button - o pagamento é feito apenas no PDV principal */}
             <button
-              onClick={onFinalizar}
+              onClick={onPedirConta}
               className="w-full flex items-center justify-center gap-2 py-4 rounded-xl bg-green-600 text-white font-extrabold text-base shadow-lg shadow-green-600/30 hover:bg-green-700 active:scale-[0.98] transition-all"
             >
-              <CreditCard className="h-5 w-5" />
-              Finalizar - R$ {total.toFixed(2)}
+              <ClipboardList className="h-5 w-5" />
+              Pedir Conta - Mesa {mesaNumero}
             </button>
           </div>
         )}

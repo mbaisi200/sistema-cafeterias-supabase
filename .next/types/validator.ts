@@ -461,6 +461,42 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/api/caixa-aberto/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/caixa-aberto">> = Specific
+  const handler = {} as typeof import("../../src/app/api/caixa-aberto/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/caixa-abrir/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/caixa-abrir">> = Specific
+  const handler = {} as typeof import("../../src/app/api/caixa-abrir/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/caixa-historico/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/caixa-historico">> = Specific
+  const handler = {} as typeof import("../../src/app/api/caixa-historico/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/caixa-registrar-venda/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/caixa-registrar-venda">> = Specific
+  const handler = {} as typeof import("../../src/app/api/caixa-registrar-venda/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/clientes/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/clientes">> = Specific
