@@ -20,10 +20,11 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useVendasPDV } from '@/hooks/useVendasPDV';
+import { RealtimeChannel } from '@supabase/supabase-js';
 import {
   Search,
   Plus,
@@ -282,10 +283,61 @@ export default function PDVPage() {
     return lista;
   }, [produtos, categoriaAtiva, search]);
 
-  // Mesas organizadas por status
+  // Derive occupied mesas from pedidos_temp (Realtime-based, same pattern as PDV Garçom)
+  // This ensures mesa status is always accurate and instant across all PDVs
+  const [mesasOcupadas, setMesasOcupadas] = useState<Set<string>>(new Set());
+  const mesasOcupadasRef = useRef<Set<string>>(new Set());
+
+  const carregarMesasOcupadas = useCallback(async () => {
+    if (!empresaId) return;
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('pedidos_temp')
+        .select('mesa_id')
+        .eq('empresa_id', empresaId)
+        .not('mesa_id', 'is', null);
+
+      if (!error && data) {
+        const ocupadas = new Set(data.map((row: any) => row.mesa_id));
+        mesasOcupadasRef.current = ocupadas;
+        setMesasOcupadas(ocupadas);
+      }
+    } catch (err) {
+      console.error('Erro ao carregar mesas ocupadas:', err);
+    }
+  }, [empresaId]);
+
+  // Load occupied mesas + Realtime subscription on pedidos_temp
+  useEffect(() => {
+    carregarMesasOcupadas();
+
+    const supabase = getSupabaseClient();
+    let channel: RealtimeChannel;
+    if (empresaId && supabase) {
+      channel = supabase
+        .channel('pdv-pedidos-temp-mesas')
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'pedidos_temp', filter: `empresa_id=eq.${empresaId}` },
+          () => carregarMesasOcupadas()
+        )
+        .subscribe();
+    }
+
+    return () => {
+      if (channel) supabase?.removeChannel(channel);
+    };
+  }, [empresaId, carregarMesasOcupadas]);
+
+  // Mesas organizadas por status (derived from pedidos_temp for instant accuracy)
   const mesasOrdenadas = useMemo(() => {
-    return (mesas || []).sort((a, b) => a.numero - b.numero);
-  }, [mesas]);
+    return (mesas || []).map((m: any) => ({
+      ...m,
+      status: mesasOcupadas.has(m.id) ? 'ocupada' : 'livre',
+    })).sort((a: any, b: any) => a.numero - b.numero);
+  }, [mesas, mesasOcupadas]);
 
   // Total do pedido
   const total = (itensPedido || []).reduce((acc, item) => acc + (item.preco * item.quantidade), 0);

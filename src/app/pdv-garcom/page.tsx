@@ -467,8 +467,8 @@ export default function PDVGarcomPage() {
       );
 
       // Mark mesa as occupied in DB (for other components that use mesas.status)
-      // We use the hook's atualizarMesa to ensure updated_at is set for Realtime
-      atualizarMesa(mesaSelecionada, { status: 'ocupada' })
+      // Await this so the DB update happens as fast as possible
+      await atualizarMesa(mesaSelecionada, { status: 'ocupada' })
         .catch(err => console.error('Erro ao ocupar mesa no DB:', err));
 
       // OPTIMISTIC: update comandas state immediately so mesa status reflects NOW
