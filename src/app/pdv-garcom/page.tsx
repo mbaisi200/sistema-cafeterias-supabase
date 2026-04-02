@@ -496,20 +496,27 @@ export default function PDVGarcomPage() {
 
   const limparPedido = async () => {
     const supabase = getSupabaseClient();
-    if (!supabase || !mesaSelecionada) return;
+    if (!supabase || !mesaSelecionada || !empresaId) return;
 
     try {
-      // Delete all items for this mesa
-      const nonOptimistic = itensPedido.filter((i) => !i._optimistic);
-      if (nonOptimistic.length > 0) {
-        await supabase
-          .from('pedidos_temp')
-          .delete()
-          .in('id', nonOptimistic.map((i) => i.id));
-      }
+      // Delete ALL items for this mesa by mesa_id (more reliable than by item IDs)
+      await supabase
+        .from('pedidos_temp')
+        .delete()
+        .eq('empresa_id', empresaId)
+        .eq('mesa_id', mesaSelecionada);
 
-      // Free the mesa
-      await atualizarMesa(mesaSelecionada, { status: 'livre' });
+      // Free the mesa - direct Supabase call for reliability
+      const { error: mesaError } = await supabase
+        .from('mesas')
+        .update({ status: 'livre' })
+        .eq('id', mesaSelecionada);
+
+      if (mesaError) {
+        console.error('Erro ao liberar mesa:', mesaError);
+        // Fallback: try via hook
+        await atualizarMesa(mesaSelecionada, { status: 'livre' }).catch(() => {});
+      }
 
       // Clear local state and go back to mesas
       setItensPedido([]);
@@ -764,9 +771,16 @@ export default function PDVGarcomPage() {
       const deletePromises = itensPedido.map((item) => supabase.from('pedidos_temp').delete().eq('id', item.id));
       await Promise.all(deletePromises);
 
-      // Free mesa
+      // Free mesa - direct Supabase call for reliability
       if (mesaSelecionada) {
-        await atualizarMesa(mesaSelecionada, { status: 'livre' });
+        const { error: mesaError } = await supabase
+          .from('mesas')
+          .update({ status: 'livre' })
+          .eq('id', mesaSelecionada);
+        if (mesaError) {
+          console.error('Erro ao liberar mesa na finalização:', mesaError);
+          await atualizarMesa(mesaSelecionada, { status: 'livre' }).catch(() => {});
+        }
       }
 
       // Register in caixa
