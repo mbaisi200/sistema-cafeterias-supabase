@@ -115,6 +115,44 @@ export default function PDVGarcomPage() {
   const [valorPagamentoAtual, setValorPagamentoAtual] = useState('');
   const [processando, setProcessando] = useState(false);
 
+  // ── Caixa State (independente do hook - verifica via API com service role) ──
+  const [caixaStatus, setCaixaStatus] = useState<any | null>(null);
+  const [caixaVerificado, setCaixaVerificado] = useState(false);
+
+  // Verificar caixa aberto via API (independente de RLS/ sessão Supabase)
+  const verificarCaixaAberto = useCallback(async () => {
+    if (!empresaId) {
+      setCaixaStatus(null);
+      setCaixaVerificado(false);
+      return;
+    }
+    try {
+      const response = await fetch('/api/caixa-aberto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId }),
+      });
+      if (response.ok) {
+        const result = await response.json();
+        setCaixaStatus(result.caixa || null);
+        setCaixaVerificado(true);
+        console.log('[PDV-Garçom] Caixa verificado via API:', result.caixa ? 'ABERTO id=' + result.caixa.id : 'FECHADO');
+      }
+    } catch (e) {
+      console.warn('[PDV-Garçom] Erro ao verificar caixa:', e);
+    }
+  }, [empresaId]);
+
+  // Verificar caixa ao carregar e a cada 30 segundos
+  useEffect(() => {
+    verificarCaixaAberto();
+    const interval = setInterval(verificarCaixaAberto, 30000);
+    return () => clearInterval(interval);
+  }, [verificarCaixaAberto]);
+
+  // Derivar: caixa está aberto se o hook OU a API diz que sim
+  const caixaEstaAberto = caixaAberto || caixaStatus;
+
   // ── Caixa Dialog ──
   const [dialogCaixa, setDialogCaixa] = useState(false);
   const [valorAberturaCaixa, setValorAberturaCaixa] = useState('0');
@@ -856,35 +894,16 @@ export default function PDVGarcomPage() {
       setComandas((prev) => prev.filter((c) => c.mesa_id !== mesaIdToFree));
 
       // Register in caixa (usar API com service role para bypass RLS do funcionário)
-      let caixaIdToUse = caixaAberto?.id || null;
+      const caixaIdParaRegistrar = caixaEstaAberto?.id || null;
 
-      // Se não temos caixaAberto no estado, buscar via API
-      if (!caixaIdToUse && empresaId) {
-        try {
-          const caixaResponse = await fetch('/api/caixa-aberto', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ empresaId }),
-          });
-          if (caixaResponse.ok) {
-            const caixaResult = await caixaResponse.json();
-            if (caixaResult.caixa) {
-              caixaIdToUse = caixaResult.caixa.id;
-            }
-          }
-        } catch (e) {
-          console.warn('[PDV-Garçom] Não conseguiu buscar caixa para registrar venda:', e);
-        }
-      }
-
-      if (caixaIdToUse) {
+      if (caixaIdParaRegistrar) {
         try {
           await fetch('/api/caixa-registrar-venda', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               empresaId,
-              caixaId: caixaIdToUse,
+              caixaId: caixaIdParaRegistrar,
               valor: total,
               formaPagamento,
               vendaId: vendaData.id,
@@ -1007,15 +1026,19 @@ export default function PDVGarcomPage() {
 
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setDialogCaixa(true)}
+              onClick={async () => {
+                // Verificar caixa antes de abrir dialog
+                await verificarCaixaAberto();
+                setDialogCaixa(true);
+              }}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-colors ${
-                caixaAberto
+                caixaEstaAberto
                   ? 'bg-green-100 text-green-700 hover:bg-green-200'
                   : 'bg-red-100 text-red-700 hover:bg-red-200'
               }`}
             >
               <CheckCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">{caixaAberto ? 'Caixa Aberto' : 'Abrir Caixa'}</span>
+              <span className="hidden sm:inline">{caixaEstaAberto ? 'Caixa Aberto' : 'Abrir Caixa'}</span>
             </button>
             <button
               onClick={handleLogout}
@@ -1112,24 +1135,21 @@ export default function PDVGarcomPage() {
             }}
             onImprimirComanda={imprimirComanda}
             onFinalizar={async () => {
-              // Se já temos caixaAberto no estado, seguir direto
-              if (caixaAberto) {
+              // Verificação primária: usar estado derivado (hook + API)
+              if (caixaEstaAberto) {
                 setPagamentos([]);
                 setDialogPagamento(true);
                 setShowCart(false);
                 return;
               }
 
-              // caixaAberto está null — tentar buscar na API antes de exigir abertura
-              // (funcionários via PIN podem não conseguir buscar via RLS no hook)
+              // Verificação em tempo real via API (fallback robusto)
               if (!empresaId) {
-                toast({ variant: 'destructive', title: 'Abra o caixa antes de finalizar' });
-                setDialogCaixa(true);
+                toast({ variant: 'destructive', title: 'Empresa não identificada. Faça login novamente.' });
                 return;
               }
 
               try {
-                toast({ title: 'Verificando caixa...', description: 'Aguarde um momento' });
                 const response = await fetch('/api/caixa-aberto', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -1139,8 +1159,8 @@ export default function PDVGarcomPage() {
                 if (response.ok) {
                   const result = await response.json();
                   if (result.caixa) {
-                    // Caixa está aberto! Atualizar estado local e prosseguir
-                    toast({ title: 'Caixa aberto detectado!' });
+                    // Atualizar estado local e prosseguir
+                    setCaixaStatus(result.caixa);
                     setPagamentos([]);
                     setDialogPagamento(true);
                     setShowCart(false);
@@ -1151,8 +1171,8 @@ export default function PDVGarcomPage() {
                 console.warn('[PDV-Garçom] Erro ao verificar caixa via API:', e);
               }
 
-              // Realmente não há caixa aberto
-              toast({ variant: 'destructive', title: 'Abra o caixa antes de finalizar' });
+              // Realmente não há caixa aberto — pedir abertura
+              toast({ variant: 'destructive', title: 'Nenhum caixa aberto encontrado. Abra o caixa para finalizar.' });
               setDialogCaixa(true);
             }}
           />
@@ -1208,13 +1228,15 @@ export default function PDVGarcomPage() {
         {/* ── CAIXA DIALOG ── */}
         {dialogCaixa && (
           <CaixaDialog
-            caixaAberto={!!caixaAberto}
-            caixaValor={caixaAberto?.valor_atual || 0}
+            caixaAberto={!!caixaEstaAberto}
+            caixaValor={caixaEstaAberto?.valor_atual || caixaEstaAberto?.valorAtual || 0}
             valorAbertura={valorAberturaCaixa}
             setValorAbertura={setValorAberturaCaixa}
             onAbrirCaixa={async () => {
-              if (caixaAberto) {
-                toast({ title: 'Caixa já está aberto com R$ ' + (caixaAberto.valor_atual || caixaAberto.valorAtual || 0).toFixed(2) });
+              // Re-verificar via API antes de tentar abrir
+              await verificarCaixaAberto();
+              if (caixaEstaAberto) {
+                toast({ title: 'Caixa já está aberto com R$ ' + (caixaEstaAberto.valor_atual || caixaEstaAberto.valorAtual || 0).toFixed(2) });
                 setDialogCaixa(false);
                 return;
               }
@@ -1225,6 +1247,8 @@ export default function PDVGarcomPage() {
                 console.log('[PDV-Garçom] Caixa aberto com sucesso, ID:', caixaId);
                 toast({ title: '✓ Caixa aberto com sucesso!' });
                 setDialogCaixa(false);
+                // Atualizar estado local
+                await verificarCaixaAberto();
               } catch (err: any) {
                 console.error('[PDV-Garçom] Erro ao abrir caixa:', err);
                 toast({ variant: 'destructive', title: err.message || 'Erro ao abrir caixa', description: 'Verifique o console para detalhes.' });
