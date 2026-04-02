@@ -397,7 +397,6 @@ export default function PDVPage() {
             quantidade: 1,
             codigo: produto.codigo || '',
             unidade: produto.unidade || 'UN',
-            is_combo: produto.isCombo || false,
             atendente_id: user?.id,
             atendente_nome: user?.nome,
             tipo_venda: tipoVenda,
