@@ -474,7 +474,37 @@ export default function PDVGarcomPage() {
         .then(({ error }) => {
           if (error) console.error('Erro ao ocupar mesa no DB:', error);
         });
-      // Refresh comandas immediately so mesa status is derived from real data
+
+      // OPTIMISTIC: update comandas state immediately so mesa status reflects NOW
+      setComandas((prev) => {
+        const existing = prev.find((c) => c.mesa_id === mesaSelecionada);
+        if (existing) {
+          // Mesa already has a comanda, update counts
+          return prev.map((c) =>
+            c.mesa_id === mesaSelecionada
+              ? {
+                  ...c,
+                  totalItens: c.totalItens + 1,
+                  totalValor: c.totalValor + (produto.preco || 0),
+                }
+              : c
+          );
+        } else {
+          // Create new comanda entry for this mesa
+          const newComanda: Comanda = {
+            mesa_id: mesaSelecionada,
+            mesa_numero: numeroMesaSelecionada,
+            itens: [{ nome: produto.nome, preco: produto.preco, quantidade: 1 }],
+            totalItens: 1,
+            totalValor: produto.preco || 0,
+            atendenteNome: user?.nome || '',
+            todosEnviados: false,
+          };
+          return [...prev, newComanda].sort((a, b) => a.mesa_numero - b.mesa_numero);
+        }
+      });
+
+      // Also trigger background refresh to sync real data
       setLastComandaRefresh(Date.now());
     } catch (error) {
       console.error('Erro ao adicionar produto:', error);
@@ -498,6 +528,19 @@ export default function PDVGarcomPage() {
 
     if (novaQtd <= 0) {
       await supabase.from('pedidos_temp').delete().eq('id', itemId);
+      // OPTIMISTIC: if this was the last item, remove comanda for this mesa
+      const currentComanda = comandas.find((c) => c.mesa_id === mesaSelecionada);
+      if (currentComanda && currentComanda.totalItens <= 1) {
+        setComandas((prev) => prev.filter((c) => c.mesa_id !== mesaSelecionada));
+      } else if (currentComanda) {
+        setComandas((prev) =>
+          prev.map((c) =>
+            c.mesa_id === mesaSelecionada
+              ? { ...c, totalItens: Math.max(0, c.totalItens - 1) }
+              : c
+          )
+        );
+      }
     } else {
       await supabase.from('pedidos_temp').update({ quantidade: novaQtd }).eq('id', itemId);
     }
@@ -507,6 +550,19 @@ export default function PDVGarcomPage() {
     const supabase = getSupabaseClient();
     if (!supabase) return;
     await supabase.from('pedidos_temp').delete().eq('id', itemId);
+    // OPTIMISTIC: if this was the last item, remove comanda for this mesa
+    const currentComanda = comandas.find((c) => c.mesa_id === mesaSelecionada);
+    if (currentComanda && currentComanda.totalItens <= 1) {
+      setComandas((prev) => prev.filter((c) => c.mesa_id !== mesaSelecionada));
+    } else if (currentComanda) {
+      setComandas((prev) =>
+        prev.map((c) =>
+          c.mesa_id === mesaSelecionada
+            ? { ...c, totalItens: Math.max(0, c.totalItens - 1) }
+            : c
+        )
+      );
+    }
   };
 
   const limparPedido = async () => {
@@ -531,6 +587,9 @@ export default function PDVGarcomPage() {
         .then(({ error }) => {
           if (error) console.error('Erro ao liberar mesa no DB (limpar):', error);
         });
+
+      // OPTIMISTIC: remove comanda for this mesa immediately
+      setComandas((prev) => prev.filter((c) => c.mesa_id !== mesaSelecionada));
 
       // Clear local state and go back to mesas
       setItensPedido([]);
@@ -795,6 +854,10 @@ export default function PDVGarcomPage() {
             if (error) console.error('Erro ao liberar mesa no DB (finalizar):', error);
           });
       }
+
+      // OPTIMISTIC: remove comanda for this mesa immediately
+      const mesaIdToFree = mesaSelecionada;
+      setComandas((prev) => prev.filter((c) => c.mesa_id !== mesaIdToFree));
 
       // Register in caixa
       if (caixaAberto) {
