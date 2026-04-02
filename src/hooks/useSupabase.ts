@@ -1085,72 +1085,64 @@ export function useCaixa() {
     }
 
     try {
-      // Buscar caixa aberto
-      const { data: caixas, error: caixaError } = await supabase
-        .from('caixas')
-        .select('*')
-        .eq('empresa_id', empresaId)
-        .eq('status', 'aberto')
-        .single();
+      // Usar API route com service role para bypass de RLS
+      // (funcionários via PIN não têm sessão Supabase Auth, logo auth.uid() = null)
+      const response = await fetch('/api/caixa-aberto', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId }),
+      });
 
-      if (caixaError && caixaError.code !== 'PGRST116') {
-        throw caixaError;
+      if (!response.ok) {
+        throw new Error('Erro ao buscar caixa via API');
       }
 
-      if (caixas) {
+      const result = await response.json();
+
+      if (result.caixa) {
+        const c = result.caixa;
         setCaixaAberto({
-          id: caixas.id,
-          ...caixas,
+          id: c.id,
+          ...c,
           // Mapear propriedades para camelCase (compatibilidade)
-          valorInicial: caixas.valor_inicial,
-          valorAtual: caixas.valor_atual,
-          totalEntradas: caixas.total_entradas,
-          totalSaidas: caixas.total_saidas,
-          totalVendas: caixas.total_vendas,
-          abertoEm: new Date(caixas.aberto_em),
-          fechadoEm: caixas.fechado_em ? new Date(caixas.fechado_em) : null,
+          valorInicial: c.valor_inicial,
+          valorAtual: c.valor_atual,
+          totalEntradas: c.total_entradas,
+          totalSaidas: c.total_saidas,
+          totalVendas: c.total_vendas,
+          abertoEm: new Date(c.aberto_em),
+          fechadoEm: c.fechado_em ? new Date(c.fechado_em) : null,
         });
 
-        // Carregar movimentações
-        const { data: movs, error: movsError } = await supabase
-          .from('movimentacoes_caixa')
-          .select('*')
-          .eq('caixa_id', caixas.id)
-          .order('criado_em', { ascending: false });
-
-        if (movsError) throw movsError;
-
-        setMovimentacoes(movs?.map(m => ({
+        setMovimentacoes((result.movimentacoes || []).map((m: any) => ({
           id: m.id,
           ...m,
-          // Mapear propriedades para camelCase (compatibilidade)
           formaPagamento: m.forma_pagamento,
           usuarioId: m.usuario_id,
           usuarioNome: m.usuario_nome,
           criadoEm: new Date(m.criado_em),
-        })) || []);
+        })));
       } else {
         setCaixaAberto(null);
         setMovimentacoes([]);
       }
 
-      // Carregar histórico
-      const { data: hist, error: histError } = await supabase
-        .from('caixas')
-        .select('*')
-        .eq('empresa_id', empresaId)
-        .eq('status', 'fechado')
-        .order('fechado_em', { ascending: false })
-        .limit(30);
+      // Carregar histórico (via API para funcionários também)
+      const histResponse = await fetch('/api/caixa-historico', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId }),
+      });
 
-      if (histError) throw histError;
-      
-      setHistorico(hist?.map(h => ({
-        id: h.id,
-        ...h,
-        abertoEm: new Date(h.aberto_em),
-        fechadoEm: h.fechado_em ? new Date(h.fechado_em) : null,
-      })) || []);
+      if (histResponse.ok) {
+        const histResult = await histResponse.json();
+        setHistorico((histResult.caixas || []).map((h: any) => ({
+          id: h.id,
+          ...h,
+          abertoEm: new Date(h.aberto_em),
+          fechadoEm: h.fechado_em ? new Date(h.fechado_em) : null,
+        })));
+      }
 
     } catch (error) {
       console.error('Erro ao carregar caixa:', error);
@@ -1170,30 +1162,30 @@ export function useCaixa() {
       throw new Error('Já existe um caixa aberto');
     }
 
-    const { data: caixa, error: caixaError } = await supabase
-      .from('caixas')
-      .insert({
-        empresa_id: empresaId,
-        valor_inicial: valorInicial,
-        valor_atual: valorInicial,
-        total_entradas: 0,
-        total_saidas: 0,
-        total_vendas: 0,
-        status: 'aberto',
-        aberto_por: user.id,
-        aberto_por_nome: user.nome,
-        observacao_abertura: observacao || '',
-      })
-      .select()
-      .single();
+    // Usar API route com service role (funciona para admin E funcionário via PIN)
+    const response = await fetch('/api/caixa-abrir', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        empresaId,
+        valorInicial,
+        observacao,
+        usuarioId: user.id,
+        usuarioNome: user.nome,
+      }),
+    });
 
-    if (caixaError) {
-      console.error('Erro ao inserir caixa:', caixaError);
-      throw caixaError;
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      if (response.status === 409) {
+        throw new Error(err.error || 'Já existe um caixa aberto');
+      }
+      throw new Error(err.error || 'Erro ao abrir caixa');
     }
 
+    const { caixa } = await response.json();
+
     // Definir caixaAberto diretamente com os dados do INSERT
-    // (não depender apenas de carregarDados que pode falhar com RLS)
     const novoCaixa = {
       id: caixa.id,
       ...caixa,
@@ -1220,29 +1212,6 @@ export function useCaixa() {
       formaPagamento: 'dinheiro',
       usuarioNome: user.nome,
     }]);
-
-    // Registrar movimentação inicial no banco (não bloqueia o fluxo)
-    try {
-      await supabase
-        .from('movimentacoes_caixa')
-        .insert({
-          caixa_id: caixa.id,
-          empresa_id: empresaId,
-          tipo: 'abertura',
-          valor: valorInicial,
-          forma_pagamento: 'dinheiro',
-          descricao: 'Abertura de caixa',
-          usuario_id: user.id,
-          usuario_nome: user.nome,
-        });
-    } catch (movError) {
-      console.warn('Aviso: movimentação de abertura não registrada:', movError);
-    }
-
-    // NOTA: Não chamamos carregarDados() aqui porque se a query SELECT
-    // falhar (RLS, rede, etc), ela resetaria caixaAberto para null.
-    // O estado já foi definido acima com os dados do INSERT.
-    // O useEffect com [carregarDados] vai recarregar quando empresaId/user mudar.
 
     return caixa.id;
   };
