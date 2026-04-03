@@ -33,7 +33,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useProdutos, useFornecedores } from '@/hooks/useFirestore';
+import { useProdutos, useFornecedores, useCategorias } from '@/hooks/useFirestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -81,11 +81,13 @@ interface LoteItem {
 export default function EstoquePage() {
   const { produtos, loading: loadingProdutos, atualizarProduto } = useProdutos();
   const { fornecedores, loading: loadingFornecedores } = useFornecedores();
+  const { categorias } = useCategorias();
   const { user, empresaId } = useAuth();
   const { toast } = useToast();
   
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'todos' | 'baixo' | 'normal'>('todos');
+  const [filterCategoria, setFilterCategoria] = useState<string>('todos');
   const [dialogEntrada, setDialogEntrada] = useState(false);
   const [dialogSaida, setDialogSaida] = useState(false);
   const [dialogHistorico, setDialogHistorico] = useState(false);
@@ -196,7 +198,9 @@ export default function EstoquePage() {
                        (filterStatus === 'baixo' && estoqueBaixo) ||
                        (filterStatus === 'normal' && !estoqueBaixo);
     
-    return matchSearch && matchStatus;
+    const matchCategoria = filterCategoria === 'todos' || produto.categoriaId === filterCategoria;
+    
+    return matchSearch && matchStatus && matchCategoria;
   });
 
   const produtosBaixoEstoque = produtos.filter(p => (p.estoqueAtual || 0) <= (p.estoqueMinimo || 0));
@@ -700,6 +704,26 @@ export default function EstoquePage() {
                     <SelectItem value="todos">Todos</SelectItem>
                     <SelectItem value="baixo">Estoque Baixo</SelectItem>
                     <SelectItem value="normal">Estoque Normal</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={filterCategoria} onValueChange={setFilterCategoria}>
+                  <SelectTrigger className="w-full md:w-48">
+                    <Filter className="h-4 w-4 mr-2" />
+                    <SelectValue placeholder="Todas as Categorias" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todas as Categorias</SelectItem>
+                    {categorias.map((cat: any) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        <div className="flex items-center gap-1.5">
+                          <div
+                            className="h-2.5 w-2.5 rounded-full"
+                            style={{ backgroundColor: cat.cor || '#6B7280' }}
+                          />
+                          <span>{cat.nome}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

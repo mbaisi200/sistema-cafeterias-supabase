@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -8,9 +10,10 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger } from '@/components/ui/drawer';
-import { Filter, CalendarIcon, X, RotateCcw, SlidersHorizontal } from 'lucide-react';
+import { Filter, CalendarIcon, X, RotateCcw, SlidersHorizontal, Search } from 'lucide-react';
 import { FiltrosBI } from '@/types/bi';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -43,7 +46,7 @@ function MultiSelect({ titulo, opcoes, valores, onChange }: { titulo: string; op
   return (
     <div className="space-y-2">
       <Label className="text-sm font-medium">{titulo}</Label>
-      <div className="max-h-32 overflow-y-auto space-y-2 pr-2">
+      <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
         {opcoes.map((opcao) => (
           <div key={opcao.valor} className="flex items-center space-x-2">
             <Checkbox id={opcao.valor} checked={valores.includes(opcao.valor)} onCheckedChange={(checked) => { onChange(checked ? [...valores, opcao.valor] : valores.filter((v) => v !== opcao.valor)); }} />
@@ -51,6 +54,100 @@ function MultiSelect({ titulo, opcoes, valores, onChange }: { titulo: string; op
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ProdutoSelect({ opcoes, valores, onChange }: {
+  opcoes: { valor: string; label: string }[];
+  valores: string[];
+  onChange: (valores: string[]) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [showAll, setShowAll] = useState(false);
+
+  const filtered = search
+    ? opcoes.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+    : opcoes;
+
+  const displayed = showAll ? filtered : filtered.slice(0, 20);
+  const hasMore = !showAll && filtered.length > 20;
+  const allFilteredSelected = filtered.length > 0 && filtered.every(f => valores.includes(f.valor));
+  const someFilteredSelected = filtered.some(f => valores.includes(f.valor)) && !allFilteredSelected;
+
+  const toggleAllFiltered = () => {
+    if (allFilteredSelected) {
+      const filteredIds = new Set(filtered.map(f => f.valor));
+      onChange(valores.filter(v => !filteredIds.has(v)));
+    } else {
+      const filteredIds = new Set(filtered.map(f => f.valor));
+      const currentIds = new Set(valores);
+      const merged = [...valores];
+      for (const id of filteredIds) {
+        if (!currentIds.has(id)) merged.push(id);
+      }
+      onChange(merged);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm font-medium">
+          Produtos
+          {valores.length > 0 && (
+            <Badge variant="secondary" className="ml-2 text-xs">{valores.length}</Badge>
+          )}
+        </Label>
+        {valores.length > 0 && (
+          <button onClick={() => onChange([])} className="text-xs text-muted-foreground hover:text-foreground">
+            Limpar
+          </button>
+        )}
+      </div>
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          placeholder="Buscar produto..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setShowAll(false); }}
+          className="h-8 pl-8 text-xs"
+        />
+      </div>
+      {filtered.length > 0 && (
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="select-all-products"
+            checked={allFilteredSelected}
+            ref={(el: HTMLButtonElement | null) => {
+              if (el) (el as unknown as { indeterminate: boolean }).indeterminate = someFilteredSelected;
+            }}
+            onCheckedChange={toggleAllFiltered}
+          />
+          <Label htmlFor="select-all-products" className="text-xs text-muted-foreground cursor-pointer">
+            Selecionar todos ({filtered.length})
+          </Label>
+        </div>
+      )}
+      <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+        {displayed.map((opcao) => (
+          <div key={opcao.valor} className="flex items-center space-x-2">
+            <Checkbox id={`prod-${opcao.valor}`} checked={valores.includes(opcao.valor)} onCheckedChange={(checked) => { onChange(checked ? [...valores, opcao.valor] : valores.filter((v) => v !== opcao.valor)); }} />
+            <Label htmlFor={`prod-${opcao.valor}`} className="text-xs cursor-pointer truncate">{opcao.label}</Label>
+          </div>
+        ))}
+        {displayed.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-2">Nenhum produto encontrado</p>
+        )}
+      </div>
+      {hasMore && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="text-xs text-blue-600 hover:text-blue-800 w-full text-center py-1"
+        >
+          Mostrar mais {filtered.length - 20} produtos...
+        </button>
+      )}
     </div>
   );
 }
@@ -100,7 +197,7 @@ function FiltrosContent({ filtros, opcoesFiltros, onAtualizarFiltros, onResetarF
         <MultiSelect titulo="Categorias" opcoes={opcoesFiltros.categorias} valores={filtros.categorias} onChange={(valores) => onAtualizarFiltros({ categorias: valores })} />
         <MultiSelect titulo="Forma de Pagamento" opcoes={opcoesFiltros.formasPagamento} valores={filtros.formasPagamento} onChange={(valores) => onAtualizarFiltros({ formasPagamento: valores })} />
         <MultiSelect titulo="Tipo de Venda" opcoes={opcoesFiltros.tiposVenda} valores={filtros.tiposVenda} onChange={(valores) => onAtualizarFiltros({ tiposVenda: valores })} />
-        <MultiSelect titulo="Produtos" opcoes={opcoesFiltros.produtos} valores={filtros.produtos} onChange={(valores) => onAtualizarFiltros({ produtos: valores })} />
+        <ProdutoSelect opcoes={opcoesFiltros.produtos} valores={filtros.produtos} onChange={(valores) => onAtualizarFiltros({ produtos: valores })} />
       </div>
       <Separator />
       <div className="flex items-center justify-between gap-4">

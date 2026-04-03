@@ -1402,14 +1402,54 @@ export function useCaixa() {
       }));
 
       // Calcular resumo do caixa fechado
+      // Buscar pagamentos detalhados para multi-payment sales accuracy
+      let pagamentosCaixa: any[] = [];
+      if (vendaIds.length > 0) {
+        const { data: pagamentosData } = await supabase
+          .from('pagamentos')
+          .select('*')
+          .in('venda_id', vendaIds);
+        pagamentosCaixa = pagamentosData || [];
+      }
+
+      // Função auxiliar para normalizar forma_pagamento
+      const normalizarFormaPagamento = (forma: string | null | undefined): string => {
+        if (!forma) return '';
+        const f = forma.toLowerCase().trim();
+        if (f === 'credito' || f === 'cartao_credito' || f === 'cartão_credito' || f === 'cartao crédito' || f === 'cartão crédito') return 'credito';
+        if (f === 'debito' || f === 'cartao_debito' || f === 'cartão_debito' || f === 'cartão débito' || f === 'cartao débito') return 'debito';
+        if (f === 'dinheiro' || f === 'money') return 'dinheiro';
+        if (f === 'pix') return 'pix';
+        return f;
+      };
+
+      // Calcular totais por forma de pagamento a partir da tabela pagamentos (mais preciso para vendas com múltiplos pagamentos)
+      const totaisPorForma: Record<string, number> = { dinheiro: 0, credito: 0, debito: 0, pix: 0 };
+      if (pagamentosCaixa.length > 0) {
+        pagamentosCaixa.forEach(pg => {
+          const forma = normalizarFormaPagamento(pg.forma_pagamento);
+          if (forma in totaisPorForma) {
+            totaisPorForma[forma] += parseFloat(pg.valor) || 0;
+          }
+        });
+      } else {
+        // Fallback: usar movimentacoes_caixa se não há pagamentos registrados
+        movimentacoesMapeadas.filter(m => m.tipo === 'venda').forEach(m => {
+          const forma = normalizarFormaPagamento(m.forma_pagamento);
+          if (forma in totaisPorForma) {
+            totaisPorForma[forma] += m.valor || 0;
+          }
+        });
+      }
+
       const resumoCaixa = {
         valorInicial: caixa.valor_inicial,
         valorFinal: caixa.valor_final,
         totalVendas: movimentacoesMapeadas.filter(m => m.tipo === 'venda').reduce((acc, m) => acc + (m.valor || 0), 0),
-        vendasDinheiro: movimentacoesMapeadas.filter(m => m.tipo === 'venda' && m.forma_pagamento === 'dinheiro').reduce((acc, m) => acc + (m.valor || 0), 0),
-        vendasCredito: movimentacoesMapeadas.filter(m => m.tipo === 'venda' && m.forma_pagamento === 'cartao_credito').reduce((acc, m) => acc + (m.valor || 0), 0),
-        vendasDebito: movimentacoesMapeadas.filter(m => m.tipo === 'venda' && m.forma_pagamento === 'cartao_debito').reduce((acc, m) => acc + (m.valor || 0), 0),
-        vendasPix: movimentacoesMapeadas.filter(m => m.tipo === 'venda' && m.forma_pagamento === 'pix').reduce((acc, m) => acc + (m.valor || 0), 0),
+        vendasDinheiro: totaisPorForma.dinheiro,
+        vendasCredito: totaisPorForma.credito,
+        vendasDebito: totaisPorForma.debito,
+        vendasPix: totaisPorForma.pix,
         reforcos: movimentacoesMapeadas.filter(m => m.tipo === 'reforco').reduce((acc, m) => acc + (m.valor || 0), 0),
         sangrias: movimentacoesMapeadas.filter(m => m.tipo === 'sangria').reduce((acc, m) => acc + (m.valor || 0), 0),
         totalEntradas: movimentacoesMapeadas.filter(m => m.tipo === 'venda' || m.tipo === 'reforco' || m.tipo === 'abertura').reduce((acc, m) => acc + (m.valor || 0), 0),
@@ -1439,16 +1479,29 @@ export function useCaixa() {
     setDetalhesCaixa(null);
   }, []);
 
+  // Função auxiliar para normalizar forma_pagamento
+  const normalizarFormaPagamento = (forma: string | null | undefined): string => {
+    if (!forma) return '';
+    const f = forma.toLowerCase().trim();
+    if (f === 'credito' || f === 'cartao_credito' || f === 'cartão_credito' || f === 'cartao crédito' || f === 'cartão crédito') return 'credito';
+    if (f === 'debito' || f === 'cartao_debito' || f === 'cartão_debito' || f === 'cartão débito' || f === 'cartao débito') return 'debito';
+    if (f === 'dinheiro' || f === 'money') return 'dinheiro';
+    if (f === 'pix') return 'pix';
+    return f;
+  };
+
+  const vendasFiltro = movimentacoes.filter(m => m.tipo === 'venda');
+
   const resumo = {
     valorInicial: caixaAberto?.valorInicial || 0,
     valorAtual: caixaAberto?.valorAtual || 0,
     totalEntradas: caixaAberto?.totalEntradas || 0,
     totalSaidas: caixaAberto?.totalSaidas || 0,
     totalVendas: caixaAberto?.totalVendas || 0,
-    vendasDinheiro: movimentacoes.filter(m => m.tipo === 'venda' && m.formaPagamento === 'dinheiro').reduce((acc, m) => acc + (m.valor || 0), 0),
-    vendasCredito: movimentacoes.filter(m => m.tipo === 'venda' && m.formaPagamento === 'cartao_credito').reduce((acc, m) => acc + (m.valor || 0), 0),
-    vendasDebito: movimentacoes.filter(m => m.tipo === 'venda' && m.formaPagamento === 'cartao_debito').reduce((acc, m) => acc + (m.valor || 0), 0),
-    vendasPix: movimentacoes.filter(m => m.tipo === 'venda' && m.formaPagamento === 'pix').reduce((acc, m) => acc + (m.valor || 0), 0),
+    vendasDinheiro: vendasFiltro.filter(m => normalizarFormaPagamento(m.formaPagamento) === 'dinheiro').reduce((acc, m) => acc + (m.valor || 0), 0),
+    vendasCredito: vendasFiltro.filter(m => normalizarFormaPagamento(m.formaPagamento) === 'credito').reduce((acc, m) => acc + (m.valor || 0), 0),
+    vendasDebito: vendasFiltro.filter(m => normalizarFormaPagamento(m.formaPagamento) === 'debito').reduce((acc, m) => acc + (m.valor || 0), 0),
+    vendasPix: vendasFiltro.filter(m => normalizarFormaPagamento(m.formaPagamento) === 'pix').reduce((acc, m) => acc + (m.valor || 0), 0),
     reforcos: movimentacoes.filter(m => m.tipo === 'reforco').reduce((acc, m) => acc + (m.valor || 0), 0),
     sangrias: movimentacoes.filter(m => m.tipo === 'sangria').reduce((acc, m) => acc + (m.valor || 0), 0),
   };

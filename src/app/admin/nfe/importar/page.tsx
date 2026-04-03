@@ -798,7 +798,14 @@ export default function NFeImportarPage() {
                                 </div>
                               </TableCell>
                               <TableCell className="text-center font-mono text-sm">
-                                {item.nfeProduto.quantidade} {item.nfeProduto.unidade}
+                                <div>
+                                  <span>{item.nfeProduto.quantidade} {item.nfeProduto.unidade}</span>
+                                  {item.nfeProduto.unidadeTributavel && item.nfeProduto.unidadeTributavel.toUpperCase() !== item.nfeProduto.unidade.toUpperCase() && (
+                                    <span className="block text-xs text-muted-foreground">
+                                      ({item.nfeProduto.quantidadeTributavel} {item.nfeProduto.unidadeTributavel} trib.)
+                                    </span>
+                                  )}
+                                </div>
                               </TableCell>
                               <TableCell className="text-right font-mono text-sm">
                                 R$ {item.nfeProduto.valorUnitario.toFixed(2)}
@@ -1314,21 +1321,21 @@ function ProdutoFiscalDetail({ item, markup }: { item: ProdutoImportacao; markup
             <span className="font-mono">{p.ean || '-'}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Unidade:</span>
-            <span>{p.unidade}</span>
+            <span className="text-muted-foreground">Unidade Comercial:</span>
+            <span>{p.quantidade} {p.unidade} <span className="text-xs text-muted-foreground">(qCom)</span></span>
           </div>
           <div className="flex justify-between">
-            <span className="text-muted-foreground">Un. Tributável:</span>
-            <span>{p.unidadeTributavel}</span>
+            <span className="text-muted-foreground">Unidade Tributável:</span>
+            <span>{p.quantidadeTributavel || p.quantidade} {p.unidadeTributavel} <span className="text-xs text-muted-foreground">(qTrib)</span></span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Qtd Comercial:</span>
-            <span className="font-mono">{p.quantidade}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Qtd Tributável:</span>
-            <span className="font-mono">{p.quantidadeTributavel || p.quantidade}</span>
-          </div>
+          {p.unidadeTributavel && p.unidadeTributavel.toUpperCase() !== p.unidade.toUpperCase() && p.quantidadeTributavel && p.quantidade > 0 && (
+            <div className="flex justify-between col-span-2 bg-blue-50 rounded px-2 py-1 -mx-1">
+              <span className="text-muted-foreground text-xs">Fator de conversão:</span>
+              <span className="font-mono text-xs font-semibold text-blue-600">
+                {(p.quantidadeTributavel / p.quantidade).toFixed(4)} {p.unidadeTributavel}/{p.unidade}
+              </span>
+            </div>
+          )}
           <div className="flex justify-between">
             <span className="text-muted-foreground">Vl. Unit. Comercial:</span>
             <span className="font-mono">R$ {p.valorUnitario.toFixed(2)}</span>

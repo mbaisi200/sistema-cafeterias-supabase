@@ -1,6 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Helper: Normalize NFe unit to allowed database values
+function normalizarUnidade(unidade: string): string {
+  if (!unidade) return 'un';
+  const u = unidade.trim().toUpperCase();
+  const mapa: Record<string, string> = {
+    'UN': 'un', 'UNIT': 'un', 'UNIDADE': 'un', 'PC': 'un', 'PCT': 'un',
+    'KG': 'kg', 'QUILO': 'kg', 'K': 'kg',
+    'LT': 'lt', 'L': 'lt', 'LITRO': 'lt', 'LITROS': 'lt',
+    'ML': 'ml', 'MLT': 'ml', 'MILILITRO': 'ml', 'MILILITROS': 'ml',
+    'G': 'g', 'GRAMA': 'g', 'GR': 'g', 'GRAMAS': 'g',
+    'MG': 'mg', 'MILIGRAMA': 'mg',
+    'CX': 'un', 'CAIXA': 'un', // Caixas are normalized to 'un' since they're countable
+    'PAC': 'un', 'PACOTE': 'un',
+    'M': 'un', 'MIL': 'un', 'MILHEIRO': 'un',
+    'MM': 'un',
+    'CM': 'un',
+    'ROLO': 'un', 'RL': 'un',
+    'PAR': 'un',
+    'FARDO': 'un',
+    'BD': 'un', 'BARRA': 'un',
+  };
+  return mapa[u] || 'un';
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -132,7 +156,7 @@ export async function POST(request: NextRequest) {
                 codigo_barras: item.ean || null,
                 custo: precoCusto,
                 preco: precoVenda,
-                unidade: item.unidade || 'un',
+                unidade: normalizarUnidade(item.unidade),
                 categoria_id: item.categoriaId || null,
                 estoque_atual: opcoes.atualizarEstoque ? (item.quantidade || 0) : 0,
                 estoque_minimo: 0,
@@ -145,7 +169,7 @@ export async function POST(request: NextRequest) {
                 csosn: item.csosn || null,
                 origem: item.origem || '0',
                 icms: item.icmsAliquota || 0,
-                unidade_tributavel: item.unidadeTributavel || item.unidade || 'UN',
+                unidade_tributavel: normalizarUnidade(item.unidadeTributavel || item.unidade),
                 ipi_aliquota: item.ipiAliquota || 0,
                 pis_aliquota: item.pisAliquota || 0,
                 cofins_aliquota: item.cofinsAliquota || 0,
@@ -215,7 +239,7 @@ export async function POST(request: NextRequest) {
               if (item.csosn) updateData.csosn = item.csosn;
               if (item.origem) updateData.origem = item.origem;
               if (item.icmsAliquota) updateData.icms = item.icmsAliquota;
-              if (item.unidadeTributavel) updateData.unidade_tributavel = item.unidadeTributavel;
+              if (item.unidadeTributavel) updateData.unidade_tributavel = normalizarUnidade(item.unidadeTributavel);
               if (item.ipiAliquota) updateData.ipi_aliquota = item.ipiAliquota;
               if (item.pisAliquota) updateData.pis_aliquota = item.pisAliquota;
               if (item.cofinsAliquota) updateData.cofins_aliquota = item.cofinsAliquota;

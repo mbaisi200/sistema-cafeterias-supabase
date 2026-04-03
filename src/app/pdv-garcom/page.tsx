@@ -38,6 +38,7 @@ import {
   CircleCheck,
   CircleDot,
   Eraser,
+  Lock,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -563,8 +564,13 @@ export default function PDVGarcomPage() {
     const novaQtd = quantidadeAtual + delta;
 
     if (novaQtd <= 0) {
-      // Otimistic: remove item do estado local IMEDIATAMENTE
+      // Bloquear remoção se o item já foi enviado para a cozinha
       const itemParaRemover = itensPedido.find((i) => i.id === itemId);
+      if (itemParaRemover?.statusEnvio === 'enviado_cozinha') {
+        toast({ variant: 'destructive', title: 'Este item já foi enviado para a cozinha e não pode ser removido' });
+        return;
+      }
+      // Otimistic: remove item do estado local IMEDIATAMENTE
       setItensPedido((prev) => prev.filter((i) => i.id !== itemId));
 
       // Otimistic: atualizar comandas localmente
@@ -601,8 +607,14 @@ export default function PDVGarcomPage() {
     const supabase = getSupabaseClient();
     if (!supabase) return;
 
-    // Otimistic: remove item do estado local IMEDIATAMENTE
+    // Bloquear remoção se o item já foi enviado para a cozinha
     const itemParaRemover = itensPedido.find((i) => i.id === itemId);
+    if (itemParaRemover?.statusEnvio === 'enviado_cozinha') {
+      toast({ variant: 'destructive', title: 'Este item já foi enviado para a cozinha e não pode ser removido' });
+      return;
+    }
+
+    // Otimistic: remove item do estado local IMEDIATAMENTE
     setItensPedido((prev) => prev.filter((i) => i.id !== itemId));
 
     // Otimistic: atualizar comandas localmente
@@ -1702,24 +1714,46 @@ function CartBottomSheet({
                 <div className="flex items-center gap-1.5 shrink-0">
                   <button
                     onClick={() => onAlterarQtd(item.id, -1, item.quantidade)}
-                    className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600 active:scale-90 transition-all"
+                    disabled={item.statusEnvio === 'enviado_cozinha'}
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center active:scale-90 transition-all ${
+                      item.statusEnvio === 'enviado_cozinha'
+                        ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-red-50 hover:border-red-200 hover:text-red-600'
+                    }`
+                  }
+                  title={item.statusEnvio === 'enviado_cozinha' ? 'Item enviado à cozinha' : 'Diminuir quantidade'}
                   >
                     <Minus className="h-3.5 w-3.5" />
                   </button>
                   <span className="w-7 text-center font-extrabold text-sm text-gray-800">{item.quantidade}</span>
                   <button
                     onClick={() => onAlterarQtd(item.id, 1, item.quantidade)}
-                    className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-green-50 hover:border-green-200 hover:text-green-600 active:scale-90 transition-all"
+                    disabled={item.statusEnvio === 'enviado_cozinha'}
+                    className={`w-8 h-8 rounded-lg border flex items-center justify-center active:scale-90 transition-all ${
+                      item.statusEnvio === 'enviado_cozinha'
+                        ? 'bg-gray-100 border-gray-200 text-gray-300 cursor-not-allowed'
+                        : 'bg-white border-gray-200 text-gray-600 hover:bg-green-50 hover:border-green-200 hover:text-green-600'
+                    }`
+                  }
+                  title={item.statusEnvio === 'enviado_cozinha' ? 'Item enviado à cozinha' : 'Aumentar quantidade'}
                   >
                     <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <button
-                  onClick={() => onRemoverItem(item.id)}
-                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all shrink-0"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
+                {item.statusEnvio === 'enviado_cozinha' ? (
+                  <Badge className="shrink-0 bg-orange-100 text-orange-700 border border-orange-200 text-[10px] font-bold px-2 py-0.5 gap-1">
+                    <Lock className="h-2.5 w-2.5" />
+                    Na Cozinha
+                  </Badge>
+                ) : (
+                  <button
+                    onClick={() => onRemoverItem(item.id)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 active:scale-90 transition-all shrink-0"
+                    title="Remover item"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
             ))}
             {itensPedido.length === 0 && (

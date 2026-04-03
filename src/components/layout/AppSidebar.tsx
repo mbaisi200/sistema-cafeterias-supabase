@@ -43,7 +43,6 @@ import {
   Database,
   Receipt,
   Truck,
-  FileUp,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -77,7 +76,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
   { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
   { title: 'Cupons e NFEs', url: '/admin/cupons-nfes', icon: FileText },
-  { title: 'Importar NFe', url: '/admin/nfe/importar', icon: FileUp },
+  { title: 'Notas Fiscais', url: '/admin/nfe', icon: FileText },
 ];
 
 // Itens do Atalho Rápido (Cardápio e configurações)
