@@ -70,42 +70,49 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch empresa section permissions and segment info
+    // Fetch section permissions via SEGMENTO (not per-company anymore)
     let secoesPermitidas: string[] = [];
     let nomeMarca: string | null = null;
 
     if (data.empresa_id && data.role !== 'master') {
-      const [secoesRes, empresaRes] = await Promise.all([
-        supabase
-          .from('empresa_secoes')
+      // Get empresa data (segmento_id, nome_marca)
+      const { data: empresaRes, error: empresaError } = await supabase
+        .from('empresas')
+        .select('id, nome_marca, segmento_id')
+        .eq('id', data.empresa_id)
+        .single();
+
+      // Determine segmento_id
+      const segId = empresaRes?.segmento_id;
+
+      if (segId) {
+        // Query segmento_secoes for this segment
+        const { data: segSecoes } = await supabase
+          .from('segmento_secoes')
           .select('secao_id, ativo')
-          .eq('empresa_id', data.empresa_id),
-        supabase
-          .from('empresas')
-          .select('id, nome_marca, segmento_id')
-          .eq('id', data.empresa_id)
-          .single()
-      ]);
+          .eq('segmento_id', segId);
 
-      // Get active section URLs
-      const ativoSecaoIds = (secoesRes.data || [])
-        .filter((s: any) => s.ativo)
-        .map((s: any) => s.secao_id);
+        const ativoSecaoIds = (segSecoes || [])
+          .filter((s: any) => s.ativo)
+          .map((s: any) => s.secao_id);
 
-      if (ativoSecaoIds.length > 0) {
-        const { data: secoesData } = await supabase
-          .from('secoes_menu')
-          .select('chave, url, obrigatoria, visivel_para')
-          .in('id', ativoSecaoIds)
-          .eq('ativo', true);
-        
-        if (secoesData) {
-          secoesPermitidas = secoesData
-            .filter((s: any) => s.visivel_para && s.visivel_para.includes(data.role))
-            .map((s: any) => s.url);
+        if (ativoSecaoIds.length > 0) {
+          const { data: secoesData } = await supabase
+            .from('secoes_menu')
+            .select('chave, url, obrigatoria, visivel_para')
+            .in('id', ativoSecaoIds)
+            .eq('ativo', true);
+          
+          if (secoesData) {
+            secoesPermitidas = secoesData
+              .filter((s: any) => s.visivel_para && s.visivel_para.includes(data.role))
+              .map((s: any) => s.url);
+          }
         }
-      } else {
-        // Fallback: if no empresa_secoes exist, fetch ALL active sections
+      }
+
+      // Fallback: if no segmento or no segmento_secoes, load ALL active sections
+      if (secoesPermitidas.length === 0) {
         const { data: allSecoes } = await supabase
           .from('secoes_menu')
           .select('chave, url, obrigatoria, visivel_para')
@@ -118,15 +125,15 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Get brand name from empresa or segmento
-      if (empresaRes.data) {
-        if (empresaRes.data.nome_marca) {
-          nomeMarca = empresaRes.data.nome_marca;
-        } else if (empresaRes.data.segmento_id) {
+      // Get brand name: empresa.nome_marca first, then segmento.nome_marca
+      if (empresaRes) {
+        if (empresaRes.nome_marca) {
+          nomeMarca = empresaRes.nome_marca;
+        } else if (segId) {
           const { data: segmento } = await supabase
             .from('segmentos')
             .select('nome_marca')
-            .eq('id', empresaRes.data.segmento_id)
+            .eq('id', segId)
             .single();
           nomeMarca = segmento?.nome_marca || null;
         }

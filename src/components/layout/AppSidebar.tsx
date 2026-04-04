@@ -147,18 +147,30 @@ export function AppSidebar() {
         const supabase = getSupabaseClient();
         if (!supabase) return;
 
-        // Buscar seções ativas da empresa
-        const { data: empresaSecoes } = await supabase
-          .from('empresa_secoes')
-          .select('secao_id, ativo')
-          .eq('empresa_id', empresaId);
+        // Get empresa's segmento_id
+        const { data: empresa } = await supabase
+          .from('empresas')
+          .select('segmento_id')
+          .eq('id', empresaId)
+          .single();
 
-        const ativoIds = (empresaSecoes || [])
-          .filter((s: any) => s.ativo)
-          .map((s: any) => s.secao_id);
+        const segId = empresa?.segmento_id;
+        let ativoIds: string[] = [];
+
+        if (segId) {
+          // Query segmento_secoes for this segment
+          const { data: segSecoes } = await supabase
+            .from('segmento_secoes')
+            .select('secao_id, ativo')
+            .eq('segmento_id', segId);
+
+          ativoIds = (segSecoes || [])
+            .filter((s: any) => s.ativo)
+            .map((s: any) => s.secao_id);
+        }
 
         if (ativoIds.length === 0) {
-          // Fallback: carregar todas as seções ativas
+          // Fallback: load all active sections
           const { data: allSecoes } = await supabase
             .from('secoes_menu')
             .select('*')
@@ -181,7 +193,7 @@ export function AppSidebar() {
           return;
         }
 
-        // Carregar seções específicas
+        // Load specific sections
         const { data: secoes } = await supabase
           .from('secoes_menu')
           .select('*')

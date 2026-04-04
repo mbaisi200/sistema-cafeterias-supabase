@@ -44,6 +44,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Separator } from '@/components/ui/separator';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useState, useEffect, useCallback } from 'react';
 import {
@@ -125,6 +127,9 @@ export default function SegmentosPage() {
   const [editingSegmento, setEditingSegmento] = useState<Segmento | null>(null);
   const [selectedSegmento, setSelectedSegmento] = useState<Segmento | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [secoesDisponiveis, setSecoesDisponiveis] = useState<any[]>([]);
+  const [secoesSelecionadas, setSecoesSelecionadas] = useState<Set<string>>(new Set());
+  const [loadingSecoes, setLoadingSecoes] = useState(false);
   const { toast } = useToast();
 
   const fetchSegmentos = useCallback(async () => {
@@ -176,6 +181,32 @@ export default function SegmentosPage() {
     fetchSegmentos();
   }, [fetchSegmentos]);
 
+  useEffect(() => {
+    const loadSecoes = async () => {
+      const supabase = getSupabaseClient();
+      if (!supabase) return;
+      const { data } = await supabase
+        .from('secoes_menu')
+        .select('*')
+        .eq('ativo', true)
+        .order('grupo, ordem');
+      setSecoesDisponiveis(data || []);
+    };
+    loadSecoes();
+  }, []);
+
+  const toggleSecao = (secaoId: string) => {
+    setSecoesSelecionadas(prev => {
+      const next = new Set(prev);
+      if (next.has(secaoId)) {
+        next.delete(secaoId);
+      } else {
+        next.add(secaoId);
+      }
+      return next;
+    });
+  };
+
   const filteredSegmentos = segmentos.filter((seg) =>
     seg.nome.toLowerCase().includes(search.toLowerCase())
   );
@@ -183,10 +214,12 @@ export default function SegmentosPage() {
   const openCreateDialog = () => {
     setEditingSegmento(null);
     setForm(emptyForm);
+    // Default: all sections selected for new segment
+    setSecoesSelecionadas(new Set(secoesDisponiveis.map((s: any) => s.id)));
     setDialogOpen(true);
   };
 
-  const openEditDialog = (segmento: Segmento) => {
+  const openEditDialog = async (segmento: Segmento) => {
     setEditingSegmento(segmento);
     setForm({
       nome: segmento.nome,
@@ -195,6 +228,32 @@ export default function SegmentosPage() {
       icone: segmento.icone || '',
       ativo: segmento.ativo,
     });
+
+    // Load this segment's sections
+    try {
+      setLoadingSecoes(true);
+      const supabase = getSupabaseClient();
+      const { data: segSecoes } = await supabase
+        .from('segmento_secoes')
+        .select('secao_id, ativo')
+        .eq('segmento_id', segmento.id);
+
+      if (segSecoes && segSecoes.length > 0) {
+        const ativos = new Set(
+          segSecoes.filter((s: any) => s.ativo).map((s: any) => s.secao_id)
+        );
+        setSecoesSelecionadas(ativos);
+      } else {
+        // Default: all selected
+        setSecoesSelecionadas(new Set(secoesDisponiveis.map((s: any) => s.id)));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar seções do segmento:', error);
+      setSecoesSelecionadas(new Set(secoesDisponiveis.map((s: any) => s.id)));
+    } finally {
+      setLoadingSecoes(false);
+    }
+
     setDialogOpen(true);
   };
 
@@ -216,6 +275,7 @@ export default function SegmentosPage() {
     setSaving(true);
     try {
       const supabase = getSupabaseClient();
+      let savedId = editingSegmento?.id;
 
       if (editingSegmento) {
         const { error } = await supabase
@@ -236,22 +296,40 @@ export default function SegmentosPage() {
           description: `"${form.nome}" foi atualizado com sucesso.`,
         });
       } else {
-        const { error } = await supabase.from('segmentos').insert({
+        const { data, error } = await supabase.from('segmentos').insert({
           nome: form.nome.trim(),
           nome_marca: form.nome_marca.trim(),
           descricao: form.descricao.trim() || null,
           icone: form.icone.trim() || null,
           ativo: true,
-        });
+        }).select('id').single();
 
         if (error) throw error;
+        savedId = data?.id;
         toast({
           title: 'Segmento criado!',
           description: `"${form.nome}" foi criado com sucesso.`,
         });
       }
 
+      // Save segmento_secoes
+      if (savedId && secoesDisponiveis.length > 0) {
+        // Delete existing and re-insert
+        await supabase.from('segmento_secoes').delete().eq('segmento_id', savedId);
+
+        const secoesToSave = secoesDisponiveis.map((secao: any) => ({
+          segmento_id: savedId,
+          secao_id: secao.id,
+          ativo: secoesSelecionadas.has(secao.id),
+        }));
+
+        if (secoesToSave.length > 0) {
+          await supabase.from('segmento_secoes').insert(secoesToSave);
+        }
+      }
+
       setDialogOpen(false);
+      setSecoesSelecionadas(new Set());
       fetchSegmentos();
     } catch (error: unknown) {
       console.error('Erro ao salvar segmento:', error);
@@ -384,7 +462,7 @@ export default function SegmentosPage() {
                   Novo Segmento
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+              <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>
                     {editingSegmento ? 'Editar Segmento' : 'Novo Segmento'}
@@ -479,6 +557,85 @@ export default function SegmentosPage() {
                       <Label>{form.ativo ? 'Ativo' : 'Inativo'}</Label>
                     </div>
                   )}
+
+                  <Separator />
+
+                  {/* Seções do Menu */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-semibold">Seções do Menu</Label>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setSecoesSelecionadas(new Set(secoesDisponiveis.map((s: any) => s.id)))}
+                        >
+                          Todas
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="text-xs h-7"
+                          onClick={() => setSecoesSelecionadas(new Set())}
+                        >
+                          Nenhuma
+                        </Button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Selecione quais seções do menu serão liberadas para as empresas deste segmento.
+                    </p>
+
+                    {loadingSecoes ? (
+                      <div className="flex justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : (
+                      ['principal', 'atalho_rapido'].map((grupo) => {
+                        const grupoSecoes = secoesDisponiveis.filter((s: any) => s.grupo === grupo);
+                        if (grupoSecoes.length === 0) return null;
+
+                        return (
+                          <div key={grupo}>
+                            <h4 className="text-xs font-semibold mb-2 text-muted-foreground">
+                              {grupo === 'principal' ? '📋 Menu Principal' : '⚡ Atalho Rápido'}
+                            </h4>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {grupoSecoes.map((secao: any) => (
+                                <div
+                                  key={secao.id}
+                                  className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${
+                                    secoesSelecionadas.has(secao.id) ? 'border-blue-300 bg-blue-50' : 'border-muted'
+                                  } ${secao.obrigatoria ? 'opacity-80' : 'cursor-pointer'}`}
+                                  onClick={() => !secao.obrigatoria && toggleSecao(secao.id)}
+                                >
+                                  <Checkbox
+                                    checked={secoesSelecionadas.has(secao.id)}
+                                    disabled={secao.obrigatoria}
+                                    onCheckedChange={() => toggleSecao(secao.id)}
+                                  />
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium text-sm">{secao.nome}</span>
+                                      {secao.obrigatoria && (
+                                        <Badge variant="secondary" className="text-[10px] px-1">Obrigatória</Badge>
+                                      )}
+                                    </div>
+                                    {secao.descricao && (
+                                      <p className="text-xs text-muted-foreground">{secao.descricao}</p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
 
                 <DialogFooter>
