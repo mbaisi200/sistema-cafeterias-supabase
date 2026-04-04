@@ -896,7 +896,7 @@ export default function ConfiguracoesCupomPage() {
                       <Button
                         onClick={handleUploadCertificado}
                         disabled={!certificadoFile || !certificadoSenha}
-                        className="w-full"
+                        className="w-full bg-blue-600 hover:bg-blue-700"
                       >
                         <Upload className="h-4 w-4 mr-2" />
                         Enviar Certificado

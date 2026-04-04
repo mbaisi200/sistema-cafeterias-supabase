@@ -489,7 +489,7 @@ function IFoodIntegracaoContent() {
               </div>
 
               <div className="flex gap-3 pt-4">
-                <Button onClick={handleSave} disabled={saving}>
+                <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
                   {saving ? (
                     <>
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />

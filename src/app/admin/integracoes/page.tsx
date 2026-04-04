@@ -257,7 +257,7 @@ function IntegracoesContent() {
                 
                 {integracao.disponivel ? (
                   <Link href={`/admin/integracoes/${integracao.id}`}>
-                    <Button className="w-full">
+                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
                       <Settings className="h-4 w-4 mr-2" />
                       {status?.status === 'connected' ? 'Gerenciar' : 'Configurar'}
                       <ArrowRight className="h-4 w-4 ml-2" />

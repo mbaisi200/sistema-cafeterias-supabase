@@ -163,7 +163,7 @@ export function UploadCertificado({
           <Button
             onClick={handleUpload}
             disabled={!arquivo || !senha || uploading}
-            className="w-full md:w-auto"
+            className="w-full md:w-auto bg-blue-600 hover:bg-blue-700"
           >
             {uploading ? (
               <>

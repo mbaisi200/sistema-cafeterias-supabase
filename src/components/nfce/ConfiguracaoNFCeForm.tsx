@@ -468,7 +468,7 @@ export function ConfiguracaoNFCeForm({ config, onSave, loading }: ConfiguracaoNF
 
       {/* Botão Salvar */}
       <div className="flex justify-end">
-        <Button type="submit" disabled={saving || loading} className="min-w-32">
+        <Button type="submit" disabled={saving || loading} className="min-w-32 bg-blue-600 hover:bg-blue-700">
           {saving ? (
             <>
               <Loader2 className="h-4 w-4 mr-2 animate-spin" />

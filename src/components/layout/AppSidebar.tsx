@@ -169,8 +169,8 @@ export function AppSidebar() {
             .map((s: any) => s.secao_id);
         }
 
-        if (ativoIds.length === 0) {
-          // Fallback: load all active sections
+        if (ativoIds.length === 0 && !segId) {
+          // No segment: fallback to all active sections
           const { data: allSecoes } = await supabase
             .from('secoes_menu')
             .select('*')

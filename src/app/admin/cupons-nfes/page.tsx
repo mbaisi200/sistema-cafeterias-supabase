@@ -217,7 +217,7 @@ export default function CuponsNFEsPage() {
             Exportar PDF
           </Button>
           <Link href="/admin/nfe/emitir">
-            <Button className="gap-2">
+            <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
               <Plus className="h-4 w-4" />
               Emitir NF-e
             </Button>
@@ -367,7 +367,7 @@ export default function CuponsNFEsPage() {
                   <p className="text-lg font-medium">Nenhuma NF-e encontrada</p>
                   <p className="text-sm">Emita sua primeira NF-e clicando no botão &quot;Emitir NF-e&quot;</p>
                   <Link href="/admin/nfe/emitir">
-                    <Button className="mt-4 gap-2">
+                    <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700">
                       <Plus className="h-4 w-4" />
                       Emitir NF-e
                     </Button>
@@ -471,7 +471,7 @@ export default function CuponsNFEsPage() {
                 configuração de impressora térmica e layout de cupom.
               </p>
               <Link href="/admin/configuracoes-cupom">
-                <Button className="mt-4 gap-2">
+                <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700">
                   <Settings className="h-4 w-4" />
                   Configurar Cupons Fiscais
                 </Button>

@@ -514,7 +514,7 @@ export default function PedidosPage() {
                 <Download className="mr-2 h-4 w-4" />
                 Exportar PDF
               </Button>
-              <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2">
+              <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2 bg-blue-600 hover:bg-blue-700">
                 <Plus className="h-4 w-4" />
                 Novo Pedido
               </Button>
@@ -542,7 +542,7 @@ export default function PedidosPage() {
                       className="h-8 w-48 text-sm"
                       onKeyDown={(e) => { if (e.key === 'Enter') handleAddCondicao(); }}
                     />
-                    <Button size="sm" onClick={handleAddCondicao} disabled={!novaCondicao.trim()}>
+                    <Button size="sm" onClick={handleAddCondicao} disabled={!novaCondicao.trim()} className="bg-blue-600 hover:bg-blue-700">
                       <Plus className="h-3 w-3 mr-1" /> Adicionar
                     </Button>
                   </div>
@@ -847,7 +847,7 @@ export default function PedidosPage() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancelar</Button>
-              <Button onClick={handleSave} disabled={saving}>
+              <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {editingPedido ? 'Salvar Alterações' : 'Criar Pedido'}
               </Button>

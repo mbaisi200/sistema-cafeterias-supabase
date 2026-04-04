@@ -263,7 +263,7 @@ export function ClientesTab() {
             Cadastro de clientes para emissão de NF-e ({clientes.length} cliente{clientes.length !== 1 ? 's' : ''})
           </p>
         </div>
-        <Button onClick={handleNovo} className="gap-2">
+        <Button onClick={handleNovo} className="gap-2 bg-blue-600 hover:bg-blue-700">
           <Plus className="h-4 w-4" /> Novo Cliente
         </Button>
       </div>
@@ -301,7 +301,7 @@ export function ClientesTab() {
               <Users className="h-12 w-12 mb-4" />
               <p className="text-lg font-medium">Nenhum cliente cadastrado</p>
               <p className="text-sm">Clique em &quot;Novo Cliente&quot; para começar</p>
-              <Button className="mt-4 gap-2" onClick={handleNovo}>
+              <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700" onClick={handleNovo}>
                 <Plus className="h-4 w-4" /> Novo Cliente
               </Button>
             </div>
@@ -540,7 +540,7 @@ export function ClientesTab() {
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={handleSalvar} disabled={salvando || !nomeRazao.trim()} className="min-w-[150px]">
+            <Button onClick={handleSalvar} disabled={salvando || !nomeRazao.trim()} className="min-w-[150px] bg-blue-600 hover:bg-blue-700">
               {salvando ? <RefreshCw className="h-4 w-4 animate-spin" /> : null}
               {salvando ? 'Salvando...' : editando ? 'Salvar Alterações' : 'Cadastrar'}
             </Button>

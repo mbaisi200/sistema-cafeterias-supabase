@@ -952,7 +952,7 @@ export default function ProdutosPage() {
           <TabsContent value="categorias" className="space-y-6">
             <Dialog open={dialogCategoriaOpen} onOpenChange={setDialogCategoriaOpen}>
               <div className="flex justify-end">
-                <Button onClick={() => setDialogCategoriaOpen(true)}>
+                <Button onClick={() => setDialogCategoriaOpen(true)} className="bg-blue-600 hover:bg-blue-700">
                   <Plus className="mr-2 h-4 w-4" />
                   Nova Categoria
                 </Button>
@@ -993,7 +993,7 @@ export default function ProdutosPage() {
                     <Button variant="outline" type="button" onClick={() => setDialogCategoriaOpen(false)}>
                       Cancelar
                     </Button>
-                    <Button type="submit" disabled={saving}>
+                    <Button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700">
                       {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Salvar Categoria
                     </Button>
@@ -1485,6 +1485,7 @@ export default function ProdutosPage() {
               <Button
                 type="button"
                 disabled={savingCombo || comboItensState.length === 0}
+                className="bg-blue-600 hover:bg-blue-700"
                 onClick={async () => {
                   if (!comboProdutoSelecionado) return;
                   setSavingCombo(true);

@@ -336,7 +336,7 @@ export default function EmitirNFePage() {
                 <p className="text-sm text-muted-foreground mt-1">Protocolo: {nfe.protocolo_autorizacao}</p>
                 <div className="mt-2 font-mono text-xs bg-muted p-2 rounded">{nfe.chave}</div>
                 <div className="flex items-center justify-center gap-4 mt-4">
-                  <Button onClick={() => window.open(`/api/nfe/danfe/${nfe.id}`, '_blank')} className="gap-2">
+                  <Button onClick={() => window.open(`/api/nfe/danfe/${nfe.id}`, '_blank')} className="gap-2 bg-blue-600 hover:bg-blue-700">
                     <Printer className="h-4 w-4" /> Imprimir DANFE
                   </Button>
                   <Button variant="outline" onClick={() => window.open(`/api/nfe/xml/${nfe.id}`, '_blank')} className="gap-2">
@@ -354,7 +354,7 @@ export default function EmitirNFePage() {
                 <p className="text-sm text-muted-foreground mt-1">
                   [{nfe.codigo_rejeicao}] {nfe.mensagem_rejeicao}
                 </p>
-                <Button className="mt-4" onClick={() => { /* reset */ }}>
+                <Button className="mt-4 bg-blue-600 hover:bg-blue-700" onClick={() => { /* reset */ }}>
                   Tentar Novamente
                 </Button>
               </>
@@ -802,7 +802,7 @@ export default function EmitirNFePage() {
             <Button
               onClick={handleSubmit}
               disabled={emitindo || produtos.length === 0 || produtos.some(p => !p.descricao)}
-              className="gap-2 min-w-[200px]"
+              className="gap-2 min-w-[200px] bg-blue-600 hover:bg-blue-700"
             >
               {emitindo ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
               {emitindo ? 'Emitindo NF-e...' : 'Emitir NF-e'}

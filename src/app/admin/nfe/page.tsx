@@ -368,7 +368,7 @@ export default function NFePage() {
                 Exportar PDF
               </Button>
               <Link href="/admin/nfe/importar">
-                <Button className="gap-2">
+                <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
                   <FileUp className="h-4 w-4" />
                   Importar NF-e
                 </Button>
@@ -500,7 +500,7 @@ export default function NFePage() {
                       <p className="text-lg font-medium">Nenhuma nota de entrada encontrada</p>
                       <p className="text-sm mt-1">Importe uma NFe XML para registrar notas de entrada</p>
                       <Link href="/admin/nfe/importar">
-                        <Button className="mt-4 gap-2">
+                        <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700">
                           <FileUp className="h-4 w-4" />
                           Importar NF-e
                         </Button>
@@ -742,7 +742,7 @@ export default function NFePage() {
                       Notas Fiscais de Saída
                     </CardTitle>
                     <Link href="/admin/nfe/emitir">
-                      <Button size="sm" className="gap-2">
+                      <Button size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700">
                         <Plus className="h-4 w-4" />
                         Emitir NF-e
                       </Button>
@@ -842,7 +842,7 @@ export default function NFePage() {
                                   )}
                                   {venda.status === 'pendente' && (
                                     <Link href="/admin/nfe/emitir">
-                                      <Button size="sm" className="gap-1 h-8 text-xs">
+                                      <Button size="sm" className="gap-1 h-8 text-xs bg-blue-600 hover:bg-blue-700">
                                         <FilePlus2 className="h-3.5 w-3.5" />
                                         Emitir
                                       </Button>
@@ -1023,7 +1023,7 @@ export default function NFePage() {
 
                   {(detailItem as NFeSaida).status === 'pendente' && (
                     <Link href="/admin/nfe/emitir">
-                      <Button className="w-full gap-2">
+                      <Button className="w-full gap-2 bg-blue-600 hover:bg-blue-700">
                         <FilePlus2 className="h-4 w-4" />
                         Emitir NF-e para esta Venda
                       </Button>

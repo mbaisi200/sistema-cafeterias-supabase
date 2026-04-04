@@ -606,7 +606,7 @@ export default function NFeImportarPage() {
 
               {nfeData && !dialogPreview && (
                 <div className="flex justify-end mt-4">
-                  <Button onClick={() => setDialogPreview(true)} className="gap-2">
+                  <Button onClick={() => setDialogPreview(true)} className="gap-2 bg-blue-600 hover:bg-blue-700">
                     <ChevronRight className="h-4 w-4" />
                     Revisar e Importar
                   </Button>
@@ -1270,7 +1270,7 @@ export default function NFeImportarPage() {
               <Button
                 onClick={confirmarImportacao}
                 disabled={importando || totalSelecionados === 0 || !!nfeDuplicada}
-                className="gap-2 min-w-[200px]"
+                className="gap-2 min-w-[200px] bg-blue-600 hover:bg-blue-700"
               >
                 {importando ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1463,6 +1463,7 @@ export default function NFeImportarPage() {
                   setDialogSucesso(false);
                   handleReset();
                 }}
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 Concluir
               </Button>

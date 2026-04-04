@@ -393,6 +393,7 @@ function ProdutosIFoodContent() {
               <Button
                 onClick={sincronizarSelecionados}
                 disabled={sincronizando || !ifoodAtivo}
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 {sincronizando ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />

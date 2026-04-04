@@ -349,7 +349,7 @@ export default function FuncionariosPage() {
                 }
               }}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className="bg-blue-600 hover:bg-blue-700">
                     <Plus className="mr-2 h-4 w-4" />
                     Novo Funcionário
                   </Button>
@@ -562,7 +562,7 @@ export default function FuncionariosPage() {
                   }}>
                     Cancelar
                   </Button>
-                  <Button type="submit" disabled={saving}>
+                  <Button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700">
                     {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                     {editandoFuncionario ? 'Salvar Alterações' : 'Cadastrar Funcionário'}
                   </Button>

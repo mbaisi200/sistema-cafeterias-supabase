@@ -609,12 +609,11 @@ export default function SegmentosPage() {
                                   key={secao.id}
                                   className={`flex items-center gap-3 p-2.5 rounded-lg border transition-colors ${
                                     secoesSelecionadas.has(secao.id) ? 'border-blue-300 bg-blue-50' : 'border-muted'
-                                  } ${secao.obrigatoria ? 'opacity-80' : 'cursor-pointer'}`}
-                                  onClick={() => !secao.obrigatoria && toggleSecao(secao.id)}
+                                  } cursor-pointer`}
+                                  onClick={() => toggleSecao(secao.id)}
                                 >
                                   <Checkbox
                                     checked={secoesSelecionadas.has(secao.id)}
-                                    disabled={secao.obrigatoria}
                                     onCheckedChange={() => toggleSecao(secao.id)}
                                   />
                                   <div className="flex-1">

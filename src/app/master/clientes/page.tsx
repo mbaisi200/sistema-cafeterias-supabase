@@ -388,6 +388,19 @@ export default function ClientesPage() {
         if (error) throw error;
       }
 
+      // Update segmento and brand name
+      const supabase = getSupabaseClient();
+      if (supabase && (segmentoId || nomeMarca)) {
+        await supabase
+          .from('empresas')
+          .update({
+            segmento_id: segmentoId || null,
+            nome_marca: nomeMarca || null,
+            atualizado_em: new Date().toISOString(),
+          })
+          .eq('id', selectedCliente.id);
+      }
+
       toast({
         title: 'Cliente atualizado com sucesso!',
         description: 'Os dados foram salvos.',
@@ -407,7 +420,7 @@ export default function ClientesPage() {
     }
   };
 
-  const openEditDialog = (cliente: Cliente) => {
+  const openEditDialog = async (cliente: Cliente) => {
     setSelectedCliente(cliente);
     setEditCnpjValue(formatCNPJ(cliente.cnpj || ''));
     setEditTelefoneValue(formatPhone(cliente.telefone || ''));
@@ -417,6 +430,19 @@ export default function ClientesPage() {
     setEditValorMensalValue(cliente.valorMensal ? cliente.valorMensal.toString() : '');
     setEditAdminNome(cliente.adminNome !== 'Não encontrado' ? cliente.adminNome || '' : '');
     setEditAdminEmail(cliente.adminEmail !== 'Não encontrado' ? cliente.adminEmail || '' : '');
+
+    // Load segmento data
+    const supabase = getSupabaseClient();
+    const { data: empresa } = await supabase
+      .from('empresas')
+      .select('segmento_id, nome_marca')
+      .eq('id', cliente.id)
+      .single();
+    if (empresa) {
+      setSegmentoId(empresa.segmento_id || '');
+      setNomeMarca(empresa.nome_marca || '');
+    }
+
     setEditDialogOpen(true);
   };
 
@@ -1409,6 +1435,37 @@ export default function ClientesPage() {
                         />
                       </div>
                     </div>
+
+                      {/* Segmento e Nome da Marca */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Segmento</Label>
+                          <Select value={segmentoId} onValueChange={(val) => {
+                            setSegmentoId(val);
+                            const seg = segmentos.find((s: any) => s.id === val);
+                            if (seg) setNomeMarca(seg.nome_marca || '');
+                          }}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um segmento" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {segmentos.map((seg: any) => (
+                                <SelectItem key={seg.id} value={seg.id}>
+                                  {seg.nome}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Nome da Marca (no menu do admin)</Label>
+                          <Input
+                            placeholder="Ex: Gestão Café (deixe vazio para usar o padrão do segmento)"
+                            value={nomeMarca}
+                            onChange={(e) => setNomeMarca(e.target.value)}
+                          />
+                        </div>
+                      </div>
                   </div>
 
                   <Separator />

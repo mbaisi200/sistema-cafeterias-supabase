@@ -353,40 +353,40 @@ export function FornecedoresTab() {
               <div className="flex gap-2 border-b pb-2">
                 <Button
                   type="button"
-                  variant={activeTab === 'dados' ? 'default' : 'ghost'}
+                  variant="outline"
                   size="sm"
                   onClick={() => setActiveTab('dados')}
-                  className={activeTab === 'dados' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                  className={activeTab === 'dados' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
                 >
                   <Building2 className="h-4 w-4 mr-1" />
                   Dados
                 </Button>
                 <Button
                   type="button"
-                  variant={activeTab === 'contato' ? 'default' : 'ghost'}
+                  variant="outline"
                   size="sm"
                   onClick={() => setActiveTab('contato')}
-                  className={activeTab === 'contato' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                  className={activeTab === 'contato' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
                 >
                   <Phone className="h-4 w-4 mr-1" />
                   Contato
                 </Button>
                 <Button
                   type="button"
-                  variant={activeTab === 'endereco' ? 'default' : 'ghost'}
+                  variant="outline"
                   size="sm"
                   onClick={() => setActiveTab('endereco')}
-                  className={activeTab === 'endereco' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                  className={activeTab === 'endereco' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
                 >
                   <MapPin className="h-4 w-4 mr-1" />
                   Endereço
                 </Button>
                 <Button
                   type="button"
-                  variant={activeTab === 'outros' ? 'default' : 'ghost'}
+                  variant="outline"
                   size="sm"
                   onClick={() => setActiveTab('outros')}
-                  className={activeTab === 'outros' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                  className={activeTab === 'outros' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
                 >
                   <Tag className="h-4 w-4 mr-1" />
                   Outros

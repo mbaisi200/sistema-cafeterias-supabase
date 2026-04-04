@@ -347,13 +347,13 @@ export default function FinanceiroPage() {
         <Button
           key={opt.value}
           size="sm"
-          variant={active === opt.value ? 'default' : 'outline'}
+          variant="outline"
           className={`
             h-8 text-xs
-            ${active === opt.value ? '' : 'hover:bg-muted'}
-            ${active === opt.value && (opt as any).danger ? 'bg-red-500 hover:bg-red-600' : ''}
-            ${active === opt.value && !(opt as any).danger && opt.value === 'pagas' ? 'bg-green-500 hover:bg-green-600' : ''}
-            ${active === opt.value && opt.value === 'pendentes' ? 'bg-blue-500 hover:bg-blue-600' : ''}
+            ${active === opt.value ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'hover:bg-muted'}
+            ${active === opt.value && (opt as any).danger ? 'bg-red-500 hover:bg-red-600 text-white' : ''}
+            ${active === opt.value && !(opt as any).danger && opt.value === 'pagas' ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
+            ${active === opt.value && opt.value === 'pendentes' ? 'bg-blue-500 hover:bg-blue-600 text-white' : ''}
           `}
           onClick={() => onChange(opt.value)}
         >
@@ -461,7 +461,7 @@ export default function FinanceiroPage() {
               </Button>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button>
+                  <Button className="bg-blue-600 hover:bg-blue-700">
                     <Plus className="mr-2 h-4 w-4" />
                     Nova Conta
                   </Button>
@@ -556,7 +556,7 @@ export default function FinanceiroPage() {
                     <Button variant="outline" type="button" onClick={() => setDialogOpen(false)}>
                       Cancelar
                     </Button>
-                    <Button type="submit" disabled={saving}>
+                    <Button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700">
                       {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       Salvar
                     </Button>
@@ -1065,7 +1065,7 @@ export default function FinanceiroPage() {
               <Button variant="outline" type="button" onClick={() => setDialogPagamentoOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={saving}>
+              <Button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700">
                 {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Confirmar
               </Button>

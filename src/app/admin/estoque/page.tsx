@@ -807,7 +807,7 @@ export default function EstoquePage() {
                 <Warehouse className="h-16 w-16 text-muted-foreground mb-4" />
                 <p className="text-lg font-medium">Nenhum produto cadastrado</p>
                 <p className="text-sm text-muted-foreground">Cadastre produtos para gerenciar o estoque</p>
-                <Button className="mt-4" asChild>
+                <Button className="mt-4 bg-blue-600 hover:bg-blue-700" asChild>
                   <a href="/admin/produtos">
                     <Plus className="mr-2 h-4 w-4" />
                     Cadastrar Produtos

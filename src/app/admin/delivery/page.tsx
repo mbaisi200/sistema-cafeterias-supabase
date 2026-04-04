@@ -411,7 +411,7 @@ export default function DeliveryAdminPage() {
                 <div className="flex flex-wrap gap-2">
                   {pedidoSelecionado.status === 'pendente' && (
                     <>
-                      <Button onClick={() => atualizarStatus(pedidoSelecionado, 'confirmado')} disabled={processando} className="flex-1">
+                      <Button onClick={() => atualizarStatus(pedidoSelecionado, 'confirmado')} disabled={processando} className="flex-1 bg-blue-600 hover:bg-blue-700">
                         <CheckCircle className="h-4 w-4 mr-2" /> Confirmar
                       </Button>
                       <Button variant="destructive" onClick={() => setCancelDialogOpen(true)} disabled={processando}>
@@ -420,27 +420,27 @@ export default function DeliveryAdminPage() {
                     </>
                   )}
                   {pedidoSelecionado.status === 'confirmado' && (
-                    <Button onClick={() => atualizarStatus(pedidoSelecionado, 'em_preparacao')} disabled={processando} className="w-full">
+                    <Button onClick={() => atualizarStatus(pedidoSelecionado, 'em_preparacao')} disabled={processando} className="w-full bg-blue-600 hover:bg-blue-700">
                       <ChefHat className="h-4 w-4 mr-2" /> Iniciar Preparo
                     </Button>
                   )}
                   {pedidoSelecionado.status === 'em_preparacao' && (
-                    <Button onClick={() => atualizarStatus(pedidoSelecionado, 'pronto')} disabled={processando} className="w-full">
+                    <Button onClick={() => atualizarStatus(pedidoSelecionado, 'pronto')} disabled={processando} className="w-full bg-blue-600 hover:bg-blue-700">
                       <Package className="h-4 w-4 mr-2" /> Pronto
                     </Button>
                   )}
                   {pedidoSelecionado.status === 'pronto' && pedidoSelecionado.tipo === 'delivery' && (
-                    <Button onClick={() => atualizarStatus(pedidoSelecionado, 'saiu_para_entrega')} disabled={processando} className="w-full">
+                    <Button onClick={() => atualizarStatus(pedidoSelecionado, 'saiu_para_entrega')} disabled={processando} className="w-full bg-blue-600 hover:bg-blue-700">
                       <Bike className="h-4 w-4 mr-2" /> Saiu para Entrega
                     </Button>
                   )}
                   {pedidoSelecionado.status === 'saiu_para_entrega' && (
-                    <Button onClick={() => atualizarStatus(pedidoSelecionado, 'entregue')} disabled={processando} className="w-full">
+                    <Button onClick={() => atualizarStatus(pedidoSelecionado, 'entregue')} disabled={processando} className="w-full bg-blue-600 hover:bg-blue-700">
                       <Home className="h-4 w-4 mr-2" /> Entregue
                     </Button>
                   )}
                   {pedidoSelecionado.status === 'pronto' && pedidoSelecionado.tipo === 'retirada' && (
-                    <Button onClick={() => atualizarStatus(pedidoSelecionado, 'entregue')} disabled={processando} className="w-full">
+                    <Button onClick={() => atualizarStatus(pedidoSelecionado, 'entregue')} disabled={processando} className="w-full bg-blue-600 hover:bg-blue-700">
                       <CheckCircle className="h-4 w-4 mr-2" /> Entregue ao Cliente
                     </Button>
                   )}

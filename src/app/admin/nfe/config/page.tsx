@@ -453,7 +453,7 @@ export default function NFeConfigPage() {
             <Link href="/admin/cupons-nfes">
               <Button variant="outline">Cancelar</Button>
             </Link>
-            <Button onClick={handleSalvar} disabled={salvando} className="gap-2 min-w-[200px]">
+            <Button onClick={handleSalvar} disabled={salvando} className="gap-2 min-w-[200px] bg-blue-600 hover:bg-blue-700">
               {salvando ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
               {salvando ? 'Salvando...' : 'Salvar Configurações'}
             </Button>
