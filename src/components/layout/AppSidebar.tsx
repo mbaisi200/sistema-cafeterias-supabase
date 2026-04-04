@@ -136,6 +136,7 @@ export function AppSidebar() {
 
   const [dynamicMenuItems, setDynamicMenuItems] = useState<MenuItem[]>([]);
   const [dynamicAtalhoItems, setDynamicAtalhoItems] = useState<MenuItem[]>([]);
+  const [hasSegment, setHasSegment] = useState<boolean>(false);
 
   // Carregar seções dinâmicas do Supabase para admin e funcionário
   useEffect(() => {
@@ -156,6 +157,13 @@ export function AppSidebar() {
 
         const segId = empresa?.segmento_id;
         let ativoIds: string[] = [];
+
+        // Track whether empresa has a segment
+        if (segId) {
+          setHasSegment(true);
+        } else {
+          setHasSegment(false);
+        }
 
         if (segId) {
           // Query segmento_secoes for this segment
@@ -228,7 +236,9 @@ export function AppSidebar() {
       case 'master':
         return masterMenuItems;
       case 'admin':
-        // Usar menus dinâmicos se disponíveis, senão fallback hardcoded
+        // Se tem segmento, respeitar os menus dinâmicos (mesmo vazio)
+        if (hasSegment) return dynamicMenuItems;
+        // Sem segmento: usar dinâmico se disponível, senão fallback hardcoded
         return dynamicMenuItems.length > 0 ? dynamicMenuItems : adminMenuItems;
       case 'funcionario':
         // Usar menus dinâmicos se disponíveis, senão fallback hardcoded
@@ -240,6 +250,9 @@ export function AppSidebar() {
 
   const getAtalhoItems = (): MenuItem[] => {
     if (role !== 'admin') return [];
+    // Se tem segmento, respeitar os atalhos dinâmicos (mesmo vazio = nenhum atalho)
+    if (hasSegment) return dynamicAtalhoItems;
+    // Sem segmento: usar dinâmico se disponível, senão fallback hardcoded
     return dynamicAtalhoItems.length > 0 ? dynamicAtalhoItems : atalhoRapidoMenuItems;
   };
 
