@@ -236,10 +236,14 @@ export default function FinanceiroPage() {
     const formData = new FormData(e.currentTarget);
     
     try {
+      const dataPagStr = formData.get('dataPagamento') as string;
+      const dataPagamento = dataPagStr ? new Date(dataPagStr + 'T00:00:00').toISOString() : undefined;
+
       await registrarPagamento(contaSelecionada.id, {
         valor: parseFloat(formData.get('valor') as string) || contaSelecionada.valor,
         formaPagamento: formData.get('formaPagamento') as string,
         observacao: formData.get('observacao') as string,
+        dataPagamento,
       });
 
       toast({
@@ -957,9 +961,20 @@ export default function FinanceiroPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="observacao">Observação</Label>
-                <Input id="observacao" name="observacao" placeholder="Opcional" />
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="dataPagamento">Data do Pagamento</Label>
+                  <Input 
+                    id="dataPagamento" 
+                    name="dataPagamento" 
+                    type="date" 
+                    defaultValue={new Date().toISOString().split('T')[0]}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="observacao">Observação</Label>
+                  <Input id="observacao" name="observacao" placeholder="Opcional" />
+                </div>
               </div>
             </div>
             <DialogFooter>

@@ -943,12 +943,12 @@ export function useContas() {
     if (error) throw error;
   };
 
-  const registrarPagamento = async (id: string, dadosPagamento: { valor: number; formaPagamento: string; observacao?: string }) => {
+  const registrarPagamento = async (id: string, dadosPagamento: { valor: number; formaPagamento: string; observacao?: string; dataPagamento?: string }) => {
     const { error } = await supabase
       .from('contas')
       .update({
         status: 'pago',
-        data_pagamento: new Date().toISOString(),
+        data_pagamento: dadosPagamento.dataPagamento || new Date().toISOString(),
         valor_pago: dadosPagamento.valor,
         forma_pagamento: dadosPagamento.formaPagamento,
         observacao_pagamento: dadosPagamento.observacao,
