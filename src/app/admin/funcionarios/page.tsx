@@ -48,10 +48,12 @@ import {
   Key,
   Copy,
   Check,
+  Download,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskPhone, unmask } from '@/lib/masks';
 import { useAuth } from '@/contexts/AuthContext';
+import { exportToPDF } from '@/lib/export-pdf';
 
 interface Funcionario {
   id: string;
@@ -271,6 +273,40 @@ export default function FuncionariosPage() {
     return '•'.repeat(pin.length);
   };
 
+  // Função para obter permissões como texto
+  const getPermissoes = (func: Funcionario) => {
+    const permissoes: string[] = [];
+    if (func.perm_pdv) permissoes.push('PDV');
+    if (func.perm_pdv_garcom) permissoes.push('PDV Garçon');
+    if (func.perm_estoque) permissoes.push('Estoque');
+    if (func.perm_financeiro) permissoes.push('Financeiro');
+    if (func.perm_relatorios) permissoes.push('Relatórios');
+    if (func.perm_cancelar_venda) permissoes.push('Cancelar Venda');
+    if (func.perm_dar_desconto) permissoes.push('Dar Desconto');
+    return permissoes.length > 0 ? permissoes.join(', ') : 'Nenhuma';
+  };
+
+  const handleExportPDF = () => {
+    exportToPDF({
+      title: 'Relatório de Funcionários',
+      columns: [
+        { header: 'Funcionário', accessor: (row) => row.nome, width: 40 },
+        { header: 'Cargo', accessor: (row) => row.cargo, width: 30 },
+        { header: 'Contato', accessor: (row) => row.telefone || row.email || '-', width: 35 },
+        { header: 'Permissões', accessor: (row) => getPermissoes(row) },
+        { header: 'Status', accessor: (row) => (row.ativo ? 'Ativo' : 'Inativo'), width: 20 },
+      ],
+      data: filteredFuncionarios,
+      filename: 'funcionarios',
+      orientation: 'landscape',
+      summary: [
+        { label: 'Total de funcionários', value: filteredFuncionarios.length },
+        { label: 'Ativos', value: filteredFuncionarios.filter(f => f.ativo).length },
+        { label: 'Inativos', value: filteredFuncionarios.filter(f => !f.ativo).length },
+      ],
+    });
+  };
+
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
@@ -326,6 +362,7 @@ export default function FuncionariosPage() {
           </div>
 
           {/* Botão Novo Funcionário */}
+          <div className="flex gap-2">
           <Dialog open={dialogOpen} onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) {
@@ -555,6 +592,11 @@ export default function FuncionariosPage() {
               </form>
             </DialogContent>
           </Dialog>
+          <Button variant="outline" onClick={handleExportPDF} disabled={filteredFuncionarios.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            Exportar PDF
+          </Button>
+          </div>
 
           {/* Search and Filters */}
           <Card>

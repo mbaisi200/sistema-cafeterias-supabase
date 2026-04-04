@@ -60,7 +60,9 @@ import {
   Info,
   Layers,
   Settings2,
+  Download,
 } from 'lucide-react';
+import { exportToPDF, formatCurrencyPDF } from '@/lib/export-pdf';
 
 const colorOptions = [
   '#f97316', '#3b82f6', '#22c55e', '#ec4899', '#eab308', '#ef4444',
@@ -241,6 +243,30 @@ export default function ProdutosPage() {
     setDialogOpen(true);
   };
 
+  const handleExportPDF = () => {
+    exportToPDF({
+      title: 'Relatório de Produtos',
+      subtitle: `Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+      orientation: 'landscape',
+      columns: [
+        { header: 'Produto', accessor: (row: any) => row.nome, width: 50 },
+        { header: 'Código', accessor: (row: any) => row.codigo || row.codigoBarras || '-', width: 30 },
+        { header: 'Categoria', accessor: (row: any) => getNomeCategoria(row.categoriaId), width: 35 },
+        { header: 'Preço', accessor: (row: any) => formatCurrencyPDF(row.preco), width: 25 },
+        { header: 'Custo', accessor: (row: any) => formatCurrencyPDF(row.custo || 0), width: 25 },
+        { header: 'Estoque', accessor: (row: any) => row.estoqueAtual ?? 0, width: 20 },
+        { header: 'Status', accessor: (row: any) => row.ativo ? 'Ativo' : 'Inativo', width: 20 },
+      ],
+      data: filteredProdutos,
+      filename: `produtos-${new Date().toISOString().slice(0, 10)}`,
+      summary: [
+        { label: 'Total de Produtos', value: filteredProdutos.length },
+        { label: 'Produtos Ativos', value: filteredProdutos.filter((p: any) => p.ativo).length },
+        { label: 'Produtos Inativos', value: filteredProdutos.filter((p: any) => !p.ativo).length },
+      ],
+    });
+  };
+
   const handleExcluirProduto = async (id: string) => {
     try {
       await excluirProduto(id);
@@ -419,7 +445,11 @@ export default function ProdutosPage() {
               setDialogOpen(open);
               if (!open) setEditandoProduto(null);
             }}>
-              <div className="flex justify-end">
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={handleExportPDF}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar PDF
+                </Button>
                 <Button onClick={handleNovoProduto} className="bg-blue-600 hover:bg-blue-700">
                   <Plus className="mr-2 h-4 w-4" />
                   Novo Produto

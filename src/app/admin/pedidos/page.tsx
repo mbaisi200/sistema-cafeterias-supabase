@@ -50,6 +50,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getSupabaseClient } from '@/lib/supabase';
+import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
 import {
   Plus,
   ChevronLeft,
@@ -66,6 +67,7 @@ import {
   X,
   ChevronDown,
   User,
+  Download,
 } from 'lucide-react';
 
 interface PedidoItem {
@@ -445,6 +447,33 @@ export default function PedidosPage() {
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const formatDate = (d: string) => { try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return '-'; } };
 
+  // Export PDF
+  const handleExportPDF = () => {
+    const totalValor = pedidosFiltrados.reduce((acc, p) => acc + (p.valorTotal || 0), 0);
+    const statusLabel = (status: string) => {
+      const opt = STATUS_OPTIONS.find(s => s.value === status);
+      return opt ? opt.label : status;
+    };
+    exportToPDF({
+      title: 'Relatório de Pedidos',
+      subtitle: `Listagem de pedidos ${statusFilter !== 'todos' ? `(${statusLabel(statusFilter)})` : '(todos os status)'}${search ? ` - Busca: "${search}"` : ''}`,
+      columns: [
+        { header: 'Nº', accessor: (row: any) => `#${row.numero}`, width: 20 },
+        { header: 'Cliente', accessor: (row: any) => row.clienteNome || '-', width: 60 },
+        { header: 'Data', accessor: (row: any) => formatDatePDF(row.criadoEm), width: 30 },
+        { header: 'Valor Total', accessor: (row: any) => formatCurrencyPDF(row.valorTotal), width: 35 },
+        { header: 'Status', accessor: (row: any) => statusLabel(row.status), width: 25 },
+      ],
+      data: pedidosFiltrados,
+      filename: 'pedidos',
+      orientation: 'landscape',
+      summary: [
+        { label: 'Total de Pedidos', value: pedidosFiltrados.length },
+        { label: 'Valor Total', value: formatCurrencyPDF(totalValor) },
+      ],
+    });
+  };
+
   // Filter
   const pedidosFiltrados = pedidos.filter(p => {
     const matchStatus = statusFilter === 'todos' || p.status === statusFilter;
@@ -476,10 +505,16 @@ export default function PedidosPage() {
                 </p>
               </div>
             </div>
-            <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Pedido
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportPDF}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar PDF
+              </Button>
+              <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Novo Pedido
+              </Button>
+            </div>
           </div>
 
           {/* Condições de Pagamento */}

@@ -41,7 +41,9 @@ import {
   History,
   AlertTriangle,
   CheckCircle,
+  Download,
 } from 'lucide-react';
+import { exportToPDF, formatCurrencyPDF } from '@/lib/export-pdf';
 
 export default function CaixaPage() {
   const { caixaAberto, movimentacoes, historico, loading, loadingDetalhes, abrirCaixa, fecharCaixa, adicionarReforco, adicionarSangria, resumo, detalhesCaixa, carregarDetalhesCaixa, limparDetalhesCaixa } = useCaixa();
@@ -254,6 +256,39 @@ export default function CaixaPage() {
                 >
                   <Lock className="mr-2 h-4 w-4" />
                   Fechar Caixa
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    const totalVendas = movimentacoes
+                      .filter((m: any) => m.tipo === 'venda')
+                      .reduce((sum: number, m: any) => sum + (m.valor || 0), 0);
+                    exportToPDF({
+                      title: 'Movimentações do Caixa',
+                      subtitle: 'Fluxo de caixa diário',
+                      columns: [
+                        { header: 'Tipo', accessor: (row: any) => {
+                          const labels: Record<string, string> = { abertura: 'Abertura', fechamento: 'Fechamento', venda: 'Venda', reforco: 'Reforço', sangria: 'Sangria' };
+                          return labels[row.tipo] || row.tipo;
+                        }, width: 25 },
+                        { header: 'Descrição', accessor: (row: any) => row.descricao || '-' },
+                        { header: 'Forma Pagamento', accessor: (row: any) => row.formaPagamento || '-', width: 35 },
+                        { header: 'Hora', accessor: (row: any) => row.criadoEm ? new Date(row.criadoEm).toLocaleTimeString('pt-BR') : '-', width: 25 },
+                        { header: 'Valor', accessor: (row: any) => formatCurrencyPDF(row.valor || 0), width: 30 },
+                        { header: 'Usuário', accessor: (row: any) => row.usuarioNome || '-', width: 30 },
+                      ],
+                      data: movimentacoes,
+                      filename: `caixa-${new Date().toISOString().split('T')[0]}`,
+                      summary: [
+                        { label: 'Total de Movimentações', value: movimentacoes.length },
+                        { label: 'Total em Vendas', value: formatCurrencyPDF(totalVendas) },
+                        { label: 'Valor Atual', value: formatCurrencyPDF(resumo.valorAtual || 0) },
+                      ],
+                    });
+                  }}
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Exportar PDF
                 </Button>
               </div>
             ) : (

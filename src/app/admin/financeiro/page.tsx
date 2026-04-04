@@ -51,10 +51,12 @@ import {
   Banknote,
   Smartphone,
   ArrowUpDown,
+  Download,
 } from 'lucide-react';
+import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
 import { useToast } from '@/hooks/use-toast';
 
-type SortField = 'descricao' | 'categoria' | 'vencimento' | 'valor' | 'status';
+type SortField = 'descricao' | 'categoria' | 'vencimento' | 'valor' | 'status' | 'dataPagamento';
 type SortDir = 'asc' | 'desc';
 
 type ContaFilter = 'todas' | 'pagas' | 'vencidas' | 'pendentes';
@@ -157,6 +159,10 @@ export default function FinanceiroPage() {
         case 'status':
           valA = a.status || '';
           valB = b.status || '';
+          break;
+        case 'dataPagamento':
+          valA = a.dataPagamento ? new Date(a.dataPagamento).getTime() : 0;
+          valB = b.dataPagamento ? new Date(b.dataPagamento).getTime() : 0;
           break;
         default:
           valA = 0;
@@ -386,13 +392,41 @@ export default function FinanceiroPage() {
                 Gerencie o fluxo de caixa e contas do estabelecimento
               </p>
             </div>
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nova Conta
-                </Button>
-              </DialogTrigger>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  exportToPDF({
+                    title: 'Contas a Pagar',
+                    subtitle: `Total pendente: ${formatCurrencyPDF(totalPagarPendente)}`,
+                    columns: [
+                      { header: 'Descrição', accessor: (c) => c.descricao || '-' },
+                      { header: 'Categoria', accessor: (c) => c.categoria || '-' },
+                      { header: 'Fornecedor', accessor: (c) => c.fornecedor || '-' },
+                      { header: 'Vencimento', accessor: (c) => formatDatePDF(c.vencimento) },
+                      { header: 'Valor', accessor: (c) => formatCurrencyPDF(c.valor) },
+                      { header: 'Status', accessor: (c) => c.status === 'pago' ? 'Pago' : (c.vencimento && new Date(c.vencimento) < hoje ? 'Vencida' : 'Pendente') },
+                      { header: 'Data Pagto', accessor: (c) => formatDatePDF(c.dataPagamento) },
+                    ],
+                    data: contasPagarFiltered,
+                    filename: `contas-a-pagar-${new Date().toISOString().split('T')[0]}`,
+                    summary: [
+                      { label: 'Total Pendente', value: formatCurrencyPDF(totalPagarPendente) },
+                      { label: 'Total Pago', value: formatCurrencyPDF(totalPago) },
+                    ],
+                  });
+                }}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Exportar PDF
+              </Button>
+              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Nova Conta
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Cadastrar Conta</DialogTitle>
@@ -491,6 +525,7 @@ export default function FinanceiroPage() {
                 </form>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
           {/* Alerta de contas vencidas */}
@@ -735,7 +770,13 @@ export default function FinanceiroPage() {
                               currentSort={sortPagar}
                               onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
                             />
-                            <TableHead className="text-right">Data Pagamento</TableHead>
+                            <SortableHeader 
+                              field="dataPagamento" 
+                              label="Data Pagamento" 
+                              currentSort={sortPagar}
+                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
+                              className="text-right"
+                            />
                             <TableHead className="text-right">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -844,7 +885,13 @@ export default function FinanceiroPage() {
                               currentSort={sortReceber}
                               onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
                             />
-                            <TableHead className="text-right">Data Recebimento</TableHead>
+                            <SortableHeader 
+                              field="dataPagamento" 
+                              label="Data Recebimento" 
+                              currentSort={sortReceber}
+                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
+                              className="text-right"
+                            />
                             <TableHead className="text-right">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -898,11 +945,9 @@ export default function FinanceiroPage() {
               </Card>
             </TabsContent>
           </Tabs>
-        </div>
-      </MainLayout>
 
-      {/* Dialog Pagamento */}
-      <Dialog open={dialogPagamentoOpen} onOpenChange={setDialogPagamentoOpen}>
+          {/* Dialog Pagamento */}
+          <Dialog open={dialogPagamentoOpen} onOpenChange={setDialogPagamentoOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -989,6 +1034,8 @@ export default function FinanceiroPage() {
           </form>
         </DialogContent>
       </Dialog>
+        </div>
+      </MainLayout>
     </ProtectedRoute>
   );
 }

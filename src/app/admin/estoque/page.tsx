@@ -52,7 +52,9 @@ import {
   Layers,
   Check,
   X,
+  Download,
 } from 'lucide-react';
+import { exportToPDF } from '@/lib/export-pdf';
 
 interface MovimentacaoEstoque {
   id: string;
@@ -506,6 +508,41 @@ export default function EstoquePage() {
     ? movimentacoes.filter(m => m.produtoId === produtoSelecionado.id)
     : [];
 
+  // Exportar PDF
+  const handleExportPDF = () => {
+    const totalItens = produtosFiltrados.length;
+    const itensAbaixoMinimo = produtosFiltrados.filter(
+      (p) => (p.estoqueAtual || 0) <= (p.estoqueMinimo || 0)
+    ).length;
+
+    exportToPDF({
+      title: 'Relatório de Estoque',
+      subtitle: filterStatus !== 'todos' || filterCategoria !== 'todos'
+        ? `Filtros: Status ${filterStatus} | Categoria ${filterCategoria}`
+        : undefined,
+      columns: [
+        { header: 'Produto', accessor: (row: any) => row.nome || '-', width: 60 },
+        { header: 'Código', accessor: (row: any) => row.codigo || row.codigoBarras || '-', width: 30 },
+        { header: 'Unidade', accessor: (row: any) => row.unidade || 'un', width: 20 },
+        { header: 'Estoque Atual', accessor: (row: any) => row.estoqueAtual || 0, width: 25 },
+        { header: 'Estoque Mínimo', accessor: (row: any) => row.estoqueMinimo || 0, width: 25 },
+        {
+          header: 'Status',
+          accessor: (row: any) =>
+            (row.estoqueAtual || 0) <= (row.estoqueMinimo || 0) ? 'BAIXO' : 'Normal',
+          width: 20,
+        },
+      ],
+      data: produtosFiltrados,
+      filename: `relatorio-estoque-${new Date().toISOString().slice(0, 10)}`,
+      orientation: 'landscape',
+      summary: [
+        { label: 'Total de Produtos', value: totalItens },
+        { label: 'Itens Abaixo do Mínimo', value: itensAbaixoMinimo },
+      ],
+    });
+  };
+
   if (loadingProdutos || loadingFornecedores) {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
@@ -607,6 +644,15 @@ export default function EstoquePage() {
               >
                 <History className="h-4 w-4" />
                 Histórico Geral
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={handleExportPDF}
+                className="gap-2"
+                disabled={produtosFiltrados.length === 0}
+              >
+                <Download className="h-4 w-4" />
+                Exportar PDF
               </Button>
             </div>
           </div>

@@ -56,6 +56,7 @@ import {
   FilePlus2,
   DollarSign,
 } from 'lucide-react';
+import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
 
 // =====================================================
 // Types
@@ -301,6 +302,58 @@ export default function NFePage() {
               </div>
             </div>
             <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="gap-2"
+                onClick={() => {
+                  if (activeTab === 'entrada') {
+                    exportToPDF({
+                      title: 'Notas Fiscais de Entrada',
+                      subtitle: `Período: ${formatDatePDF(dataInicio)} a ${formatDatePDF(dataFim)}`,
+                      columns: [
+                        { header: 'Data', accessor: (row: NFeEntrada) => formatDatePDF(row.data) },
+                        { header: 'Fornecedor', accessor: (row: NFeEntrada) => row.fornecedor },
+                        { header: 'Documento', accessor: (row: NFeEntrada) => row.documento_ref },
+                        { header: 'Produtos', accessor: (row: NFeEntrada) => row.produtos.length },
+                        { header: 'Valor Total', accessor: (row: NFeEntrada) => formatCurrencyPDF(row.valor_total) },
+                      ],
+                      data: dadosEntrada,
+                      filename: 'nfe-entrada',
+                      orientation: 'landscape',
+                      summary: [
+                        { label: 'Total de Notas', value: statsEntrada.totalNotas },
+                        { label: 'Total de Produtos', value: statsEntrada.totalProdutos },
+                        { label: 'Valor Total', value: formatCurrencyPDF(statsEntrada.valorTotal) },
+                      ],
+                    });
+                  } else {
+                    exportToPDF({
+                      title: 'Notas Fiscais de Saída',
+                      subtitle: `Período: ${formatDatePDF(dataInicio)} a ${formatDatePDF(dataFim)}`,
+                      columns: [
+                        { header: 'Número', accessor: (row: NFeSaida) => row.numero },
+                        { header: 'Data', accessor: (row: NFeSaida) => formatDatePDF(row.data) },
+                        { header: 'Cliente', accessor: (row: NFeSaida) => row.cliente },
+                        { header: 'Total', accessor: (row: NFeSaida) => formatCurrencyPDF(row.total) },
+                        { header: 'Pagamento', accessor: (row: NFeSaida) => row.forma_pagamento },
+                        { header: 'Status', accessor: (row: NFeSaida) => row.status === 'nfe_emitida' ? 'NF-e Emitida' : 'Pendente' },
+                      ],
+                      data: dadosSaida,
+                      filename: 'nfe-saida',
+                      orientation: 'landscape',
+                      summary: [
+                        { label: 'Total de Vendas', value: statsSaida.totalVendas },
+                        { label: 'Com NF-e', value: statsSaida.comNFe },
+                        { label: 'Sem NF-e', value: statsSaida.semNFe },
+                        { label: 'Valor Total', value: formatCurrencyPDF(statsSaida.valorTotal) },
+                      ],
+                    });
+                  }
+                }}
+              >
+                <Download className="h-4 w-4" />
+                Exportar PDF
+              </Button>
               <Link href="/admin/nfe/importar">
                 <Button className="gap-2">
                   <FileUp className="h-4 w-4" />

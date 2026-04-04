@@ -34,7 +34,9 @@ import {
   DollarSign,
   MoreHorizontal,
   Filter,
+  Download,
 } from 'lucide-react';
+import { exportToPDF, formatDatePDF } from '@/lib/export-pdf';
 
 export default function LogsPage() {
   const { logs, loading } = useLogs();
@@ -107,6 +109,27 @@ export default function LogsPage() {
                 Acompanhe todas as ações realizadas no sistema
               </p>
             </div>
+            <Button
+              variant="outline"
+              onClick={() =>
+                exportToPDF({
+                  title: 'Histórico de Atividades',
+                  subtitle: 'Logs do sistema',
+                  columns: [
+                    { header: 'Data/Hora', accessor: (row: any) => formatDatePDF(row.dataHora), width: 45 },
+                    { header: 'Tipo', accessor: (row: any) => row.tipo || '-', width: 25 },
+                    { header: 'Ação', accessor: (row: any) => row.acao || '-' },
+                    { header: 'Usuário', accessor: (row: any) => row.usuarioNome || 'Sistema', width: 35 },
+                    { header: 'Detalhes', accessor: (row: any) => row.detalhes || '-' },
+                  ],
+                  data: filteredLogs,
+                  filename: `logs-${new Date().toISOString().split('T')[0]}`,
+                })
+              }
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar PDF
+            </Button>
           </div>
 
           {/* Filters */}

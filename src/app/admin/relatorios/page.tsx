@@ -11,8 +11,10 @@ import { ProdutosMaisVendidos, VendasPorOperador, FluxoCaixaResumo, LucroBrutoPo
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
-import { BarChart3, TrendingUp, PieChart, DollarSign, PiggyBank } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { BarChart3, TrendingUp, PieChart, DollarSign, PiggyBank, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { exportToPDF, formatCurrencyPDF } from '@/lib/export-pdf';
 
 function LoadingSkeleton() {
   return (
@@ -59,6 +61,38 @@ export default function RelatoriosPage() {
               <h1 className="text-3xl font-bold">Dashboard BI</h1>
               <p className="text-muted-foreground">Análises e métricas do seu estabelecimento</p>
             </div>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                exportToPDF({
+                  title: 'Relatório BI - Produtos Mais Vendidos',
+                  subtitle: bi.periodoFormatado,
+                  columns: [
+                    { header: 'Produto', accessor: (row: any) => row.nome },
+                    { header: 'Categoria', accessor: (row: any) => {
+                      const cat = categorias.find((c: any) => c.id === row.categoriaId);
+                      return cat?.nome || '-';
+                    }},
+                    { header: 'Qtd. Vendida', accessor: (row: any) => row.quantidadeTotal },
+                    { header: 'Valor Total', accessor: (row: any) => formatCurrencyPDF(row.valorTotal) },
+                    { header: 'Ticket Médio', accessor: (row: any) => formatCurrencyPDF(row.ticketMedio) },
+                    { header: '% Vendas', accessor: (row: any) => `${row.percentualVendas?.toFixed(1)}%` },
+                  ],
+                  data: bi.produtosMaisVendidos,
+                  filename: 'relatorio-bi-produtos',
+                  orientation: 'landscape',
+                  summary: [
+                    { label: 'Total de Produtos', value: bi.produtosMaisVendidos.length },
+                    { label: 'Receita Total', value: formatCurrencyPDF(bi.produtosMaisVendidos.reduce((acc: number, p: any) => acc + (p.valorTotal || 0), 0)) },
+                    { label: 'Unidades Vendidas', value: bi.produtosMaisVendidos.reduce((acc: number, p: any) => acc + (p.quantidadeTotal || 0), 0) },
+                  ],
+                });
+              }}
+            >
+              <Download className="h-4 w-4" />
+              Exportar PDF
+            </Button>
           </div>
 
           {/* Filtros */}

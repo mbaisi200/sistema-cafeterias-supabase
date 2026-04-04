@@ -43,8 +43,10 @@ import {
   Building2,
   User,
   FileText,
+  Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { exportToPDF } from '@/lib/export-pdf';
 
 interface Cliente {
   id: string;
@@ -271,9 +273,45 @@ export default function ClientesPage() {
                 Cadastro de clientes para emissão de NF-e ({clientes.length} cliente{clientes.length !== 1 ? 's' : ''})
               </p>
             </div>
-            <Button onClick={handleNovo} className="gap-2">
-              <Plus className="h-4 w-4" /> Novo Cliente
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" className="gap-2" onClick={() => {
+                if (clientes.length === 0) {
+                  toast.error('Nenhum cliente para exportar');
+                  return;
+                }
+                exportToPDF({
+                  title: 'Relatório de Clientes',
+                  subtitle: `Busca: ${busca || 'Todos os clientes'}`,
+                  columns: [
+                    { header: 'Tipo', accessor: (c) => c.tipo_pessoa === '1' ? 'PJ' : 'PF', width: 15 },
+                    { header: 'CNPJ/CPF', accessor: (c) => {
+                      const v = c.cnpj_cpf.replace(/\D/g, '');
+                      return v.length <= 11
+                        ? v.replace(/(\d{3})(\d{3})(\d{3})(\d{0,2})/, '$1.$2.$3-$4')
+                        : v.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{0,2})/, '$1.$2.$3/$4-$5');
+                    }, width: 35 },
+                    { header: 'Nome/Razão Social', accessor: (c) => c.nome_razao_social, width: 60 },
+                    { header: 'Município/UF', accessor: (c) => `${c.municipio}/${c.uf}`, width: 40 },
+                    { header: 'Telefone', accessor: (c) => c.telefone || c.celular || '-', width: 30 },
+                    { header: 'E-mail', accessor: (c) => c.email || '-', width: 50 },
+                    { header: 'Status', accessor: (c) => c.ativo ? 'Ativo' : 'Inativo', width: 20 },
+                  ],
+                  data: clientes,
+                  filename: `clientes-${new Date().toISOString().slice(0, 10)}`,
+                  orientation: 'landscape',
+                  summary: [
+                    { label: 'Total de clientes', value: clientes.length },
+                    { label: 'Ativos', value: clientes.filter(c => c.ativo).length },
+                    { label: 'Inativos', value: clientes.filter(c => !c.ativo).length },
+                  ],
+                });
+              }}>
+                <Download className="h-4 w-4" /> Exportar PDF
+              </Button>
+              <Button onClick={handleNovo} className="gap-2">
+                <Plus className="h-4 w-4" /> Novo Cliente
+              </Button>
+            </div>
           </div>
 
       {/* Busca */}

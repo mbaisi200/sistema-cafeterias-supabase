@@ -57,6 +57,7 @@ import {
   DollarSign,
   Receipt,
 } from 'lucide-react';
+import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
 
 export default function CuponsNFEsPage() {
   const { empresaId } = useAuth();
@@ -168,6 +169,47 @@ export default function CuponsNFEsPage() {
           </div>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              exportToPDF({
+                title: 'Notas Fiscais Eletrônicas (NF-e)',
+                subtitle: `${nfes.length} nota(s) encontrada(s)`,
+                columns: [
+                  { header: 'Nº', accessor: (row: any) => String(row.numero).padStart(9, '0') },
+                  { header: 'Série', accessor: (row: any) => row.serie },
+                  { header: 'Destinatário', accessor: (row: any) => row.destinatario?.nome_razao_social || '-' },
+                  { header: 'Data Emissão', accessor: (row: any) => formatDatePDF(row.data_emissao) },
+                  { header: 'Valor', accessor: (row: any) => formatCurrencyPDF(row.total_nota || 0) },
+                  { header: 'Status', accessor: (row: any) => {
+                    const statusMap: Record<string, string> = {
+                      autorizada: 'Autorizada',
+                      cancelada: 'Cancelada',
+                      rejeitada: 'Rejeitada',
+                      denegada: 'Denegada',
+                      contingencia: 'Contingência',
+                      pendente: 'Pendente',
+                    };
+                    return statusMap[row.status] || row.status;
+                  }},
+                ],
+                data: nfes,
+                filename: 'nfes-emitidas',
+                orientation: 'landscape',
+                summary: [
+                  { label: 'Total NF-es', value: stats.total },
+                  { label: 'Autorizadas', value: stats.autorizadas },
+                  { label: 'Canceladas/Rejeitadas', value: stats.canceladas + stats.rejeitadas },
+                  { label: 'Pendentes', value: stats.pendentes },
+                  { label: 'Valor Autorizado', value: formatCurrencyPDF(stats.totalValor) },
+                ],
+              });
+            }}
+          >
+            <Download className="h-4 w-4" />
+            Exportar PDF
+          </Button>
           <Link href="/admin/nfe/emitir">
             <Button className="gap-2">
               <Plus className="h-4 w-4" />
