@@ -246,7 +246,7 @@ export function CupomFiscalModal({
             <div className="flex items-center justify-between mb-2">
               <span className="text-gray-600 font-medium">Total:</span>
               <span className="text-3xl font-extrabold text-green-600">
-                R$ {total.toFixed(2)}
+                R$ {(total || 0).toFixed(2)}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -709,8 +709,8 @@ export function imprimirCupomFiscal(
   itens.forEach((item) => {
     const codigoStr = (item.codigo || '').padEnd(16, ' ');
     const unidade = (item.unidade || 'UN').toUpperCase();
-    const valorUnitStr = item.preco.toFixed(2);
-    const valorTotalStr = (item.quantidade * item.preco).toFixed(2);
+    const valorUnitStr = (item.preco || 0).toFixed(2);
+    const valorTotalStr = ((item.quantidade || 0) * (item.preco || 0)).toFixed(2);
 
     // Linha 1: Código (se tiver) + Descrição
     if (item.codigo) {
@@ -727,9 +727,9 @@ export function imprimirCupomFiscal(
   cupom += traco + '\n';
 
   // === TOTAIS ===
-  cupom += formatarLinha('  SUBTOTAL:', `R$ ${total.toFixed(2)}`) + '\n';
+  cupom += formatarLinha('  SUBTOTAL:', `R$ ${(total || 0).toFixed(2)}`) + '\n';
   cupom += separadorDuplo + '\n';
-  cupom += formatarLinha('  TOTAL DA VENDA:', `R$ ${total.toFixed(2)}`) + '\n';
+  cupom += formatarLinha('  TOTAL DA VENDA:', `R$ ${(total || 0).toFixed(2)}`) + '\n';
   cupom += separadorDuplo + '\n';
 
   cupom += '\n';
@@ -737,11 +737,11 @@ export function imprimirCupomFiscal(
   // === PAGAMENTO ===
   if (pagamentosMultiplos && pagamentosMultiplos.length > 1) {
     // Múltiplos pagamentos: mostra cada um com saldo restante
-    let saldoRestante = total;
+    let saldoRestante = total || 0;
     pagamentosMultiplos.forEach((pg) => {
       cupom += `Pagamento: ${formaPagamentoLabel[pg.forma] || pg.forma.toUpperCase()}\n`;
-      cupom += formatarLinha('  Valor Pago:', `R$ ${pg.valor.toFixed(2)}`) + '\n';
-      saldoRestante -= pg.valor;
+      cupom += formatarLinha('  Valor Pago:', `R$ ${(pg.valor || 0).toFixed(2)}`) + '\n';
+      saldoRestante -= (pg.valor || 0);
       if (saldoRestante > 0.005) {
         cupom += formatarLinha('  Restante:', `R$ ${saldoRestante.toFixed(2)}`) + '\n';
       } else {
@@ -752,7 +752,7 @@ export function imprimirCupomFiscal(
   } else {
     // Pagamento único
     cupom += `Pagamento: ${formaPagamentoLabel[formaPagamento] || formaPagamento.toUpperCase()}\n`;
-    cupom += formatarLinha('  Valor Pago:', `R$ ${total.toFixed(2)}`) + '\n';
+    cupom += formatarLinha('  Valor Pago:', `R$ ${(total || 0).toFixed(2)}`) + '\n';
   }
 
   cupom += '\n';

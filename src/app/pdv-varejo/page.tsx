@@ -1169,7 +1169,20 @@ export default function PDVVarejoPage() {
           open={dialogCupomFiscal}
           onOpenChange={setDialogCupomFiscal}
           onConfirmar={finalizarVenda}
-          cliente={clienteSelecionado || undefined}
+          formaPagamento={formaPagamentoSelecionada}
+          total={totalFinal}
+          itens={itensCarrinho.map(item => ({
+            nome: item.nome,
+            quantidade: item.quantidade,
+            preco: item.preco,
+            codigo: item.codigo || item.codigoBarras || '',
+            unidade: item.unidade || 'UN',
+          }))}
+          nomeEmpresa={empresa?.nome || 'PDV Varejo'}
+          cnpjEmpresa={empresa?.cnpj || ''}
+          enderecoEmpresa={empresa?.endereco || ''}
+          processando={processando}
+          pagamentosMultiplos={pagamentos.length > 1 ? pagamentos : undefined}
         />
 
       </div>
