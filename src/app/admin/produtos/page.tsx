@@ -254,11 +254,12 @@ export default function ProdutosPage() {
         { header: 'Categoria', accessor: (row: any) => getNomeCategoria(row.categoriaId), width: 35 },
         { header: 'Preço', accessor: (row: any) => formatCurrencyPDF(row.preco), width: 25 },
         { header: 'Custo', accessor: (row: any) => formatCurrencyPDF(row.custo || 0), width: 25 },
-        { header: 'Estoque', accessor: (row: any) => row.estoqueAtual ?? 0, width: 20 },
+        { header: 'Estoque', accessor: (row: any) => row.estoqueAtual ?? 0, width: 20, totalize: true },
         { header: 'Status', accessor: (row: any) => row.ativo ? 'Ativo' : 'Inativo', width: 20 },
       ],
       data: filteredProdutos,
       filename: `produtos-${new Date().toISOString().slice(0, 10)}`,
+      totals: { label: 'TOTAL GERAL' },
       summary: [
         { label: 'Total de Produtos', value: filteredProdutos.length },
         { label: 'Produtos Ativos', value: filteredProdutos.filter((p: any) => p.ativo).length },

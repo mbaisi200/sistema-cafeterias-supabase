@@ -130,6 +130,10 @@ export default function NFeImportarPage() {
   // Resultado da importação
   const [resultadoImportacao, setResultadoImportacao] = useState<any>(null);
 
+  // NFE duplicada (verificação frontend)
+  const [nfeDuplicada, setNfeDuplicada] = useState<any>(null);
+  const [verificandoDuplicidade, setVerificandoDuplicidade] = useState(false);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // =====================================================
@@ -187,6 +191,13 @@ export default function NFeImportarPage() {
         setFornecedorEncontrado(null);
       }
 
+      // Verificar se NFe já foi importada
+      if (dados.chaveAcesso && empresaId) {
+        verificarNFeDuplicada(dados.chaveAcesso);
+      } else {
+        setNfeDuplicada(null);
+      }
+
       // Abrir dialog de preview
       setDialogPreview(true);
     } catch (error: any) {
@@ -204,6 +215,30 @@ export default function NFeImportarPage() {
       setFornecedorEncontrado(null);
     } finally {
       setVerificandoFornecedor(false);
+    }
+  };
+
+  const verificarNFeDuplicada = async (chaveAcesso: string) => {
+    setVerificandoDuplicidade(true);
+    setNfeDuplicada(null);
+    try {
+      const response = await fetch('/api/nfe/importar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresaId,
+          _checkOnly: true,
+          nfeData: { chaveAcesso },
+        }),
+      });
+      if (response.status === 409) {
+        const data = await response.json();
+        setNfeDuplicada(data.detalhes || {});
+      }
+    } catch {
+      // Silently ignore - the API check will happen on confirm anyway
+    } finally {
+      setVerificandoDuplicidade(false);
     }
   };
 
@@ -386,6 +421,19 @@ export default function NFeImportarPage() {
 
       const data = await response.json();
 
+      if (response.status === 409) {
+        // NFe já importada - erro específico de duplicidade
+        const detalhes = data.detalhes || {};
+        setDialogPreview(false);
+        toast({
+          variant: 'destructive',
+          title: '⚠️ NFe já importada!',
+          description: `A NFe ${detalhes.numero}/${detalhes.serie} (Chave: ${detalhes.chave}) já foi importada em ${detalhes.importadoEm}. Dados duplicados não foram criados.`,
+          duration: 8000,
+        });
+        return;
+      }
+
       if (!data.sucesso) {
         throw new Error(data.erro || 'Erro ao importar');
       }
@@ -417,6 +465,7 @@ export default function NFeImportarPage() {
     setFileName('');
     setParseError('');
     setFornecedorEncontrado(null);
+    setNfeDuplicada(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
@@ -659,6 +708,32 @@ export default function NFeImportarPage() {
                     <p className="text-xs text-muted-foreground">
                       Chave de Acesso:{' '}
                       <span className="font-mono text-xs">{nfeData.chaveAcesso}</span>
+                    </p>
+                  </div>
+                )}
+
+                {/* Aviso de NFe Duplicada */}
+                {verificandoDuplicidade && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <Loader2 className="h-4 w-4 animate-spin text-yellow-600" />
+                    Verificando se esta NFe já foi importada...
+                  </div>
+                )}
+                {!verificandoDuplicidade && nfeDuplicada && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                      <p className="font-semibold text-red-700">
+                        ⚠️ Esta NFe já foi importada!
+                      </p>
+                    </div>
+                    <div className="text-sm text-red-600 space-y-1">
+                      <p><strong>Número:</strong> {nfeDuplicada.numero}/{nfeDuplicada.serie}</p>
+                      <p><strong>Importada em:</strong> {nfeDuplicada.importadoEm}</p>
+                      <p><strong>Chave:</strong> <span className="font-mono text-xs">{nfeDuplicada.chave}</span></p>
+                    </div>
+                    <p className="text-sm text-red-600 font-medium">
+                      Se continuar, os produtos e estoque serão duplicados. Verifique antes de prosseguir.
                     </p>
                   </div>
                 )}

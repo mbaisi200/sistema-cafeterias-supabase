@@ -47,10 +47,65 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Modo check-only: apenas verifica duplicidade e retorna
+    if (body._checkOnly && nfeData.chaveAcesso) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+      const supabaseCheck = createClient(supabaseUrl, supabaseKey);
+      const { data: nfeExistente } = await supabaseCheck
+        .from('nfe_importadas')
+        .select('id, chave_acesso, numero, serie, criado_em')
+        .eq('empresa_id', empresaId)
+        .eq('chave_acesso', nfeData.chaveAcesso)
+        .limit(1)
+        .single();
+
+      if (nfeExistente) {
+        return NextResponse.json({
+          sucesso: false,
+          erro: 'NFe já importada',
+          detalhes: {
+            chave: nfeExistente.chave_acesso,
+            numero: nfeExistente.numero,
+            serie: nfeExistente.serie,
+            importadoEm: new Date(nfeExistente.criado_em).toLocaleString('pt-BR'),
+          },
+        }, { status: 409 });
+      }
+      return NextResponse.json({ sucesso: true, duplicada: false });
+    }
+
     // Inicializar Supabase com service_role para bypass de RLS
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // ========================================
+    // 0. VERIFICAR DUPLICIDADE DA NFE
+    // ========================================
+    if (nfeData.chaveAcesso) {
+      const { data: nfeExistente } = await supabase
+        .from('nfe_importadas')
+        .select('id, chave_acesso, numero, serie, criado_em')
+        .eq('empresa_id', empresaId)
+        .eq('chave_acesso', nfeData.chaveAcesso)
+        .limit(1)
+        .single();
+
+      if (nfeExistente) {
+        const dataImportacao = new Date(nfeExistente.criado_em).toLocaleString('pt-BR');
+        return NextResponse.json({
+          sucesso: false,
+          erro: `Esta NFe já foi importada anteriormente!`,
+          detalhes: {
+            chave: nfeExistente.chave_acesso,
+            numero: nfeExistente.numero,
+            serie: nfeExistente.serie,
+            importadoEm: dataImportacao,
+          },
+        }, { status: 409 });
+      }
+    }
 
     const resultado = {
       produtosCriados: 0,
@@ -382,6 +437,35 @@ export async function POST(request: NextRequest) {
         }
       } catch (err: any) {
         resultado.erros.push(`Erro ao gerar conta a pagar: ${err.message}`);
+      }
+    }
+
+    // ========================================
+    // 4. REGISTRAR IMPORTAÇÃO DA NFE
+    // ========================================
+    if (nfeData.chaveAcesso) {
+      try {
+        const { error: errorRegistro } = await supabase.from('nfe_importadas').insert({
+          empresa_id: empresaId,
+          chave_acesso: nfeData.chaveAcesso,
+          numero: nfeData.numero || null,
+          serie: nfeData.serie || null,
+          data_emissao: nfeData.dataEmissao ? new Date(nfeData.dataEmissao).toISOString() : null,
+          valor_total: nfeData.valorTotal || 0,
+          fornecedor_nome: resultado.fornecedorNome || nfeData.emitente?.nome || null,
+          fornecedor_cnpj: nfeData.emitente?.cnpj || null,
+          produtos_count: produtosImportar?.length || 0,
+          importado_por: userId || null,
+          importado_por_nome: userName || null,
+          criado_em: new Date().toISOString(),
+        });
+        if (errorRegistro) {
+          console.error('Erro ao registrar NFe importada:', errorRegistro.message);
+          // Não bloqueia a importação, apenas registra o erro
+          resultado.erros.push(`Aviso: não foi possível registrar a NFe importada (${errorRegistro.message})`);
+        }
+      } catch (err: any) {
+        console.error('Erro ao registrar NFe importada:', err.message);
       }
     }
 

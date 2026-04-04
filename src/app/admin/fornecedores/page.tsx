@@ -68,8 +68,10 @@ import {
   Hash,
   Globe,
   Tag,
+  Download,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { exportToPDF } from '@/lib/export-pdf';
 
 interface Fornecedor {
   id: string;
@@ -281,6 +283,32 @@ export default function FornecedoresPage() {
     }
   };
 
+  const handleExportPDF = () => {
+    exportToPDF({
+      title: 'Relatório de Fornecedores',
+      subtitle: `Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+      orientation: 'landscape',
+      columns: [
+        { header: 'Nome', accessor: (row: any) => row.nome, width: 50 },
+        { header: 'Razão Social', accessor: (row: any) => row.razaoSocial || '-', width: 50 },
+        { header: 'CNPJ', accessor: (row: any) => row.cnpj || '-', width: 30 },
+        { header: 'Telefone', accessor: (row: any) => row.telefone || '-', width: 25 },
+        { header: 'Email', accessor: (row: any) => row.email || '-', width: 40 },
+        { header: 'Cidade/UF', accessor: (row: any) => [row.cidade, row.estado].filter(Boolean).join('/') || '-', width: 30 },
+        { header: 'Contato', accessor: (row: any) => row.contato || '-', width: 30 },
+        { header: 'Status', accessor: (row: any) => row.ativo ? 'Ativo' : 'Inativo', width: 20 },
+      ],
+      data: filteredFornecedores,
+      filename: `fornecedores-${new Date().toISOString().slice(0, 10)}`,
+      totals: { label: 'TOTAL' },
+      summary: [
+        { label: 'Total de Fornecedores', value: filteredFornecedores.length },
+        { label: 'Ativos', value: filteredFornecedores.filter((f: any) => f.ativo).length },
+        { label: 'Com CNPJ', value: filteredFornecedores.filter((f: any) => f.cnpj).length },
+      ],
+    });
+  };
+
   const handleAddCategoria = () => {
     const cat = categoriaInput.trim();
     if (cat && !categoriasSelecionadas.includes(cat)) {
@@ -322,10 +350,16 @@ export default function FornecedoresPage() {
                 Gerencie os fornecedores do seu estabelecimento
               </p>
             </div>
-            <Button onClick={handleNovo} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Fornecedor
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={handleExportPDF}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar PDF
+              </Button>
+              <Button onClick={handleNovo} className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Fornecedor
+              </Button>
+            </div>
           </div>
 
           {/* Summary Cards */}

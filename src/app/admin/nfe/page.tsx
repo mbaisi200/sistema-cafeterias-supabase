@@ -320,6 +320,13 @@ export default function NFePage() {
                       data: dadosEntrada,
                       filename: 'nfe-entrada',
                       orientation: 'landscape',
+                      totals: {
+                        label: 'TOTAL',
+                        columnTotals: {
+                          3: statsEntrada.totalProdutos,
+                          4: formatCurrencyPDF(statsEntrada.valorTotal),
+                        },
+                      },
                       summary: [
                         { label: 'Total de Notas', value: statsEntrada.totalNotas },
                         { label: 'Total de Produtos', value: statsEntrada.totalProdutos },
@@ -341,6 +348,12 @@ export default function NFePage() {
                       data: dadosSaida,
                       filename: 'nfe-saida',
                       orientation: 'landscape',
+                      totals: {
+                        label: 'TOTAL',
+                        columnTotals: {
+                          3: formatCurrencyPDF(statsSaida.valorTotal),
+                        },
+                      },
                       summary: [
                         { label: 'Total de Vendas', value: statsSaida.totalVendas },
                         { label: 'Com NF-e', value: statsSaida.comNFe },

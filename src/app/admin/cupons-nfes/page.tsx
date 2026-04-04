@@ -197,6 +197,12 @@ export default function CuponsNFEsPage() {
                 data: nfes,
                 filename: 'nfes-emitidas',
                 orientation: 'landscape',
+                totals: {
+                  label: 'TOTAL',
+                  columnTotals: {
+                    4: formatCurrencyPDF(stats.totalValor),
+                  },
+                },
                 summary: [
                   { label: 'Total NF-es', value: stats.total },
                   { label: 'Autorizadas', value: stats.autorizadas },

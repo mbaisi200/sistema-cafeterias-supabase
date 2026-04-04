@@ -7,6 +7,10 @@ export interface PDFExportColumn {
   header: string;
   accessor: (row: any) => string | number;
   width?: number;
+  /** If true, this column will be automatically totalized (accessor must return number) */
+  totalize?: boolean;
+  /** Alignment for this column */
+  align?: 'left' | 'center' | 'right';
 }
 
 export interface PDFExportOptions {
@@ -25,6 +29,17 @@ export interface PDFExportOptions {
   };
   summary?: { label: string; value: string | number }[];
   footerText?: string;
+  /**
+   * Total footer row configuration.
+   * If provided, a styled "TOTAL" row is added at the bottom of the table.
+   * - `label`: Text for the first column (e.g. "TOTAL GERAL")
+   * - `columnTotals`: Explicit totals per column index. Format: Record<columnIndex, string|number>
+   * - If columnTotals is omitted, columns with `totalize: true` are auto-summed from numeric accessor values
+   */
+  totals?: {
+    label?: string;
+    columnTotals?: Record<number, string | number>;
+  };
 }
 
 export function exportToPDF(options: PDFExportOptions) {
@@ -38,6 +53,7 @@ export function exportToPDF(options: PDFExportOptions) {
     companyInfo,
     summary,
     footerText,
+    totals,
   } = options;
 
   const doc = new jsPDF({
@@ -123,13 +139,50 @@ export function exportToPDF(options: PDFExportOptions) {
     y += 2;
   }
 
-  // Table
+  // Build table data
   const headers = columns.map((c) => c.header);
   const rows = data.map((row) => columns.map((c) => c.accessor(row)));
 
+  // Build footer row for totals
+  let footRows: any[][] | undefined;
+  if (totals) {
+    const footerRow = columns.map((col, i) => {
+      // Explicit columnTotals take priority
+      if (totals.columnTotals && totals.columnTotals[i] !== undefined) {
+        return String(totals.columnTotals[i]);
+      }
+      // Auto-sum for totalize columns (accessor must return number)
+      if (col.totalize) {
+        const sum = data.reduce((acc, row) => {
+          const val = col.accessor(row);
+          return acc + (typeof val === 'number' ? val : 0);
+        }, 0);
+        // Format with 2 decimal places
+        return sum.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+      // First column gets the label
+      if (i === 0 && totals.label) {
+        return totals.label;
+      }
+      return '';
+    });
+    footRows = [footerRow];
+  }
+
+  // Build column styles
+  const columnStyles: Record<number, any> = {};
+  columns.forEach((col, i) => {
+    const style: any = {};
+    if (col.width) style.cellWidth = col.width;
+    if (col.align) style.halign = col.align;
+    columnStyles[i] = style;
+  });
+
+  // Table
   autoTable(doc, {
     head: [headers],
     body: rows,
+    foot: footRows,
     startY: y,
     margin: { left: 14, right: 14 },
     styles: {
@@ -144,13 +197,18 @@ export function exportToPDF(options: PDFExportOptions) {
       fontSize: 8,
       halign: 'left',
     },
+    footStyles: totals ? {
+      fillColor: [220, 235, 255],
+      textColor: [0, 40, 100],
+      fontStyle: 'bold',
+      fontSize: 8,
+      lineWidth: 0.3,
+      lineColor: [41, 98, 255],
+    } : undefined,
     alternateRowStyles: {
       fillColor: [245, 247, 250],
     },
-    columnStyles: columns.reduce((acc, col, i) => {
-      if (col.width) acc[i] = { cellWidth: col.width };
-      return acc;
-    }, {} as Record<number, { cellWidth?: number }>),
+    columnStyles,
     didDrawPage: (data) => {
       // Footer on each page
       if (footerText) {

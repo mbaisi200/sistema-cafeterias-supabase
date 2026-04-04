@@ -524,7 +524,7 @@ export default function EstoquePage() {
         { header: 'Produto', accessor: (row: any) => row.nome || '-', width: 60 },
         { header: 'Código', accessor: (row: any) => row.codigo || row.codigoBarras || '-', width: 30 },
         { header: 'Unidade', accessor: (row: any) => row.unidade || 'un', width: 20 },
-        { header: 'Estoque Atual', accessor: (row: any) => row.estoqueAtual || 0, width: 25 },
+        { header: 'Estoque Atual', accessor: (row: any) => row.estoqueAtual || 0, width: 25, totalize: true },
         { header: 'Estoque Mínimo', accessor: (row: any) => row.estoqueMinimo || 0, width: 25 },
         {
           header: 'Status',
@@ -536,6 +536,9 @@ export default function EstoquePage() {
       data: produtosFiltrados,
       filename: `relatorio-estoque-${new Date().toISOString().slice(0, 10)}`,
       orientation: 'landscape',
+      totals: {
+        label: 'TOTAL GERAL',
+      },
       summary: [
         { label: 'Total de Produtos', value: totalItens },
         { label: 'Itens Abaixo do Mínimo', value: itensAbaixoMinimo },

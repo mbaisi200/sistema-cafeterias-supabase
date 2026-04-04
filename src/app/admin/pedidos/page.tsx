@@ -467,6 +467,10 @@ export default function PedidosPage() {
       data: pedidosFiltrados,
       filename: 'pedidos',
       orientation: 'landscape',
+      totals: {
+        label: 'TOTAL',
+        columnTotals: { 3: formatCurrencyPDF(totalValor) },
+      },
       summary: [
         { label: 'Total de Pedidos', value: pedidosFiltrados.length },
         { label: 'Valor Total', value: formatCurrencyPDF(totalValor) },

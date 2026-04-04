@@ -279,6 +279,10 @@ export default function CaixaPage() {
                       ],
                       data: movimentacoes,
                       filename: `caixa-${new Date().toISOString().split('T')[0]}`,
+                      totals: {
+                        label: 'TOTAL',
+                        columnTotals: { 4: formatCurrencyPDF(totalVendas) },
+                      },
                       summary: [
                         { label: 'Total de Movimentações', value: movimentacoes.length },
                         { label: 'Total em Vendas', value: formatCurrencyPDF(totalVendas) },
