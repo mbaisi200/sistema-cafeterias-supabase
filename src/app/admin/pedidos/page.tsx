@@ -128,6 +128,7 @@ export default function PedidosPage() {
   // Items state
   const [itens, setItens] = useState<PedidoItem[]>([]);
   const [openProdutoSearch, setOpenProdutoSearch] = useState<boolean[]>([]);
+  const [produtoSearchByItem, setProdutoSearchByItem] = useState<string[]>([]);
 
   // Data lists
   const [clientes, setClientes] = useState<any[]>([]);
@@ -286,6 +287,7 @@ export default function PedidosPage() {
       subtotal: 0,
     }]);
     setOpenProdutoSearch(prev => [...prev, false]);
+    setProdutoSearchByItem(prev => [...prev, '']);
   };
 
   const updateItem = (index: number, field: string, value: any) => {
@@ -303,6 +305,7 @@ export default function PedidosPage() {
   const removeItem = (index: number) => {
     setItens(itens.filter((_, i) => i !== index));
     setOpenProdutoSearch(prev => prev.filter((_, i) => i !== index));
+    setProdutoSearchByItem(prev => prev.filter((_, i) => i !== index));
   };
 
   const totalItens = itens.reduce((acc, item) => acc + item.subtotal, 0);
@@ -393,6 +396,17 @@ export default function PedidosPage() {
   };
 
   // Edit
+  // Filter produtos by search text per item
+  const getProdutosFiltrados = (index: number) => {
+    const term = (produtoSearchByItem[index] || '').toLowerCase().trim();
+    if (!term) return produtos;
+    return produtos.filter(p =>
+      (p.nome || '').toLowerCase().includes(term) ||
+      (p.codigo_barras || '').includes(term) ||
+      (p.codigo || '').toLowerCase().includes(term)
+    );
+  };
+
   const handleEdit = (pedido: Pedido) => {
     setEditingPedido(pedido);
     setClienteId(pedido.clienteId || '');
@@ -403,6 +417,7 @@ export default function PedidosPage() {
     setPedidoStatus(pedido.status);
     setItens(pedido.itens || []);
     setOpenProdutoSearch((pedido.itens || []).map(() => false));
+    setProdutoSearchByItem((pedido.itens || []).map(() => ''));
     setDialogOpen(true);
   };
 
@@ -418,6 +433,7 @@ export default function PedidosPage() {
     setPedidoStatus('rascunho');
     setItens([]);
     setOpenProdutoSearch([]);
+    setProdutoSearchByItem([]);
   };
 
   const getStatusBadge = (status: string) => {
@@ -725,20 +741,19 @@ export default function PedidosPage() {
                                 </PopoverTrigger>
                                 <PopoverContent className="w-72 p-0">
                                   <Command shouldFilter={false}>
-                                    <CommandInput placeholder="Buscar produto por nome ou código..." />
+                                    <CommandInput
+                                      placeholder="Buscar produto por nome ou código..."
+                                      value={produtoSearchByItem[i] || ''}
+                                      onValueChange={(val) => {
+                                        const updated = [...produtoSearchByItem];
+                                        updated[i] = val;
+                                        setProdutoSearchByItem(updated);
+                                      }}
+                                    />
                                     <CommandList>
                                       <CommandEmpty>Nenhum produto encontrado</CommandEmpty>
                                       <CommandGroup className="max-h-64 overflow-y-auto">
-                                        {produtos
-                                          .filter(p =>
-                                            p.nome.toLowerCase().includes(
-                                              (document.querySelector(`[cmdk-input]`) as HTMLInputElement)?.value?.toLowerCase() || ''
-                                            ) ||
-                                            (p.codigo_barras || '').includes(
-                                              (document.querySelector(`[cmdk-input]`) as HTMLInputElement)?.value || ''
-                                            )
-                                          )
-                                          .map(p => (
+                                        {getProdutosFiltrados(i).map(p => (
                                             <CommandItem
                                               key={p.id}
                                               value={p.nome}
@@ -747,6 +762,9 @@ export default function PedidosPage() {
                                                 const updated = [...openProdutoSearch];
                                                 updated[i] = false;
                                                 setOpenProdutoSearch(updated);
+                                                const searchUpdated = [...produtoSearchByItem];
+                                                searchUpdated[i] = '';
+                                                setProdutoSearchByItem(searchUpdated);
                                               }}
                                             >
                                               <Package className="mr-2 h-4 w-4" />

@@ -956,6 +956,9 @@ export function useContas() {
       .eq('id', id);
 
     if (error) throw error;
+    
+    // Recarregar dados para atualizar a UI
+    await carregarDados();
   };
 
   const excluirConta = async (id: string) => {

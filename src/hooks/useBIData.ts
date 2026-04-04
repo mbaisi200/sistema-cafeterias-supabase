@@ -101,6 +101,15 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
       if (filtros.tiposVenda.length > 0 && !filtros.tiposVenda.includes(venda.tipo || venda.tipoVenda || '')) return false;
       if (filtros.status.length > 0 && !filtros.status.includes(venda.status)) return false;
       if (filtros.canais && filtros.canais.length > 0 && !filtros.canais.includes(venda.canal || '')) return false;
+      // Filtro por categoria (verifica se algum item pertence à categoria filtrada)
+      if (filtros.categorias.length > 0) {
+        const temCategoriaFiltrada = venda.itens?.some(item => {
+          const produto = produtosMap.get(item.produtoId);
+          const catId = item.categoriaId || produto?.categoriaId || '';
+          return filtros.categorias.includes(catId);
+        });
+        if (!temCategoriaFiltrada) return false;
+      }
       // Filtro por produto
       if (filtros.produtos.length > 0) {
         const temProdutoFiltrado = venda.itens?.some(item => filtros.produtos.includes(item.produtoId));
@@ -108,7 +117,7 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
       }
       return true;
     });
-  }, [vendas, filtros, obterIntervaloDatas]);
+  }, [vendas, filtros, obterIntervaloDatas, produtosMap]);
 
   // Vendas do período anterior
   const vendasPeriodoAnterior = useMemo(() => {
@@ -252,6 +261,15 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
   const produtosMaisVendidos = useMemo((): ProdutoVendido[] => {
     const porProduto = vendasConcluidas.reduce((acc, v) => {
       v.itens?.forEach(item => {
+        // Se há filtro de produto ativo, ignorar itens que não são do produto filtrado
+        if (filtros.produtos.length > 0 && !filtros.produtos.includes(item.produtoId)) return;
+        // Se há filtro de categoria ativo, ignorar itens que não são da categoria filtrada
+        if (filtros.categorias.length > 0) {
+          const produto = produtosMap.get(item.produtoId);
+          const catId = item.categoriaId || produto?.categoriaId || '';
+          if (!filtros.categorias.includes(catId)) return;
+        }
+
         // Buscar dados do produto se não tiver nome
         const produto = produtosMap.get(item.produtoId);
         const nomeProduto = item.nome || produto?.nome || 'Produto não encontrado';
@@ -285,12 +303,15 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
       }))
       .sort((a, b) => b.valorTotal - a.valorTotal)
       .slice(0, 10);
-  }, [vendasConcluidas, produtosMap, totalVendas]);
+  }, [vendasConcluidas, produtosMap, totalVendas, filtros.produtos, filtros.categorias]);
 
   // Vendas por categoria - CORRIGIDO
   const vendasPorCategoria = useMemo(() => {
     const porCategoria = vendasConcluidas.reduce((acc, v) => {
       v.itens?.forEach(item => {
+        // Se há filtro de produto ativo, ignorar itens que não são do produto filtrado
+        if (filtros.produtos.length > 0 && !filtros.produtos.includes(item.produtoId)) return;
+
         // Buscar categoria do produto se não tiver no item
         const produto = produtosMap.get(item.produtoId);
         const catId = item.categoriaId || produto?.categoriaId || 'outros';
@@ -317,7 +338,7 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
       .filter(c => c.valor > 0)
       .map(c => ({ ...c, percentual: totalGeral > 0 ? (c.valor / totalGeral) * 100 : 0 }))
       .sort((a, b) => b.valor - a.valor);
-  }, [vendasConcluidas, produtosMap, categoriasMap]);
+  }, [vendasConcluidas, produtosMap, categoriasMap, filtros.produtos]);
 
   // Análise por horário
   const analisePorHorario = useMemo(() => {
@@ -380,6 +401,15 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
   const lucroBrutoPorProduto = useMemo((): ProdutoLucroBruto[] => {
     const porProduto = vendasConcluidas.reduce((acc, v) => {
       v.itens?.forEach(item => {
+        // Se há filtro de produto ativo, ignorar itens que não são do produto filtrado
+        if (filtros.produtos.length > 0 && !filtros.produtos.includes(item.produtoId)) return;
+        // Se há filtro de categoria ativo, ignorar itens que não são da categoria filtrada
+        if (filtros.categorias.length > 0) {
+          const produto = produtosMap.get(item.produtoId);
+          const catId = item.categoriaId || produto?.categoriaId || '';
+          if (!filtros.categorias.includes(catId)) return;
+        }
+
         const produto = produtosMap.get(item.produtoId);
         if (!produto) return;
 
@@ -417,7 +447,7 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
         margemLucro: p.receitaTotal > 0 ? ((p.receitaTotal - p.custoTotal) / p.receitaTotal) * 100 : 0
       }))
       .sort((a, b) => b.lucroBruto - a.lucroBruto);
-  }, [vendasConcluidas, produtosMap]);
+  }, [vendasConcluidas, produtosMap, filtros.produtos, filtros.categorias]);
 
   // Resumo do Lucro Bruto
   const resumoLucroBruto = useMemo(() => {
