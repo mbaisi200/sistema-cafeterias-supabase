@@ -265,23 +265,53 @@ export function parseNFeXML(xmlString: string): NFeParsed {
     const icmsValor = icmsTipo ? getNumberContent(icmsTipo, 'vICMS') : 0;
     const icmsBaseCalculo = icmsTipo ? getNumberContent(icmsTipo, 'vBC') : 0;
 
-    // IPI
+    // IPI - try IPITrib and IPINT subtypes
     const ipiEl = findElement(imposto, 'IPI') || imposto;
-    const ipiTrib = findElement(ipiEl, 'IPITrib') || ipiEl;
-    const ipiAliquota = getNumberContent(ipiTrib, 'pIPI');
-    const ipiValor = getNumberContent(ipiTrib, 'vIPI');
+    const ipiTrib = findElement(ipiEl, 'IPITrib');
+    const ipiNT = findElement(ipiEl, 'IPINT');
+    let ipiAliquota = 0;
+    let ipiValor = 0;
+    if (ipiTrib) {
+      ipiAliquota = getNumberContent(ipiTrib, 'pIPI');
+      ipiValor = getNumberContent(ipiTrib, 'vIPI');
+    }
+    // IPINT has no aliquot/value
 
-    // PIS
+    // PIS - try multiple subtypes (PISAliq, PISOutr, PISQtde)
     const pisEl = findElement(imposto, 'PIS') || imposto;
-    const pisAliq = findElement(pisEl, 'PISAliq') || pisEl;
-    const pisAliquota = getNumberContent(pisAliq, 'pPIS');
-    const pisValor = getNumberContent(pisAliq, 'vPIS');
+    let pisAliquota = 0;
+    let pisValor = 0;
+    const pisAliq = findElement(pisEl, 'PISAliq');
+    const pisOutr = findElement(pisEl, 'PISOutr');
+    const pisQtde = findElement(pisEl, 'PISQtde');
+    if (pisAliq) {
+      pisAliquota = getNumberContent(pisAliq, 'pPIS');
+      pisValor = getNumberContent(pisAliq, 'vPIS');
+    } else if (pisOutr) {
+      pisAliquota = getNumberContent(pisOutr, 'pPIS');
+      pisValor = getNumberContent(pisOutr, 'vPIS');
+    } else if (pisQtde) {
+      pisAliquota = getNumberContent(pisQtde, 'pPIS');
+      pisValor = getNumberContent(pisQtde, 'vPIS');
+    }
 
-    // COFINS
+    // COFINS - try multiple subtypes (COFINSAliq, COFINSOutr, COFINSQtde)
     const cofinsEl = findElement(imposto, 'COFINS') || imposto;
-    const cofinsAliq = findElement(cofinsEl, 'COFINSAliq') || cofinsEl;
-    const cofinsAliquota = getNumberContent(cofinsAliq, 'pCOFINS');
-    const cofinsValor = getNumberContent(cofinsAliq, 'vCOFINS');
+    let cofinsAliquota = 0;
+    let cofinsValor = 0;
+    const cofinsAliq = findElement(cofinsEl, 'COFINSAliq');
+    const cofinsOutr = findElement(cofinsEl, 'COFINSOutr');
+    const cofinsQtde = findElement(cofinsEl, 'COFINSQtde');
+    if (cofinsAliq) {
+      cofinsAliquota = getNumberContent(cofinsAliq, 'pCOFINS');
+      cofinsValor = getNumberContent(cofinsAliq, 'vCOFINS');
+    } else if (cofinsOutr) {
+      cofinsAliquota = getNumberContent(cofinsOutr, 'pCOFINS');
+      cofinsValor = getNumberContent(cofinsOutr, 'vCOFINS');
+    } else if (cofinsQtde) {
+      cofinsAliquota = getNumberContent(cofinsQtde, 'pCOFINS');
+      cofinsValor = getNumberContent(cofinsQtde, 'vCOFINS');
+    }
 
     produtos.push({
       codigo,

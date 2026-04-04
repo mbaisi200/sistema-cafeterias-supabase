@@ -1,11 +1,13 @@
 'use client';
 
+import { useState } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { DashboardCard } from '@/components/layout/DashboardCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useProdutos, useVendas, useFuncionarios, useContas } from '@/hooks/useFirestore';
 import {
@@ -18,6 +20,7 @@ import {
   TrendingUp,
   TrendingDown,
   ArrowRight,
+  Search,
 } from 'lucide-react';
 
 export default function AdminDashboardPage() {
@@ -26,6 +29,8 @@ export default function AdminDashboardPage() {
   const { vendas, loading: loadingVendas } = useVendas();
   const { funcionarios, loading: loadingFuncionarios } = useFuncionarios();
   const { totalPagarPendente, totalReceberPendente, loading: loadingContas } = useContas();
+
+  const [produtoSearch, setProdutoSearch] = useState('');
 
   const loading = loadingProdutos || loadingVendas || loadingFuncionarios || loadingContas;
 
@@ -78,6 +83,15 @@ export default function AdminDashboardPage() {
 
   const produtosEstoqueBaixo = produtos.filter(p => p.estoqueAtual <= p.estoqueMinimo);
   const funcionariosAtivos = funcionarios.filter(f => f.ativo);
+
+  // Product search filter
+  const produtosFiltrados = produtoSearch 
+    ? produtos.filter(p => 
+        p.nome?.toLowerCase().includes(produtoSearch.toLowerCase()) ||
+        p.codigo?.toLowerCase().includes(produtoSearch.toLowerCase()) ||
+        p.descricao?.toLowerCase().includes(produtoSearch.toLowerCase())
+      )
+    : [];
 
   // Saldo projetado
   const saldoProjetado = totalReceberPendente - totalPagarPendente;
@@ -245,6 +259,40 @@ export default function AdminDashboardPage() {
                 <p className="text-sm text-muted-foreground mt-2">
                   {produtos.filter(p => p.destaque).length} em destaque no PDV
                 </p>
+                <div className="relative mb-3 mt-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar produto por nome ou código..."
+                    value={produtoSearch}
+                    onChange={(e) => setProdutoSearch(e.target.value)}
+                    className="pl-9 h-9"
+                  />
+                </div>
+                {produtoSearch && (
+                  <div className="max-h-[200px] overflow-y-auto mt-2 space-y-1">
+                    {produtosFiltrados.length === 0 ? (
+                      <p className="text-sm text-muted-foreground py-2">Nenhum produto encontrado.</p>
+                    ) : (
+                      produtosFiltrados.slice(0, 10).map((p: any) => (
+                        <div key={p.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted text-sm">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="text-muted-foreground">{p.codigo || '-'}</span>
+                            <span className="truncate">{p.nome}</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            <span className="text-xs text-muted-foreground">Est: {p.estoqueAtual || 0}</span>
+                            <span className="font-semibold text-green-600">R$ {(p.preco || 0).toFixed(2)}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                    {produtosFiltrados.length > 10 && (
+                      <p className="text-xs text-muted-foreground text-center py-1">
+                        ...e mais {produtosFiltrados.length - 10} produto(s)
+                      </p>
+                    )}
+                  </div>
+                )}
                 <Button variant="link" className="p-0 h-auto mt-2" asChild>
                   <a href="/admin/produtos">
                     Gerenciar produtos <ArrowRight className="h-4 w-4 ml-1" />

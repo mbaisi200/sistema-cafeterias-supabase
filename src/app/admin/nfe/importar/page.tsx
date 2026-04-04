@@ -82,6 +82,7 @@ interface ProdutoImportacao {
   produtoNome?: string;
   categoriaId?: string;
   selecionado: boolean;
+  unidadesPorCaixa: number;  // conversion factor (units per box)
 }
 
 // =====================================================
@@ -152,12 +153,23 @@ export default function NFeImportarPage() {
         const existente = produtos.find((prod) =>
           matchProdutoByCodigoOuEan(prod, p)
         );
+        // Auto-detect: if commercial unit is CX/PAC/FARDO and tributary unit is UN,
+        // use qTrib/qCom as conversion factor
+        let unidadesPorCaixa = 0;
+        const uCom = (p.unidade || '').toUpperCase();
+        const uTrib = (p.unidadeTributavel || '').toUpperCase();
+        if (uCom !== uTrib && uTrib === 'UN' && p.quantidade > 0 && p.quantidadeTributavel > 0) {
+          unidadesPorCaixa = Math.round(p.quantidadeTributavel / p.quantidade);
+        }
+        if (unidadesPorCaixa < 1) unidadesPorCaixa = 0;
+
         return {
           nfeProduto: p,
           status: existente ? 'cadastrado' : 'novo',
           produtoId: existente?.id,
           produtoNome: existente?.nome,
           selecionado: true,
+          unidadesPorCaixa,
         };
       });
 
@@ -234,6 +246,15 @@ export default function NFeImportarPage() {
     setProdutosImportacao((prev) =>
       prev.map((p, i) =>
         i === index ? { ...p, categoriaId: categoriaId || undefined } : p
+      )
+    );
+  };
+
+  const updateUnidadesPorCaixa = (index: number, value: string) => {
+    const num = parseInt(value) || 0;
+    setProdutosImportacao((prev) =>
+      prev.map((p, i) =>
+        i === index ? { ...p, unidadesPorCaixa: num } : p
       )
     );
   };
@@ -316,6 +337,7 @@ export default function NFeImportarPage() {
             pisValor: p.nfeProduto.pisValor,
             cofinsAliquota: p.nfeProduto.cofinsAliquota,
             cofinsValor: p.nfeProduto.cofinsValor,
+            unidadesPorCaixa: p.unidadesPorCaixa || 0,
           })),
         }),
       });
@@ -736,6 +758,7 @@ export default function NFeImportarPage() {
                             <TableHead>Código</TableHead>
                             <TableHead>Produto</TableHead>
                             <TableHead className="text-center">Qtd</TableHead>
+                            <TableHead className="text-center">Unid/Cx</TableHead>
                             <TableHead className="text-right">Custo</TableHead>
                             <TableHead className="text-right">Total</TableHead>
                             <TableHead>Status</TableHead>
@@ -806,6 +829,18 @@ export default function NFeImportarPage() {
                                     </span>
                                   )}
                                 </div>
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  max="9999"
+                                  value={item.unidadesPorCaixa || ''}
+                                  onChange={(e) => updateUnidadesPorCaixa(index, e.target.value)}
+                                  placeholder="0"
+                                  className="w-16 h-7 text-center text-xs"
+                                  title="Unidades por caixa (fator de conversão)"
+                                />
                               </TableCell>
                               <TableCell className="text-right font-mono text-sm">
                                 R$ {item.nfeProduto.valorUnitario.toFixed(2)}

@@ -158,7 +158,9 @@ export async function POST(request: NextRequest) {
                 preco: precoVenda,
                 unidade: normalizarUnidade(item.unidade),
                 categoria_id: item.categoriaId || null,
-                estoque_atual: opcoes.atualizarEstoque ? (item.quantidade || 0) : 0,
+                estoque_atual: opcoes.atualizarEstoque 
+                  ? ((item.quantidade || 0) * (item.unidadesPorCaixa || 1)) 
+                  : 0,
                 estoque_minimo: 0,
                 ativo: true,
                 // === Campos Fiscais ===
@@ -173,6 +175,7 @@ export async function POST(request: NextRequest) {
                 ipi_aliquota: item.ipiAliquota || 0,
                 pis_aliquota: item.pisAliquota || 0,
                 cofins_aliquota: item.cofinsAliquota || 0,
+                unidades_por_caixa: item.unidadesPorCaixa || 0,
               })
               .select('id')
               .single();
@@ -196,21 +199,27 @@ export async function POST(request: NextRequest) {
 
             // Registrar movimentação de estoque para produto novo
             if (opcoes.atualizarEstoque && item.quantidade > 0) {
-              const qtd = item.quantidade;
+              const qtdUnidades = item.unidadesPorCaixa > 0 
+                ? item.quantidade * item.unidadesPorCaixa 
+                : item.quantidade;
+              const observacaoBase = `Importação NFe ${nfeData.numero}/${nfeData.serie} - ${resultado.fornecedorNome || nfeData.emitente?.nome || ''}`;
+              const observacao = item.unidadesPorCaixa > 0
+                ? `${observacaoBase} (${item.quantidade} cx x ${item.unidadesPorCaixa} un = ${qtdUnidades} un)`
+                : observacaoBase;
               const { error: errorEstoque } = await supabase.from('estoque_movimentos').insert({
                 empresa_id: empresaId,
                 produto_id: novoProduto!.id,
                 produto_nome: item.descricao,
                 tipo: 'entrada',
-                quantidade: qtd,
-                quantidade_informada: qtd,
-                tipo_entrada: 'unidade',
+                quantidade: qtdUnidades,
+                quantidade_informada: qtdUnidades,
+                tipo_entrada: item.unidadesPorCaixa > 0 ? 'caixa' : 'unidade',
                 estoque_anterior: 0,
-                estoque_novo: qtd,
+                estoque_novo: qtdUnidades,
                 preco_unitario: precoCusto,
                 fornecedor: resultado.fornecedorNome || nfeData.emitente?.nome || null,
                 documento_ref: `NFe ${nfeData.numero}/${nfeData.serie}`,
-                observacao: `Importação NFe ${nfeData.numero}/${nfeData.serie} - ${resultado.fornecedorNome || nfeData.emitente?.nome || ''}`,
+                observacao,
                 criado_por: userId || null,
                 criado_por_nome: userName || null,
                 criado_em: new Date().toISOString(),
@@ -279,8 +288,10 @@ export async function POST(request: NextRequest) {
                 .single();
 
               const estoqueAnterior = (produtoAtual as any)?.estoque_atual || 0;
-              const qtd = item.quantidade;
-              const estoqueNovo = estoqueAnterior + qtd;
+              const qtdUnidades = item.unidadesPorCaixa > 0 
+                ? item.quantidade * item.unidadesPorCaixa 
+                : item.quantidade;
+              const estoqueNovo = estoqueAnterior + qtdUnidades;
 
               // Atualizar estoque do produto
               await supabase
@@ -289,27 +300,31 @@ export async function POST(request: NextRequest) {
                 .eq('id', item.produtoId);
 
               // Registrar movimentação
+              const observacaoBase = `Importação NFe ${nfeData.numero}/${nfeData.serie} - ${resultado.fornecedorNome || nfeData.emitente?.nome || ''}`;
+              const observacao = item.unidadesPorCaixa > 0
+                ? `${observacaoBase} (${item.quantidade} cx x ${item.unidadesPorCaixa} un = ${qtdUnidades} un)`
+                : observacaoBase;
               await supabase.from('estoque_movimentos').insert({
                 empresa_id: empresaId,
                 produto_id: item.produtoId,
                 produto_nome: item.descricao,
                 tipo: 'entrada',
-                quantidade: qtd,
-                quantidade_informada: qtd,
-                tipo_entrada: 'unidade',
+                quantidade: qtdUnidades,
+                quantidade_informada: qtdUnidades,
+                tipo_entrada: item.unidadesPorCaixa > 0 ? 'caixa' : 'unidade',
                 estoque_anterior: estoqueAnterior,
                 estoque_novo: estoqueNovo,
                 preco_unitario: item.valorUnitario || 0,
                 fornecedor: resultado.fornecedorNome || nfeData.emitente?.nome || null,
                 documento_ref: `NFe ${nfeData.numero}/${nfeData.serie}`,
-                observacao: `Importação NFe ${nfeData.numero}/${nfeData.serie} - ${resultado.fornecedorNome || nfeData.emitente?.nome || ''}`,
+                observacao,
                 criado_por: userId || null,
                 criado_por_nome: userName || null,
                 criado_em: new Date().toISOString(),
               });
 
               resultado.estoqueAtualizado++;
-              acoes.push(`estoque +${qtd} ${item.unidade || 'un'}`);
+              acoes.push(`estoque +${qtdUnidades} un${item.unidadesPorCaixa > 0 ? ` (${item.quantidade} cx)` : ''}`);
             }
 
             resultado.produtosAtualizados++;

@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
       // Search by client name or sale number
       if (search) {
         query = query.or(
-          `cliente_nome.ilike.%${search}%,id.ilike.%${search}%,forma_pagamento.ilike.%${search}%`
+          `nome_cliente.ilike.%${search}%,id.ilike.%${search}%,forma_pagamento.ilike.%${search}%`
         );
       }
 
@@ -145,7 +145,7 @@ export async function POST(request: NextRequest) {
         id: venda.id,
         numero: venda.numero || venda.id?.substring(0, 8).toUpperCase(),
         data: venda.criado_em,
-        cliente: venda.cliente_nome || 'Cliente não identificado',
+        cliente: venda.nome_cliente || 'Cliente não identificado',
         total: venda.total || 0,
         forma_pagamento: venda.forma_pagamento || '-',
         status: venda.nfe_emitida ? 'nfe_emitida' : 'pendente',
