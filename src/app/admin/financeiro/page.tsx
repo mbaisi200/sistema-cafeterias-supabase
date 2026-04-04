@@ -34,7 +34,7 @@ import {
 } from '@/components/ui/table';
 import { useVendas, useContas } from '@/hooks/useFirestore';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   DollarSign,
   TrendingUp,
@@ -50,8 +50,14 @@ import {
   CreditCard,
   Banknote,
   Smartphone,
+  ArrowUpDown,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+type SortField = 'descricao' | 'categoria' | 'vencimento' | 'valor' | 'status';
+type SortDir = 'asc' | 'desc';
+
+type ContaFilter = 'todas' | 'pagas' | 'vencidas' | 'pendentes';
 
 export default function FinanceiroPage() {
   const { user } = useAuth();
@@ -75,6 +81,14 @@ export default function FinanceiroPage() {
   const [saving, setSaving] = useState(false);
   const [tipoConta, setTipoConta] = useState<'pagar' | 'receber'>('pagar');
   const { toast } = useToast();
+
+  // Filters
+  const [filterPagar, setFilterPagar] = useState<ContaFilter>('todas');
+  const [filterReceber, setFilterReceber] = useState<ContaFilter>('todas');
+
+  // Sorting
+  const [sortPagar, setSortPagar] = useState<{ field: SortField; dir: SortDir }>({ field: 'vencimento', dir: 'asc' });
+  const [sortReceber, setSortReceber] = useState<{ field: SortField; dir: SortDir }>({ field: 'vencimento', dir: 'asc' });
 
   const loading = loadingVendas || loadingContas;
 
@@ -101,6 +115,82 @@ export default function FinanceiroPage() {
     c.vencimento && 
     new Date(c.vencimento) < hoje
   );
+
+  // Filter and sort contas
+  const applyFilterAndSort = (contasList: any[], filter: ContaFilter, sort: { field: SortField; dir: SortDir }) => {
+    let filtered = [...contasList];
+
+    // Apply filter
+    switch (filter) {
+      case 'pagas':
+        filtered = filtered.filter(c => c.status === 'pago');
+        break;
+      case 'vencidas':
+        filtered = filtered.filter(c => c.status === 'pendente' && c.vencimento && new Date(c.vencimento) < hoje);
+        break;
+      case 'pendentes':
+        filtered = filtered.filter(c => c.status === 'pendente' && (!c.vencimento || new Date(c.vencimento) >= hoje));
+        break;
+      // 'todas' - no filter
+    }
+
+    // Apply sort
+    filtered.sort((a, b) => {
+      let valA: any, valB: any;
+      switch (sort.field) {
+        case 'descricao':
+          valA = (a.descricao || '').toLowerCase();
+          valB = (b.descricao || '').toLowerCase();
+          break;
+        case 'categoria':
+          valA = (a.categoria || '').toLowerCase();
+          valB = (b.categoria || '').toLowerCase();
+          break;
+        case 'vencimento':
+          valA = a.vencimento ? new Date(a.vencimento).getTime() : 0;
+          valB = b.vencimento ? new Date(b.vencimento).getTime() : 0;
+          break;
+        case 'valor':
+          valA = a.valor || 0;
+          valB = b.valor || 0;
+          break;
+        case 'status':
+          valA = a.status || '';
+          valB = b.status || '';
+          break;
+        default:
+          valA = 0;
+          valB = 0;
+      }
+      if (valA < valB) return sort.dir === 'asc' ? -1 : 1;
+      if (valA > valB) return sort.dir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  };
+
+  const contasPagarFiltered = useMemo(() => 
+    applyFilterAndSort(contasPagar, filterPagar, sortPagar),
+    [contasPagar, filterPagar, sortPagar]
+  );
+
+  const contasReceberFiltered = useMemo(() => 
+    applyFilterAndSort(contasReceber, filterReceber, sortReceber),
+    [contasReceber, filterReceber, sortReceber]
+  );
+
+  const handleSort = (
+    field: SortField,
+    currentSort: { field: SortField; dir: SortDir },
+    setSort: (s: { field: SortField; dir: SortDir }) => void
+  ) => {
+    if (currentSort.field === field) {
+      setSort({ field, dir: currentSort.dir === 'asc' ? 'desc' : 'asc' });
+    } else {
+      setSort({ field, dir: 'asc' });
+    }
+  };
 
   const handleSalvarConta = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -153,8 +243,10 @@ export default function FinanceiroPage() {
       });
 
       toast({
-        title: 'Pagamento registrado!',
-        description: 'O pagamento foi registrado com sucesso.',
+        title: contaSelecionada?.tipo === 'pagar' ? 'Pagamento registrado!' : 'Recebimento registrado!',
+        description: contaSelecionada?.tipo === 'pagar' 
+          ? 'O pagamento foi registrado com sucesso.' 
+          : 'O recebimento foi registrado com sucesso.',
       });
 
       setDialogPagamentoOpen(false);
@@ -164,7 +256,9 @@ export default function FinanceiroPage() {
       toast({
         variant: 'destructive',
         title: 'Erro',
-        description: 'Não foi possível registrar o pagamento.',
+        description: contaSelecionada?.tipo === 'pagar'
+          ? 'Não foi possível registrar o pagamento.'
+          : 'Não foi possível registrar o recebimento.',
       });
     } finally {
       setSaving(false);
@@ -190,6 +284,74 @@ export default function FinanceiroPage() {
     
     return <Badge className="bg-blue-500">Pendente</Badge>;
   };
+
+  const formatCurrency = (v: number) => v?.toLocaleString('pt-BR', { minimumFractionDigits: 2, style: 'currency', currency: 'BRL' });
+
+  // Render sortable header
+  const SortableHeader = ({ 
+    field, 
+    label, 
+    currentSort, 
+    onSort,
+    className 
+  }: { 
+    field: SortField; 
+    label: string; 
+    currentSort: { field: SortField; dir: SortDir };
+    onSort: (field: SortField) => void;
+    className?: string;
+  }) => (
+    <TableHead 
+      className={`cursor-pointer select-none hover:bg-muted/50 transition-colors ${className || ''}`}
+      onClick={() => onSort(field)}
+    >
+      <div className="flex items-center gap-1">
+        {label}
+        <ArrowUpDown className={`h-3 w-3 ${currentSort.field === field ? 'text-foreground' : 'text-muted-foreground/50'}`} />
+        {currentSort.field === field && (
+          <span className="text-[10px] text-muted-foreground">
+            {currentSort.dir === 'asc' ? '↑' : '↓'}
+          </span>
+        )}
+      </div>
+    </TableHead>
+  );
+
+  // Render filter tabs
+  const FilterTabs = ({ 
+    active, 
+    onChange, 
+    contasVencidasCount 
+  }: { 
+    active: ContaFilter; 
+    onChange: (f: ContaFilter) => void;
+    contasVencidasCount: number;
+  }) => (
+    <div className="flex items-center gap-2 mb-4">
+      {([
+        { value: 'todas' as ContaFilter, label: 'Todas' },
+        { value: 'pendentes' as ContaFilter, label: 'Pendentes' },
+        { value: 'vencidas' as ContaFilter, label: `Vencidas${contasVencidasCount > 0 ? ` (${contasVencidasCount})` : ''}`, danger: true },
+        { value: 'pagas' as ContaFilter, label: 'Pagas' },
+      ]).map(opt => (
+        <Button
+          key={opt.value}
+          size="sm"
+          variant={active === opt.value ? 'default' : 'outline'}
+          className={`
+            h-8 text-xs
+            ${active === opt.value ? '' : 'hover:bg-muted'}
+            ${active === opt.value && (opt as any).danger ? 'bg-red-500 hover:bg-red-600' : ''}
+            ${active === opt.value && !(opt as any).danger && opt.value === 'pagas' ? 'bg-green-500 hover:bg-green-600' : ''}
+            ${active === opt.value && opt.value === 'pendentes' ? 'bg-blue-500 hover:bg-blue-600' : ''}
+          `}
+          onClick={() => onChange(opt.value)}
+        >
+          {opt.label}
+        </Button>
+      ))}
+    </div>
+  );
 
   if (loading) {
     return (
@@ -359,7 +521,7 @@ export default function FinanceiroPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Vendas Hoje</p>
                     <p className="text-2xl font-bold text-green-600">
-                      R$ {totalVendasHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {formatCurrency(totalVendasHoje)}
                     </p>
                   </div>
                 </div>
@@ -375,7 +537,7 @@ export default function FinanceiroPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">A Pagar</p>
                     <p className="text-2xl font-bold text-red-600">
-                      R$ {totalPagarPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {formatCurrency(totalPagarPendente)}
                     </p>
                   </div>
                 </div>
@@ -391,7 +553,7 @@ export default function FinanceiroPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">A Receber</p>
                     <p className="text-2xl font-bold text-blue-600">
-                      R$ {totalReceberPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {formatCurrency(totalReceberPendente)}
                     </p>
                   </div>
                 </div>
@@ -407,7 +569,7 @@ export default function FinanceiroPage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Saldo Projetado</p>
                     <p className={`text-2xl font-bold ${saldoProjetado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      R$ {saldoProjetado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                      {formatCurrency(saldoProjetado)}
                     </p>
                   </div>
                 </div>
@@ -441,13 +603,13 @@ export default function FinanceiroPage() {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Pendente</span>
                         <span className="font-semibold text-red-600">
-                          R$ {totalPagarPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {formatCurrency(totalPagarPendente)}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Pago</span>
                         <span className="font-semibold text-green-600">
-                          R$ {totalPago.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {formatCurrency(totalPago)}
                         </span>
                       </div>
                     </div>
@@ -463,13 +625,13 @@ export default function FinanceiroPage() {
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Pendente</span>
                         <span className="font-semibold text-blue-600">
-                          R$ {totalReceberPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {formatCurrency(totalReceberPendente)}
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Recebido</span>
                         <span className="font-semibold text-green-600">
-                          R$ {totalRecebido.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          {formatCurrency(totalRecebido)}
                         </span>
                       </div>
                     </div>
@@ -504,7 +666,7 @@ export default function FinanceiroPage() {
                             </p>
                           </div>
                           <p className="font-bold text-green-600">
-                            R$ {(venda.total || 0).toFixed(2)}
+                            {formatCurrency(venda.total || 0)}
                           </p>
                         </div>
                       ))}
@@ -522,27 +684,59 @@ export default function FinanceiroPage() {
                   <CardDescription>Gerencie suas despesas e pagamentos</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {contasPagar.length === 0 ? (
+                  <FilterTabs 
+                    active={filterPagar} 
+                    onChange={setFilterPagar}
+                    contasVencidasCount={contasPagar.filter(c => c.status === 'pendente' && c.vencimento && new Date(c.vencimento) < hoje).length}
+                  />
+                  {contasPagarFiltered.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <ArrowUpCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>Nenhuma conta a pagar</p>
-                      <p className="text-sm">Clique em "Nova Conta" para adicionar</p>
+                      <p>Nenhuma conta encontrada</p>
+                      <p className="text-sm">Clique em &quot;Nova Conta&quot; para adicionar</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead>Categoria</TableHead>
-                            <TableHead>Vencimento</TableHead>
-                            <TableHead>Valor</TableHead>
-                            <TableHead>Status</TableHead>
+                            <SortableHeader 
+                              field="descricao" 
+                              label="Descrição" 
+                              currentSort={sortPagar}
+                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
+                            />
+                            <SortableHeader 
+                              field="categoria" 
+                              label="Categoria" 
+                              currentSort={sortPagar}
+                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
+                            />
+                            <SortableHeader 
+                              field="vencimento" 
+                              label="Vencimento" 
+                              currentSort={sortPagar}
+                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
+                            />
+                            <SortableHeader 
+                              field="valor" 
+                              label="Valor" 
+                              currentSort={sortPagar}
+                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
+                              className="text-right"
+                            />
+                            <SortableHeader 
+                              field="status" 
+                              label="Status" 
+                              currentSort={sortPagar}
+                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
+                            />
+                            <TableHead className="text-right">Data Pagamento</TableHead>
                             <TableHead className="text-right">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {contasPagar.map((conta) => (
+                          {contasPagarFiltered.map((conta) => (
                             <TableRow key={conta.id}>
                               <TableCell>
                                 <div>
@@ -556,10 +750,16 @@ export default function FinanceiroPage() {
                               <TableCell>
                                 {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
                               </TableCell>
-                              <TableCell className="font-semibold">
-                                R$ {conta.valor?.toFixed(2)}
+                              <TableCell className="font-semibold text-right">
+                                {formatCurrency(conta.valor)}
                               </TableCell>
                               <TableCell>{getStatusBadge(conta)}</TableCell>
+                              <TableCell className="text-right text-sm text-muted-foreground">
+                                {conta.dataPagamento 
+                                  ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR')
+                                  : '-'
+                                }
+                              </TableCell>
                               <TableCell className="text-right">
                                 {conta.status === 'pendente' && (
                                   <Button
@@ -593,27 +793,59 @@ export default function FinanceiroPage() {
                   <CardDescription>Gerencie seus recebíveis</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {contasReceber.length === 0 ? (
+                  <FilterTabs 
+                    active={filterReceber} 
+                    onChange={setFilterReceber}
+                    contasVencidasCount={contasReceber.filter(c => c.status === 'pendente' && c.vencimento && new Date(c.vencimento) < hoje).length}
+                  />
+                  {contasReceberFiltered.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <ArrowDownCircle className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                      <p>Nenhuma conta a receber</p>
-                      <p className="text-sm">Clique em "Nova Conta" para adicionar</p>
+                      <p>Nenhuma conta encontrada</p>
+                      <p className="text-sm">Clique em &quot;Nova Conta&quot; para adicionar</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead>Categoria</TableHead>
-                            <TableHead>Vencimento</TableHead>
-                            <TableHead>Valor</TableHead>
-                            <TableHead>Status</TableHead>
+                            <SortableHeader 
+                              field="descricao" 
+                              label="Descrição" 
+                              currentSort={sortReceber}
+                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
+                            />
+                            <SortableHeader 
+                              field="categoria" 
+                              label="Categoria" 
+                              currentSort={sortReceber}
+                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
+                            />
+                            <SortableHeader 
+                              field="vencimento" 
+                              label="Vencimento" 
+                              currentSort={sortReceber}
+                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
+                            />
+                            <SortableHeader 
+                              field="valor" 
+                              label="Valor" 
+                              currentSort={sortReceber}
+                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
+                              className="text-right"
+                            />
+                            <SortableHeader 
+                              field="status" 
+                              label="Status" 
+                              currentSort={sortReceber}
+                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
+                            />
+                            <TableHead className="text-right">Data Recebimento</TableHead>
                             <TableHead className="text-right">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {contasReceber.map((conta) => (
+                          {contasReceberFiltered.map((conta) => (
                             <TableRow key={conta.id}>
                               <TableCell>
                                 <div>
@@ -627,10 +859,16 @@ export default function FinanceiroPage() {
                               <TableCell>
                                 {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
                               </TableCell>
-                              <TableCell className="font-semibold">
-                                R$ {conta.valor?.toFixed(2)}
+                              <TableCell className="font-semibold text-right">
+                                {formatCurrency(conta.valor)}
                               </TableCell>
                               <TableCell>{getStatusBadge(conta)}</TableCell>
+                              <TableCell className="text-right text-sm text-muted-foreground">
+                                {conta.dataPagamento 
+                                  ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR')
+                                  : '-'
+                                }
+                              </TableCell>
                               <TableCell className="text-right">
                                 {conta.status === 'pendente' && (
                                   <Button
@@ -667,7 +905,7 @@ export default function FinanceiroPage() {
               {contaSelecionada?.tipo === 'pagar' ? 'Registrar Pagamento' : 'Registrar Recebimento'}
             </DialogTitle>
             <DialogDescription>
-              {contaSelecionada?.descricao} - R$ {contaSelecionada?.valor?.toFixed(2)}
+              {contaSelecionada?.descricao} - {formatCurrency(contaSelecionada?.valor || 0)}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleRegistrarPagamento}>
