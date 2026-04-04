@@ -414,48 +414,48 @@ export default function ProdutosPage() {
     <ProtectedRoute allowedRoles={['admin']}>
       <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Produtos' }]}>
         <Tabs defaultValue="produtos" className="space-y-6">
-          <div className="flex items-center justify-between">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div>
               <h1 className="text-3xl font-bold">Produtos & Categorias</h1>
               <p className="text-muted-foreground">Gerencie o cardápio do seu estabelecimento</p>
             </div>
-            <TabsList>
-              <TabsTrigger value="produtos">
-                <Package className="h-4 w-4 mr-2" />
-                Produtos ({produtos.length})
-              </TabsTrigger>
-              <TabsTrigger value="categorias">
-                <FolderOpen className="h-4 w-4 mr-2" />
-                Categorias ({categorias.length})
-              </TabsTrigger>
-              <TabsTrigger value="ifood">
-                <ShoppingCart className="h-4 w-4 mr-2" />
-                iFood ({produtosIfood.length})
-              </TabsTrigger>
-              <TabsTrigger value="combos">
-                <Layers className="h-4 w-4 mr-2" />
-                Combos ({produtos.filter(p => p.isCombo).length})
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={handleExportPDF}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar PDF
+              </Button>
+              <Button onClick={handleNovoProduto} className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="mr-2 h-4 w-4" />
+                Novo Produto
+              </Button>
+            </div>
           </div>
+          <TabsList>
+            <TabsTrigger value="produtos">
+              <Package className="h-4 w-4 mr-2" />
+              Produtos ({produtos.length})
+            </TabsTrigger>
+            <TabsTrigger value="categorias">
+              <FolderOpen className="h-4 w-4 mr-2" />
+              Categorias ({categorias.length})
+            </TabsTrigger>
+            <TabsTrigger value="ifood">
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              iFood ({produtosIfood.length})
+            </TabsTrigger>
+            <TabsTrigger value="combos">
+              <Layers className="h-4 w-4 mr-2" />
+              Combos ({produtos.filter(p => p.isCombo).length})
+            </TabsTrigger>
+          </TabsList>
 
           {/* Tab Produtos */}
           <TabsContent value="produtos" className="space-y-6">
-            {/* Botão Novo Produto */}
             <Dialog open={dialogOpen} onOpenChange={(open) => {
               setDialogOpen(open);
               if (!open) setEditandoProduto(null);
             }}>
-              <div className="flex justify-end gap-2">
-                <Button variant="outline" onClick={handleExportPDF}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Exportar PDF
-                </Button>
-                <Button onClick={handleNovoProduto} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Novo Produto
-                </Button>
-              </div>
               <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>{editandoProduto ? 'Editar Produto' : 'Cadastrar Produto'}</DialogTitle>

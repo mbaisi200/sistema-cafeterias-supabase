@@ -336,46 +336,24 @@ export default function FuncionariosPage() {
                 Gerencie a equipe do seu estabelecimento
               </p>
             </div>
-            
-            {/* Código da Empresa */}
-            <Card className="bg-blue-50 border-blue-200">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-3">
-                  <div>
-                    <p className="text-xs text-blue-600 font-medium">Código da Empresa</p>
-                    <p className="text-xl font-bold text-blue-800 tracking-wider">{codigoEmpresa}</p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={copiarCodigoEmpresa}
-                    className="border-blue-300 hover:bg-blue-100"
-                  >
-                    {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
-                  </Button>
-                </div>
-                <p className="text-xs text-blue-500 mt-2">
-                  Compartilhe este código com seus funcionários para login
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Botão Novo Funcionário */}
-          <div className="flex gap-2">
-          <Dialog open={dialogOpen} onOpenChange={(open) => {
-            setDialogOpen(open);
-            if (!open) {
-              setEditandoFuncionario(null);
-              setTelefoneValue('');
-            }
-          }}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                Novo Funcionário
+            <div className="flex items-center gap-2">
+              <Button variant="outline" onClick={handleExportPDF} disabled={filteredFuncionarios.length === 0}>
+                <Download className="mr-2 h-4 w-4" />
+                Exportar PDF
               </Button>
-            </DialogTrigger>
+              <Dialog open={dialogOpen} onOpenChange={(open) => {
+                setDialogOpen(open);
+                if (!open) {
+                  setEditandoFuncionario(null);
+                  setTelefoneValue('');
+                }
+              }}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Novo Funcionário
+                  </Button>
+                </DialogTrigger>
             <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>
@@ -592,11 +570,31 @@ export default function FuncionariosPage() {
               </form>
             </DialogContent>
           </Dialog>
-          <Button variant="outline" onClick={handleExportPDF} disabled={filteredFuncionarios.length === 0}>
-            <Download className="mr-2 h-4 w-4" />
-            Exportar PDF
-          </Button>
+            </div>
           </div>
+
+          {/* Código da Empresa */}
+          <Card className="bg-blue-50 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div>
+                  <p className="text-xs text-blue-600 font-medium">Código da Empresa</p>
+                  <p className="text-xl font-bold text-blue-800 tracking-wider">{codigoEmpresa}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={copiarCodigoEmpresa}
+                  className="border-blue-300 hover:bg-blue-100"
+                >
+                  {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+                </Button>
+              </div>
+              <p className="text-xs text-blue-500 mt-2">
+                Compartilhe este código com seus funcionários para login
+              </p>
+            </CardContent>
+          </Card>
 
           {/* Search and Filters */}
           <Card>

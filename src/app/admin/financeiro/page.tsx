@@ -424,7 +424,40 @@ export default function FinanceiroPage() {
                 }}
               >
                 <Download className="mr-2 h-4 w-4" />
-                Exportar PDF
+                PDF Pagar
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  exportToPDF({
+                    title: 'Contas a Receber',
+                    subtitle: `Total pendente: ${formatCurrencyPDF(totalReceberPendente)}`,
+                    columns: [
+                      { header: 'Descrição', accessor: (c) => c.descricao || '-' },
+                      { header: 'Categoria', accessor: (c) => c.categoria || '-' },
+                      { header: 'Cliente', accessor: (c) => c.fornecedor || '-' },
+                      { header: 'Vencimento', accessor: (c) => formatDatePDF(c.vencimento) },
+                      { header: 'Valor', accessor: (c) => formatCurrencyPDF(c.valor) },
+                      { header: 'Status', accessor: (c) => c.status === 'pago' ? 'Recebido' : (c.vencimento && new Date(c.vencimento) < hoje ? 'Vencida' : 'Pendente') },
+                      { header: 'Data Recebimento', accessor: (c) => formatDatePDF(c.dataPagamento) },
+                    ],
+                    data: contasReceberFiltered,
+                    filename: `contas-a-receber-${new Date().toISOString().split('T')[0]}`,
+                    summary: [
+                      { label: 'Total Pendente', value: formatCurrencyPDF(totalReceberPendente) },
+                      { label: 'Total Recebido', value: formatCurrencyPDF(totalRecebido) },
+                    ],
+                    totals: {
+                      label: 'TOTAL',
+                      columnTotals: {
+                        4: formatCurrencyPDF(contasReceberFiltered.reduce((acc: number, c: any) => acc + (c.valor || 0), 0)),
+                      },
+                    },
+                  });
+                }}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                PDF Receber
               </Button>
               <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogTrigger asChild>
@@ -840,46 +873,8 @@ export default function FinanceiroPage() {
             <TabsContent value="receber">
               <Card>
                 <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Contas a Receber</CardTitle>
-                      <CardDescription>Gerencie seus recebíveis</CardDescription>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        exportToPDF({
-                          title: 'Contas a Receber',
-                          subtitle: `Total pendente: ${formatCurrencyPDF(totalReceberPendente)}`,
-                          columns: [
-                            { header: 'Descrição', accessor: (c) => c.descricao || '-' },
-                            { header: 'Categoria', accessor: (c) => c.categoria || '-' },
-                            { header: 'Cliente', accessor: (c) => c.fornecedor || '-' },
-                            { header: 'Vencimento', accessor: (c) => formatDatePDF(c.vencimento) },
-                            { header: 'Valor', accessor: (c) => formatCurrencyPDF(c.valor) },
-                            { header: 'Status', accessor: (c) => c.status === 'pago' ? 'Recebido' : (c.vencimento && new Date(c.vencimento) < hoje ? 'Vencida' : 'Pendente') },
-                            { header: 'Data Recebimento', accessor: (c) => formatDatePDF(c.dataPagamento) },
-                          ],
-                          data: contasReceberFiltered,
-                          filename: `contas-a-receber-${new Date().toISOString().split('T')[0]}`,
-                          summary: [
-                            { label: 'Total Pendente', value: formatCurrencyPDF(totalReceberPendente) },
-                            { label: 'Total Recebido', value: formatCurrencyPDF(totalRecebido) },
-                          ],
-                          totals: {
-                            label: 'TOTAL',
-                            columnTotals: {
-                              4: formatCurrencyPDF(contasReceberFiltered.reduce((acc: number, c: any) => acc + (c.valor || 0), 0)),
-                            },
-                          },
-                        });
-                      }}
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Exportar PDF
-                    </Button>
-                  </div>
+                  <CardTitle>Contas a Receber</CardTitle>
+                  <CardDescription>Gerencie seus recebíveis</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <FilterTabs 
