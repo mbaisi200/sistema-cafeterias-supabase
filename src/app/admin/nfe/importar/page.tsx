@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -83,7 +83,8 @@ interface ProdutoImportacao {
   categoriaId?: string;
   selecionado: boolean;
   unidadesPorCaixa: number;  // conversion factor (units per box)
-  precoVenda: number;  // per-item selling price
+  markupPercentual: number; // per-product markup percentage
+  precoVenda: number;  // per-item selling price (editable)
 }
 
 // =====================================================
@@ -112,7 +113,7 @@ export default function NFeImportarPage() {
   const [atualizarEstoque, setAtualizarEstoque] = useState(true);
   const [atualizarDadosFiscais, setAtualizarDadosFiscais] = useState(true);
   const [gerarContaPagar, setGerarContaPagar] = useState(true);
-  const [markupPercentual, setMarkupPercentual] = useState('30');
+  const [markupDefault, setMarkupDefault] = useState('30');
 
   // Data de vencimento padrão: 30 dias a partir de hoje
   const defaultVencimento = useMemo(() => {
@@ -164,7 +165,7 @@ export default function NFeImportarPage() {
         }
         if (unidadesPorCaixa < 1) unidadesPorCaixa = 0;
 
-        const markup = parseFloat(markupPercentual) || 30;
+        const markup = parseFloat(markupDefault) || 30;
         return {
           nfeProduto: p,
           status: existente ? 'cadastrado' : 'novo',
@@ -172,6 +173,7 @@ export default function NFeImportarPage() {
           produtoNome: existente?.nome,
           selecionado: true,
           unidadesPorCaixa,
+          markupPercentual: markup,
           precoVenda: p.valorUnitario * (1 + markup / 100),
         };
       });
@@ -271,16 +273,32 @@ export default function NFeImportarPage() {
     );
   };
 
-  // Recalculate precoVenda when markup changes
-  useEffect(() => {
-    const markup = parseFloat(markupPercentual) || 30;
+  const updateMarkupProduto = (index: number, value: string) => {
+    const markup = parseFloat(value) || 0;
+    setProdutosImportacao((prev) =>
+      prev.map((p, i) =>
+        i === index
+          ? {
+              ...p,
+              markupPercentual: markup,
+              precoVenda: p.nfeProduto.valorUnitario * (1 + markup / 100),
+            }
+          : p
+      )
+    );
+  };
+
+  // Apply default markup to all products
+  const applyMarkupAll = () => {
+    const markup = parseFloat(markupDefault) || 30;
     setProdutosImportacao((prev) =>
       prev.map((p) => ({
         ...p,
+        markupPercentual: markup,
         precoVenda: p.nfeProduto.valorUnitario * (1 + markup / 100),
       }))
     );
-  }, [markupPercentual]);
+  };
 
   // =====================================================
   // Confirmar Importação
@@ -330,7 +348,7 @@ export default function NFeImportarPage() {
             atualizarDadosFiscais,
             gerarContaPagar,
             vencimentoConta,
-            markupPercentual: parseFloat(markupPercentual) || 30,
+            markupPercentual: parseFloat(markupDefault) || 30,
           },
           produtosImportar: produtosSelecionados.map((p) => ({
             codigo: p.nfeProduto.codigo,
@@ -785,6 +803,7 @@ export default function NFeImportarPage() {
                             <TableHead className="text-center">Unid/Cx</TableHead>
                             <TableHead className="text-right">Custo</TableHead>
                             <TableHead className="text-right">Total</TableHead>
+                            <TableHead className="text-center">Markup %</TableHead>
                             <TableHead className="text-right">Preço Venda</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-center">Categoria</TableHead>
@@ -873,6 +892,18 @@ export default function NFeImportarPage() {
                               <TableCell className="text-right font-mono text-sm font-semibold">
                                 R$ {item.nfeProduto.valorTotal.toFixed(2)}
                               </TableCell>
+                              <TableCell className="text-center">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={item.markupPercentual || ''}
+                                  onChange={(e) => updateMarkupProduto(index, e.target.value)}
+                                  className="w-18 h-7 text-center text-xs font-semibold text-blue-600"
+                                  placeholder="%"
+                                  title="Margem de lucro (%). Altere para recalcular o preço de venda automaticamente."
+                                />
+                              </TableCell>
                               <TableCell className="text-right">
                                 <Input
                                   type="number"
@@ -882,6 +913,7 @@ export default function NFeImportarPage() {
                                   onChange={(e) => updatePrecoVenda(index, e.target.value)}
                                   className="w-24 h-7 text-right text-xs font-semibold text-green-600"
                                   placeholder="0.00"
+                                  title="Preço de venda (editável para arredondamento)"
                                 />
                               </TableCell>
                               <TableCell>
@@ -1059,29 +1091,36 @@ export default function NFeImportarPage() {
                         </div>
                       </div>
 
-                      {/* Markup */}
+                      {/* Markup padrão */}
                       <div className="flex items-start gap-3 p-3 rounded-lg border">
                         <div className="flex-1">
                           <Label className="font-semibold flex items-center gap-1.5">
                             <Percent className="h-3.5 w-3.5" />
-                            Margem de Lucro (Markup)
+                            Markup Padrão
                           </Label>
                           <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                            Usado para calcular preço de venda = custo × (1 + markup%). Aplicado a TODOS os produtos (novos e já cadastrados).
+                            Defina uma margem padrão e aplique a todos os produtos, ou ajuste individualmente na tabela de produtos acima.
                           </p>
                           <div className="flex items-center gap-2">
                             <Input
                               type="number"
                               min="0"
                               max="999"
-                              value={markupPercentual}
-                              onChange={(e) => setMarkupPercentual(e.target.value)}
+                              value={markupDefault}
+                              onChange={(e) => setMarkupDefault(e.target.value)}
                               className="h-8 w-24 text-sm"
                             />
                             <span className="text-sm text-muted-foreground">%</span>
-                            <span className="text-xs text-muted-foreground ml-1">
-                              → Preço de venda = custo × {(1 + (parseFloat(markupPercentual) || 0) / 100).toFixed(2)}
-                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={applyMarkupAll}
+                              className="h-8 text-xs gap-1"
+                            >
+                              <RefreshCw className="h-3 w-3" />
+                              Aplicar a todos
+                            </Button>
                           </div>
                         </div>
                       </div>
@@ -1179,7 +1218,7 @@ export default function NFeImportarPage() {
               <div className="flex-1 overflow-y-auto">
                 <ProdutoFiscalDetail
                   item={produtosImportacao[dialogDetalhes]}
-                  markup={parseFloat(markupPercentual) || 30}
+                  markup={produtosImportacao[dialogDetalhes]?.markupPercentual || 30}
                 />
               </div>
             )}

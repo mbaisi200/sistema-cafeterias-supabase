@@ -213,15 +213,19 @@ export default function PedidosPage() {
   const loadCondicoes = async () => {
     try {
       const supabase = getSupabase();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('condicoes_pagamento')
         .select('id, nome, descricao, ativo')
         .eq('empresa_id', empresaId)
         .eq('ativo', true)
         .order('nome');
+      if (error) {
+        console.error('Erro loadCondicoes:', error);
+      }
       setCondicoesPagamento(data || []);
-    } catch {
-      // ignore
+    } catch (err) {
+      console.error('Erro loadCondicoes catch:', err);
+      setCondicoesPagamento([]);
     }
   };
 
@@ -229,15 +233,21 @@ export default function PedidosPage() {
     if (!novaCondicao.trim() || !empresaId) return;
     try {
       const supabase = getSupabase();
-      await supabase.from('condicoes_pagamento').insert({
+      const { data, error } = await supabase.from('condicoes_pagamento').insert({
         empresa_id: empresaId,
         nome: novaCondicao.trim(),
         ativo: true,
-      });
+      }).select('id, nome');
+      if (error) {
+        console.error('Erro insert condicao:', error);
+        toast({ variant: 'destructive', title: 'Erro ao adicionar condição', description: error.message });
+        return;
+      }
       setNovaCondicao('');
-      loadCondicoes();
-      toast({ title: 'Condição adicionada!' });
+      await loadCondicoes();
+      toast({ title: 'Condição adicionada com sucesso!' });
     } catch (err: any) {
+      console.error('Erro handleAddCondicao:', err);
       toast({ variant: 'destructive', title: 'Erro ao adicionar condição', description: err.message });
     }
   };
