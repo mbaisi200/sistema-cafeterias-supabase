@@ -31,8 +31,6 @@ CREATE POLICY "Admin pode ver nfe_importadas da empresa"
   TO authenticated
   USING (
     empresa_id = (SELECT empresa_id FROM public.usuarios WHERE id = auth.uid())
-    OR
-    EXISTS (SELECT 1 FROM public.usuarios WHERE id = auth.uid() AND cargo = 'master')
   );
 
 CREATE POLICY "Admin pode inserir nfe_importadas"
@@ -40,8 +38,6 @@ CREATE POLICY "Admin pode inserir nfe_importadas"
   TO authenticated
   WITH CHECK (
     empresa_id = (SELECT empresa_id FROM public.usuarios WHERE id = auth.uid())
-    OR
-    EXISTS (SELECT 1 FROM public.usuarios WHERE id = auth.uid() AND cargo = 'master')
   );
 
 -- Índice para busca rápida por chave de acesso

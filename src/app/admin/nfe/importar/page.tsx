@@ -342,6 +342,17 @@ export default function NFeImportarPage() {
   const confirmarImportacao = async () => {
     if (!nfeData || !empresaId) return;
 
+    // BLOQUEAR importação se NFe duplicada foi detectada
+    if (nfeDuplicada) {
+      toast({
+        variant: 'destructive',
+        title: '⚠️ NFe já importada!',
+        description: `A NFe ${nfeDuplicada.numero}/${nfeDuplicada.serie} já foi importada em ${nfeDuplicada.importadoEm}. Não é possível importar novamente.`,
+        duration: 8000,
+      });
+      return;
+    }
+
     const produtosSelecionados = produtosImportacao.filter(
       (p) => p.selecionado
     );
@@ -1258,7 +1269,7 @@ export default function NFeImportarPage() {
               </Button>
               <Button
                 onClick={confirmarImportacao}
-                disabled={importando || totalSelecionados === 0}
+                disabled={importando || totalSelecionados === 0 || !!nfeDuplicada}
                 className="gap-2 min-w-[200px]"
               >
                 {importando ? (
@@ -1266,7 +1277,12 @@ export default function NFeImportarPage() {
                 ) : (
                   <ArrowDownToLine className="h-4 w-4" />
                 )}
-                {importando ? 'Importando...' : 'Confirmar Importação'}
+                {nfeDuplicada
+                  ? 'NFe já importada - Não é possível confirmar'
+                  : importando
+                    ? 'Importando...'
+                    : 'Confirmar Importação'
+                }
               </Button>
             </DialogFooter>
           </DialogContent>
