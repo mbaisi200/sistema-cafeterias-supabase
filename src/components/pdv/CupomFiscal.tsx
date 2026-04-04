@@ -396,7 +396,7 @@ export function CupomFiscalModal({
           <Button
             onClick={handleConfirmar}
             disabled={processando}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold min-w-[140px]"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold min-w-[140px]"
           >
             {processando ? (
               <>

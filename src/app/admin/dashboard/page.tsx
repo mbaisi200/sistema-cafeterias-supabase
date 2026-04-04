@@ -131,7 +131,7 @@ export default function AdminDashboardPage() {
                 Bem-vindo, {user?.nome}! Resumo do seu estabelecimento.
               </p>
             </div>
-            <Button asChild className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Button asChild className="bg-blue-600 hover:bg-blue-700">
               <a href="/pdv">
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Abrir PDV
@@ -245,7 +245,7 @@ export default function AdminDashboardPage() {
                       Alguns produtos estão abaixo do estoque mínimo. Verifique o controle de estoque.
                     </p>
                   </div>
-                  <Button variant="outline" className="border-orange-300 text-orange-700 hover:bg-orange-100" asChild>
+                  <Button variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-50" asChild>
                     <a href="/admin/estoque">Ver Estoque</a>
                   </Button>
                 </div>

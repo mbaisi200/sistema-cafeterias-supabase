@@ -269,7 +269,7 @@ export function EmissaoNFCeDelivery({
               <Button
                 onClick={emitirNFCe}
                 disabled={emitindo}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 {emitindo ? (
                   <>

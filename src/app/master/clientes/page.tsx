@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -54,6 +55,7 @@ import {
   Clock,
   Mail,
   Trash2,
+  LayoutGrid,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { maskCNPJ, maskPhone, maskCEP, unmask } from '@/lib/masks';
@@ -78,6 +80,8 @@ interface Cliente {
   adminNome?: string;
   adminEmail?: string;
   adminId?: string;
+  segmentoId?: string;
+  segmentoNome?: string;
 }
 
 export default function ClientesPage() {
@@ -120,6 +124,16 @@ export default function ClientesPage() {
   const [editAdminNome, setEditAdminNome] = useState('');
   const [editAdminEmail, setEditAdminEmail] = useState('');
 
+  // Estados para segmentos e seções
+  const [segmentos, setSegmentos] = useState<any[]>([]);
+  const [secoesDisponiveis, setSecoesDisponiveis] = useState<any[]>([]);
+  const [secoesSelecionadas, setSecoesSelecionadas] = useState<Set<string>>(new Set());
+  const [dialogSecoes, setDialogSecoes] = useState(false);
+  const [empresaSecoesId, setEmpresaSecoesId] = useState<string | null>(null);
+  const [segmentoId, setSegmentoId] = useState<string>('');
+  const [nomeMarca, setNomeMarca] = useState<string>('');
+  const [loadingSecoes, setLoadingSecoes] = useState(false);
+
   // Carregar dados dos admins das empresas
   useEffect(() => {
     const carregarAdmins = async () => {
@@ -139,6 +153,16 @@ export default function ClientesPage() {
           console.error('❌ Erro ao buscar admins:', error);
           throw error;
         }
+
+        // Carregar segmentos para enriquecer os dados
+        const { data: segData } = await supabase
+          .from('segmentos')
+          .select('id, nome, nome_marca')
+          .eq('ativo', true);
+        const segmentosMap: Record<string, { nome: string; nome_marca: string }> = {};
+        segData?.forEach((seg: any) => {
+          segmentosMap[seg.id] = { nome: seg.nome, nome_marca: seg.nome_marca };
+        });
 
         console.log('📊 Admins encontrados:', usuarios?.length || 0);
         console.log('📊 Empresas para matching:', empresas.length);
@@ -163,6 +187,8 @@ export default function ClientesPage() {
           validade: empresa.validade ? new Date(empresa.validade) : null,
           dataInicio: empresa.dataInicio ? new Date(empresa.dataInicio) : null,
           valorMensal: empresa.valor_mensal || 0,
+          segmentoId: empresa.segmento_id || null,
+          segmentoNome: empresa.segmento_id ? segmentosMap[empresa.segmento_id]?.nome || null : null,
         }));
 
         console.log('📊 Empresas com admin:', empresasComAdmin.map(e => ({ nome: e.nome, adminNome: e.adminNome })));
@@ -176,6 +202,32 @@ export default function ClientesPage() {
 
     carregarAdmins();
   }, [empresas]);
+
+  // Carregar segmentos disponíveis
+  useEffect(() => {
+    const loadSegmentos = async () => {
+      const supabase = getSupabaseClient();
+      if (!supabase) return;
+      const { data } = await supabase.from('segmentos').select('*').eq('ativo', true).order('nome');
+      setSegmentos(data || []);
+    };
+    loadSegmentos();
+  }, []);
+
+  // Carregar seções disponíveis
+  useEffect(() => {
+    const loadSecoes = async () => {
+      const supabase = getSupabaseClient();
+      if (!supabase) return;
+      const { data } = await supabase
+        .from('secoes_menu')
+        .select('*')
+        .eq('ativo', true)
+        .order('grupo, ordem');
+      setSecoesDisponiveis(data || []);
+    };
+    loadSecoes();
+  }, []);
 
   const filteredClientes = clienteComAdmin.filter(cliente => {
     const matchSearch = cliente.nome.toLowerCase().includes(search.toLowerCase()) ||
@@ -267,6 +319,31 @@ export default function ClientesPage() {
         throw new Error(result.error || 'Erro ao criar administrador');
       }
 
+      // Salvar segmento e seções da empresa
+      if (empresaId) {
+        const supabase = getSupabaseClient();
+        if (supabase) {
+          await supabase
+            .from('empresas')
+            .update({
+              segmento_id: segmentoId || null,
+              nome_marca: nomeMarca || null,
+            })
+            .eq('id', empresaId);
+
+          // Criar empresa_secoes com todas as seções ativas
+          const secoesInsert = secoesDisponiveis.map((s: any) => ({
+            empresa_id: empresaId,
+            secao_id: s.id,
+            ativo: true,
+          }));
+
+          if (secoesInsert.length > 0) {
+            await supabase.from('empresa_secoes').insert(secoesInsert);
+          }
+        }
+      }
+
       toast({
         title: 'Cliente cadastrado com sucesso!',
         description: `Empresa e usuário admin criados. O admin pode logar imediatamente com o email ${adminEmail}`,
@@ -279,6 +356,8 @@ export default function ClientesPage() {
       setDataInicioValue('');
       setValidadeValue('');
       setValorMensalValue('');
+      setSegmentoId('');
+      setNomeMarca('');
       
     } catch (error: unknown) {
       console.error('Erro ao salvar cliente:', error);
@@ -584,6 +663,106 @@ export default function ClientesPage() {
     return new Date(date).toLocaleDateString('pt-BR');
   };
 
+  // Toggle seção selecionada
+  const toggleSecao = (secaoId: string) => {
+    setSecoesSelecionadas(prev => {
+      const next = new Set(prev);
+      if (next.has(secaoId)) {
+        next.delete(secaoId);
+      } else {
+        next.add(secaoId);
+      }
+      return next;
+    });
+  };
+
+  // Abrir dialog de seções
+  const handleAbrirSecoes = async (empresaId: string) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    setEmpresaSecoesId(empresaId);
+    setLoadingSecoes(true);
+    setDialogSecoes(true);
+
+    try {
+      // Carregar seções atuais da empresa
+      const { data: empresaSecoes } = await supabase
+        .from('empresa_secoes')
+        .select('secao_id, ativo')
+        .eq('empresa_id', empresaId);
+
+      if (empresaSecoes && empresaSecoes.length > 0) {
+        const ativos = new Set(
+          empresaSecoes.filter((s: any) => s.ativo).map((s: any) => s.secao_id)
+        );
+        setSecoesSelecionadas(ativos);
+      } else {
+        // Padrão: todas selecionadas
+        setSecoesSelecionadas(new Set(secoesDisponiveis.map((s: any) => s.id)));
+      }
+
+      // Carregar dados da empresa (segmento e nome_marca)
+      const { data: empresa } = await supabase
+        .from('empresas')
+        .select('segmento_id, nome_marca')
+        .eq('id', empresaId)
+        .single();
+
+      if (empresa) {
+        setSegmentoId(empresa.segmento_id || '');
+        setNomeMarca(empresa.nome_marca || '');
+      }
+    } catch (error) {
+      console.error('Erro ao carregar seções:', error);
+      toast({ variant: 'destructive', title: 'Erro ao carregar configurações de seções' });
+    } finally {
+      setLoadingSecoes(false);
+    }
+  };
+
+  // Salvar seções
+  const handleSalvarSecoes = async () => {
+    if (!empresaSecoesId) return;
+
+    setSaving(true);
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    try {
+      // Salvar seções
+      const secoesToSave = secoesDisponiveis.map((secao: any) => ({
+        empresa_id: empresaSecoesId,
+        secao_id: secao.id,
+        ativo: secoesSelecionadas.has(secao.id),
+      }));
+
+      await supabase.from('empresa_secoes').delete().eq('empresa_id', empresaSecoesId);
+
+      if (secoesToSave.length > 0) {
+        await supabase.from('empresa_secoes').insert(secoesToSave);
+      }
+
+      // Salvar segmento_id e nome_marca na empresa
+      await supabase
+        .from('empresas')
+        .update({
+          segmento_id: segmentoId || null,
+          nome_marca: nomeMarca || null,
+          atualizado_em: new Date().toISOString(),
+        })
+        .eq('id', empresaSecoesId);
+
+      toast({ title: 'Configurações salvas!', description: 'Seções e segmento atualizados com sucesso.' });
+      setDialogSecoes(false);
+    } catch (error: any) {
+      console.error('Erro ao salvar seções:', error);
+      toast({ variant: 'destructive', title: 'Erro ao salvar configurações' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['master']}>
@@ -662,6 +841,11 @@ export default function ClientesPage() {
                 setCepValue('');
                 setDataInicioValue('');
                 setValidadeValue('');
+                setSegmentoId('');
+                setNomeMarca('');
+              } else {
+                setSegmentoId('');
+                setNomeMarca('');
               }
             }}>
               <DialogTrigger asChild>
@@ -831,6 +1015,37 @@ export default function ClientesPage() {
                           />
                         </div>
                       </div>
+
+                      {/* Segmento e Nome da Marca */}
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Segmento</Label>
+                          <Select value={segmentoId} onValueChange={(val) => {
+                            setSegmentoId(val);
+                            const seg = segmentos.find((s: any) => s.id === val);
+                            if (seg) setNomeMarca(seg.nome_marca || '');
+                          }}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Selecione um segmento" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {segmentos.map((seg: any) => (
+                                <SelectItem key={seg.id} value={seg.id}>
+                                  {seg.nome}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Nome da Marca (no menu do admin)</Label>
+                          <Input
+                            placeholder="Ex: Gestão Café (deixe vazio para usar o padrão do segmento)"
+                            value={nomeMarca}
+                            onChange={(e) => setNomeMarca(e.target.value)}
+                          />
+                        </div>
+                      </div>
                     </div>
 
                     <Separator />
@@ -874,6 +1089,8 @@ export default function ClientesPage() {
                       setCepValue('');
                       setDataInicioValue('');
                       setValidadeValue('');
+                      setSegmentoId('');
+                      setNomeMarca('');
                     }}>
                       Cancelar
                     </Button>
@@ -957,7 +1174,14 @@ export default function ClientesPage() {
                                 {cliente.nome.charAt(0)}
                               </div>
                               <div>
-                                <p className="font-medium">{cliente.nome}</p>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium">{cliente.nome}</p>
+                                  {cliente.segmentoNome && (
+                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-700">
+                                      {cliente.segmentoNome}
+                                    </Badge>
+                                  )}
+                                </div>
                                 <p className="text-sm text-muted-foreground">{cliente.email}</p>
                               </div>
                             </div>
@@ -1011,6 +1235,10 @@ export default function ClientesPage() {
                                 <DropdownMenuItem onClick={() => openEditDialog(cliente)}>
                                   <Edit className="mr-2 h-4 w-4" />
                                   Editar
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleAbrirSecoes(cliente.id)}>
+                                  <LayoutGrid className="mr-2 h-4 w-4" />
+                                  Seções
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => openResetPasswordDialog(cliente)}>
                                   <KeyRound className="mr-2 h-4 w-4" />
@@ -1527,6 +1755,121 @@ export default function ClientesPage() {
               <Button onClick={handleSyncAdmin} disabled={syncingAdmin}>
                 {syncingAdmin ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Sincronizar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog Configurar Seções */}
+        <Dialog open={dialogSecoes} onOpenChange={setDialogSecoes}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <LayoutGrid className="h-5 w-5" />
+                Configurar Seções
+              </DialogTitle>
+              <DialogDescription>
+                Escolha quais seções do sistema serão liberadas para esta empresa.
+              </DialogDescription>
+            </DialogHeader>
+
+            {loadingSecoes ? (
+              <div className="flex justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin" />
+              </div>
+            ) : (
+              <div className="space-y-6 py-4">
+                {/* Segmento */}
+                <div className="space-y-2">
+                  <Label>Segmento</Label>
+                  <Select value={segmentoId || '__nenhum__'} onValueChange={(val) => {
+                    if (val === '__nenhum__') {
+                      setSegmentoId('');
+                      setNomeMarca('');
+                    } else {
+                      setSegmentoId(val);
+                      const seg = segmentos.find((s: any) => s.id === val);
+                      if (seg) setNomeMarca(seg.nome_marca || '');
+                    }
+                  }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um segmento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__nenhum__">Nenhum segmento</SelectItem>
+                      {segmentos.map((seg: any) => (
+                        <SelectItem key={seg.id} value={seg.id}>
+                          {seg.nome} — {seg.nome_marca}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Nome da Marca */}
+                <div className="space-y-2">
+                  <Label>Nome da Marca (no menu do admin)</Label>
+                  <Input
+                    placeholder="Ex: Gestão Café"
+                    value={nomeMarca}
+                    onChange={(e) => setNomeMarca(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Se deixar vazio, usará o nome do segmento. Se não houver segmento, usará o padrão.
+                  </p>
+                </div>
+
+                <Separator />
+
+                {/* Grid de Seções */}
+                {['principal', 'atalho_rapido'].map((grupo) => {
+                  const grupoSecoes = secoesDisponiveis.filter((s: any) => s.grupo === grupo);
+                  if (grupoSecoes.length === 0) return null;
+
+                  return (
+                    <div key={grupo}>
+                      <h4 className="text-sm font-semibold mb-3">
+                        {grupo === 'principal' ? '📋 Menu Principal' : '⚡ Atalho Rápido'}
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {grupoSecoes.map((secao: any) => (
+                          <div
+                            key={secao.id}
+                            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
+                              secoesSelecionadas.has(secao.id) ? 'border-blue-300 bg-blue-50' : 'border-muted'
+                            } ${secao.obrigatoria ? 'opacity-80' : 'cursor-pointer'}`}
+                            onClick={() => !secao.obrigatoria && toggleSecao(secao.id)}
+                          >
+                            <Checkbox
+                              checked={secoesSelecionadas.has(secao.id)}
+                              disabled={secao.obrigatoria}
+                              onCheckedChange={() => toggleSecao(secao.id)}
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-sm">{secao.nome}</span>
+                                {secao.obrigatoria && (
+                                  <Badge variant="secondary" className="text-[10px] px-1">Obrigatória</Badge>
+                                )}
+                              </div>
+                              {secao.descricao && (
+                                <p className="text-xs text-muted-foreground">{secao.descricao}</p>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogSecoes(false)}>Cancelar</Button>
+              <Button onClick={handleSalvarSecoes} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar
               </Button>
             </DialogFooter>
           </DialogContent>

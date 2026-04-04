@@ -1103,7 +1103,7 @@ export default function PDVPage() {
             {!caixaAberto ? (
               <Button
                 size="sm"
-                className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm inline-flex"
+                className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm inline-flex"
                 onClick={() => setDialogAberturaCaixa(true)}
               >
                 Abrir Caixa
@@ -1127,7 +1127,7 @@ export default function PDVPage() {
               <Button
                 variant="outline"
                 onClick={() => setShowCartMobile(true)}
-                className="gap-1 h-7 text-xs font-bold shadow-sm border-blue-200 text-blue-600 hover:bg-blue-50 relative"
+                className="gap-1 h-7 text-xs font-bold shadow-sm border-blue-300 text-blue-600 hover:bg-blue-50 relative"
               >
                 <ShoppingCart className="h-3.5 w-3.5" />
                 {itensPedido.length > 0 && (
@@ -1195,7 +1195,7 @@ export default function PDVPage() {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs font-bold transition-all whitespace-nowrap border border-orange-300 text-orange-600 hover:bg-orange-50 lg:hidden"
+              className="h-7 text-xs font-bold transition-all whitespace-nowrap border border-blue-300 text-blue-600 hover:bg-blue-50 lg:hidden"
               onClick={() => setShowSidePanelMobile(true)}
             >
               {tipoVenda === 'mesa' ? (
@@ -1250,7 +1250,7 @@ export default function PDVPage() {
                 <span className="text-blue-700 font-bold">COMANDAS</span>
                 <Button 
                   size="sm" 
-                  className="h-7 bg-green-600 hover:bg-green-700"
+                  className="h-7 bg-blue-600 hover:bg-blue-700"
                   onClick={() => setDialogComanda(true)}
                 >
                   <Plus className="h-4 w-4" />
@@ -1402,7 +1402,7 @@ export default function PDVPage() {
               {tipoVenda === 'comanda' && !comandaSelecionada && (
                 <Button 
                   size="sm" 
-                  className="w-full mt-3 bg-purple-600 hover:bg-purple-700"
+                  className="w-full mt-3 bg-blue-600 hover:bg-blue-700"
                   onClick={() => setDialogComanda(true)}
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
@@ -1415,7 +1415,7 @@ export default function PDVPage() {
                   variant="outline" 
                   size="sm" 
                   onClick={imprimirComanda}
-                  className="w-full mt-3 border border-blue-200 text-blue-600 hover:bg-blue-50 font-bold"
+                  className="w-full mt-3 border border-blue-300 text-blue-600 hover:bg-blue-50 font-bold"
                 >
                   <Printer className="h-4 w-4 mr-2" />
                   Imprimir Comanda
@@ -1459,7 +1459,7 @@ export default function PDVPage() {
                           </button>
                           <span className="w-7 text-center font-bold text-base text-gray-800">{item.quantidade}</span>
                           <button
-                            className="w-7 h-7 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
+                            className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
                             onClick={() => alterarQtd(item.id, 1, item.quantidade)}
                           >
                             <Plus className="h-3.5 w-3.5" />
@@ -1485,7 +1485,7 @@ export default function PDVPage() {
               </div>
               
               <Button
-                className="w-full h-9 text-sm font-bold bg-green-600 hover:bg-green-700 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-9 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={itensPedido.length === 0 || processando || (tipoVenda === 'comanda' && !comandaSelecionada)}
                 onClick={() => setDialogPagamento(true)}
               >
@@ -1561,7 +1561,7 @@ export default function PDVPage() {
               {tipoVenda === 'comanda' && !comandaSelecionada && (
                 <Button
                   size="sm"
-                  className="w-full mt-2 bg-purple-600 hover:bg-purple-700"
+                  className="w-full mt-2 bg-blue-600 hover:bg-blue-700"
                   onClick={() => { setShowCartMobile(false); setDialogComanda(true); }}
                 >
                   <UserPlus className="h-4 w-4 mr-2" />
@@ -1573,7 +1573,7 @@ export default function PDVPage() {
                   variant="outline"
                   size="sm"
                   onClick={imprimirComanda}
-                  className="w-full mt-2 border border-blue-200 text-blue-600 hover:bg-blue-50 font-bold"
+                  className="w-full mt-2 border border-blue-300 text-blue-600 hover:bg-blue-50 font-bold"
                 >
                   <Printer className="h-4 w-4 mr-2" />
                   Imprimir Comanda
@@ -1616,7 +1616,7 @@ export default function PDVPage() {
                           </button>
                           <span className="w-7 text-center font-bold text-base text-gray-800">{item.quantidade}</span>
                           <button
-                            className="w-7 h-7 rounded-lg bg-green-600 hover:bg-green-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
+                            className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
                             onClick={() => alterarQtd(item.id, 1, item.quantidade)}
                           >
                             <Plus className="h-3.5 w-3.5" />
@@ -1640,7 +1640,7 @@ export default function PDVPage() {
                 </span>
               </div>
               <Button
-                className="w-full h-9 text-sm font-bold bg-green-600 hover:bg-green-700 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-9 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={itensPedido.length === 0 || processando || (tipoVenda === 'comanda' && !comandaSelecionada)}
                 onClick={() => { setShowCartMobile(false); setDialogPagamento(true); }}
               >
@@ -1703,7 +1703,7 @@ export default function PDVPage() {
                     <SheetTitle className="text-blue-700 font-bold text-sm">COMANDAS</SheetTitle>
                     <Button
                       size="sm"
-                      className="h-7 bg-green-600 hover:bg-green-700"
+                      className="h-7 bg-blue-600 hover:bg-blue-700"
                       onClick={() => { setShowSidePanelMobile(false); setDialogComanda(true); }}
                     >
                       <Plus className="h-4 w-4" />
@@ -1807,7 +1807,7 @@ export default function PDVPage() {
             </Button>
             <Button 
               onClick={handleCriarComanda}
-              className="flex-1 bg-purple-600 hover:bg-purple-700"
+              className="flex-1 bg-blue-600 hover:bg-blue-700"
             >
               <ClipboardList className="h-4 w-4 mr-2" />
               Criar Comanda
@@ -1956,7 +1956,7 @@ export default function PDVPage() {
             </Button>
             <Button 
               onClick={iniciarDelivery} 
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold shadow-sm"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm"
             >
               <Truck className="h-4 w-4 mr-2" />
               Iniciar Delivery
@@ -2062,7 +2062,7 @@ export default function PDVPage() {
               <div className="grid grid-cols-4 gap-2">
                 <Button 
                   size="sm"
-                  className="h-14 text-xs font-bold bg-green-600 hover:bg-green-700 text-white" 
+                  className="h-14 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white" 
                   onClick={() => adicionarPagamento('dinheiro')} 
                 >
                   <div className="flex flex-col items-center">
@@ -2118,7 +2118,7 @@ export default function PDVPage() {
               Cancelar
             </Button>
             <Button 
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold"
               disabled={totalPago < total || processando}
               onClick={handleFinalizarComPagamentos}
             >
@@ -2191,7 +2191,7 @@ export default function PDVPage() {
             <Button variant="outline" onClick={() => setDialogAberturaCaixa(false)}>
               Cancelar
             </Button>
-            <Button onClick={handleAbrirCaixa} disabled={abrindoCaixa} className="bg-green-600 hover:bg-green-700">
+            <Button onClick={handleAbrirCaixa} disabled={abrindoCaixa} className="bg-blue-600 hover:bg-blue-700">
               {abrindoCaixa && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Abrir Caixa
             </Button>

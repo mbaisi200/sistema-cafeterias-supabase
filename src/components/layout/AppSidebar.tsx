@@ -1,9 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { getSupabaseClient } from '@/lib/supabase';
 import {
   Sidebar,
   SidebarContent,
@@ -44,7 +45,28 @@ import {
   Receipt,
   Truck,
   ClipboardList,
+  Scissors,
+  ShoppingBag,
+  Stethoscope,
+  Wrench,
+  Dumbbell,
+  PawPrint,
+  Store,
+  Heart,
+  Layers,
+  Building2,
+  Croissant,
 } from 'lucide-react';
+
+// Mapeamento de ícones para seções dinâmicas do banco
+const iconMap: Record<string, any> = {
+  LayoutDashboard, Package, UtensilsCrossed, UserCog, Warehouse,
+  DollarSign, ShoppingCart, Coffee, BarChart3, Wallet,
+  Plug, FileText, Bike, ExternalLink, Users, Menu, Settings,
+  ClipboardList, Database, Zap, Receipt, Truck, Scissors,
+  ShoppingBag, Stethoscope, Wrench, Dumbbell, PawPrint, Store,
+  Heart, Layers, Building2, Croissant,
+};
 
 interface MenuItem {
   title: string;
@@ -56,12 +78,14 @@ interface MenuItem {
 const masterMenuItems: MenuItem[] = [
   { title: 'Dashboard', url: '/master/dashboard', icon: LayoutDashboard },
   { title: 'Clientes', url: '/master/clientes', icon: Users },
+  { title: 'Segmentos', url: '/master/segmentos', icon: Layers },
   { title: 'Popular Dados', url: '/admin/seed', icon: Database },
   { title: 'Consumo de Dados', url: '/master/consumo-dados', icon: BarChart3 },
   { title: 'Integrações', url: '/master/integracoes', icon: Plug },
   { title: 'Configurações', url: '/master/configuracoes', icon: Coffee },
 ];
 
+// Fallback hardcoded para admin (usado quando o banco não retorna dados)
 const adminMenuItems: MenuItem[] = [
   { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
@@ -81,12 +105,13 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Notas Fiscais', url: '/admin/nfe', icon: FileText },
 ];
 
-// Itens do Atalho Rápido (Cardápio e configurações)
+// Fallback hardcoded para atalho rápido
 const atalhoRapidoMenuItems: MenuItem[] = [
   { title: 'Cardápio', url: '/cardapio', icon: Menu, external: true },
   { title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings },
 ];
 
+// Fallback hardcoded para funcionário
 const funcionarioMenuItems: MenuItem[] = [
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
   { title: 'PDV Garçon', url: '/pdv-garcom', icon: UtensilsCrossed },
@@ -106,23 +131,108 @@ const roleColors: Record<string, string> = {
 };
 
 export function AppSidebar() {
-  const { user, logout, empresaId, role } = useAuth();
+  const { user, logout, empresaId, role, nomeMarca } = useAuth();
   const pathname = usePathname();
+
+  const [dynamicMenuItems, setDynamicMenuItems] = useState<MenuItem[]>([]);
+  const [dynamicAtalhoItems, setDynamicAtalhoItems] = useState<MenuItem[]>([]);
+
+  // Carregar seções dinâmicas do Supabase para admin e funcionário
+  useEffect(() => {
+    if (role !== 'admin' && role !== 'funcionario') return;
+    if (!empresaId) return;
+
+    const loadSections = async () => {
+      try {
+        const supabase = getSupabaseClient();
+        if (!supabase) return;
+
+        // Buscar seções ativas da empresa
+        const { data: empresaSecoes } = await supabase
+          .from('empresa_secoes')
+          .select('secao_id, ativo')
+          .eq('empresa_id', empresaId);
+
+        const ativoIds = (empresaSecoes || [])
+          .filter((s: any) => s.ativo)
+          .map((s: any) => s.secao_id);
+
+        if (ativoIds.length === 0) {
+          // Fallback: carregar todas as seções ativas
+          const { data: allSecoes } = await supabase
+            .from('secoes_menu')
+            .select('*')
+            .eq('ativo', true)
+            .order('ordem');
+
+          const principal = (allSecoes || [])
+            .filter((s: any) => s.grupo === 'principal' && s.visivel_para?.includes(role))
+            .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: false }));
+          const atalho = (allSecoes || [])
+            .filter((s: any) => s.grupo === 'atalho_rapido' && s.visivel_para?.includes(role))
+            .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: s.url === '/cardapio' }));
+
+          if (principal.length > 0) {
+            setDynamicMenuItems(principal);
+          }
+          if (atalho.length > 0) {
+            setDynamicAtalhoItems(atalho);
+          }
+          return;
+        }
+
+        // Carregar seções específicas
+        const { data: secoes } = await supabase
+          .from('secoes_menu')
+          .select('*')
+          .in('id', ativoIds)
+          .eq('ativo', true)
+          .order('ordem');
+
+        const principal = (secoes || [])
+          .filter((s: any) => s.grupo === 'principal' && s.visivel_para?.includes(role))
+          .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: false }));
+        const atalho = (secoes || [])
+          .filter((s: any) => s.grupo === 'atalho_rapido' && s.visivel_para?.includes(role))
+          .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: s.url === '/cardapio' }));
+
+        if (principal.length > 0) {
+          setDynamicMenuItems(principal);
+        }
+        if (atalho.length > 0) {
+          setDynamicAtalhoItems(atalho);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar seções:', error);
+        // Fallback: mantém arrays vazios, usa menus hardcoded na renderização
+      }
+    };
+
+    loadSections();
+  }, [role, empresaId]);
 
   const getMenuItems = (): MenuItem[] => {
     switch (role) {
       case 'master':
         return masterMenuItems;
       case 'admin':
-        return adminMenuItems;
+        // Usar menus dinâmicos se disponíveis, senão fallback hardcoded
+        return dynamicMenuItems.length > 0 ? dynamicMenuItems : adminMenuItems;
       case 'funcionario':
-        return funcionarioMenuItems;
+        // Usar menus dinâmicos se disponíveis, senão fallback hardcoded
+        return dynamicMenuItems.length > 0 ? dynamicMenuItems : funcionarioMenuItems;
       default:
         return [];
     }
   };
 
+  const getAtalhoItems = (): MenuItem[] => {
+    if (role !== 'admin') return [];
+    return dynamicAtalhoItems.length > 0 ? dynamicAtalhoItems : atalhoRapidoMenuItems;
+  };
+
   const menuItems = getMenuItems();
+  const atalhoItems = getAtalhoItems();
 
   const handleLogout = async () => {
     await logout();
@@ -145,7 +255,7 @@ export function AppSidebar() {
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden">
             <span className="text-sm font-semibold">Gestão</span>
-            <span className="text-xs text-muted-foreground">Café & Restaurante</span>
+            <span className="text-xs text-muted-foreground">{nomeMarca || 'Café & Restaurante'}</span>
           </div>
         </div>
       </SidebarHeader>
@@ -177,7 +287,7 @@ export function AppSidebar() {
         </SidebarGroup>
 
         {/* Atalho Rápido - Seção separada para Admin */}
-        {role === 'admin' && (
+        {role === 'admin' && atalhoItems.length > 0 && (
           <>
             <SidebarSeparator />
             <SidebarGroup>
@@ -187,7 +297,7 @@ export function AppSidebar() {
               </SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
-                  {atalhoRapidoMenuItems.map((item) => (
+                  {atalhoItems.map((item) => (
                     <SidebarMenuItem key={item.url}>
                       <SidebarMenuButton
                         asChild

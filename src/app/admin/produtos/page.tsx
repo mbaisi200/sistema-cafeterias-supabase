@@ -1107,7 +1107,7 @@ export default function ProdutosPage() {
               <Button 
                 onClick={handleSyncIfood} 
                 disabled={syncing || produtosIfood.length === 0}
-                className="bg-red-500 hover:bg-red-600"
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 {syncing ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -1299,7 +1299,7 @@ export default function ProdutosPage() {
                                 })));
                                 setDialogComboOpen(true);
                               }}
-                              className="border-purple-200 text-purple-700 hover:bg-purple-50"
+                              className="border-blue-300 text-blue-600 hover:bg-blue-50"
                             >
                               <Settings2 className="mr-2 h-4 w-4" />
                               Configurar Itens
@@ -1500,7 +1500,7 @@ export default function ProdutosPage() {
                     setSavingCombo(false);
                   }
                 }}
-                className="bg-purple-600 hover:bg-purple-700"
+                className="bg-blue-600 hover:bg-blue-700"
               >
                 {savingCombo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Salvar Itens

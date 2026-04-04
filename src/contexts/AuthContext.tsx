@@ -13,6 +13,8 @@ interface AuthContextType {
   empresaId: string | null;
   role: UserRole | null;
   isConfigured: boolean;
+  secoesPermitidas: string[];
+  nomeMarca: string | null;
   login: (email: string, password: string) => Promise<void>;
   loginFuncionario: (codigoEmpresa: string, pin: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -28,6 +30,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [supabaseUser, setSupabaseUser] = useState<SupabaseUser | null>(null);
   const [user, setUser] = useState<User | null>(null);
+  const [secoesPermitidas, setSecoesPermitidas] = useState<string[]>([]);
+  const [nomeMarca, setNomeMarca] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const mounted = useRef(true);
   const hasInitialized = useRef(false);
@@ -70,6 +74,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       console.log('✅ Usuário encontrado:', result.user.email, 'role:', result.user.role);
+
+      // Armazenar seções permitidas e nome da marca
+      setSecoesPermitidas(result.user.secoesPermitidas || []);
+      setNomeMarca(result.user.nomeMarca || null);
 
       return {
         id: result.user.id,
@@ -372,6 +380,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     setSupabaseUser(null);
     setUser(null);
+    setSecoesPermitidas([]);
+    setNomeMarca(null);
     clearFuncionarioSession();
     hasInitialized.current = false;
 
@@ -396,6 +406,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     empresaId: user?.empresaId || null,
     role: user?.role || null,
     isConfigured: isSupabaseConfigured(),
+    secoesPermitidas,
+    nomeMarca,
     login,
     loginFuncionario,
     logout,

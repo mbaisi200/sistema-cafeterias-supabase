@@ -876,7 +876,7 @@ export default function EstoquePage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 px-2 text-green-600 hover:bg-green-50"
+                              className="h-8 px-2 text-blue-600 hover:bg-blue-50"
                               onClick={() => handleEntrada(produto)}
                             >
                               <ArrowUp className="h-4 w-4 mr-1" />
@@ -1031,7 +1031,7 @@ export default function EstoquePage() {
                 Cancelar
               </Button>
               <Button 
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-blue-600 hover:bg-blue-700"
                 onClick={registrarEntrada}
                 disabled={saving || !quantidade || parseFloat(quantidade) <= 0}
               >
@@ -1240,7 +1240,7 @@ export default function EstoquePage() {
                 Cancelar
               </Button>
               <Button 
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-blue-600 hover:bg-blue-700"
                 onClick={registrarEntradaLote}
                 disabled={saving || loteItens.filter(i => i.quantidade && parseFloat(i.quantidade) > 0).length === 0}
               >

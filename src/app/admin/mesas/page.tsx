@@ -359,7 +359,7 @@ export default function MesasPage() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleLiberarMesa(mesa)}
-                            className="border-green-300 text-green-600 hover:bg-green-50"
+                            className="border-blue-300 text-blue-600 hover:bg-blue-50"
                             title="Liberar mesa"
                           >
                             <Unlock className="h-4 w-4" />

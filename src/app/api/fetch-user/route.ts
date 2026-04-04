@@ -70,6 +70,69 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Fetch empresa section permissions and segment info
+    let secoesPermitidas: string[] = [];
+    let nomeMarca: string | null = null;
+
+    if (data.empresa_id && data.role !== 'master') {
+      const [secoesRes, empresaRes] = await Promise.all([
+        supabase
+          .from('empresa_secoes')
+          .select('secao_id, ativo')
+          .eq('empresa_id', data.empresa_id),
+        supabase
+          .from('empresas')
+          .select('id, nome_marca, segmento_id')
+          .eq('id', data.empresa_id)
+          .single()
+      ]);
+
+      // Get active section URLs
+      const ativoSecaoIds = (secoesRes.data || [])
+        .filter((s: any) => s.ativo)
+        .map((s: any) => s.secao_id);
+
+      if (ativoSecaoIds.length > 0) {
+        const { data: secoesData } = await supabase
+          .from('secoes_menu')
+          .select('chave, url, obrigatoria, visivel_para')
+          .in('id', ativoSecaoIds)
+          .eq('ativo', true);
+        
+        if (secoesData) {
+          secoesPermitidas = secoesData
+            .filter((s: any) => s.visivel_para && s.visivel_para.includes(data.role))
+            .map((s: any) => s.url);
+        }
+      } else {
+        // Fallback: if no empresa_secoes exist, fetch ALL active sections
+        const { data: allSecoes } = await supabase
+          .from('secoes_menu')
+          .select('chave, url, obrigatoria, visivel_para')
+          .eq('ativo', true);
+        
+        if (allSecoes) {
+          secoesPermitidas = allSecoes
+            .filter((s: any) => s.visivel_para && s.visivel_para.includes(data.role))
+            .map((s: any) => s.url);
+        }
+      }
+
+      // Get brand name from empresa or segmento
+      if (empresaRes.data) {
+        if (empresaRes.data.nome_marca) {
+          nomeMarca = empresaRes.data.nome_marca;
+        } else if (empresaRes.data.segmento_id) {
+          const { data: segmento } = await supabase
+            .from('segmentos')
+            .select('nome_marca')
+            .eq('id', empresaRes.data.segmento_id)
+            .single();
+          nomeMarca = segmento?.nome_marca || null;
+        }
+      }
+    }
+
     // ✅ NOVO: Atualizar os custom claims do usuário no Supabase Auth
     try {
       const adminAuthClient = createClient(supabaseUrl, serviceKey, {
@@ -102,6 +165,8 @@ export async function POST(request: NextRequest) {
         ativo: data.ativo,
         criadoEm: data.criado_em,
         atualizadoEm: data.atualizado_em,
+        secoesPermitidas,
+        nomeMarca,
       }
     });
 

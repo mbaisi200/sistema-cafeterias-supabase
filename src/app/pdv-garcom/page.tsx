@@ -1175,11 +1175,11 @@ export default function PDVGarcomPage() {
           <div className="absolute bottom-6 right-4 z-20">
             <button
               onClick={() => setShowCart(true)}
-              className="bg-green-600 hover:bg-green-700 active:bg-green-800 text-white rounded-2xl shadow-lg shadow-green-600/30 px-5 py-4 flex items-center gap-3 transition-all active:scale-95"
+              className="bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-2xl shadow-lg shadow-blue-600/30 px-5 py-4 flex items-center gap-3 transition-all active:scale-95"
             >
               <div className="relative">
                 <ShoppingCart className="h-6 w-6" />
-                <span className="absolute -top-2 -right-2 bg-white text-green-600 text-[10px] font-extrabold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
+                <span className="absolute -top-2 -right-2 bg-white text-blue-600 text-[10px] font-extrabold rounded-full w-5 h-5 flex items-center justify-center shadow-sm">
                   {itemCount}
                 </span>
               </div>

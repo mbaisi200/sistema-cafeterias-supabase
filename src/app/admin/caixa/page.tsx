@@ -237,7 +237,7 @@ export default function CaixaPage() {
               <div className="flex gap-2">
                 <Button 
                   onClick={() => setDialogReforco(true)}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Reforço
@@ -614,7 +614,7 @@ export default function CaixaPage() {
               <Button variant="outline" onClick={() => setDialogAbertura(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleAbrirCaixa} disabled={saving} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={handleAbrirCaixa} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Abrir Caixa
               </Button>
@@ -747,7 +747,7 @@ export default function CaixaPage() {
               <Button variant="outline" onClick={() => setDialogReforco(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleReforco} disabled={saving} className="bg-green-600 hover:bg-green-700">
+              <Button onClick={handleReforco} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Adicionar
               </Button>

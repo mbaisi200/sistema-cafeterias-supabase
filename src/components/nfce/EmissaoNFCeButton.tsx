@@ -198,7 +198,7 @@ export function EmissaoNFCeButton({
       <Button
         onClick={() => setDialogOpen(true)}
         disabled={disabled}
-        className="bg-green-600 hover:bg-green-700 text-white gap-2"
+        className="bg-blue-600 hover:bg-blue-700 text-white gap-2"
       >
         <FileKey className="h-4 w-4" />
         Emitir NFC-e
@@ -281,7 +281,7 @@ export function EmissaoNFCeButton({
                 <Button 
                   onClick={emitirNFCe} 
                   disabled={emitindo}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
                   {emitindo ? (
                     <>
