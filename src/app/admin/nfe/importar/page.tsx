@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -83,6 +83,7 @@ interface ProdutoImportacao {
   categoriaId?: string;
   selecionado: boolean;
   unidadesPorCaixa: number;  // conversion factor (units per box)
+  precoVenda: number;  // per-item selling price
 }
 
 // =====================================================
@@ -163,6 +164,7 @@ export default function NFeImportarPage() {
         }
         if (unidadesPorCaixa < 1) unidadesPorCaixa = 0;
 
+        const markup = parseFloat(markupPercentual) || 30;
         return {
           nfeProduto: p,
           status: existente ? 'cadastrado' : 'novo',
@@ -170,6 +172,7 @@ export default function NFeImportarPage() {
           produtoNome: existente?.nome,
           selecionado: true,
           unidadesPorCaixa,
+          precoVenda: p.valorUnitario * (1 + markup / 100),
         };
       });
 
@@ -259,6 +262,26 @@ export default function NFeImportarPage() {
     );
   };
 
+  const updatePrecoVenda = (index: number, value: string) => {
+    const num = parseFloat(value) || 0;
+    setProdutosImportacao((prev) =>
+      prev.map((p, i) =>
+        i === index ? { ...p, precoVenda: num } : p
+      )
+    );
+  };
+
+  // Recalculate precoVenda when markup changes
+  useEffect(() => {
+    const markup = parseFloat(markupPercentual) || 30;
+    setProdutosImportacao((prev) =>
+      prev.map((p) => ({
+        ...p,
+        precoVenda: p.nfeProduto.valorUnitario * (1 + markup / 100),
+      }))
+    );
+  }, [markupPercentual]);
+
   // =====================================================
   // Confirmar Importação
   // =====================================================
@@ -338,6 +361,7 @@ export default function NFeImportarPage() {
             cofinsAliquota: p.nfeProduto.cofinsAliquota,
             cofinsValor: p.nfeProduto.cofinsValor,
             unidadesPorCaixa: p.unidadesPorCaixa || 0,
+            precoVenda: p.precoVenda,
           })),
         }),
       });
@@ -761,6 +785,7 @@ export default function NFeImportarPage() {
                             <TableHead className="text-center">Unid/Cx</TableHead>
                             <TableHead className="text-right">Custo</TableHead>
                             <TableHead className="text-right">Total</TableHead>
+                            <TableHead className="text-right">Preço Venda</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-center">Categoria</TableHead>
                             <TableHead className="w-10"></TableHead>
@@ -847,6 +872,17 @@ export default function NFeImportarPage() {
                               </TableCell>
                               <TableCell className="text-right font-mono text-sm font-semibold">
                                 R$ {item.nfeProduto.valorTotal.toFixed(2)}
+                              </TableCell>
+                              <TableCell className="text-right">
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.01"
+                                  value={item.precoVenda || ''}
+                                  onChange={(e) => updatePrecoVenda(index, e.target.value)}
+                                  className="w-24 h-7 text-right text-xs font-semibold text-green-600"
+                                  placeholder="0.00"
+                                />
                               </TableCell>
                               <TableCell>
                                 {item.status === 'cadastrado' ? (

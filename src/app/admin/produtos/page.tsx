@@ -832,6 +832,7 @@ export default function ProdutosPage() {
                       <TableHead className="w-[250px]">Produto</TableHead>
                       <TableHead>Código</TableHead>
                       <TableHead>Categoria</TableHead>
+                      <TableHead className="text-center">Estoque</TableHead>
                       <TableHead className="text-right">Preço</TableHead>
                       <TableHead className="text-center">iFood</TableHead>
                       <TableHead className="text-center">Status</TableHead>
@@ -868,6 +869,11 @@ export default function ProdutosPage() {
                           <Badge variant="outline" className="text-xs">
                             {getNomeCategoria(produto.categoriaId)}
                           </Badge>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className={`text-sm font-mono ${(produto.estoqueAtual || 0) <= (produto.estoqueMinimo || 0) ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}>
+                            {produto.estoqueAtual || 0} {produto.unidade || 'un'}
+                          </span>
                         </TableCell>
                         <TableCell className="text-right">
                           <span className="font-semibold text-green-600">

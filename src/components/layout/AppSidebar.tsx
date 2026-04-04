@@ -43,6 +43,7 @@ import {
   Database,
   Receipt,
   Truck,
+  ClipboardList,
 } from 'lucide-react';
 
 interface MenuItem {
@@ -68,6 +69,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
   { title: 'Cadastros', url: '/admin/cadastros', icon: Users },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
+  { title: 'Pedidos', url: '/admin/pedidos', icon: ClipboardList },
   { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
   { title: 'Delivery', url: '/admin/delivery', icon: Bike },

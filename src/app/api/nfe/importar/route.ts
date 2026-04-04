@@ -143,8 +143,7 @@ export async function POST(request: NextRequest) {
           if (item.status === 'novo') {
             // ---- CRIAR NOVO PRODUTO COM TODOS OS DADOS FISCAIS ----
             const precoCusto = item.valorUnitario || 0;
-            const markup = opcoes.markupPercentual || 30;
-            const precoVenda = precoCusto * (1 + markup / 100);
+            const precoVenda = item.precoVenda || (precoCusto * (1 + (opcoes.markupPercentual || 30) / 100));
 
             const { data: novoProduto, error: errorProduto } = await supabase
               .from('produtos')
@@ -193,7 +192,7 @@ export async function POST(request: NextRequest) {
             resultado.produtosCriados++;
             resultado.detalhes.push({
               descricao: item.descricao,
-              acao: `Novo produto criado (R$ ${precoVenda.toFixed(2)} com ${markup}% markup)`,
+              acao: `Novo produto criado (R$ ${precoVenda.toFixed(2)})`,
               status: 'criado',
             });
 

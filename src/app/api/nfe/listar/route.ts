@@ -24,11 +24,12 @@ export async function POST(request: NextRequest) {
       // ============================================
       let query = supabase
         .from('estoque_movimentos')
-        .select('*')
+        .select('id, empresa_id, produto_nome, tipo, quantidade, quantidade_informada, tipo_entrada, estoque_anterior, estoque_novo, preco_unitario, fornecedor, documento_ref, observacao, criado_em, criado_por_nome')
         .eq('empresa_id', empresaId)
         .eq('tipo', 'entrada')
         .ilike('documento_ref', '%NFe%')
-        .order('criado_em', { ascending: false });
+        .order('criado_em', { ascending: false })
+        .limit(100);
 
       // Date filter
       if (dataInicio) {
@@ -104,10 +105,11 @@ export async function POST(request: NextRequest) {
       // ============================================
       let query = supabase
         .from('vendas')
-        .select('*')
+        .select('id, empresa_id, status, criado_em, nome_cliente, total, forma_pagamento, nfe_emitida, nfe_id')
         .eq('empresa_id', empresaId)
         .eq('status', 'fechada')
-        .order('criado_em', { ascending: false });
+        .order('criado_em', { ascending: false })
+        .limit(100);
 
       // Date filter
       if (dataInicio) {

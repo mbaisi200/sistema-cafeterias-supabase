@@ -82,6 +82,16 @@ function generateTempId(): string {
 }
 
 // ============================================================
+// Helper: normalize text for accent-insensitive search
+// ============================================================
+function normalizeText(text: string): string {
+  return text
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+// ============================================================
 // Main Component
 // ============================================================
 export default function PDVGarcomPage() {
@@ -390,16 +400,35 @@ export default function PDVGarcomPage() {
       lista = lista.filter((p) => p.categoriaId === categoriaAtiva);
     }
     if (search) {
-      const s = search.toLowerCase();
+      const s = normalizeText(search);
       lista = lista.filter(
         (p) =>
-          p.nome.toLowerCase().includes(s) ||
-          (p.codigoBarras && p.codigoBarras.includes(search)) ||
-          (p.codigo && p.codigo.toLowerCase().includes(s))
+          normalizeText(p.nome || '').includes(s) ||
+          normalizeText(p.codigoBarras || '').includes(s) ||
+          normalizeText(p.codigo || '').includes(s) ||
+          normalizeText(p.descricao || '').includes(s) ||
+          // Also match raw search for exact matches (e.g. barcode numbers)
+          p.nome?.toLowerCase().includes(search.toLowerCase()) ||
+          p.codigoBarras?.includes(search) ||
+          p.codigo?.toLowerCase().includes(search.toLowerCase())
       );
     }
     return lista;
   }, [produtos, categoriaAtiva, search]);
+
+  // Barcode auto-detection - add product automatically when barcode is typed
+  useEffect(() => {
+    if (!search || search.length < 8) return;
+    const isCodigoBarras = /^[0-9]{8,}$/.test(search);
+    if (isCodigoBarras) {
+      const produtoEncontrado = (produtos || []).find(p => p.codigoBarras === search);
+      if (produtoEncontrado) {
+        adicionarProduto(produtoEncontrado);
+        setSearch('');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, produtos]);
 
   const getCorCategoria = useCallback(
     (categoriaId: string) => {
@@ -1487,6 +1516,7 @@ function ProdutoView({
             placeholder="Buscar produto..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            autoFocus
             className="w-full h-11 pl-10 pr-4 rounded-xl border border-gray-200 bg-gray-50 text-sm font-medium placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all"
           />
           {search && (

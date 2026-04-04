@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { DashboardCard } from '@/components/layout/DashboardCard';
@@ -84,13 +85,18 @@ export default function AdminDashboardPage() {
   const produtosEstoqueBaixo = produtos.filter(p => p.estoqueAtual <= p.estoqueMinimo);
   const funcionariosAtivos = funcionarios.filter(f => f.ativo);
 
-  // Product search filter
-  const produtosFiltrados = produtoSearch 
-    ? produtos.filter(p => 
-        p.nome?.toLowerCase().includes(produtoSearch.toLowerCase()) ||
-        p.codigo?.toLowerCase().includes(produtoSearch.toLowerCase()) ||
-        p.descricao?.toLowerCase().includes(produtoSearch.toLowerCase())
-      )
+  // Product search filter - prioritize nome/codigo matches, descricao as fallback
+  const produtosFiltrados = produtoSearch
+    ? produtos
+        .map(p => {
+          const s = produtoSearch.toLowerCase();
+          const matchNome = p.nome?.toLowerCase().includes(s) || false;
+          const matchCodigo = p.codigo?.toLowerCase().includes(s) || false;
+          const matchDescricao = p.descricao?.toLowerCase().includes(s) || false;
+          return { ...p, _matchPriority: matchNome ? 0 : matchCodigo ? 1 : matchDescricao ? 2 : 3, _matched: matchNome || matchCodigo || matchDescricao };
+        })
+        .filter(p => p._matched)
+        .sort((a, b) => a._matchPriority - b._matchPriority)
     : [];
 
   // Saldo projetado
@@ -274,7 +280,7 @@ export default function AdminDashboardPage() {
                       <p className="text-sm text-muted-foreground py-2">Nenhum produto encontrado.</p>
                     ) : (
                       produtosFiltrados.slice(0, 10).map((p: any) => (
-                        <div key={p.id} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted text-sm">
+                        <Link key={p.id} href={`/admin/produtos?buscar=${encodeURIComponent(p.nome)}`} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted text-sm">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="text-muted-foreground">{p.codigo || '-'}</span>
                             <span className="truncate">{p.nome}</span>
@@ -283,7 +289,7 @@ export default function AdminDashboardPage() {
                             <span className="text-xs text-muted-foreground">Est: {p.estoqueAtual || 0}</span>
                             <span className="font-semibold text-green-600">R$ {(p.preco || 0).toFixed(2)}</span>
                           </div>
-                        </div>
+                        </Link>
                       ))
                     )}
                     {produtosFiltrados.length > 10 && (
