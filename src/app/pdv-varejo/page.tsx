@@ -74,6 +74,9 @@ const CORES_CATEGORIAS = [
   '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1',
 ];
 
+// Função segura para formatar valores monetários
+const fmt = (val: number | undefined | null) => (val || 0).toFixed(2);
+
 export default function PDVVarejoPage() {
   const { user, empresaId, logout } = useAuth();
   const router = useRouter();
@@ -209,11 +212,11 @@ export default function PDVVarejoPage() {
   };
 
   // Subtotal sem desconto
-  const subtotal = itensCarrinho.reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+  const subtotal = itensCarrinho.reduce((acc, item) => acc + ((item.preco || 0) * (item.quantidade || 0)), 0);
 
   // Total do desconto por item
   const totalDescontoItens = itensCarrinho.reduce((acc, item) => {
-    const descontoItem = (item.preco * item.quantidade) * (item.descontoPercentual / 100);
+    const descontoItem = ((item.preco || 0) * (item.quantidade || 0)) * ((item.descontoPercentual || 0) / 100);
     return acc + descontoItem;
   }, 0);
 
@@ -222,7 +225,7 @@ export default function PDVVarejoPage() {
   const totalFinal = subtotal - totalDescontoItens - totalDescontoGeral;
 
   // Total pago
-  const totalPago = pagamentos.reduce((acc, pg) => acc + pg.valor, 0);
+  const totalPago = pagamentos.reduce((acc, pg) => acc + (pg.valor || 0), 0);
 
   // Troco (para pagamento em dinheiro)
   const troco = Math.max(0, totalPago - totalFinal);
@@ -342,7 +345,7 @@ export default function PDVVarejoPage() {
   useEffect(() => {
     if (dialogPagamento) {
       const restante = totalFinal - totalPago;
-      setValorPagamentoAtual(restante > 0 ? restante.toFixed(2) : '');
+      setValorPagamentoAtual(restante > 0 ? fmt(restante) : '');
       if (totalPago === 0) {
         setPagamentos([]);
         setValorRecebido('');
@@ -499,7 +502,7 @@ export default function PDVVarejoPage() {
         usuarioId: user?.id || '',
         usuarioNome: user?.nome || '',
         acao: 'VENDA_VAREJO_FINALIZADA',
-        detalhes: `Venda varejo de ${itensCarrinho.length} itens - R$ ${totalFinal.toFixed(2)}${dadosCupom.cpfCliente ? ` - CPF: ${dadosCupom.cpfCliente}` : ''}`,
+        detalhes: `Venda varejo de ${itensCarrinho.length} itens - R$ ${fmt(totalFinal)}${dadosCupom.cpfCliente ? ` - CPF: ${dadosCupom.cpfCliente}` : ''}`,
         tipo: 'venda',
       });
 
@@ -754,7 +757,7 @@ export default function PDVVarejoPage() {
                         </span>
                       </div>
                       <span className="text-sm font-bold text-blue-600 mt-auto pt-1">
-                        R$ {(produto.preco || 0).toFixed(2)}
+                        R$ {fmt(produto.preco)}
                       </span>
                     </button>
                   );
@@ -816,7 +819,7 @@ export default function PDVVarejoPage() {
               ) : (
                 <div className="divide-y divide-gray-50">
                   {itensCarrinho.map(item => {
-                    const itemTotal = (item.preco * item.quantidade) * (1 - item.descontoPercentual / 100);
+                    const itemTotal = ((item.preco || 0) * (item.quantidade || 0)) * (1 - (item.descontoPercentual || 0) / 100);
                     return (
                       <div key={item.id} className="px-4 py-2.5 group">
                         <div className="flex items-start justify-between gap-2">
@@ -824,7 +827,7 @@ export default function PDVVarejoPage() {
                             <p className="text-sm font-medium text-gray-800 truncate">{item.nome}</p>
                             <div className="flex items-center gap-2 mt-0.5">
                               <span className="text-xs text-gray-500">
-                                R$ {item.preco.toFixed(2)} x {item.unidade}
+                                R$ {fmt(item.preco)} x {item.unidade}
                               </span>
                               {item.descontoPercentual > 0 && (
                                 <Badge className="text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0">
@@ -835,11 +838,11 @@ export default function PDVVarejoPage() {
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-sm font-bold text-gray-800">
-                              R$ {itemTotal.toFixed(2)}
+                              R$ {fmt(itemTotal)}
                             </p>
                             {item.descontoPercentual > 0 && (
                               <p className="text-[10px] text-gray-400 line-through">
-                                R$ {(item.preco * item.quantidade).toFixed(2)}
+                                R$ {fmt((item.preco || 0) * (item.quantidade || 0))}
                               </p>
                             )}
                           </div>
@@ -902,7 +905,7 @@ export default function PDVVarejoPage() {
                   <div className="flex items-center gap-2">
                     {descontoTotalPercentual > 0 && (
                       <span className="text-xs font-semibold text-orange-600">
-                        -R$ {totalDescontoGeral.toFixed(2)}
+                        -R$ {fmt(totalDescontoGeral)}
                       </span>
                     )}
                     <button
@@ -921,17 +924,17 @@ export default function PDVVarejoPage() {
                 <div className="space-y-1 pt-2 border-t border-gray-200">
                   <div className="flex justify-between text-xs text-gray-500">
                     <span>Subtotal</span>
-                    <span>R$ {subtotal.toFixed(2)}</span>
+                    <span>R$ {fmt(subtotal)}</span>
                   </div>
                   {(totalDescontoItens + totalDescontoGeral) > 0 && (
                     <div className="flex justify-between text-xs text-orange-600">
                       <span>Descontos</span>
-                      <span>- R$ {(totalDescontoItens + totalDescontoGeral).toFixed(2)}</span>
+                      <span>- R$ {fmt(totalDescontoItens + totalDescontoGeral)}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-lg font-bold text-gray-800 pt-1">
                     <span>Total</span>
-                    <span className="text-blue-600">R$ {totalFinal.toFixed(2)}</span>
+                    <span className="text-blue-600">R$ {fmt(totalFinal)}</span>
                   </div>
                 </div>
 
@@ -953,7 +956,7 @@ export default function PDVVarejoPage() {
                   {caixaAberto ? (
                     <>
                       <CreditCard className="h-5 w-5 mr-2" />
-                      Finalizar Venda — R$ {totalFinal.toFixed(2)}
+                      Finalizar Venda — R$ {fmt(totalFinal)}
                     </>
                   ) : (
                     'Abra o caixa para vender'
@@ -1053,8 +1056,8 @@ export default function PDVVarejoPage() {
             <DialogHeader>
               <DialogTitle>Pagamento</DialogTitle>
               <DialogDescription>
-                Total: <span className="font-bold text-blue-600">R$ {totalFinal.toFixed(2)}</span>
-                {' — '}Restante: <span className="font-bold text-orange-600">R$ {Math.max(0, totalFinal - totalPago).toFixed(2)}</span>
+                Total: <span className="font-bold text-blue-600">R$ {fmt(totalFinal)}</span>
+                {' — '}Restante: <span className="font-bold text-orange-600">R$ {fmt(Math.max(0, totalFinal - totalPago))}</span>
               </DialogDescription>
             </DialogHeader>
 
@@ -1094,7 +1097,7 @@ export default function PDVVarejoPage() {
                         <span className="text-sm font-medium">{forma?.label || pg.forma}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold">R$ {pg.valor.toFixed(2)}</span>
+                        <span className="text-sm font-bold">R$ {fmt(pg.valor)}</span>
                         <button
                           className="h-6 w-6 rounded bg-red-100 hover:bg-red-200 flex items-center justify-center"
                           onClick={() => removerPagamento(idx)}
@@ -1141,7 +1144,7 @@ export default function PDVVarejoPage() {
               {pagamentos.some(p => p.forma === 'dinheiro') && totalPago > totalFinal && (
                 <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
                   <p className="text-xs text-green-600">Troco</p>
-                  <p className="text-xl font-bold text-green-700">R$ {troco.toFixed(2)}</p>
+                  <p className="text-xl font-bold text-green-700">R$ {fmt(troco)}</p>
                 </div>
               )}
             </div>
