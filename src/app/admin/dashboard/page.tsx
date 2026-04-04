@@ -23,6 +23,7 @@ import {
   ArrowRight,
   Search,
 } from 'lucide-react';
+import { fmt } from '@/lib/utils';
 
 export default function AdminDashboardPage() {
   const { user } = useAuth();
@@ -160,7 +161,7 @@ export default function AdminDashboardPage() {
                         <TrendingDown className="h-4 w-4 text-red-500" />
                       )}
                       <span className={variacaoVendas > 0 ? 'text-green-500' : 'text-red-500'}>
-                        {variacaoVendas > 0 ? '+' : ''}{variacaoVendas.toFixed(1)}%
+                        {variacaoVendas > 0 ? '+' : ''}{fmt(variacaoVendas, 1)}%
                       </span>
                       <span className="text-muted-foreground">vs semana anterior</span>
                     </>
@@ -174,7 +175,7 @@ export default function AdminDashboardPage() {
             />
             <DashboardCard
               title="Ticket Médio"
-              value={`R$ ${ticketMedio.toFixed(2)}`}
+              value={`R$ ${fmt(ticketMedio)}`}
               description="Por pedido hoje"
               icon={Package}
             />
@@ -357,7 +358,7 @@ export default function AdminDashboardPage() {
                     <TrendingDown className="h-5 w-5" />
                   )}
                   <span className="font-medium">
-                    {variacaoVendas > 0 ? 'Crescimento' : 'Queda'} de {Math.abs(variacaoVendas).toFixed(1)}% 
+                    {variacaoVendas > 0 ? 'Crescimento' : 'Queda'} de {fmt(Math.abs(variacaoVendas), 1)}% 
                     em relação à semana anterior
                   </span>
                 </div>
