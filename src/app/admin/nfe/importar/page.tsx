@@ -1067,7 +1067,7 @@ export default function NFeImportarPage() {
                             Margem de Lucro (Markup)
                           </Label>
                           <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                            Usado para calcular preço de venda = custo × (1 + markup%). Aplicado apenas nos produtos NOVOS.
+                            Usado para calcular preço de venda = custo × (1 + markup%). Aplicado a TODOS os produtos (novos e já cadastrados).
                           </p>
                           <div className="flex items-center gap-2">
                             <Input

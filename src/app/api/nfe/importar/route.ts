@@ -238,6 +238,11 @@ export async function POST(request: NextRequest) {
               updateData.custo = item.valorUnitario;
             }
 
+            // Aplicar markup ao preço de venda se fornecido
+            if (item.precoVenda && item.precoVenda > 0) {
+              updateData.preco = item.precoVenda;
+            }
+
             // Atualizar campos fiscais se opção ativada
             if (opcoes.atualizarDadosFiscais) {
               if (item.ncm) updateData.ncm = item.ncm;

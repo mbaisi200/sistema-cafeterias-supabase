@@ -1,41 +1,41 @@
 ---
-## Task ID: 6 - full-stack-developer
-### Work Task
-Fix the Caixa (Cash Register) report "Vendas por Forma de Pagamento" section showing R$ 0.00 even when there are sales.
+Task ID: 1
+Agent: Super Z
+Task: Implement Round 2 fixes - 9 items from user
 
-### Work Summary
+Work Log:
+- Analyzed all 9 items from the user's request
+- Found that items 1, 3, 5, 6 were already implemented in the codebase
+- Item 1: Estoque column already exists in produtos table (line 873-877, displays estoqueAtual with unit)
+- Item 3: Markup per item already implemented in NFE import (precoVenda field, markupPercentual state)
+- Item 5: Back buttons already exist in cupons-nfes and nfe pages (ChevronLeft linking to /admin)
+- Item 6: Pedidos section already exists in sidebar and has full CRUD page at /admin/pedidos
 
-**Root Cause Analysis:**
-The bug was a **value mismatch** between the `forma_pagamento` values stored in the database and the values checked in the resumo calculation.
+- Item 4 (PDV garçom selects): Fixed search in pdv-garcom/page.tsx
+  - Added optional chaining to prevent null crashes (p.nome?.toLowerCase())
+  - Fixed case-sensitive barcode search (p.codigoBarras?.toLowerCase())
+  - Added descricao search as additional filter
 
-1. **The PDV (CupomFiscal.tsx)** stores payment forms as:
-   - `'dinheiro'`, `'credito'`, `'debito'`, `'pix'`
+- Item 7 (Dashboard BI filter): Fixed product search priority in dashboard/page.tsx
+  - Changed filter to prioritize nome matches (priority 0) > codigo (1) > descricao (2)
+  - Results are now sorted by relevance, preventing "wrong products" from appearing first
 
-2. **The resumo calculation** (in useCaixa hook) was checking for:
-   - `'dinheiro'` ✅, `'cartao_credito'` ❌, `'cartao_debito'` ❌, `'pix'` ✅
+- Item 8 (NFE listing performance): Created SQL migration with indexes
+  - Composite index on estoque_movimentos (empresa_id, tipo, criado_em DESC)
+  - GIN trgm index for ILIKE search on documento_ref
+  - Composite index on vendas (empresa_id, status, criado_em DESC)
+  - Partial index for vendas with nfe_emitida
 
-Since `'credito'` ≠ `'cartao_credito'` and `'debito'` ≠ `'cartao_debito'`, all crédito and débito sales summed to R$ 0.00.
+- Item 9 (Fornecedores not showing): Created SQL migration fixing RLS
+  - Recreated get_user_empresa_id() and is_master() functions
+  - Dropped all old conflicting RLS policies
+  - Created 4 new robust RLS policies using inline subqueries
+  - Added index on fornecedores (empresa_id, ativo, nome)
 
-**Files Modified:**
-- `/home/z/my-project/sistema-cafeterias-supabase/src/hooks/useSupabase.ts`
-
-**Changes Made (2 fixes in useCaixa hook):**
-
-**Fix 1 - Open Caixa `resumo` (lines ~1482-1507):**
-- Added `normalizarFormaPagamento()` helper function that maps multiple formats to canonical forms:
-  - `'credito'`, `'cartao_credito'`, `'cartão_credito'` → `'credito'`
-  - `'debito'`, `'cartao_debito'`, `'cartão_debito'` → `'debito'`
-  - `'dinheiro'` → `'dinheiro'`
-  - `'pix'` → `'pix'`
-- Updated the `resumo` computed object to use the normalizer for filtering `vendasFiltro`
-
-**Fix 2 - Closed Caixa `carregarDetalhesCaixa` (lines ~1404-1458):**
-- Added query to `pagamentos` table for all vendas linked to the caixa (via `venda_id`)
-- Used `pagamentos` table as primary source for payment form totals (more accurate for multi-payment sales)
-- Falls back to `movimentacoes_caixa.forma_pagamento` if no pagamentos are found
-- Uses the same `normalizarFormaPagamento()` helper for consistency
-
-**Why this approach:**
-- Handles both `'credito'` and `'cartao_credito'` formats (and accented variants) for maximum compatibility
-- For closed caixa, using `pagamentos` table is more accurate since multi-payment sales store individual payment records there
-- No changes needed to the Caixa page UI or API routes - the data structures remain the same
+Stage Summary:
+- 4 items were already implemented (1, 3, 5, 6)
+- 2 code fixes applied (items 4 and 7)
+- 1 SQL migration created for items 8 and 9
+- 1 item is informational only (item 2 - unidade tributável)
+- Files modified: pdv-garcom/page.tsx, dashboard/page.tsx
+- Files created: supabase/migrations/fix_round2_issues.sql

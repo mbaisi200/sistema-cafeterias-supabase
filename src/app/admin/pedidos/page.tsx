@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -33,9 +33,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '@/lib/supabase';
 import {
   Plus,
   ChevronLeft,
@@ -45,14 +59,13 @@ import {
   Eye,
   Loader2,
   Package,
-  Truck,
   ShoppingCart,
-  AlertTriangle,
   CheckCircle2,
   Clock,
   XCircle,
-  FileText,
   X,
+  ChevronDown,
+  User,
 } from 'lucide-react';
 
 interface PedidoItem {
@@ -67,9 +80,8 @@ interface PedidoItem {
 interface Pedido {
   id: string;
   numero: number;
-  fornecedorId: string;
-  fornecedorNome: string;
-  cliente: string;
+  clienteId: string;
+  clienteNome: string;
   dataPedido: string;
   dataEntrega: string;
   condicaoPagamento: string;
@@ -104,8 +116,10 @@ export default function PedidosPage() {
   const [saving, setSaving] = useState(false);
 
   // Form state
-  const [fornecedorId, setFornecedorId] = useState('');
-  const [cliente, setCliente] = useState('');
+  const [clienteId, setClienteId] = useState('');
+  const [clienteNome, setClienteNome] = useState('');
+  const [openClienteSearch, setOpenClienteSearch] = useState(false);
+  const [clienteSearch, setClienteSearch] = useState('');
   const [dataEntrega, setDataEntrega] = useState('');
   const [condicaoPagamento, setCondicaoPagamento] = useState('');
   const [observacoes, setObservacoes] = useState('');
@@ -113,24 +127,27 @@ export default function PedidosPage() {
 
   // Items state
   const [itens, setItens] = useState<PedidoItem[]>([]);
+  const [openProdutoSearch, setOpenProdutoSearch] = useState<boolean[]>([]);
 
   // Data lists
-  const [fornecedores, setFornecedores] = useState<any[]>([]);
+  const [clientes, setClientes] = useState<any[]>([]);
   const [produtos, setProdutos] = useState<any[]>([]);
+  const [condicoesPagamento, setCondicoesPagamento] = useState<any[]>([]);
+  const [novaCondicao, setNovaCondicao] = useState('');
+  const [condicoesOpen, setCondicoesOpen] = useState(true);
 
   // Load data
   useEffect(() => {
     if (empresaId) {
       loadPedidos();
-      loadFornecedores();
+      loadClientes();
       loadProdutos();
+      loadCondicoes();
     }
   }, [empresaId]);
 
   const getSupabase = () => {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-    return createClient(url, key);
+    return getSupabaseClient();
   };
 
   const loadPedidos = async () => {
@@ -146,8 +163,8 @@ export default function PedidosPage() {
       if (error) throw error;
       const parsed = (data || []).map((p: any) => ({
         ...p,
-        fornecedorId: p.fornecedor_id || '',
-        fornecedorNome: p.fornecedor_nome || '',
+        clienteId: p.cliente_id || '',
+        clienteNome: p.cliente_nome || '',
         dataPedido: p.data_pedido || p.criado_em,
         dataEntrega: p.data_entrega || '',
         condicaoPagamento: p.condicao_pagamento || '',
@@ -164,17 +181,18 @@ export default function PedidosPage() {
     }
   };
 
-  const loadFornecedores = async () => {
+  const loadClientes = async () => {
     try {
       const supabase = getSupabase();
       const { data } = await supabase
-        .from('fornecedores')
-        .select('id, nome')
+        .from('clientes')
+        .select('id, nome_razao_social, nome_fantasia, cnpj_cpf, tipo_pessoa')
         .eq('empresa_id', empresaId)
-        .eq('ativo', true)
-        .order('nome');
-      setFornecedores(data || []);
-    } catch { /* ignore */ }
+        .order('nome_razao_social');
+      setClientes(data || []);
+    } catch {
+      // ignore
+    }
   };
 
   const loadProdutos = async () => {
@@ -182,16 +200,73 @@ export default function PedidosPage() {
       const supabase = getSupabase();
       const { data } = await supabase
         .from('produtos')
-        .select('id, nome, preco, custo, unidade')
+        .select('id, nome, preco, custo, unidade, codigo_barras')
         .eq('empresa_id', empresaId)
         .eq('ativo', true)
         .order('nome');
       setProdutos(data || []);
-    } catch { /* ignore */ }
+    } catch {
+      // ignore
+    }
   };
+
+  const loadCondicoes = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data } = await supabase
+        .from('condicoes_pagamento')
+        .select('id, nome, descricao, ativo')
+        .eq('empresa_id', empresaId)
+        .eq('ativo', true)
+        .order('nome');
+      setCondicoesPagamento(data || []);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleAddCondicao = async () => {
+    if (!novaCondicao.trim() || !empresaId) return;
+    try {
+      const supabase = getSupabase();
+      await supabase.from('condicoes_pagamento').insert({
+        empresa_id: empresaId,
+        nome: novaCondicao.trim(),
+        ativo: true,
+      });
+      setNovaCondicao('');
+      loadCondicoes();
+      toast({ title: 'Condição adicionada!' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erro ao adicionar condição', description: err.message });
+    }
+  };
+
+  const handleDeleteCondicao = async (id: string) => {
+    try {
+      const supabase = getSupabase();
+      await supabase.from('condicoes_pagamento').delete().eq('id', id);
+      loadCondicoes();
+      toast({ title: 'Condição removida' });
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erro ao remover condição', description: err.message });
+    }
+  };
+
+  // Filter clientes by search text
+  const clientesFiltrados = useMemo(() => {
+    if (!clienteSearch.trim()) return clientes;
+    const term = clienteSearch.toLowerCase();
+    return clientes.filter(c =>
+      (c.nome_razao_social || '').toLowerCase().includes(term) ||
+      (c.nome_fantasia || '').toLowerCase().includes(term) ||
+      (c.cnpj_cpf || '').includes(term)
+    );
+  }, [clientes, clienteSearch]);
 
   // Item management
   const addItem = () => {
+    const newIndex = itens.length;
     setItens([...itens, {
       id: Date.now().toString(),
       produtoId: '',
@@ -200,6 +275,7 @@ export default function PedidosPage() {
       precoUnitario: 0,
       subtotal: 0,
     }]);
+    setOpenProdutoSearch(prev => [...prev, false]);
   };
 
   const updateItem = (index: number, field: string, value: any) => {
@@ -216,12 +292,17 @@ export default function PedidosPage() {
 
   const removeItem = (index: number) => {
     setItens(itens.filter((_, i) => i !== index));
+    setOpenProdutoSearch(prev => prev.filter((_, i) => i !== index));
   };
 
   const totalItens = itens.reduce((acc, item) => acc + item.subtotal, 0);
 
   // Save
   const handleSave = async () => {
+    if (!clienteId || !clienteNome) {
+      toast({ variant: 'destructive', title: 'Cliente é obrigatório', description: 'Selecione um cliente para emissão de NF-e de saída.' });
+      return;
+    }
     if (itens.length === 0) {
       toast({ variant: 'destructive', title: 'Adicione ao menos um item' });
       return;
@@ -229,15 +310,13 @@ export default function PedidosPage() {
     setSaving(true);
     try {
       const supabase = getSupabase();
-      const fornecedor = fornecedores.find(f => f.id === fornecedorId);
 
       if (editingPedido) {
         const { error } = await supabase
           .from('pedidos')
           .update({
-            fornecedor_id: fornecedorId || null,
-            fornecedor_nome: fornecedor?.nome || '',
-            cliente,
+            cliente_id: clienteId,
+            cliente_nome: clienteNome,
             data_entrega: dataEntrega || null,
             condicao_pagamento: condicaoPagamento,
             observacoes,
@@ -264,9 +343,8 @@ export default function PedidosPage() {
           .insert({
             empresa_id: empresaId,
             numero: nextNum,
-            fornecedor_id: fornecedorId || null,
-            fornecedor_nome: fornecedor?.nome || '',
-            cliente,
+            cliente_id: clienteId,
+            cliente_nome: clienteNome,
             data_pedido: new Date().toISOString(),
             data_entrega: dataEntrega || null,
             condicao_pagamento: condicaoPagamento,
@@ -307,25 +385,29 @@ export default function PedidosPage() {
   // Edit
   const handleEdit = (pedido: Pedido) => {
     setEditingPedido(pedido);
-    setFornecedorId(pedido.fornecedorId);
-    setCliente(pedido.cliente || '');
+    setClienteId(pedido.clienteId || '');
+    setClienteNome(pedido.clienteNome || '');
     setDataEntrega(pedido.dataEntrega ? pedido.dataEntrega.split('T')[0] : '');
     setCondicaoPagamento(pedido.condicaoPagamento || '');
     setObservacoes(pedido.observacoes || '');
     setPedidoStatus(pedido.status);
     setItens(pedido.itens || []);
+    setOpenProdutoSearch((pedido.itens || []).map(() => false));
     setDialogOpen(true);
   };
 
   const resetForm = () => {
     setEditingPedido(null);
-    setFornecedorId('');
-    setCliente('');
+    setClienteId('');
+    setClienteNome('');
+    setOpenClienteSearch(false);
+    setClienteSearch('');
     setDataEntrega('');
     setCondicaoPagamento('');
     setObservacoes('');
     setPedidoStatus('rascunho');
     setItens([]);
+    setOpenProdutoSearch([]);
   };
 
   const getStatusBadge = (status: string) => {
@@ -341,8 +423,7 @@ export default function PedidosPage() {
   const pedidosFiltrados = pedidos.filter(p => {
     const matchStatus = statusFilter === 'todos' || p.status === statusFilter;
     const matchSearch = !search ||
-      (p.fornecedorNome || '').toLowerCase().includes(search.toLowerCase()) ||
-      (p.cliente || '').toLowerCase().includes(search.toLowerCase()) ||
+      (p.clienteNome || '').toLowerCase().includes(search.toLowerCase()) ||
       String(p.numero).includes(search);
     return matchStatus && matchSearch;
   });
@@ -354,7 +435,7 @@ export default function PedidosPage() {
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
-              <Link href="/admin">
+              <Link href="/admin/dashboard">
                 <Button variant="ghost" size="icon" className="h-8 w-8">
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
@@ -365,7 +446,7 @@ export default function PedidosPage() {
                   Pedidos
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  Gerencie pedidos de compra e venda
+                  Gerencie pedidos de venda
                 </p>
               </div>
             </div>
@@ -375,13 +456,61 @@ export default function PedidosPage() {
             </Button>
           </div>
 
+          {/* Condições de Pagamento */}
+          <Collapsible open={condicoesOpen} onOpenChange={setCondicoesOpen}>
+            <Card>
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="h-7 px-2">
+                        <ChevronDown className={`h-4 w-4 transition-transform ${condicoesOpen ? '' : '-rotate-90'}`} />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CardTitle className="text-base">Condições de Pagamento</CardTitle>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={novaCondicao}
+                      onChange={(e) => setNovaCondicao(e.target.value)}
+                      placeholder="Ex: 30/60/90 dias"
+                      className="h-8 w-48 text-sm"
+                      onKeyDown={(e) => { if (e.key === 'Enter') handleAddCondicao(); }}
+                    />
+                    <Button size="sm" onClick={handleAddCondicao} disabled={!novaCondicao.trim()}>
+                      <Plus className="h-3 w-3 mr-1" /> Adicionar
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CollapsibleContent>
+                <CardContent>
+                  {condicoesPagamento.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma condição cadastrada</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {condicoesPagamento.map(c => (
+                        <Badge key={c.id} variant="secondary" className="text-sm py-1 px-3 gap-1">
+                          {c.nome}
+                          <button onClick={() => handleDeleteCondicao(c.id)} className="ml-1 hover:text-red-500">
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
+
           {/* Filters */}
           <Card>
             <CardContent className="p-4">
               <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
                 <div className="relative flex-1 w-full md:max-w-[300px]">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input placeholder="Buscar pedido..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+                  <Input placeholder="Buscar por cliente ou nº pedido..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
                 </div>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-full md:w-[180px]">
@@ -416,7 +545,6 @@ export default function PedidosPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nº</TableHead>
-                        <TableHead>Fornecedor</TableHead>
                         <TableHead>Cliente</TableHead>
                         <TableHead>Data</TableHead>
                         <TableHead className="text-right">Valor Total</TableHead>
@@ -428,8 +556,7 @@ export default function PedidosPage() {
                       {pedidosFiltrados.map((p) => (
                         <TableRow key={p.id}>
                           <TableCell className="font-mono font-medium">#{p.numero}</TableCell>
-                          <TableCell>{p.fornecedorNome || '-'}</TableCell>
-                          <TableCell>{p.cliente || '-'}</TableCell>
+                          <TableCell>{p.clienteNome || '-'}</TableCell>
                           <TableCell className="text-sm">{formatDate(p.criadoEm)}</TableCell>
                           <TableCell className="text-right font-semibold text-green-600">{formatCurrency(p.valorTotal)}</TableCell>
                           <TableCell className="text-center">{getStatusBadge(p.status)}</TableCell>
@@ -461,19 +588,57 @@ export default function PedidosPage() {
               {/* Header fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Fornecedor</Label>
-                  <Select value={fornecedorId} onValueChange={setFornecedorId}>
-                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                    <SelectContent>
-                      {fornecedores.map(f => (
-                        <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Cliente</Label>
-                  <Input value={cliente} onChange={(e) => setCliente(e.target.value)} placeholder="Cliente (opcional)" />
+                  <Label>Cliente <span className="text-red-500">*</span></Label>
+                  <p className="text-xs text-muted-foreground -mt-1">Cliente para emissão de NF-e de saída</p>
+                  <Popover open={openClienteSearch} onOpenChange={setOpenClienteSearch}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="h-9 w-full justify-start font-normal text-sm">
+                        {clienteNome ? (
+                          <span className="flex items-center gap-2">
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            {clienteNome}
+                          </span>
+                        ) : (
+                          <span className="text-muted-foreground">Selecionar cliente...</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0">
+                      <Command shouldFilter={false}>
+                        <CommandInput
+                          placeholder="Buscar por nome ou CNPJ/CPF..."
+                          value={clienteSearch}
+                          onValueChange={setClienteSearch}
+                        />
+                        <CommandList>
+                          <CommandEmpty>Nenhum cliente encontrado</CommandEmpty>
+                          <CommandGroup className="max-h-64 overflow-y-auto">
+                            {clientesFiltrados.map(c => (
+                              <CommandItem
+                                key={c.id}
+                                value={c.nome_razao_social}
+                                onSelect={() => {
+                                  setClienteId(c.id);
+                                  setClienteNome(c.nome_razao_social);
+                                  setOpenClienteSearch(false);
+                                  setClienteSearch('');
+                                }}
+                              >
+                                <User className="mr-2 h-4 w-4" />
+                                <div className="flex flex-col">
+                                  <span>{c.nome_razao_social}</span>
+                                  {c.nome_fantasia && (
+                                    <span className="text-xs text-muted-foreground">{c.nome_fantasia}</span>
+                                  )}
+                                </div>
+                                <span className="ml-auto text-xs text-muted-foreground">{c.cnpj_cpf}</span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-2">
                   <Label>Data Prevista Entrega</Label>
@@ -484,11 +649,9 @@ export default function PedidosPage() {
                   <Select value={condicaoPagamento} onValueChange={setCondicaoPagamento}>
                     <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="a_vista">À Vista</SelectItem>
-                      <SelectItem value="30_dias">30 Dias</SelectItem>
-                      <SelectItem value="30_60">30/60 Dias</SelectItem>
-                      <SelectItem value="30_60_90">30/60/90 Dias</SelectItem>
-                      <SelectItem value="entrada_30">Entrada + 30 Dias</SelectItem>
+                      {condicoesPagamento.map(c => (
+                        <SelectItem key={c.id} value={c.nome}>{c.nome}</SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -503,7 +666,7 @@ export default function PedidosPage() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-2">
                   <Label>Observações</Label>
                   <Input value={observacoes} onChange={(e) => setObservacoes(e.target.value)} placeholder="Observações gerais" />
                 </div>
@@ -537,14 +700,56 @@ export default function PedidosPage() {
                         {itens.map((item, i) => (
                           <TableRow key={item.id}>
                             <TableCell>
-                              <Select value={item.produtoId} onValueChange={(v) => updateItem(i, 'produtoId', v)}>
-                                <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                                <SelectContent>
-                                  {produtos.map(p => (
-                                    <SelectItem key={p.id} value={p.id}>{p.nome} (R$ {(p.custo || p.preco || 0).toFixed(2)})</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <Popover
+                                open={openProdutoSearch[i] || false}
+                                onOpenChange={(open) => {
+                                  const updated = [...openProdutoSearch];
+                                  updated[i] = open;
+                                  setOpenProdutoSearch(updated);
+                                }}
+                              >
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="h-8 text-xs justify-start font-normal w-full">
+                                    {item.produtoNome || 'Selecionar produto...'}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-72 p-0">
+                                  <Command shouldFilter={false}>
+                                    <CommandInput placeholder="Buscar produto por nome ou código..." />
+                                    <CommandList>
+                                      <CommandEmpty>Nenhum produto encontrado</CommandEmpty>
+                                      <CommandGroup className="max-h-64 overflow-y-auto">
+                                        {produtos
+                                          .filter(p =>
+                                            p.nome.toLowerCase().includes(
+                                              (document.querySelector(`[cmdk-input]`) as HTMLInputElement)?.value?.toLowerCase() || ''
+                                            ) ||
+                                            (p.codigo_barras || '').includes(
+                                              (document.querySelector(`[cmdk-input]`) as HTMLInputElement)?.value || ''
+                                            )
+                                          )
+                                          .map(p => (
+                                            <CommandItem
+                                              key={p.id}
+                                              value={p.nome}
+                                              onSelect={() => {
+                                                updateItem(i, 'produtoId', p.id);
+                                                const updated = [...openProdutoSearch];
+                                                updated[i] = false;
+                                                setOpenProdutoSearch(updated);
+                                              }}
+                                            >
+                                              <Package className="mr-2 h-4 w-4" />
+                                              <span>{p.nome}</span>
+                                              <span className="ml-auto text-xs text-muted-foreground">R$ {(p.preco || 0).toFixed(2)}</span>
+                                            </CommandItem>
+                                          ))
+                                        }
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
                             </TableCell>
                             <TableCell>
                               <Input type="number" min="1" value={item.quantidade} onChange={(e) => updateItem(i, 'quantidade', parseFloat(e.target.value) || 1)} className="h-8 text-center text-xs" />
@@ -593,12 +798,8 @@ export default function PedidosPage() {
               <div className="space-y-4">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   <div className="bg-muted rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">Fornecedor</p>
-                    <p className="font-semibold text-sm mt-1">{detailPedido.fornecedorNome || '-'}</p>
-                  </div>
-                  <div className="bg-muted rounded-lg p-3">
                     <p className="text-xs text-muted-foreground">Cliente</p>
-                    <p className="font-semibold text-sm mt-1">{detailPedido.cliente || '-'}</p>
+                    <p className="font-semibold text-sm mt-1">{detailPedido.clienteNome || '-'}</p>
                   </div>
                   <div className="bg-muted rounded-lg p-3">
                     <p className="text-xs text-muted-foreground">Status</p>
@@ -614,7 +815,11 @@ export default function PedidosPage() {
                   </div>
                   <div className="bg-muted rounded-lg p-3">
                     <p className="text-xs text-muted-foreground">Pagamento</p>
-                    <p className="font-semibold text-sm mt-1">{detailPedido.condicaoPagamento?.replace(/_/g, ' ') || '-'}</p>
+                    <p className="font-semibold text-sm mt-1">{detailPedido.condicaoPagamento || '-'}</p>
+                  </div>
+                  <div className="bg-muted rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Valor Total</p>
+                    <p className="font-semibold text-sm mt-1 text-green-600">{formatCurrency(detailPedido.valorTotal)}</p>
                   </div>
                 </div>
                 {detailPedido.observacoes && (
@@ -623,10 +828,6 @@ export default function PedidosPage() {
                     <p className="text-sm mt-1">{detailPedido.observacoes}</p>
                   </div>
                 )}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex justify-between items-center">
-                  <p className="text-sm font-medium text-green-700">Valor Total</p>
-                  <p className="text-xl font-bold text-green-700">{formatCurrency(detailPedido.valorTotal)}</p>
-                </div>
                 <div className="rounded-lg border">
                   <Table>
                     <TableHeader>

@@ -452,7 +452,10 @@ export default function FuncionariosPage() {
                     </Label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="perm_pdv" className="text-sm">Acesso ao PDV</Label>
+                        <div>
+                          <Label htmlFor="perm_pdv" className="text-sm font-medium">Acesso ao PDV</Label>
+                          <p className="text-[11px] text-muted-foreground">Ponto de venda completo (balcão, mesa, delivery)</p>
+                        </div>
                         <Switch 
                           id="perm_pdv" 
                           name="perm_pdv" 
@@ -460,7 +463,10 @@ export default function FuncionariosPage() {
                         />
                       </div>
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="perm_pdv_garcom" className="text-sm">PDV Garçon (Mobile)</Label>
+                        <div>
+                          <Label htmlFor="perm_pdv_garcom" className="text-sm font-medium">PDV Garçon (Mobile)</Label>
+                          <p className="text-[11px] text-muted-foreground">App mobile para garçons tirarem pedidos</p>
+                        </div>
                         <Switch 
                           id="perm_pdv_garcom" 
                           name="perm_pdv_garcom"
@@ -468,7 +474,10 @@ export default function FuncionariosPage() {
                         />
                       </div>
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="perm_estoque" className="text-sm">Controle de Estoque</Label>
+                        <div>
+                          <Label htmlFor="perm_estoque" className="text-sm font-medium">Controle de Estoque</Label>
+                          <p className="text-[11px] text-muted-foreground">Gerenciar entradas, saídas e saldos</p>
+                        </div>
                         <Switch 
                           id="perm_estoque" 
                           name="perm_estoque"
@@ -476,7 +485,10 @@ export default function FuncionariosPage() {
                         />
                       </div>
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="perm_financeiro" className="text-sm">Área Financeira</Label>
+                        <div>
+                          <Label htmlFor="perm_financeiro" className="text-sm font-medium">Área Financeira</Label>
+                          <p className="text-[11px] text-muted-foreground">Contas a pagar/receber e fluxo de caixa</p>
+                        </div>
                         <Switch 
                           id="perm_financeiro" 
                           name="perm_financeiro"
@@ -484,7 +496,10 @@ export default function FuncionariosPage() {
                         />
                       </div>
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="perm_relatorios" className="text-sm">Relatórios</Label>
+                        <div>
+                          <Label htmlFor="perm_relatorios" className="text-sm font-medium">Relatórios</Label>
+                          <p className="text-[11px] text-muted-foreground">Acessar relatórios de vendas e BI</p>
+                        </div>
                         <Switch 
                           id="perm_relatorios" 
                           name="perm_relatorios"
@@ -492,7 +507,10 @@ export default function FuncionariosPage() {
                         />
                       </div>
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="perm_cancelar" className="text-sm">Cancelar Vendas</Label>
+                        <div>
+                          <Label htmlFor="perm_cancelar" className="text-sm font-medium">Cancelar Vendas</Label>
+                          <p className="text-[11px] text-muted-foreground">Permite cancelar vendas já realizadas</p>
+                        </div>
                         <Switch 
                           id="perm_cancelar" 
                           name="perm_cancelar"
@@ -500,7 +518,10 @@ export default function FuncionariosPage() {
                         />
                       </div>
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="perm_desconto" className="text-sm">Dar Descontos</Label>
+                        <div>
+                          <Label htmlFor="perm_desconto" className="text-sm font-medium">Dar Descontos</Label>
+                          <p className="text-[11px] text-muted-foreground">Aplicar descontos em itens do pedido</p>
+                        </div>
                         <Switch 
                           id="perm_desconto" 
                           name="perm_desconto"

@@ -152,7 +152,7 @@ export default function CuponsNFEsPage() {
         <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3">
-          <Link href="/admin">
+          <Link href="/admin/dashboard">
             <Button variant="ghost" size="icon" className="h-8 w-8">
               <ChevronLeft className="h-5 w-5" />
             </Button>
