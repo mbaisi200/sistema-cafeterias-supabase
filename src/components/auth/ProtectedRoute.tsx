@@ -18,7 +18,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   const pathname = usePathname();
 
   // Rotas obrigatórias: sempre acessíveis independentemente das seções permitidas
-  const mandatoryRoutes = ['/pdv', '/pdv-garcom', '/admin/caixa'];
+  const mandatoryRoutes = ['/pdv', '/pdv-varejo', '/pdv-garcom', '/admin/caixa'];
 
   // Rotas internas/sub-páginas que não possuem entrada própria no menu,
   // mas são acessadas a partir de outras seções ou são sempre necessárias

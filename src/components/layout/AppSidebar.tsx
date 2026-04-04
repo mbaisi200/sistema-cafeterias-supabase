@@ -89,6 +89,7 @@ const masterMenuItems: MenuItem[] = [
 const adminMenuItems: MenuItem[] = [
   { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
+  { title: 'PDV Varejo', url: '/pdv-varejo', icon: Store },
   { title: 'PDV Garçon', url: '/pdv-garcom', icon: UtensilsCrossed },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
   { title: 'Cadastros', url: '/admin/cadastros', icon: Users },
@@ -114,6 +115,7 @@ const atalhoRapidoMenuItems: MenuItem[] = [
 // Fallback hardcoded para funcionário
 const funcionarioMenuItems: MenuItem[] = [
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
+  { title: 'PDV Varejo', url: '/pdv-varejo', icon: Store },
   { title: 'PDV Garçon', url: '/pdv-garcom', icon: UtensilsCrossed },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
 ];
