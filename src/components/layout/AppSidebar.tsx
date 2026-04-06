@@ -96,6 +96,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
   { title: 'Serviços', url: '/admin/servicos', icon: Wrench },
   { title: 'Pedidos', url: '/admin/pedidos', icon: ClipboardList },
+  { title: 'Ordens de Serviço', url: '/admin/ordens-servico', icon: Wrench },
   { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
   { title: 'Delivery', url: '/admin/delivery', icon: Bike },

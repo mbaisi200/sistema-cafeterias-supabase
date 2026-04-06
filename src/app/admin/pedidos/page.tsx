@@ -68,15 +68,26 @@ import {
   ChevronDown,
   User,
   Download,
+  FileSpreadsheet,
+  ArrowRight,
+  FileText,
+  DollarSign,
+  Save,
+  CheckCircle,
+  AlertTriangle,
 } from 'lucide-react';
 
+// ============================================================
+// Types
+// ============================================================
 interface PedidoItem {
   id: string;
   produtoId: string;
   produtoNome: string;
   quantidade: number;
   precoUnitario: number;
-  subtotal: number;
+  desconto: number;
+  total: number;
 }
 
 interface Pedido {
@@ -84,24 +95,40 @@ interface Pedido {
   numero: number;
   clienteId: string;
   clienteNome: string;
-  dataPedido: string;
-  dataEntrega: string;
-  condicaoPagamento: string;
-  observacoes: string;
+  subtotal: number;
+  desconto: number;
+  total: number;
   status: string;
-  valorTotal: number;
+  formaPagamento: string;
+  condicaoPagamento: string;
+  prazoEntrega: string;
+  observacoes: string;
   itens: PedidoItem[];
+  vendaId: string;
+  dataAprovacao: string;
   criadoEm: string;
+  criadoPorNome: string;
 }
 
 const STATUS_OPTIONS = [
-  { value: 'rascunho', label: 'Rascunho', color: 'bg-gray-100 text-gray-700' },
-  { value: 'pendente', label: 'Pendente', color: 'bg-yellow-100 text-yellow-700' },
-  { value: 'aprovado', label: 'Aprovado', color: 'bg-blue-100 text-blue-700' },
-  { value: 'faturado', label: 'Faturado', color: 'bg-green-100 text-green-700' },
-  { value: 'cancelado', label: 'Cancelado', color: 'bg-red-100 text-red-700' },
+  { value: 'pendente', label: 'Pendente', color: 'bg-yellow-500 text-white border-0', icon: Clock },
+  { value: 'aprovado', label: 'Aprovado', color: 'bg-blue-500 text-white border-0', icon: CheckCircle2 },
+  { value: 'convertido', label: 'Convertido', color: 'bg-green-500 text-white border-0', icon: ArrowRight },
+  { value: 'cancelado', label: 'Cancelado', color: 'bg-red-500 text-white border-0', icon: XCircle },
 ];
 
+const FORMA_PAGAMENTO_OPTIONS = [
+  { value: 'dinheiro', label: 'Dinheiro' },
+  { value: 'pix', label: 'PIX' },
+  { value: 'cartao_credito', label: 'Cartão de Crédito' },
+  { value: 'cartao_debito', label: 'Cartão de Débito' },
+  { value: 'boleto', label: 'Boleto' },
+  { value: 'transferencia', label: 'Transferência' },
+];
+
+// ============================================================
+// Component
+// ============================================================
 export default function PedidosPage() {
   const { user, empresaId } = useAuth();
   const { toast } = useToast();
@@ -117,15 +144,20 @@ export default function PedidosPage() {
   const [detailPedido, setDetailPedido] = useState<Pedido | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Converter dialog
+  const [converterDialogOpen, setConverterDialogOpen] = useState(false);
+  const [converterPedido, setConverterPedido] = useState<Pedido | null>(null);
+  const [converterFormaPagamento, setConverterFormaPagamento] = useState('');
+
   // Form state
   const [clienteId, setClienteId] = useState('');
   const [clienteNome, setClienteNome] = useState('');
   const [openClienteSearch, setOpenClienteSearch] = useState(false);
   const [clienteSearch, setClienteSearch] = useState('');
-  const [dataEntrega, setDataEntrega] = useState('');
+  const [prazoEntrega, setPrazoEntrega] = useState('');
   const [condicaoPagamento, setCondicaoPagamento] = useState('');
+  const [formaPagamento, setFormaPagamento] = useState('');
   const [observacoes, setObservacoes] = useState('');
-  const [pedidoStatus, setPedidoStatus] = useState('rascunho');
 
   // Items state
   const [itens, setItens] = useState<PedidoItem[]>([]);
@@ -149,10 +181,11 @@ export default function PedidosPage() {
     }
   }, [empresaId]);
 
-  const getSupabase = () => {
-    return getSupabaseClient();
-  };
+  const getSupabase = () => getSupabaseClient();
 
+  // ============================================================
+  // Data Loading
+  // ============================================================
   const loadPedidos = async () => {
     setLoading(true);
     try {
@@ -168,10 +201,15 @@ export default function PedidosPage() {
         ...p,
         clienteId: p.cliente_id || '',
         clienteNome: p.cliente_nome || '',
-        dataPedido: p.data_pedido || p.criado_em,
-        dataEntrega: p.data_entrega || '',
+        subtotal: parseFloat(p.subtotal) || 0,
+        desconto: parseFloat(p.desconto) || 0,
+        total: parseFloat(p.total) || 0,
+        formaPagamento: p.forma_pagamento || '',
         condicaoPagamento: p.condicao_pagamento || '',
-        valorTotal: p.valor_total || 0,
+        prazoEntrega: p.prazo_entrega || '',
+        vendaId: p.venda_id || '',
+        dataAprovacao: p.data_aprovacao || '',
+        criadoPorNome: p.criado_por_nome || '',
         itens: typeof p.itens === 'string' ? JSON.parse(p.itens) : (p.itens || []),
         criadoEm: p.criado_em,
       }));
@@ -232,11 +270,14 @@ export default function PedidosPage() {
     }
   };
 
+  // ============================================================
+  // Condicoes de Pagamento management
+  // ============================================================
   const handleAddCondicao = async () => {
     if (!novaCondicao.trim() || !empresaId) return;
     try {
       const supabase = getSupabase();
-      const { data, error } = await supabase.from('condicoes_pagamento').insert({
+      const { error } = await supabase.from('condicoes_pagamento').insert({
         empresa_id: empresaId,
         nome: novaCondicao.trim(),
         ativo: true,
@@ -266,7 +307,9 @@ export default function PedidosPage() {
     }
   };
 
-  // Filter clientes by search text
+  // ============================================================
+  // Filters
+  // ============================================================
   const clientesFiltrados = useMemo(() => {
     if (!clienteSearch.trim()) return clientes;
     const term = clienteSearch.toLowerCase();
@@ -277,7 +320,31 @@ export default function PedidosPage() {
     );
   }, [clientes, clienteSearch]);
 
+  const getProdutosFiltrados = (index: number) => {
+    const term = (produtoSearchByItem[index] || '').toLowerCase().trim();
+    if (!term) return produtos;
+    return produtos.filter(p =>
+      (p.nome || '').toLowerCase().includes(term) ||
+      (p.codigo_barras || '').includes(term)
+    );
+  };
+
+  const pedidosFiltrados = pedidos.filter(p => {
+    const matchStatus = statusFilter === 'todos' || p.status === statusFilter;
+    const matchSearch = !search ||
+      (p.clienteNome || '').toLowerCase().includes(search.toLowerCase()) ||
+      String(p.numero).includes(search);
+    return matchStatus && matchSearch;
+  });
+
+  // Stats
+  const pedidosPendentes = pedidos.filter(p => p.status === 'pendente');
+  const pedidosAprovados = pedidos.filter(p => p.status === 'aprovado');
+  const totalPedidosPendentes = pedidosPendentes.reduce((acc, p) => acc + p.total, 0);
+
+  // ============================================================
   // Item management
+  // ============================================================
   const addItem = () => {
     const newIndex = itens.length;
     setItens([...itens, {
@@ -286,7 +353,8 @@ export default function PedidosPage() {
       produtoNome: '',
       quantidade: 1,
       precoUnitario: 0,
-      subtotal: 0,
+      desconto: 0,
+      total: 0,
     }]);
     setOpenProdutoSearch(prev => [...prev, false]);
     setProdutoSearchByItem(prev => [...prev, '']);
@@ -300,7 +368,9 @@ export default function PedidosPage() {
       updated[index].produtoNome = prod?.nome || '';
       updated[index].precoUnitario = prod?.custo || prod?.preco || 0;
     }
-    updated[index].subtotal = updated[index].quantidade * updated[index].precoUnitario;
+    // Recalculate total
+    const total = (updated[index].precoUnitario * updated[index].quantidade) - (updated[index].desconto || 0);
+    updated[index].total = total;
     setItens(updated);
   };
 
@@ -310,12 +380,15 @@ export default function PedidosPage() {
     setProdutoSearchByItem(prev => prev.filter((_, i) => i !== index));
   };
 
-  const totalItens = itens.reduce((acc, item) => acc + item.subtotal, 0);
+  const totalItens = itens.reduce((acc, item) => acc + item.total, 0);
+  const totalDesconto = itens.reduce((acc, item) => acc + (item.desconto || 0), 0);
 
+  // ============================================================
   // Save
+  // ============================================================
   const handleSave = async () => {
     if (!clienteId || !clienteNome) {
-      toast({ variant: 'destructive', title: 'Cliente é obrigatório', description: 'Selecione um cliente para emissão de NF-e de saída.' });
+      toast({ variant: 'destructive', title: 'Cliente é obrigatório' });
       return;
     }
     if (itens.length === 0) {
@@ -325,6 +398,9 @@ export default function PedidosPage() {
     setSaving(true);
     try {
       const supabase = getSupabase();
+      const total = totalItens;
+      const subtotal = itens.reduce((acc, item) => acc + (item.precoUnitario * item.quantidade), 0);
+      const descontoTotal = totalDesconto;
 
       if (editingPedido) {
         const { error } = await supabase
@@ -332,13 +408,14 @@ export default function PedidosPage() {
           .update({
             cliente_id: clienteId,
             cliente_nome: clienteNome,
-            data_entrega: dataEntrega || null,
+            prazo_entrega: prazoEntrega || null,
             condicao_pagamento: condicaoPagamento,
+            forma_pagamento: formaPagamento,
             observacoes,
-            status: pedidoStatus,
-            valor_total: totalItens,
+            subtotal,
+            desconto: descontoTotal,
+            total,
             itens: JSON.stringify(itens),
-            atualizado_em: new Date().toISOString(),
           })
           .eq('id', editingPedido.id);
         if (error) throw error;
@@ -360,12 +437,14 @@ export default function PedidosPage() {
             numero: nextNum,
             cliente_id: clienteId,
             cliente_nome: clienteNome,
-            data_pedido: new Date().toISOString(),
-            data_entrega: dataEntrega || null,
+            prazo_entrega: prazoEntrega || null,
             condicao_pagamento: condicaoPagamento,
+            forma_pagamento: formaPagamento,
             observacoes,
-            status: pedidoStatus,
-            valor_total: totalItens,
+            status: 'pendente',
+            subtotal,
+            desconto: descontoTotal,
+            total,
             itens: JSON.stringify(itens),
             criado_por: user?.id,
             criado_por_nome: user?.nome,
@@ -383,7 +462,9 @@ export default function PedidosPage() {
     }
   };
 
-  // Delete
+  // ============================================================
+  // Actions
+  // ============================================================
   const handleDelete = async (id: string) => {
     if (!confirm('Deseja realmente excluir este pedido?')) return;
     try {
@@ -397,26 +478,131 @@ export default function PedidosPage() {
     }
   };
 
-  // Edit
-  // Filter produtos by search text per item
-  const getProdutosFiltrados = (index: number) => {
-    const term = (produtoSearchByItem[index] || '').toLowerCase().trim();
-    if (!term) return produtos;
-    return produtos.filter(p =>
-      (p.nome || '').toLowerCase().includes(term) ||
-      (p.codigo_barras || '').includes(term) ||
-      (p.codigo || '').toLowerCase().includes(term)
-    );
+  const handleAprovar = async (id: string) => {
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase
+        .from('pedidos')
+        .update({
+          status: 'aprovado',
+          data_aprovacao: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (error) throw error;
+      toast({ title: 'Pedido aprovado!', description: 'O pedido foi aprovado com sucesso.' });
+      loadPedidos();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erro ao aprovar pedido', description: err.message });
+    }
   };
 
+  const handleCancelar = async (id: string) => {
+    if (!confirm('Tem certeza que deseja cancelar este pedido?')) return;
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase
+        .from('pedidos')
+        .update({ status: 'cancelado' })
+        .eq('id', id);
+      if (error) throw error;
+      toast({ title: 'Pedido cancelado!', description: 'O pedido foi cancelado com sucesso.' });
+      loadPedidos();
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erro ao cancelar pedido', description: err.message });
+    }
+  };
+
+  const handleConverter = async () => {
+    if (!converterPedido || !converterFormaPagamento) return;
+    setSaving(true);
+    try {
+      const supabase = getSupabase();
+
+      // Create a venda from the pedido
+      const { data: lastVenda } = await supabase
+        .from('vendas')
+        .select('id')
+        .eq('empresa_id', empresaId)
+        .order('criado_em', { ascending: false })
+        .limit(1)
+        .single();
+
+      const { data: novaVenda, error: vendaError } = await supabase
+        .from('vendas')
+        .insert({
+          empresa_id: empresaId,
+          cliente_id: converterPedido.clienteId,
+          cliente_nome: converterPedido.clienteNome,
+          valor_total: converterPedido.total,
+          forma_pagamento: converterFormaPagamento,
+          condicao_pagamento: converterPedido.condicaoPagamento,
+          status: 'finalizada',
+          observacoes: `Convertido do Pedido #${converterPedido.numero}`,
+          criado_por: user?.id,
+          criado_por_nome: user?.nome,
+        })
+        .select('id')
+        .single();
+
+      if (vendaError) throw vendaError;
+
+      // Create itens_venda from pedido items
+      if (converterPedido.itens && converterPedido.itens.length > 0 && novaVenda) {
+        const itensVenda = converterPedido.itens.map(item => ({
+          empresa_id: empresaId,
+          venda_id: novaVenda.id,
+          produto_id: item.produtoId,
+          produto_nome: item.produtoNome,
+          quantidade: item.quantidade,
+          preco_unitario: item.precoUnitario,
+          subtotal: item.total,
+        }));
+
+        const { error: itensError } = await supabase
+          .from('itens_venda')
+          .insert(itensVenda);
+
+        if (itensError) console.error('Erro ao criar itens_venda:', itensError);
+      }
+
+      // Update pedido status to convertido
+      const { error: updateError } = await supabase
+        .from('pedidos')
+        .update({
+          status: 'convertido',
+          venda_id: novaVenda?.id,
+        })
+        .eq('id', converterPedido.id);
+
+      if (updateError) throw updateError;
+
+      toast({
+        title: 'Venda gerada com sucesso!',
+        description: `Pedido #${converterPedido.numero} convertido em venda.`,
+      });
+      setConverterDialogOpen(false);
+      setConverterPedido(null);
+      setConverterFormaPagamento('');
+      loadPedidos();
+    } catch (err: any) {
+      console.error('Erro ao converter pedido:', err);
+      toast({ variant: 'destructive', title: 'Erro ao converter pedido', description: err.message });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ============================================================
+  // Edit
+  // ============================================================
   const handleEdit = (pedido: Pedido) => {
     setEditingPedido(pedido);
     setClienteId(pedido.clienteId || '');
     setClienteNome(pedido.clienteNome || '');
-    setDataEntrega(pedido.dataEntrega ? pedido.dataEntrega.split('T')[0] : '');
+    setPrazoEntrega(pedido.prazoEntrega ? pedido.prazoEntrega.split('T')[0] : '');
     setCondicaoPagamento(pedido.condicaoPagamento || '');
+    setFormaPagamento(pedido.formaPagamento || '');
     setObservacoes(pedido.observacoes || '');
-    setPedidoStatus(pedido.status);
     setItens(pedido.itens || []);
     setOpenProdutoSearch((pedido.itens || []).map(() => false));
     setProdutoSearchByItem((pedido.itens || []).map(() => ''));
@@ -429,27 +615,38 @@ export default function PedidosPage() {
     setClienteNome('');
     setOpenClienteSearch(false);
     setClienteSearch('');
-    setDataEntrega('');
+    setPrazoEntrega('');
     setCondicaoPagamento('');
+    setFormaPagamento('');
     setObservacoes('');
-    setPedidoStatus('rascunho');
     setItens([]);
     setOpenProdutoSearch([]);
     setProdutoSearchByItem([]);
   };
 
+  // ============================================================
+  // Status badge
+  // ============================================================
   const getStatusBadge = (status: string) => {
     const opt = STATUS_OPTIONS.find(s => s.value === status);
-    if (!opt) return null;
-    return <Badge className={`${opt.color} text-xs border-0`}>{opt.label}</Badge>;
+    if (!opt) return <Badge>{status}</Badge>;
+    const Icon = opt.icon;
+    return (
+      <Badge className={`${opt.color} text-xs`}>
+        <Icon className="h-3 w-3 mr-1" />
+        {opt.label}
+      </Badge>
+    );
   };
 
   const formatCurrency = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   const formatDate = (d: string) => { try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return '-'; } };
 
+  // ============================================================
   // Export PDF
+  // ============================================================
   const handleExportPDF = () => {
-    const totalValor = pedidosFiltrados.reduce((acc, p) => acc + (p.valorTotal || 0), 0);
+    const totalValor = pedidosFiltrados.reduce((acc, p) => acc + (p.total || 0), 0);
     const statusLabel = (status: string) => {
       const opt = STATUS_OPTIONS.find(s => s.value === status);
       return opt ? opt.label : status;
@@ -460,8 +657,9 @@ export default function PedidosPage() {
       columns: [
         { header: 'Nº', accessor: (row: any) => `#${row.numero}`, width: 20 },
         { header: 'Cliente', accessor: (row: any) => row.clienteNome || '-', width: 60 },
+        { header: 'Itens', accessor: (row: any) => (row.itens || []).length, width: 15 },
         { header: 'Data', accessor: (row: any) => formatDatePDF(row.criadoEm), width: 30 },
-        { header: 'Valor Total', accessor: (row: any) => formatCurrencyPDF(row.valorTotal), width: 35 },
+        { header: 'Valor Total', accessor: (row: any) => formatCurrencyPDF(row.total), width: 35 },
         { header: 'Status', accessor: (row: any) => statusLabel(row.status), width: 25 },
       ],
       data: pedidosFiltrados,
@@ -469,24 +667,20 @@ export default function PedidosPage() {
       orientation: 'landscape',
       totals: {
         label: 'TOTAL',
-        columnTotals: { 3: formatCurrencyPDF(totalValor) },
+        columnTotals: { 4: formatCurrencyPDF(totalValor) },
       },
       summary: [
         { label: 'Total de Pedidos', value: pedidosFiltrados.length },
         { label: 'Valor Total', value: formatCurrencyPDF(totalValor) },
+        { label: 'Pendentes', value: pedidosPendentes.length },
+        { label: 'Aprovados', value: pedidosAprovados.length },
       ],
     });
   };
 
-  // Filter
-  const pedidosFiltrados = pedidos.filter(p => {
-    const matchStatus = statusFilter === 'todos' || p.status === statusFilter;
-    const matchSearch = !search ||
-      (p.clienteNome || '').toLowerCase().includes(search.toLowerCase()) ||
-      String(p.numero).includes(search);
-    return matchStatus && matchSearch;
-  });
-
+  // ============================================================
+  // Render
+  // ============================================================
   return (
     <ProtectedRoute allowedRoles={['admin']}>
       <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Pedidos' }]}>
@@ -505,7 +699,7 @@ export default function PedidosPage() {
                   Pedidos
                 </h1>
                 <p className="text-muted-foreground mt-1">
-                  Gerencie pedidos de venda
+                  Orçamentos e pré-vendas (ERP)
                 </p>
               </div>
             </div>
@@ -519,6 +713,62 @@ export default function PedidosPage() {
                 Novo Pedido
               </Button>
             </div>
+          </div>
+
+          {/* Stats Cards */}
+          <div className="grid gap-4 md:grid-cols-4">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                    <FileSpreadsheet className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total de Pedidos</p>
+                    <p className="text-2xl font-bold">{pedidos.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                    <Clock className="h-6 w-6 text-yellow-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Pendentes</p>
+                    <p className="text-2xl font-bold">{pedidosPendentes.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
+                    <CheckCircle className="h-6 w-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Aprovados</p>
+                    <p className="text-2xl font-bold">{pedidosAprovados.length}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                    <DollarSign className="h-6 w-6 text-green-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Valor Pendente</p>
+                    <p className="text-2xl font-bold">{formatCurrency(totalPedidosPendentes)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Condições de Pagamento */}
@@ -594,6 +844,10 @@ export default function PedidosPage() {
 
           {/* Table */}
           <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Lista de Pedidos</CardTitle>
+              <CardDescription>{pedidosFiltrados.length} pedido(s) encontrado(s)</CardDescription>
+            </CardHeader>
             <CardContent className="p-0">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
@@ -611,8 +865,9 @@ export default function PedidosPage() {
                       <TableRow>
                         <TableHead>Nº</TableHead>
                         <TableHead>Cliente</TableHead>
+                        <TableHead className="text-center">Itens</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
                         <TableHead>Data</TableHead>
-                        <TableHead className="text-right">Valor Total</TableHead>
                         <TableHead className="text-center">Status</TableHead>
                         <TableHead className="text-center">Ações</TableHead>
                       </TableRow>
@@ -620,16 +875,58 @@ export default function PedidosPage() {
                     <TableBody>
                       {pedidosFiltrados.map((p) => (
                         <TableRow key={p.id}>
-                          <TableCell className="font-mono font-medium">#{p.numero}</TableCell>
-                          <TableCell>{p.clienteNome || '-'}</TableCell>
+                          <TableCell className="font-mono font-semibold">#{p.numero}</TableCell>
+                          <TableCell>
+                            <div>
+                              <p className="font-medium">{p.clienteNome || '-'}</p>
+                              <p className="text-xs text-muted-foreground">{p.condicaoPagamento}</p>
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-center">{(p.itens || []).length}</TableCell>
+                          <TableCell className="text-right font-semibold text-green-600">{formatCurrency(p.total)}</TableCell>
                           <TableCell className="text-sm">{formatDate(p.criadoEm)}</TableCell>
-                          <TableCell className="text-right font-semibold text-green-600">{formatCurrency(p.valorTotal)}</TableCell>
                           <TableCell className="text-center">{getStatusBadge(p.status)}</TableCell>
                           <TableCell>
                             <div className="flex items-center justify-center gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailPedido(p)}><Eye className="h-4 w-4" /></Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(p)}><Edit className="h-4 w-4 text-blue-600" /></Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(p.id)}><Trash2 className="h-4 w-4 text-red-600" /></Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailPedido(p)} title="Ver detalhes">
+                                <Eye className="h-4 w-4" />
+                              </Button>
+                              {p.status === 'pendente' && (
+                                <>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => handleAprovar(p.id)} title="Aprovar">
+                                    <CheckCircle2 className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => handleCancelar(p.id)} title="Cancelar">
+                                    <XCircle className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(p)} title="Editar">
+                                    <Edit className="h-4 w-4 text-blue-600" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(p.id)} title="Excluir">
+                                    <Trash2 className="h-4 w-4 text-red-600" />
+                                  </Button>
+                                </>
+                              )}
+                              {p.status === 'aprovado' && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 gap-1 text-green-600 hover:text-green-700"
+                                    onClick={() => { setConverterPedido(p); setConverterFormaPagamento(''); setConverterDialogOpen(true); }}
+                                    title="Converter em Venda"
+                                  >
+                                    <FileText className="h-4 w-4" />
+                                    <ArrowRight className="h-3 w-3" />
+                                  </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(p)} title="Editar">
+                                    <Edit className="h-4 w-4 text-blue-600" />
+                                  </Button>
+                                </>
+                              )}
+                              {(p.status === 'convertido' || p.status === 'cancelado') && (
+                                <span className="text-xs text-muted-foreground">Somente leitura</span>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -654,7 +951,6 @@ export default function PedidosPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Cliente <span className="text-red-500">*</span></Label>
-                  <p className="text-xs text-muted-foreground -mt-1">Cliente para emissão de NF-e de saída</p>
                   <Popover open={openClienteSearch} onOpenChange={setOpenClienteSearch}>
                     <PopoverTrigger asChild>
                       <Button variant="outline" className="h-9 w-full justify-start font-normal text-sm">
@@ -706,8 +1002,8 @@ export default function PedidosPage() {
                   </Popover>
                 </div>
                 <div className="space-y-2">
-                  <Label>Data Prevista Entrega</Label>
-                  <Input type="date" value={dataEntrega} onChange={(e) => setDataEntrega(e.target.value)} />
+                  <Label>Prazo de Entrega</Label>
+                  <Input type="date" value={prazoEntrega} onChange={(e) => setPrazoEntrega(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Condição de Pagamento</Label>
@@ -721,19 +1017,24 @@ export default function PedidosPage() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Status</Label>
-                  <Select value={pedidoStatus} onValueChange={setPedidoStatus}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                  <Label>Forma de Pagamento</Label>
+                  <Select value={formaPagamento} onValueChange={setFormaPagamento}>
+                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
                     <SelectContent>
-                      {STATUS_OPTIONS.map(s => (
-                        <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                      {FORMA_PAGAMENTO_OPTIONS.map(f => (
+                        <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label>Observações</Label>
-                  <Input value={observacoes} onChange={(e) => setObservacoes(e.target.value)} placeholder="Observações gerais" />
+                  <textarea
+                    className="w-full min-h-[60px] p-3 border rounded-lg resize-none text-sm"
+                    placeholder="Observações do pedido..."
+                    value={observacoes}
+                    onChange={(e) => setObservacoes(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -748,16 +1049,21 @@ export default function PedidosPage() {
                   </Button>
                 </div>
                 {itens.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Nenhum item adicionado</p>
+                  <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
+                    <Package className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                    <p>Nenhum item adicionado</p>
+                    <p className="text-sm">Clique em &quot;Adicionar Item&quot; para começar</p>
+                  </div>
                 ) : (
                   <div className="rounded-lg border overflow-hidden">
                     <Table>
                       <TableHeader>
-                        <TableRow>
+                        <TableRow className="bg-gray-50">
                           <TableHead className="text-xs">Produto</TableHead>
                           <TableHead className="text-xs text-center w-24">Qtd</TableHead>
                           <TableHead className="text-xs text-right w-32">Preço Unit.</TableHead>
-                          <TableHead className="text-xs text-right w-32">Subtotal</TableHead>
+                          <TableHead className="text-xs text-right w-28">Desconto</TableHead>
+                          <TableHead className="text-xs text-right w-32">Total</TableHead>
                           <TableHead className="w-10"></TableHead>
                         </TableRow>
                       </TableHeader>
@@ -781,7 +1087,7 @@ export default function PedidosPage() {
                                 <PopoverContent className="w-72 p-0">
                                   <Command shouldFilter={false}>
                                     <CommandInput
-                                      placeholder="Buscar produto por nome ou código..."
+                                      placeholder="Buscar produto por nome..."
                                       value={produtoSearchByItem[i] || ''}
                                       onValueChange={(val) => {
                                         const updated = [...produtoSearchByItem];
@@ -793,25 +1099,24 @@ export default function PedidosPage() {
                                       <CommandEmpty>Nenhum produto encontrado</CommandEmpty>
                                       <CommandGroup className="max-h-64 overflow-y-auto">
                                         {getProdutosFiltrados(i).map(p => (
-                                            <CommandItem
-                                              key={p.id}
-                                              value={p.nome}
-                                              onSelect={() => {
-                                                updateItem(i, 'produtoId', p.id);
-                                                const updated = [...openProdutoSearch];
-                                                updated[i] = false;
-                                                setOpenProdutoSearch(updated);
-                                                const searchUpdated = [...produtoSearchByItem];
-                                                searchUpdated[i] = '';
-                                                setProdutoSearchByItem(searchUpdated);
-                                              }}
-                                            >
-                                              <Package className="mr-2 h-4 w-4" />
-                                              <span>{p.nome}</span>
-                                              <span className="ml-auto text-xs text-muted-foreground">R$ {(p.preco || 0).toFixed(2)}</span>
-                                            </CommandItem>
-                                          ))
-                                        }
+                                          <CommandItem
+                                            key={p.id}
+                                            value={p.nome}
+                                            onSelect={() => {
+                                              updateItem(i, 'produtoId', p.id);
+                                              const updated = [...openProdutoSearch];
+                                              updated[i] = false;
+                                              setOpenProdutoSearch(updated);
+                                              const searchUpdated = [...produtoSearchByItem];
+                                              searchUpdated[i] = '';
+                                              setProdutoSearchByItem(searchUpdated);
+                                            }}
+                                          >
+                                            <Package className="mr-2 h-4 w-4" />
+                                            <span>{p.nome}</span>
+                                            <span className="ml-auto text-xs text-muted-foreground">R$ {(p.preco || 0).toFixed(2)}</span>
+                                          </CommandItem>
+                                        ))}
                                       </CommandGroup>
                                     </CommandList>
                                   </Command>
@@ -824,8 +1129,11 @@ export default function PedidosPage() {
                             <TableCell>
                               <Input type="number" min="0" step="0.01" value={item.precoUnitario} onChange={(e) => updateItem(i, 'precoUnitario', parseFloat(e.target.value) || 0)} className="h-8 text-right text-xs" />
                             </TableCell>
+                            <TableCell>
+                              <Input type="number" min="0" step="0.01" value={item.desconto || 0} onChange={(e) => updateItem(i, 'desconto', parseFloat(e.target.value) || 0)} className="h-8 text-right text-xs" />
+                            </TableCell>
                             <TableCell className="text-right font-semibold text-sm text-green-600">
-                              {formatCurrency(item.subtotal)}
+                              {formatCurrency(item.total)}
                             </TableCell>
                             <TableCell>
                               <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => removeItem(i)}>
@@ -839,8 +1147,24 @@ export default function PedidosPage() {
                   </div>
                 )}
                 {itens.length > 0 && (
-                  <div className="flex justify-end p-3 bg-muted rounded-lg">
-                    <span className="text-lg font-bold">Total: <span className="text-green-600">{formatCurrency(totalItens)}</span></span>
+                  <div className="flex justify-end">
+                    <div className="w-64 space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Subtotal:</span>
+                        <span>{formatCurrency(totalItens + totalDesconto)}</span>
+                      </div>
+                      {totalDesconto > 0 && (
+                        <div className="flex justify-between text-sm text-red-600">
+                          <span>Desconto:</span>
+                          <span>- {formatCurrency(totalDesconto)}</span>
+                        </div>
+                      )}
+                      <Separator />
+                      <div className="flex justify-between font-bold text-lg">
+                        <span>Total:</span>
+                        <span className="text-green-600">{formatCurrency(totalItens)}</span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -848,7 +1172,7 @@ export default function PedidosPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancelar</Button>
               <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                 {editingPedido ? 'Salvar Alterações' : 'Criar Pedido'}
               </Button>
             </DialogFooter>
@@ -860,6 +1184,7 @@ export default function PedidosPage() {
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Pedido #{detailPedido?.numero}</DialogTitle>
+              <DialogDescription>Detalhes do pedido</DialogDescription>
             </DialogHeader>
             {detailPedido && (
               <div className="space-y-4">
@@ -878,15 +1203,17 @@ export default function PedidosPage() {
                   </div>
                   <div className="bg-muted rounded-lg p-3">
                     <p className="text-xs text-muted-foreground">Entrega</p>
-                    <p className="font-semibold text-sm mt-1">{detailPedido.dataEntrega ? formatDate(detailPedido.dataEntrega) : '-'}</p>
+                    <p className="font-semibold text-sm mt-1">{detailPedido.prazoEntrega ? formatDate(detailPedido.prazoEntrega) : '-'}</p>
                   </div>
                   <div className="bg-muted rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">Pagamento</p>
+                    <p className="text-xs text-muted-foreground">Condição Pagamento</p>
                     <p className="font-semibold text-sm mt-1">{detailPedido.condicaoPagamento || '-'}</p>
                   </div>
                   <div className="bg-muted rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">Valor Total</p>
-                    <p className="font-semibold text-sm mt-1 text-green-600">{formatCurrency(detailPedido.valorTotal)}</p>
+                    <p className="text-xs text-muted-foreground">Forma Pagamento</p>
+                    <p className="font-semibold text-sm mt-1">
+                      {FORMA_PAGAMENTO_OPTIONS.find(f => f.value === detailPedido.formaPagamento)?.label || detailPedido.formaPagamento || '-'}
+                    </p>
                   </div>
                 </div>
                 {detailPedido.observacoes && (
@@ -895,30 +1222,143 @@ export default function PedidosPage() {
                     <p className="text-sm mt-1">{detailPedido.observacoes}</p>
                   </div>
                 )}
-                <div className="rounded-lg border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-xs">Produto</TableHead>
-                        <TableHead className="text-xs text-center">Qtd</TableHead>
-                        <TableHead className="text-xs text-right">Preço Unit.</TableHead>
-                        <TableHead className="text-xs text-right">Subtotal</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detailPedido.itens.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell className="text-sm">{item.produtoNome}</TableCell>
-                          <TableCell className="text-sm text-center font-mono">{item.quantidade}</TableCell>
-                          <TableCell className="text-sm text-right font-mono">{formatCurrency(item.precoUnitario)}</TableCell>
-                          <TableCell className="text-sm text-right font-semibold">{formatCurrency(item.subtotal)}</TableCell>
+                {detailPedido.itens && detailPedido.itens.length > 0 && (
+                  <div className="rounded-lg border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="text-xs">Produto</TableHead>
+                          <TableHead className="text-xs text-center">Qtd</TableHead>
+                          <TableHead className="text-xs text-right">Preço Unit.</TableHead>
+                          {detailPedido.itens.some(item => item.desconto > 0) && (
+                            <TableHead className="text-xs text-right">Desconto</TableHead>
+                          )}
+                          <TableHead className="text-xs text-right">Total</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {detailPedido.itens.map((item, idx) => (
+                          <TableRow key={item.id || idx}>
+                            <TableCell className="text-sm">{item.produtoNome}</TableCell>
+                            <TableCell className="text-sm text-center font-mono">{item.quantidade}</TableCell>
+                            <TableCell className="text-sm text-right font-mono">{formatCurrency(item.precoUnitario)}</TableCell>
+                            {detailPedido.itens.some(i => i.desconto > 0) && (
+                              <TableCell className="text-sm text-right font-mono text-red-600">{item.desconto > 0 ? formatCurrency(item.desconto) : '-'}</TableCell>
+                            )}
+                            <TableCell className="text-sm text-right font-semibold">{formatCurrency(item.total)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+                <div className="flex justify-between items-center pt-2 border-t">
+                  <span className="font-medium">Total do Pedido:</span>
+                  <span className="text-2xl font-bold text-green-600">{formatCurrency(detailPedido.total)}</span>
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* CONVERTER DIALOG */}
+        <Dialog open={converterDialogOpen} onOpenChange={(open) => { if (!open) { setConverterDialogOpen(false); setConverterPedido(null); } }}>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Converter em Venda</DialogTitle>
+              <DialogDescription>Revise os dados e confirme para gerar uma venda a partir deste pedido</DialogDescription>
+            </DialogHeader>
+            {converterPedido && (
+              <div className="space-y-4">
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
+                    <div>
+                      <p className="font-medium text-blue-800">Revise os dados antes de converter</p>
+                      <p className="text-sm text-blue-700">Uma venda será criada e o pedido será marcado como convertido.</p>
+                    </div>
+                  </div>
+                </div>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Dados do Pedido #{converterPedido.numero}</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Cliente</Label>
+                        <p className="font-medium">{converterPedido.clienteNome || '-'}</p>
+                      </div>
+                      <div>
+                        <Label className="text-muted-foreground text-xs">Condição</Label>
+                        <p className="font-medium">{converterPedido.condicaoPagamento || '-'}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-base">Itens do Pedido</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Produto</TableHead>
+                          <TableHead className="text-right">Qtd</TableHead>
+                          <TableHead className="text-right">Preço Unit.</TableHead>
+                          <TableHead className="text-right">Total</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {converterPedido.itens.map((item, idx) => (
+                          <TableRow key={idx}>
+                            <TableCell className="text-sm font-medium">{item.produtoNome}</TableCell>
+                            <TableCell className="text-right">{item.quantidade}</TableCell>
+                            <TableCell className="text-right">{formatCurrency(item.precoUnitario)}</TableCell>
+                            <TableCell className="text-right font-semibold">{formatCurrency(item.total)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    <div className="flex justify-between items-center mt-4 pt-4 border-t">
+                      <span className="font-semibold">Total:</span>
+                      <span className="text-xl font-bold text-green-600">{formatCurrency(converterPedido.total)}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-2">
+                  <Label>Forma de Pagamento <span className="text-red-500">*</span></Label>
+                  <Select value={converterFormaPagamento} onValueChange={setConverterFormaPagamento}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a forma de pagamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {FORMA_PAGAMENTO_OPTIONS.map(f => (
+                        <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConverterDialogOpen(false)}>Cancelar</Button>
+              <Button
+                onClick={handleConverter}
+                disabled={saving || !converterFormaPagamento}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {saving ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Processando...</>
+                ) : (
+                  <><CheckCircle className="mr-2 h-4 w-4" />Converter em Venda</>
+                )}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
       </MainLayout>
