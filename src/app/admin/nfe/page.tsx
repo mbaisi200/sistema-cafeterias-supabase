@@ -55,6 +55,7 @@ import {
   Loader2,
   FilePlus2,
   DollarSign,
+  Settings,
 } from 'lucide-react';
 import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
 
@@ -367,16 +368,10 @@ export default function NFePage() {
                 <Download className="h-4 w-4" />
                 Exportar PDF
               </Button>
-              <Link href="/admin/nfe/importar">
-                <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
-                  <FileUp className="h-4 w-4" />
-                  Importar NF-e
-                </Button>
-              </Link>
-              <Link href="/admin/nfe/emitir">
+              <Link href="/admin/nfe/config">
                 <Button variant="outline" className="gap-2">
-                  <FilePlus2 className="h-4 w-4" />
-                  Emitir NF-e
+                  <Settings className="h-4 w-4" />
+                  Config. NF-e
                 </Button>
               </Link>
             </div>

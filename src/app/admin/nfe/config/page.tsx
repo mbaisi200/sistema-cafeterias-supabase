@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useNFeConfig } from '@/hooks/useNFE';
+import { useNFCeConfig } from '@/hooks/useNFCeConfig';
+import { UploadCertificado } from '@/components/nfce/UploadCertificado';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,9 +35,18 @@ import { toast } from 'sonner';
 
 export default function NFeConfigPage() {
   const { empresaId } = useAuth();
-  const { config, loading, error, carregarConfig, salvarConfig } = useNFeConfig(empresaId);
+  const { config, loading, carregarConfig, salvarConfig } = useNFeConfig(empresaId);
+  const {
+    certificados,
+    certificadoAtivo,
+    infoCertificado,
+    loading: loadingCert,
+    saving: uploadingCert,
+    uploadCertificado,
+    deletarCertificado,
+    ativarCertificado,
+  } = useNFCeConfig();
   const [salvando, setSalvando] = useState(false);
-  const router = useRouter();
 
   // Form state
   const [ambiente, setAmbiente] = useState('homologacao');
@@ -447,6 +457,18 @@ export default function NFeConfigPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Certificado Digital */}
+          <UploadCertificado
+            onUpload={uploadCertificado}
+            onDelete={deletarCertificado}
+            onActivate={ativarCertificado}
+            certificados={certificados}
+            certificadoAtivo={certificadoAtivo}
+            infoCertificado={infoCertificado}
+            uploading={uploadingCert}
+            loading={loadingCert}
+          />
 
           {/* Botões */}
           <div className="flex justify-end gap-4">
