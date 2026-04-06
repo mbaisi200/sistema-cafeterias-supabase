@@ -4,10 +4,11 @@ import React from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Truck, UserCheck } from 'lucide-react';
+import { Users, Truck, UserCheck, Wrench } from 'lucide-react';
 import { ClientesTab } from './ClientesTab';
 import { FornecedoresTab } from './FornecedoresTab';
 import { VendedoresTab } from './VendedoresTab';
+import { ServicosTab } from './ServicosTab';
 
 export default function CadastrosPage() {
   return (
@@ -17,7 +18,7 @@ export default function CadastrosPage() {
           <div>
             <h1 className="text-2xl font-bold">Cadastros</h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Gerencie clientes, vendedores e fornecedores
+              Gerencie clientes, vendedores, fornecedores e serviços
             </p>
           </div>
 
@@ -35,6 +36,10 @@ export default function CadastrosPage() {
                 <Truck className="h-4 w-4" />
                 Fornecedores
               </TabsTrigger>
+              <TabsTrigger value="servicos" className="gap-2">
+                <Wrench className="h-4 w-4" />
+                Serviços
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="clientes">
@@ -47,6 +52,10 @@ export default function CadastrosPage() {
 
             <TabsContent value="fornecedores">
               <FornecedoresTab />
+            </TabsContent>
+
+            <TabsContent value="servicos">
+              <ServicosTab />
             </TabsContent>
           </Tabs>
         </div>

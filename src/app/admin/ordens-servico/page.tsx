@@ -139,12 +139,22 @@ export default function OrdensServicoPage() {
 
   // Data lists
   const [clientes, setClientes] = useState<any[]>([]);
+  const [servicos, setServicos] = useState<any[]>([]);
+  const [servicosSelecionados, setServicosSelecionados] = useState<Array<{
+    servicoId: string;
+    servicoNome: string;
+    descricao: string;
+    quantidade: number;
+    valorUnitario: number;
+    total: number;
+  }>>([]);
 
   // Load data
   useEffect(() => {
     if (empresaId) {
       loadOrdens();
       loadClientes();
+      loadServicos();
     }
   }, [empresaId]);
 
@@ -193,6 +203,57 @@ export default function OrdensServicoPage() {
       setLoading(false);
     }
   };
+
+  const loadServicos = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data } = await supabase
+        .from('servicos')
+        .select('id, nome, descricao, categoria, preco, duracao, ativo')
+        .eq('empresa_id', empresaId)
+        .eq('ativo', true)
+        .order('nome');
+      setServicos(data || []);
+    } catch { /* ignore */ }
+  };
+
+  const adicionarServicoItem = () => {
+    setServicosSelecionados([...servicosSelecionados, {
+      servicoId: '',
+      servicoNome: '',
+      descricao: '',
+      quantidade: 1,
+      valorUnitario: 0,
+      total: 0,
+    }]);
+  };
+
+  const removerServicoItem = (index: number) => {
+    setServicosSelecionados(servicosSelecionados.filter((_, i) => i !== index));
+  };
+
+  const atualizarServicoItem = (index: number, campo: string, valor: any) => {
+    const novos = [...servicosSelecionados];
+    novos[index] = { ...novos[index], [campo]: valor };
+    if (campo === 'servicoId') {
+      const servico = servicos.find((s: any) => s.id === valor);
+      if (servico) {
+        novos[index].servicoNome = servico.nome;
+        novos[index].descricao = servico.descricao || servico.nome;
+        novos[index].valorUnitario = parseFloat(servico.preco) || 0;
+      }
+    }
+    novos[index].total = novos[index].quantidade * novos[index].valorUnitario;
+    setServicosSelecionados(novos);
+  };
+
+  const totalServicosCalc = servicosSelecionados.reduce((acc, item) => acc + item.total, 0);
+
+  useEffect(() => {
+    if (servicosSelecionados.length > 0) {
+      setFormValorTotal(totalServicosCalc);
+    }
+  }, [totalServicosCalc]);
 
   const loadClientes = async () => {
     try {
@@ -247,8 +308,8 @@ export default function OrdensServicoPage() {
       toast({ variant: 'destructive', title: 'Selecione um cliente' });
       return;
     }
-    if (!formDescricao.trim()) {
-      toast({ variant: 'destructive', title: 'Informe a descrição do serviço' });
+    if (servicosSelecionados.length === 0 && !formDescricao.trim()) {
+      toast({ variant: 'destructive', title: 'Selecione ao menos um serviço ou informe uma descrição' });
       return;
     }
 
@@ -269,7 +330,15 @@ export default function OrdensServicoPage() {
             valor_total: valorTotal,
             status: formStatus,
             observacoes: formObservacoes,
-            servicos: JSON.stringify([{ descricao: formDescricao, quantidade: 1, valorUnitario: valorTotal, total: valorTotal }]),
+            servicos: JSON.stringify(servicosSelecionados.length > 0
+              ? servicosSelecionados.map(s => ({
+                  descricao: s.descricao || s.servicoNome,
+                  quantidade: s.quantidade,
+                  valorUnitario: s.valorUnitario,
+                  total: s.total,
+                }))
+              : [{ descricao: formDescricao, quantidade: 1, valorUnitario: valorTotal, total: valorTotal }]
+            ),
           })
           .eq('id', editingOS.id);
         if (error) throw error;
@@ -298,7 +367,15 @@ export default function OrdensServicoPage() {
             valor_servicos: valorTotal,
             status: formStatus,
             observacoes: formObservacoes,
-            servicos: JSON.stringify([{ descricao: formDescricao, quantidade: 1, valorUnitario: valorTotal, total: valorTotal }]),
+            servicos: JSON.stringify(servicosSelecionados.length > 0
+              ? servicosSelecionados.map(s => ({
+                  descricao: s.descricao || s.servicoNome,
+                  quantidade: s.quantidade,
+                  valorUnitario: s.valorUnitario,
+                  total: s.total,
+                }))
+              : [{ descricao: formDescricao, quantidade: 1, valorUnitario: valorTotal, total: valorTotal }]
+            ),
             criado_por: user?.id,
             criado_por_nome: user?.nome,
           });
@@ -372,6 +449,17 @@ export default function OrdensServicoPage() {
     setFormValorTotal(os.valorTotal || 0);
     setFormStatus(os.status || 'aberta');
     setFormObservacoes(os.observacoes || '');
+    setServicosSelecionados(os.servicos && os.servicos.length > 0
+      ? os.servicos.map((s: any) => ({
+          servicoId: '',
+          servicoNome: s.descricao || '',
+          descricao: s.descricao || '',
+          quantidade: s.quantidade || 1,
+          valorUnitario: s.valorUnitario || 0,
+          total: s.total || 0,
+        }))
+      : []
+    );
     setFormOpen(true);
   };
 
@@ -387,6 +475,7 @@ export default function OrdensServicoPage() {
     setFormValorTotal(0);
     setFormStatus('aberta');
     setFormObservacoes('');
+    setServicosSelecionados([]);
   };
 
   // ============================================================
@@ -666,10 +755,67 @@ export default function OrdensServicoPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Descrição <span className="text-red-500">*</span></Label>
+                <div className="flex items-center justify-between">
+                  <Label>Serviços do Cadastro</Label>
+                  <Button type="button" variant="outline" size="sm" className="gap-1 text-xs" onClick={adicionarServicoItem}>
+                    <Plus className="h-3 w-3" /> Adicionar Serviço
+                  </Button>
+                </div>
+                {servicosSelecionados.length === 0 ? (
+                  <p className="text-xs text-muted-foreground bg-muted rounded-lg p-3">
+                    Nenhum serviço selecionado. Clique em &quot;Adicionar Serviço&quot; para buscar do cadastro.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {servicosSelecionados.map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-muted rounded-lg p-2">
+                        <div className="flex-1 min-w-0">
+                          <Select
+                            value={item.servicoId}
+                            onValueChange={(val) => atualizarServicoItem(idx, 'servicoId', val)}
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue placeholder="Selecionar serviço..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {servicos.map((s: any) => (
+                                <SelectItem key={s.id} value={s.id}>
+                                  {s.nome} - {formatCurrency(parseFloat(s.preco))}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Input
+                          type="number"
+                          min="1"
+                          className="w-20 h-8 text-sm text-center"
+                          value={item.quantidade}
+                          onChange={(e) => atualizarServicoItem(idx, 'quantidade', parseInt(e.target.value) || 1)}
+                        />
+                        <span className="text-sm font-medium text-green-600 w-24 text-right">
+                          {formatCurrency(item.total)}
+                        </span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-red-500"
+                          onClick={() => removerServicoItem(idx)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <Label>Descrição / Observação Geral</Label>
                 <textarea
                   className="w-full min-h-[80px] p-3 border rounded-lg resize-none text-sm"
-                  placeholder="Descrição do serviço..."
+                  placeholder="Observações gerais sobre a OS..."
                   value={formDescricao}
                   onChange={(e) => setFormDescricao(e.target.value)}
                 />
@@ -775,10 +921,26 @@ export default function OrdensServicoPage() {
                   </div>
                 </div>
 
-                <div className="bg-muted rounded-lg p-3">
-                  <p className="text-xs text-muted-foreground">Descrição</p>
-                  <p className="text-sm mt-1">{detailOS.descricao}</p>
-                </div>
+                {detailOS.servicos && detailOS.servicos.length > 0 && (
+                  <div className="bg-muted rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground mb-2">Serviços</p>
+                    <div className="space-y-1">
+                      {detailOS.servicos.map((s: any, i: number) => (
+                        <div key={i} className="flex justify-between items-center text-sm">
+                          <span>{s.descricao} {s.quantidade > 1 ? `(x${s.quantidade})` : ''}</span>
+                          <span className="font-medium text-green-600">{formatCurrency(s.total || s.valorUnitario * s.quantidade)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {detailOS.descricao && (
+                  <div className="bg-muted rounded-lg p-3">
+                    <p className="text-xs text-muted-foreground">Observações Gerais</p>
+                    <p className="text-sm mt-1">{detailOS.descricao}</p>
+                  </div>
+                )}
 
                 {detailOS.observacoes && (
                   <div className="bg-muted rounded-lg p-3">

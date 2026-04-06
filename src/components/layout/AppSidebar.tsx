@@ -56,7 +56,15 @@ import {
   Layers,
   Building2,
   Croissant,
+  FileSpreadsheet,
+  ChevronDown,
+  ChevronRight,
 } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 
 // Mapeamento de ícones para seções dinâmicas do banco
 const iconMap: Record<string, any> = {
@@ -73,6 +81,7 @@ interface MenuItem {
   url: string;
   icon: typeof LayoutDashboard;
   external?: boolean;
+  submenu?: MenuItem[];
 }
 
 const masterMenuItems: MenuItem[] = [
@@ -94,9 +103,15 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
   { title: 'Cadastros', url: '/admin/cadastros', icon: Users },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
-  { title: 'Serviços', url: '/admin/servicos', icon: Wrench },
-  { title: 'Pedidos', url: '/admin/pedidos', icon: ClipboardList },
-  { title: 'Ordens de Serviço', url: '/admin/ordens-servico', icon: Wrench },
+  {
+    title: 'Pedidos e OS',
+    url: '#',
+    icon: FileSpreadsheet,
+    submenu: [
+      { title: 'Pedidos', url: '/admin/pedidos', icon: ClipboardList },
+      { title: 'Ordens de Serviço', url: '/admin/ordens-servico', icon: Wrench },
+    ],
+  },
   { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
   { title: 'Delivery', url: '/admin/delivery', icon: Bike },
@@ -143,6 +158,7 @@ export function AppSidebar() {
   const [dynamicMenuItems, setDynamicMenuItems] = useState<MenuItem[]>([]);
   const [dynamicAtalhoItems, setDynamicAtalhoItems] = useState<MenuItem[]>([]);
   const [hasSegment, setHasSegment] = useState<boolean>(false);
+  const [openSubmenus, setOpenSubmenus] = useState<string[]>(['pedidos-os']);
 
   // Carregar seções dinâmicas do Supabase para admin e funcionário
   useEffect(() => {
@@ -237,18 +253,36 @@ export function AppSidebar() {
     loadSections();
   }, [role, empresaId]);
 
+  // Agrupa pedidos e ordens-servico em submenu "Pedidos e OS" quando vem do banco
+  const groupDynamicMenus = (items: MenuItem[]): MenuItem[] => {
+    const pedidosItem = items.find(i => i.url === '/admin/pedidos');
+    const osItem = items.find(i => i.url === '/admin/ordens-servico');
+
+    if (pedidosItem && osItem) {
+      const filtered = items.filter(i => i.url !== '/admin/pedidos' && i.url !== '/admin/ordens-servico');
+      // Encontrar posição do pedidos para inserir o grupo no mesmo lugar
+      const insertIdx = items.findIndex(i => i.url === '/admin/pedidos');
+      const parent: MenuItem = {
+        title: 'Pedidos e OS',
+        url: '#',
+        icon: FileSpreadsheet,
+        submenu: [pedidosItem, osItem],
+      };
+      filtered.splice(insertIdx, 0, parent);
+      return filtered;
+    }
+    return items;
+  };
+
   const getMenuItems = (): MenuItem[] => {
     switch (role) {
       case 'master':
         return masterMenuItems;
       case 'admin':
-        // Se tem segmento, respeitar os menus dinâmicos (mesmo vazio)
-        if (hasSegment) return dynamicMenuItems;
-        // Sem segmento: usar dinâmico se disponível, senão fallback hardcoded
-        return dynamicMenuItems.length > 0 ? dynamicMenuItems : adminMenuItems;
+        if (hasSegment) return groupDynamicMenus(dynamicMenuItems);
+        return dynamicMenuItems.length > 0 ? groupDynamicMenus(dynamicMenuItems) : adminMenuItems;
       case 'funcionario':
-        // Usar menus dinâmicos se disponíveis, senão fallback hardcoded
-        return dynamicMenuItems.length > 0 ? dynamicMenuItems : funcionarioMenuItems;
+        return dynamicMenuItems.length > 0 ? groupDynamicMenus(dynamicMenuItems) : funcionarioMenuItems;
       default:
         return [];
     }
@@ -299,20 +333,66 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.url}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={!item.external && pathname === item.url}
-                    tooltip={item.title}
+              {menuItems.map((item) =>
+                item.submenu ? (
+                  <Collapsible
+                    key={item.url}
+                    open={openSubmenus.includes(item.title.toLowerCase().replace(/\s+/g, '-'))}
+                    onOpenChange={(open) => {
+                      const key = item.title.toLowerCase().replace(/\s+/g, '-');
+                      setOpenSubmenus(prev =>
+                        open
+                          ? [...prev, key]
+                          : prev.filter(k => k !== key)
+                      );
+                    }}
+                    className="group/collapsible"
                   >
-                    <Link href={item.url}>
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton
+                          tooltip={item.title}
+                          isActive={item.submenu.some(sub => pathname === sub.url)}
+                        >
+                          <item.icon className="h-4 w-4" />
+                          <span>{item.title}</span>
+                          <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-180" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenu sub>
+                          {item.submenu.map((sub) => (
+                            <SidebarMenuItem key={sub.url}>
+                              <SidebarMenuButton
+                                asChild
+                                isActive={pathname === sub.url}
+                                tooltip={sub.title}
+                              >
+                                <Link href={sub.url}>
+                                  <span>{sub.title}</span>
+                                </Link>
+                              </SidebarMenuButton>
+                            </SidebarMenuItem>
+                          ))}
+                        </SidebarMenu>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                ) : (
+                  <SidebarMenuItem key={item.url}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={!item.external && pathname === item.url}
+                      tooltip={item.title}
+                    >
+                      <Link href={item.url}>
+                        <item.icon className="h-4 w-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
