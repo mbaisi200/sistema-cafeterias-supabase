@@ -201,8 +201,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setSession(initialSession);
           setSupabaseUser(initialSession.user);
           const userData = await fetchUserData(initialSession.user.id);
-          if (mounted.current) {
-            setUser(userData);
+          if (userData && mounted.current) {
+            // Device check on initial load only
+            if (userData.empresaId) {
+              try {
+                await verifyDevice(userData.empresaId, userData.id, userData.nome);
+              } catch (deviceError) {
+                console.error('🔒 Dispositivo não autorizado:', deviceError);
+                await getSupabase().auth.signOut();
+                if (mounted.current) {
+                  setUser(null);
+                  setLoading(false);
+                }
+                return;
+              }
+            }
+            if (mounted.current) {
+              setUser(userData);
+            }
+          } else if (mounted.current) {
+            setUser(null);
           }
           clearFuncionarioSession();
         } else {
@@ -252,8 +270,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (newSession?.user && !newSession.user.is_anonymous) {
         const userData = await fetchUserData(newSession.user.id);
-        if (mounted.current) {
-          setUser(userData);
+        if (userData && mounted.current) {
+          // Device check only on SIGNED_IN, not on TOKEN_REFRESH
+          if (userData.empresaId && event !== 'TOKEN_REFRESH') {
+            try {
+              await verifyDevice(userData.empresaId, userData.id, userData.nome);
+            } catch (deviceError) {
+              console.error('🔒 Dispositivo não autorizado:', deviceError);
+              await getSupabase().auth.signOut();
+              if (mounted.current) {
+                setUser(null);
+                setLoading(false);
+              }
+              return;
+            }
+          }
+          if (mounted.current) {
+            setUser(userData);
+          }
+        } else if (mounted.current) {
+          setUser(null);
         }
         clearFuncionarioSession();
       } else if (!newSession) {
@@ -302,6 +338,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Função auxiliar para verificação de dispositivo
+  const verifyDevice = async (empresaId: string, usuarioId: string, usuarioNome: string): Promise<void> => {
+    try {
+      const { getDeviceId, getDeviceName } = await import('@/lib/device-fingerprint');
+      const deviceId = getDeviceId();
+      const deviceName = getDeviceName();
+      const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+
+      const deviceResponse = await fetch('/api/dispositivos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresaId,
+          deviceId,
+          deviceName,
+          userAgent,
+          usuarioId,
+          usuarioNome,
+        }),
+      });
+
+      const deviceResult = await deviceResponse.json();
+      if (!deviceResult.allowed) {
+        throw new Error(deviceResult.message || 'Dispositivo não autorizado');
+      }
+    } catch (deviceError) {
+      if (deviceError instanceof Error) {
+        throw deviceError;
+      }
+      // Silently pass if device check fails (network issue, etc.)
+      console.warn('⚠️ Não foi possível verificar o dispositivo:', deviceError);
+    }
+  };
+
   const login = async (email: string, password: string) => {
     const { data, error } = await getSupabase().auth.signInWithPassword({
       email,
@@ -334,6 +404,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               await getSupabase().auth.signOut();
               throw new Error('Seu acesso foi revogado. Entre em contato com o administrador.');
             }
+            // Device check
+            if (userData.empresaId) {
+              await verifyDevice(userData.empresaId, userData.id, userData.nome);
+            }
             setUser(userData);
             clearFuncionarioSession();
           }
@@ -358,6 +432,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await getSupabase().auth.signOut();
         throw new Error('Seu acesso foi revogado. Entre em contato com o administrador.');
       }
+      // Device check
+      if (userData.empresaId) {
+        await verifyDevice(userData.empresaId, userData.id, userData.nome);
+      }
       setUser(userData);
       clearFuncionarioSession();
     }
@@ -370,6 +448,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     if (!userData.ativo) {
       throw new Error('Seu acesso foi desativado.');
+    }
+    // Device check
+    if (userData.empresaId) {
+      try {
+        await verifyDevice(userData.empresaId, userData.id, userData.nome);
+      } catch (deviceError) {
+        clearFuncionarioSession();
+        throw deviceError;
+      }
     }
     setUser(userData);
     saveFuncionarioSession(userData);

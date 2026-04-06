@@ -59,6 +59,7 @@ import {
   FileSpreadsheet,
   ChevronDown,
   ChevronRight,
+  Shield,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -73,7 +74,7 @@ const iconMap: Record<string, any> = {
   Plug, FileText, Bike, ExternalLink, Users, Menu, Settings,
   ClipboardList, Database, Zap, Receipt, Truck, Scissors,
   ShoppingBag, Stethoscope, Wrench, Dumbbell, PawPrint, Store,
-  Heart, Layers, Building2, Croissant,
+  Heart, Layers, Building2, Croissant, Shield,
 };
 
 interface MenuItem {
@@ -118,6 +119,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
   { title: 'Funcionários', url: '/admin/funcionarios', icon: UserCog },
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
+  { title: 'Dispositivos', url: '/admin/dispositivos', icon: Shield },
   { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
   { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
   { title: 'Cupons e NFEs', url: '/admin/cupons-nfes', icon: FileText },
