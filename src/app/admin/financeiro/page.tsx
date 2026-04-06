@@ -164,11 +164,14 @@ export default function FinanceiroPage() {
     let filtered = [...contasList];
 
     // Apply extra filters (date range, category, search)
-    if (extraFilters?.dataInicio) {
-      filtered = filtered.filter(c => c.vencimento && new Date(c.vencimento) >= new Date(extraFilters.dataInicio + 'T00:00:00'));
-    }
-    if (extraFilters?.dataFim) {
-      filtered = filtered.filter(c => c.vencimento && new Date(c.vencimento) <= new Date(extraFilters.dataFim + 'T23:59:59'));
+    // Skip date range when filter is "vencidas" to show ALL overdue items
+    if (filter !== 'vencidas') {
+      if (extraFilters?.dataInicio) {
+        filtered = filtered.filter(c => c.vencimento && new Date(c.vencimento) >= new Date(extraFilters.dataInicio + 'T00:00:00'));
+      }
+      if (extraFilters?.dataFim) {
+        filtered = filtered.filter(c => c.vencimento && new Date(c.vencimento) <= new Date(extraFilters.dataFim + 'T23:59:59'));
+      }
     }
     if (extraFilters?.categoria) {
       filtered = filtered.filter(c => c.categoria === extraFilters.categoria);

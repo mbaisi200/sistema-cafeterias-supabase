@@ -53,115 +53,405 @@ const NOMES_FUNCIONARIOS = [
 
 const CARGOS = ['Atendente', 'Caixa', 'Gerente', 'Barista', 'Cozinheiro', 'Garçom'];
 
-// Produtos para restaurante/café
-const PRODUTOS_POR_CATEGORIA: Record<string, {nome: string, preco: number, custo: number}[]> = {
-  'Bebidas Quentes': [
-    { nome: 'Café Expresso', preco: 5.00, custo: 1.20 },
-    { nome: 'Café Cappuccino', preco: 9.00, custo: 2.50 },
-    { nome: 'Café Latte', preco: 10.00, custo: 2.80 },
-    { nome: 'Mocha', preco: 12.00, custo: 3.50 },
-    { nome: 'Chocolate Quente', preco: 8.00, custo: 2.20 },
-    { nome: 'Chá Mate', preco: 4.50, custo: 1.00 },
-    { nome: 'Chá de Camomila', preco: 5.00, custo: 1.20 },
-    { nome: 'Café Americano', preco: 7.00, custo: 1.80 },
-  ],
-  'Bebidas Geladas': [
-    { nome: 'Café Gelado', preco: 10.00, custo: 2.80 },
-    { nome: 'Suco Natural Laranja', preco: 8.00, custo: 2.50 },
-    { nome: 'Suco Natural Limão', preco: 7.00, custo: 2.00 },
-    { nome: 'Milkshake Chocolate', preco: 14.00, custo: 4.50 },
-    { nome: 'Milkshake Morango', preco: 14.00, custo: 4.50 },
-    { nome: 'Refrigerante Lata', preco: 6.00, custo: 3.00 },
-    { nome: 'Água Mineral', preco: 4.00, custo: 1.50 },
-    { nome: 'Smoothie Frutas', preco: 15.00, custo: 5.00 },
-  ],
-  'Lanches': [
-    { nome: 'Pão de Queijo (unid)', preco: 4.00, custo: 1.20 },
-    { nome: 'Croissant Manteiga', preco: 7.00, custo: 2.50 },
-    { nome: 'Croissant Presunto Queijo', preco: 10.00, custo: 3.50 },
-    { nome: 'Sanduíche Natural', preco: 15.00, custo: 5.00 },
-    { nome: 'Sanduíche Club', preco: 18.00, custo: 6.50 },
-    { nome: 'X-Burguer', preco: 16.00, custo: 5.50 },
-    { nome: 'X-Bacon', preco: 19.00, custo: 7.00 },
-    { nome: 'Hot Dog', preco: 12.00, custo: 4.00 },
-  ],
-  'Doces': [
-    { nome: 'Bolo de Chocolate (fatia)', preco: 10.00, custo: 3.50 },
-    { nome: 'Bolo de Cenoura (fatia)', preco: 9.00, custo: 3.00 },
-    { nome: 'Brigadeiro (unid)', preco: 3.50, custo: 1.00 },
-    { nome: 'Beijinho (unid)', preco: 3.50, custo: 1.00 },
-    { nome: 'Brownie', preco: 8.00, custo: 2.80 },
-    { nome: 'Cheesecake (fatia)', preco: 12.00, custo: 4.50 },
-    { nome: 'Torta de Maçã (fatia)', preco: 10.00, custo: 3.50 },
-    { nome: 'Mousse de Maracujá', preco: 8.00, custo: 2.50 },
-  ],
-  'Salgados': [
-    { nome: 'Coxinha', preco: 6.00, custo: 2.00 },
-    { nome: 'Pastel de Carne', preco: 7.00, custo: 2.50 },
-    { nome: 'Pastel de Queijo', preco: 6.50, custo: 2.20 },
-    { nome: 'Empada de Frango', preco: 6.00, custo: 2.00 },
-    { nome: 'Enroladinho de Salsicha', preco: 5.50, custo: 1.80 },
-    { nome: 'Risole de Queijo', preco: 5.00, custo: 1.50 },
-    { nome: 'Esfirra de Carne', preco: 6.50, custo: 2.20 },
-    { nome: 'Quibe', preco: 6.00, custo: 2.00 },
-  ],
-  'Pratos': [
-    { nome: 'Prato Executivo Frango', preco: 28.00, custo: 10.00 },
-    { nome: 'Prato Executivo Carne', preco: 32.00, custo: 12.00 },
-    { nome: 'Prato Executivo Peixe', preco: 35.00, custo: 13.00 },
-    { nome: 'Parmegiana de Frango', preco: 35.00, custo: 12.00 },
-    { nome: 'Parmegiana de Carne', preco: 38.00, custo: 14.00 },
-    { nome: 'Filé de Tilápia', preco: 42.00, custo: 16.00 },
-    { nome: 'Feijoada (individual)', preco: 38.00, custo: 14.00 },
-    { nome: 'Macarrão à Bolonhesa', preco: 25.00, custo: 8.00 },
-  ],
-  'Porções': [
-    { nome: 'Batata Frita', preco: 18.00, custo: 6.00 },
-    { nome: 'Onion Rings', preco: 22.00, custo: 8.00 },
-    { nome: 'Frango a Passarinho', preco: 32.00, custo: 12.00 },
-    { nome: 'Fritas com Queijo e Bacon', preco: 28.00, custo: 10.00 },
-    { nome: 'Calabresa Acebolada', preco: 25.00, custo: 9.00 },
-    { nome: 'Iscas de Tilápia', preco: 35.00, custo: 14.00 },
-  ],
-  'Combos': [
-    { nome: 'Combo Café + Pão de Queijo', preco: 8.00, custo: 2.50 },
-    { nome: 'Combo Cappuccino + Croissant', preco: 14.00, custo: 5.00 },
-    { nome: 'Combo X-Burguer + Refrigerante', preco: 20.00, custo: 8.00 },
-    { nome: 'Combo X-Bacon + Batata + Refri', preco: 35.00, custo: 13.00 },
-    { nome: 'Combo Família (4 lanches + 2 batatas)', preco: 75.00, custo: 30.00 },
-  ],
+// Produtos por segmento — cada segmento tem seu catálogo específico
+const PRODUTOS_POR_SEGMENTO: Record<string, Record<string, {nome: string, preco: number, custo: number}[]>> = {
+  'Cafeteria': {
+    'Bebidas Quentes': [
+      { nome: 'Café Expresso', preco: 5.00, custo: 1.20 },
+      { nome: 'Café Cappuccino', preco: 9.00, custo: 2.50 },
+      { nome: 'Café Latte', preco: 10.00, custo: 2.80 },
+      { nome: 'Mocha', preco: 12.00, custo: 3.50 },
+      { nome: 'Chocolate Quente', preco: 8.00, custo: 2.20 },
+      { nome: 'Chá Mate', preco: 4.50, custo: 1.00 },
+      { nome: 'Chá de Camomila', preco: 5.00, custo: 1.20 },
+      { nome: 'Café Americano', preco: 7.00, custo: 1.80 },
+    ],
+    'Bebidas Geladas': [
+      { nome: 'Café Gelado', preco: 10.00, custo: 2.80 },
+      { nome: 'Suco Natural Laranja', preco: 8.00, custo: 2.50 },
+      { nome: 'Suco Natural Limão', preco: 7.00, custo: 2.00 },
+      { nome: 'Milkshake Chocolate', preco: 14.00, custo: 4.50 },
+      { nome: 'Milkshake Morango', preco: 14.00, custo: 4.50 },
+      { nome: 'Refrigerante Lata', preco: 6.00, custo: 3.00 },
+      { nome: 'Água Mineral', preco: 4.00, custo: 1.50 },
+      { nome: 'Smoothie Frutas', preco: 15.00, custo: 5.00 },
+    ],
+    'Lanches': [
+      { nome: 'Pão de Queijo (unid)', preco: 4.00, custo: 1.20 },
+      { nome: 'Croissant Manteiga', preco: 7.00, custo: 2.50 },
+      { nome: 'Croissant Presunto Queijo', preco: 10.00, custo: 3.50 },
+      { nome: 'Sanduíche Natural', preco: 15.00, custo: 5.00 },
+      { nome: 'Sanduíche Club', preco: 18.00, custo: 6.50 },
+      { nome: 'X-Burguer', preco: 16.00, custo: 5.50 },
+      { nome: 'X-Bacon', preco: 19.00, custo: 7.00 },
+      { nome: 'Hot Dog', preco: 12.00, custo: 4.00 },
+    ],
+    'Doces': [
+      { nome: 'Bolo de Chocolate (fatia)', preco: 10.00, custo: 3.50 },
+      { nome: 'Bolo de Cenoura (fatia)', preco: 9.00, custo: 3.00 },
+      { nome: 'Brigadeiro (unid)', preco: 3.50, custo: 1.00 },
+      { nome: 'Beijinho (unid)', preco: 3.50, custo: 1.00 },
+      { nome: 'Brownie', preco: 8.00, custo: 2.80 },
+      { nome: 'Cheesecake (fatia)', preco: 12.00, custo: 4.50 },
+      { nome: 'Torta de Maçã (fatia)', preco: 10.00, custo: 3.50 },
+      { nome: 'Mousse de Maracujá', preco: 8.00, custo: 2.50 },
+    ],
+    'Combos': [
+      { nome: 'Combo Café + Pão de Queijo', preco: 8.00, custo: 2.50 },
+      { nome: 'Combo Cappuccino + Croissant', preco: 14.00, custo: 5.00 },
+      { nome: 'Combo X-Burguer + Refrigerante', preco: 20.00, custo: 8.00 },
+      { nome: 'Combo X-Bacon + Batata + Refri', preco: 35.00, custo: 13.00 },
+    ],
+  },
+  'Restaurante': {
+    'Entradas': [
+      { nome: 'Bruschetta', preco: 18.00, custo: 5.00 },
+      { nome: 'Ceviche', preco: 32.00, custo: 12.00 },
+      { nome: 'Bolinho de Aipim', preco: 14.00, custo: 4.50 },
+      { nome: 'Coxinha (6 un)', preco: 22.00, custo: 7.00 },
+      { nome: 'Salada Caesar', preco: 24.00, custo: 7.50 },
+      { nome: 'Sopa do Dia', preco: 16.00, custo: 4.00 },
+    ],
+    'Pratos Principais': [
+      { nome: 'Filé Mignon', preco: 58.00, custo: 22.00 },
+      { nome: 'Salmão Grelhado', preco: 62.00, custo: 25.00 },
+      { nome: 'Risoto de Camarão', preco: 52.00, custo: 18.00 },
+      { nome: 'Frango à Parmegiana', preco: 38.00, custo: 14.00 },
+      { nome: 'Barriga de Porco', preco: 45.00, custo: 16.00 },
+      { nome: 'Moqueca de Peixe', preco: 48.00, custo: 18.00 },
+      { nome: 'Lasanha Bolonhesa', preco: 35.00, custo: 12.00 },
+      { nome: 'Feijoada Completa', preco: 42.00, custo: 15.00 },
+      { nome: 'Strogonoff', preco: 36.00, custo: 13.00 },
+      { nome: 'Picanha na Chapa', preco: 65.00, custo: 28.00 },
+    ],
+    'Massas': [
+      { nome: 'Spaghetti Carbonara', preco: 34.00, custo: 11.00 },
+      { nome: 'Fettuccine Alfredo', preco: 30.00, custo: 9.50 },
+      { nome: 'Gnocchi ao Pesto', preco: 28.00, custo: 8.50 },
+      { nome: 'Ravioli de Queijo', preco: 32.00, custo: 10.00 },
+      { nome: 'Nhoque à Bolonhesa', preco: 30.00, custo: 9.00 },
+    ],
+    'Sobremesas': [
+      { nome: 'Pudim', preco: 14.00, custo: 4.00 },
+      { nome: 'Petit Gateau', preco: 18.00, custo: 6.00 },
+      { nome: 'Tiramisú', preco: 16.00, custo: 5.50 },
+      { nome: 'Açaí na Tigela', preco: 20.00, custo: 8.00 },
+      { nome: 'Crepe de Nutella', preco: 16.00, custo: 5.00 },
+    ],
+    'Bebidas': [
+      { nome: 'Suco Natural', preco: 10.00, custo: 3.00 },
+      { nome: 'Refrigerante', preco: 7.00, custo: 3.00 },
+      { nome: 'Água', preco: 4.00, custo: 1.00 },
+      { nome: 'Cerveja Artesanal', preco: 18.00, custo: 7.00 },
+      { nome: 'Vinho Taça', preco: 22.00, custo: 8.00 },
+      { nome: 'Caipirinha', preco: 16.00, custo: 5.00 },
+      { nome: 'Limonada Suíça', preco: 10.00, custo: 3.00 },
+    ],
+    'Porções': [
+      { nome: 'Batata Frita', preco: 22.00, custo: 7.00 },
+      { nome: 'Onion Rings', preco: 24.00, custo: 8.00 },
+      { nome: 'Polenta Frita', preco: 20.00, custo: 6.00 },
+      { nome: 'Iscas de Frango', preco: 28.00, custo: 10.00 },
+      { nome: 'Camarão Empanado', preco: 38.00, custo: 16.00 },
+    ],
+  },
+  'Padaria': {
+    'Pães': [
+      { nome: 'Pão Francês (kg)', preco: 12.00, custo: 5.50 },
+      { nome: 'Pão de Centeio', preco: 10.00, custo: 4.00 },
+      { nome: 'Pão Integral', preco: 11.00, custo: 4.50 },
+      { nome: 'Pão de Queijo (kg)', preco: 28.00, custo: 10.00 },
+      { nome: 'Pão Doce', preco: 8.00, custo: 3.00 },
+      { nome: 'Broa de Milho', preco: 8.00, custo: 3.00 },
+      { nome: 'Pão Azeitona', preco: 12.00, custo: 5.00 },
+      { nome: 'Bisnaguinha (pkg)', preco: 7.00, custo: 2.50 },
+    ],
+    'Doces e Tortas': [
+      { nome: 'Bolo de Chocolate', preco: 35.00, custo: 12.00 },
+      { nome: 'Bolo de Cenoura', preco: 32.00, custo: 10.00 },
+      { nome: 'Torta de Limão', preco: 38.00, custo: 13.00 },
+      { nome: 'Torta de Morango', preco: 42.00, custo: 16.00 },
+      { nome: 'Croissant de Chocolate', preco: 7.00, custo: 2.50 },
+      { nome: 'Sonho', preco: 8.00, custo: 3.00 },
+      { nome: 'Risole', preco: 5.00, custo: 1.80 },
+      { nome: 'Empada', preco: 5.50, custo: 2.00 },
+    ],
+    'Salgados': [
+      { nome: 'Coxinha (unid)', preco: 5.50, custo: 2.00 },
+      { nome: 'Kibe (unid)', preco: 5.00, custo: 1.80 },
+      { nome: 'Esfiha de Carne', preco: 5.50, custo: 2.00 },
+      { nome: 'Enroladinho', preco: 5.00, custo: 1.50 },
+      { nome: 'Pastel de Carne', preco: 6.50, custo: 2.50 },
+      { nome: 'Pastel de Queijo', preco: 6.00, custo: 2.20 },
+    ],
+    'Cafeteria': [
+      { nome: 'Café Expresso', preco: 4.50, custo: 1.00 },
+      { nome: 'Cappuccino', preco: 8.00, custo: 2.20 },
+      { nome: 'Chocolate Quente', preco: 7.00, custo: 2.00 },
+      { nome: 'Látea', preco: 9.00, custo: 2.50 },
+      { nome: 'Suco Natural', preco: 8.00, custo: 2.50 },
+      { nome: 'Milkshake', preco: 14.00, custo: 4.50 },
+    ],
+  },
+  'Barbearia': {
+    'Cortes': [
+      { nome: 'Corte Masculino', preco: 45.00, custo: 2.00 },
+      { nome: 'Corte e Barba', preco: 65.00, custo: 3.00 },
+      { nome: 'Barba Completa', preco: 35.00, custo: 2.00 },
+      { nome: 'Degradê', preco: 50.00, custo: 2.00 },
+      { nome: 'Corte Social', preco: 40.00, custo: 2.00 },
+      { nome: 'Platinado', preco: 55.00, custo: 5.00 },
+      { nome: 'Mechas', preco: 80.00, custo: 12.00 },
+      { nome: 'Corte Infantil', preco: 35.00, custo: 2.00 },
+    ],
+    'Tratamentos': [
+      { nome: 'Hidratação Capilar', preco: 40.00, custo: 15.00 },
+      { nome: 'Progressiva', preco: 150.00, custo: 45.00 },
+      { nome: 'Descoloração', preco: 60.00, custo: 18.00 },
+      { nome: 'Pigmentação', preco: 80.00, custo: 25.00 },
+      { nome: 'Relaxamento', preco: 120.00, custo: 35.00 },
+    ],
+    'Sobrancelha e Pele': [
+      { nome: 'Sobrancelha Masculina', preco: 15.00, custo: 1.00 },
+      { nome: 'Sobrancelha Feminina', preco: 20.00, custo: 1.00 },
+      { nome: 'Limpeza de Pele', preco: 50.00, custo: 8.00 },
+      { nome: 'Máscara Facial', preco: 35.00, custo: 10.00 },
+      { nome: 'Design de Sobrancelha', preco: 30.00, custo: 3.00 },
+    ],
+    'Produtos': [
+      { nome: 'Pomada Modeladora', preco: 35.00, custo: 15.00 },
+      { nome: 'Cera para Barba', preco: 28.00, custo: 12.00 },
+      { nome: 'Óleo para Barba', preco: 25.00, custo: 10.00 },
+      { nome: 'Shampoo Anticaspa', preco: 30.00, custo: 13.00 },
+      { nome: 'Condicionador', preco: 28.00, custo: 12.00 },
+      { nome: 'Pente de Madeira', preco: 18.00, custo: 6.00 },
+    ],
+  },
+  'Pet Shop': {
+    'Banho e Tosa': [
+      { nome: 'Banho Pequeno Porte', preco: 50.00, custo: 12.00 },
+      { nome: 'Banho Grande Porte', preco: 80.00, custo: 18.00 },
+      { nome: 'Tosa Higiênica', preco: 30.00, custo: 8.00 },
+      { nome: 'Tosa Completa', preco: 60.00, custo: 15.00 },
+      { nome: 'Banho + Tosa PP', preco: 75.00, custo: 20.00 },
+      { nome: 'Banho + Tosa GP', preco: 120.00, custo: 30.00 },
+      { nome: 'Hidratação de Pelos', preco: 40.00, custo: 15.00 },
+      { nome: 'Cortar Unhas', preco: 15.00, custo: 3.00 },
+    ],
+    'Consultas': [
+      { nome: 'Consulta Veterinária', preco: 120.00, custo: 0 },
+      { nome: 'Consulta Retorno', preco: 80.00, custo: 0 },
+      { nome: 'Vacinação', preco: 60.00, custo: 25.00 },
+      { nome: 'Vermifugação', preco: 40.00, custo: 15.00 },
+      { nome: 'Exame de Sangue', preco: 90.00, custo: 35.00 },
+    ],
+    'Rações e Alimentos': [
+      { nome: 'Ração Premium 1kg', preco: 25.00, custo: 14.00 },
+      { nome: 'Ração Super Premium 1kg', preco: 38.00, custo: 22.00 },
+      { nome: 'Ração Premium 8kg', preco: 160.00, custo: 95.00 },
+      { nome: 'Petisco Natural', preco: 15.00, custo: 6.00 },
+      { nome: 'Osso Natural', preco: 8.00, custo: 3.00 },
+      { nome: 'Bifinho', preco: 12.00, custo: 5.00 },
+    ],
+    'Acessórios': [
+      { nome: 'Coleira', preco: 35.00, custo: 14.00 },
+      { nome: 'Guia', preco: 25.00, custo: 10.00 },
+      { nome: 'Brinquedo', preco: 20.00, custo: 7.00 },
+      { nome: 'Cama Pet P', preco: 60.00, custo: 25.00 },
+      { nome: 'Cama Pet G', preco: 90.00, custo: 38.00 },
+      { nome: 'Comedouro', preco: 18.00, custo: 7.00 },
+    ],
+  },
+  'Loja': {
+    'Camisetas': [
+      { nome: 'Camiseta Básica', preco: 49.90, custo: 18.00 },
+      { nome: 'Camiseta Estampada', preco: 69.90, custo: 25.00 },
+      { nome: 'Camisa Social', preco: 89.90, custo: 35.00 },
+      { nome: 'Regata', preco: 39.90, custo: 14.00 },
+      { nome: 'Moletom', preco: 119.90, custo: 48.00 },
+      { nome: 'Blusa de Frio', preco: 79.90, custo: 30.00 },
+    ],
+    'Calças e Bermudas': [
+      { nome: 'Jeans Masculino', preco: 99.90, custo: 42.00 },
+      { nome: 'Jeans Feminino', preco: 109.90, custo: 45.00 },
+      { nome: 'Bermuda Cargo', preco: 59.90, custo: 22.00 },
+      { nome: 'Calça Moletom', preco: 89.90, custo: 35.00 },
+      { nome: 'Legging', preco: 49.90, custo: 16.00 },
+    ],
+    'Calçados': [
+      { nome: 'Tênis Casual', preco: 149.90, custo: 60.00 },
+      { nome: 'Chinelo', preco: 39.90, custo: 15.00 },
+      { nome: 'Sapatênis', preco: 179.90, custo: 72.00 },
+      { nome: 'Bota', preco: 199.90, custo: 85.00 },
+      { nome: 'Sandália', preco: 69.90, custo: 28.00 },
+    ],
+    'Acessórios': [
+      { nome: 'Boné', preco: 39.90, custo: 15.00 },
+      { nome: 'Cinto', preco: 49.90, custo: 18.00 },
+      { nome: 'Carteira', preco: 59.90, custo: 22.00 },
+      { nome: 'Mochila', preco: 129.90, custo: 50.00 },
+      { nome: 'Óculos de Sol', preco: 89.90, custo: 30.00 },
+    ],
+  },
+  'Consultório': {
+    'Consultas': [
+      { nome: 'Consulta Clínica Geral', preco: 200.00, custo: 0 },
+      { nome: 'Consulta Retorno', preco: 150.00, custo: 0 },
+      { nome: 'Consulta Particular', preco: 350.00, custo: 0 },
+      { nome: 'Teleconsulta', preco: 100.00, custo: 0 },
+      { nome: 'Pronto Atendimento', preco: 180.00, custo: 0 },
+    ],
+    'Exames': [
+      { nome: 'Hemograma Completo', preco: 45.00, custo: 20.00 },
+      { nome: 'Glicemia em Jejum', preco: 25.00, custo: 10.00 },
+      { nome: 'Urina Tipo I', preco: 20.00, custo: 8.00 },
+      { nome: 'Colesterol Total', preco: 30.00, custo: 12.00 },
+      { nome: 'TSH', preco: 40.00, custo: 18.00 },
+      { nome: 'Raio-X Tórax', preco: 80.00, custo: 45.00 },
+      { nome: 'Ultrassom Abdômen', preco: 150.00, custo: 70.00 },
+      { nome: 'Eletrocardiograma', preco: 90.00, custo: 40.00 },
+    ],
+    'Procedimentos': [
+      { nome: 'Sutura Simples', preco: 80.00, custo: 15.00 },
+      { nome: 'Curativo', preco: 30.00, custo: 8.00 },
+      { nome: 'Injeção IM', preco: 25.00, custo: 8.00 },
+      { nome: 'Inalação', preco: 35.00, custo: 10.00 },
+      { nome: 'Nebulização', preco: 40.00, custo: 12.00 },
+      { nome: 'Aferição de Pressão', preco: 15.00, custo: 0 },
+    ],
+  },
+  'Oficina': {
+    'Serviços Básicos': [
+      { nome: 'Troca de Óleo', preco: 80.00, custo: 35.00 },
+      { nome: 'Troca de Filtro de Óleo', preco: 30.00, custo: 12.00 },
+      { nome: 'Troca de Filtro de Ar', preco: 40.00, custo: 18.00 },
+      { nome: 'Alinhamento', preco: 60.00, custo: 15.00 },
+      { nome: 'Balanceamento', preco: 50.00, custo: 12.00 },
+      { nome: 'Troca de Velas', preco: 120.00, custo: 55.00 },
+    ],
+    'Freios e Suspensão': [
+      { nome: 'Troca de Pastilha Dianteira', preco: 180.00, custo: 75.00 },
+      { nome: 'Troca de Disco', preco: 250.00, custo: 110.00 },
+      { nome: 'Troca de Amortecedor', preco: 300.00, custo: 130.00 },
+      { nome: 'Bleed de Freio', preco: 80.00, custo: 20.00 },
+      { nome: 'Troca de Kit Freio Traseiro', preco: 220.00, custo: 90.00 },
+    ],
+    'Elétrica': [
+      { nome: 'Diagnóstico Eletrônico', preco: 100.00, custo: 0 },
+      { nome: 'Troca de Bateria', preco: 50.00, custo: 0 },
+      { nome: 'Troca de Alternador', preco: 350.00, custo: 180.00 },
+      { nome: 'Troca de Motor de Partida', preco: 280.00, custo: 140.00 },
+    ],
+    'Pneus': [
+      { nome: 'Pneu 175/65 R14', preco: 250.00, custo: 150.00 },
+      { nome: 'Pneu 185/60 R15', preco: 300.00, custo: 180.00 },
+      { nome: 'Troca de Pneu (unid)', preco: 40.00, custo: 5.00 },
+      { nome: 'Rodízio de Pneus', preco: 60.00, custo: 10.00 },
+      { nome: 'Calibragem', preco: 10.00, custo: 0 },
+    ],
+    'Produtos': [
+      { nome: 'Óleo 5W30 1L', preco: 35.00, custo: 18.00 },
+      { nome: 'Óleo 10W40 1L', preco: 30.00, custo: 15.00 },
+      { nome: 'Filtro de Óleo', preco: 25.00, custo: 12.00 },
+      { nome: 'Fluido de Freio', preco: 40.00, custo: 20.00 },
+      { nome: 'Aditivo Radiador', preco: 25.00, custo: 12.00 },
+    ],
+  },
+  'Academia': {
+    'Planos': [
+      { nome: 'Mensal Individual', preco: 89.90, custo: 0 },
+      { nome: 'Trimestral Individual', preco: 229.90, custo: 0 },
+      { nome: 'Semestral Individual', preco: 399.90, custo: 0 },
+      { nome: 'Anual Individual', preco: 699.90, custo: 0 },
+      { nome: 'Mensal Duo', preco: 149.90, custo: 0 },
+      { nome: 'Diária (Avulsa)', preco: 30.00, custo: 0 },
+    ],
+    'Personal': [
+      { nome: 'Personal Individual', preco: 120.00, custo: 50.00 },
+      { nome: 'Personal Dupla', preco: 80.00, custo: 50.00 },
+      { nome: 'Personal Trio', preco: 60.00, custo: 50.00 },
+      { nome: 'Avaliação Física', preco: 60.00, custo: 0 },
+      { nome: 'Treino Personalizado (mês)', preco: 350.00, custo: 150.00 },
+    ],
+    'Suplementos': [
+      { nome: 'Whey Protein 900g', preco: 119.90, custo: 60.00 },
+      { nome: 'Creatina 300g', preco: 69.90, custo: 30.00 },
+      { nome: 'BCAA 100 cáps', preco: 49.90, custo: 22.00 },
+      { nome: 'Glutamina 300g', preco: 59.90, custo: 28.00 },
+      { nome: 'Pré-Treino 300g', preco: 79.90, custo: 35.00 },
+      { nome: 'Multivitamínico', preco: 39.90, custo: 18.00 },
+      { nome: 'Barra de Proteína', preco: 8.00, custo: 3.50 },
+    ],
+    'Acessórios': [
+      { nome: 'Luva de Treino', preco: 39.90, custo: 15.00 },
+      { nome: 'Caneleira', preco: 49.90, custo: 20.00 },
+      { nome: 'Corda de Pular', preco: 29.90, custo: 10.00 },
+      { nome: 'Garrafa Térmica', preco: 45.00, custo: 20.00 },
+      { nome: 'Shaker', preco: 25.00, custo: 10.00 },
+      { nome: 'Banda Elástica', preco: 19.90, custo: 6.00 },
+    ],
+  },
+  'Supermercado': {
+    'Hortifruti': [
+      { nome: 'Banana (kg)', preco: 5.90, custo: 2.80 },
+      { nome: 'Maçã (kg)', preco: 8.90, custo: 4.50 },
+      { nome: 'Tomate (kg)', preco: 7.90, custo: 3.80 },
+      { nome: 'Cebola (kg)', preco: 4.90, custo: 2.20 },
+      { nome: 'Batata (kg)', preco: 5.50, custo: 2.50 },
+      { nome: 'Alface (unid)', preco: 3.50, custo: 1.50 },
+      { nome: 'Cenoura (kg)', preco: 6.90, custo: 3.20 },
+      { nome: 'Laranja (kg)', preco: 5.90, custo: 2.80 },
+    ],
+    'Carnes': [
+      { nome: 'Peito de Frango (kg)', preco: 16.90, custo: 12.00 },
+      { nome: 'Carne Moída (kg)', preco: 24.90, custo: 17.00 },
+      { nome: 'Picanha (kg)', preco: 59.90, custo: 42.00 },
+      { nome: 'Alcatra (kg)', preco: 39.90, custo: 28.00 },
+      { nome: 'Filé Mignon (kg)', preco: 69.90, custo: 48.00 },
+      { nome: 'Tilápia (kg)', preco: 24.90, custo: 14.00 },
+    ],
+    'Laticínios': [
+      { nome: 'Leite Integral 1L', preco: 5.50, custo: 3.80 },
+      { nome: 'Queijo Mussarela (kg)', preco: 39.90, custo: 28.00 },
+      { nome: 'Manteiga 200g', preco: 9.90, custo: 6.50 },
+      { nome: 'Iogurte Natural 170g', preco: 3.50, custo: 2.00 },
+      { nome: 'Requeijão 200g', preco: 7.90, custo: 4.80 },
+      { nome: 'Presunto (kg)', preco: 32.90, custo: 22.00 },
+    ],
+    'Limpeza': [
+      { nome: 'Detergente 500ml', preco: 2.90, custo: 1.50 },
+      { nome: 'Amaciante 2L', preco: 12.90, custo: 7.00 },
+      { nome: 'Sabão em Pó 1kg', preco: 9.90, custo: 5.50 },
+      { nome: 'Desinfetante 2L', preco: 7.90, custo: 3.80 },
+      { nome: 'Esponja (unid)', preco: 2.50, custo: 1.00 },
+      { nome: 'Papel Higiênico 12un', preco: 18.90, custo: 11.00 },
+    ],
+    'Mercearia': [
+      { nome: 'Arroz 5kg', preco: 22.90, custo: 16.00 },
+      { nome: 'Feijão 1kg', preco: 8.90, custo: 5.50 },
+      { nome: 'Açúcar 1kg', preco: 4.90, custo: 3.00 },
+      { nome: 'Óleo de Soja 900ml', preco: 7.90, custo: 5.00 },
+      { nome: 'Macarrão 500g', preco: 5.50, custo: 3.20 },
+      { nome: 'Café 500g', preco: 18.90, custo: 12.00 },
+      { nome: 'Farinha de Trigo 1kg', preco: 6.50, custo: 3.80 },
+      { nome: 'Sal 1kg', preco: 3.50, custo: 1.80 },
+    ],
+  },
 };
 
-const FORMAS_PAGAMENTO = ['dinheiro', 'pix', 'cartao_credito', 'cartao_debito'];
-
-// Mapeamento de URLs de seção para funcionalidades do seed
-const SECOES_FEATURE_MAP: Record<string, string> = {
-  '/mesas': 'mesas',
-  '/admin/mesas': 'mesas',
-  '/delivery': 'delivery',
-  '/admin/delivery': 'delivery',
-  '/integracoes/ifood': 'delivery',
-  '/admin/integracoes/ifood': 'delivery',
-  '/estoque': 'estoque',
-  '/admin/estoque': 'estoque',
-  '/financeiro': 'financeiro',
-  '/admin/financeiro': 'financeiro',
-  '/caixa': 'caixa',
-  '/admin/caixa': 'caixa',
-  '/servicos': 'servicos',
-  '/admin/servicos': 'servicos',
+// Fornecedores por segmento
+const FORNECEDORES_POR_SEGMENTO: Record<string, string[]> = {
+  'Cafeteria': ['Café do Brasil Ltda', 'Frios & Cia', 'Hortifruti Central', 'Bebidas Express', 'Distribuidora Alimentos SA'],
+  'Restaurante': ['Carnes Premium', 'Hortifruti Central', 'Distribuidora Alimentos SA', 'Peixes do Mar', 'Bebidas Express'],
+  'Padaria': ['Fornecedor de Farinhas SA', 'Frios & Cia', 'Distribuidora Alimentos SA'],
+  'Barbearia': ['Distribuidora Cosméticos', 'Barber Pro Ltda'],
+  'Pet Shop': ['Pet Food SA', 'Ração Express', 'Veterinária Distribuidora'],
+  'Loja': ['Indústria Têxtil SA', 'Distribuidora Calçados', 'Fashion Supply'],
+  'Consultório': ['Laboratório Central', 'Distribuidora Farmacêutica', 'Material Médico SA'],
+  'Oficina': ['Auto Peças SA', 'Distribuidora Pneus', 'Óleos Lubrificantes Ltda'],
+  'Academia': ['Nutricionistas Supply', 'Distribuidora Suplementos', 'EquipFitness Ltda'],
+  'Supermercado': ['Distribuidora Alimentos SA', 'Carnes Premium', 'Hortifruti Central', 'Laticínios SA', 'Limpeza Express'],
 };
-
-const SECOES_NOMES: Record<string, string> = {
-  mesas: 'Mesas',
-  delivery: 'Delivery',
-  estoque: 'Estoque',
-  financeiro: 'Financeiro',
-  caixa: 'Caixa',
-  servicos: 'Serviços',
-};
-
-const TIPOS_VENDA_BASE = ['balcao', 'mesa', 'delivery'];
 
 const FORNECEDORES = [
   'Distribuidora Alimentos SA', 'Café do Brasil Ltda', 'Frios & Cia', 
@@ -212,6 +502,7 @@ function SeedContent() {
   // Estados do segmento
   const [segmentos, setSegmentos] = useState<Segmento[]>([]);
   const [segmentoId, setSegmentoId] = useState<string | null>(null);
+  const [segmentoNome, setSegmentoNome] = useState<string | null>(null);
   const [loadingSegmentos, setLoadingSegmentos] = useState(false);
   const [secoesAtivas, setSecoesAtivas] = useState<SecaoAtiva[]>([]);
   const [loadingSecoes, setLoadingSecoes] = useState(false);
@@ -275,6 +566,7 @@ function SeedContent() {
       setEmpresaId(empresa.id);
       setEmpresaNome(empresa.nome);
       setSegmentoId(null);
+      setSegmentoNome(null);
       setSecoesAtivas([]);
       addLog(`Empresa selecionada: ${empresa.nome}`);
       carregarSegmentos();
@@ -306,6 +598,7 @@ function SeedContent() {
   const handleSegmentoChange = async (value: string) => {
     if (value === '__all__') {
       setSegmentoId(null);
+      setSegmentoNome(null);
       setSecoesAtivas([]);
       addLog('Segmento removido. Todos os dados serão populados.');
       return;
@@ -313,6 +606,7 @@ function SeedContent() {
     const seg = segmentos.find(s => s.id === value);
     if (!seg) return;
     setSegmentoId(seg.id);
+    setSegmentoNome(seg.nome);
     addLog(`Segmento selecionado: ${seg.nome}`);
     await carregarSecoesAtivas(seg.id);
   };
@@ -479,6 +773,13 @@ function SeedContent() {
       addLog('📦 Iniciando criação de novos dados...');
       addLog('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
+      // Selecionar catálogo de produtos e fornecedores baseado no segmento
+      const catalogoProdutos = PRODUTOS_POR_SEGMENTO[segmentoNome || 'Cafeteria'] || PRODUTOS_POR_SEGMENTO['Cafeteria'];
+      const fornecedoresSeed = FORNECEDORES_POR_SEGMENTO[segmentoNome || 'Cafeteria'] || FORNECEDORES;
+      if (segmentoNome) {
+        addLog(`📋 Segmento: ${segmentoNome}`);
+      }
+
       // ==========================================
       // 1. CRIAR CATEGORIAS
       // ==========================================
@@ -489,7 +790,7 @@ function SeedContent() {
       const categoriasData: {empresa_id: string, nome: string, cor: string, ordem: number, ativo: boolean, criado_em: string, atualizado_em: string}[] = [];
       
       let corIndex = 0;
-      for (const [nomeCategoria] of Object.entries(PRODUTOS_POR_CATEGORIA)) {
+      for (const [nomeCategoria] of Object.entries(catalogoProdutos)) {
         categoriasData.push({
           empresa_id: empresaId,
           nome: nomeCategoria,
@@ -597,7 +898,7 @@ function SeedContent() {
       const produtosDataInsert: {empresa_id: string, categoria_id: string, nome: string, descricao: string, codigo: string, preco: number, custo: number, unidade: string, estoque_atual: number, estoque_minimo: number, destaque: boolean, ativo: boolean, criado_em: string, atualizado_em: string}[] = [];
       const produtosDataInfo: {id: string, nome: string, preco: number, custo: number}[] = [];
 
-      for (const [nomeCategoria, produtos] of Object.entries(PRODUTOS_POR_CATEGORIA)) {
+      for (const [nomeCategoria, produtos] of Object.entries(catalogoProdutos)) {
         const categoriaId = categoriasMap[nomeCategoria];
         
         for (const produto of produtos) {
@@ -829,11 +1130,11 @@ function SeedContent() {
           contasData.push({
             empresa_id: empresaId,
             tipo: 'pagar',
-            descricao: `${CATEGORIAS_CONTAS_PAGAR[Math.floor(Math.random() * CATEGORIAS_CONTAS_PAGAR.length)]} - ${FORNECEDORES[Math.floor(Math.random() * FORNECEDORES.length)]}`,
+            descricao: `${CATEGORIAS_CONTAS_PAGAR[Math.floor(Math.random() * CATEGORIAS_CONTAS_PAGAR.length)]} - ${fornecedoresSeed[Math.floor(Math.random() * fornecedoresSeed.length)]}`,
             valor: Math.floor(Math.random() * 3000) + 200,
             vencimento: vencimento.toISOString(),
             categoria: CATEGORIAS_CONTAS_PAGAR[Math.floor(Math.random() * CATEGORIAS_CONTAS_PAGAR.length)],
-            fornecedor: FORNECEDORES[Math.floor(Math.random() * FORNECEDORES.length)],
+            fornecedor: fornecedoresSeed[Math.floor(Math.random() * fornecedoresSeed.length)],
             status,
             data_pagamento: status === 'pago' ? new Date(vencimento.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
             valor_pago: status === 'pago' ? Math.floor(Math.random() * 3000) + 200 : undefined,
