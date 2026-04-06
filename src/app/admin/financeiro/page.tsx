@@ -52,6 +52,9 @@ import {
   Smartphone,
   ArrowUpDown,
   Download,
+  Search,
+  Filter,
+  X,
 } from 'lucide-react';
 import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
 import { useToast } from '@/hooks/use-toast';
@@ -88,6 +91,28 @@ export default function FinanceiroPage() {
   const [filterPagar, setFilterPagar] = useState<ContaFilter>('todas');
   const [filterReceber, setFilterReceber] = useState<ContaFilter>('todas');
 
+  // Date/Category/Search filters
+  const getCurrentMonthRange = () => {
+    const now = new Date();
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    return {
+      inicio: firstDay.toISOString().split('T')[0],
+      fim: lastDay.toISOString().split('T')[0],
+    };
+  };
+  const defaultDateRange = getCurrentMonthRange();
+
+  const [dataInicioPagar, setDataInicioPagar] = useState(defaultDateRange.inicio);
+  const [dataFimPagar, setDataFimPagar] = useState(defaultDateRange.fim);
+  const [categoriaPagar, setCategoriaPagar] = useState('');
+  const [searchPagar, setSearchPagar] = useState('');
+
+  const [dataInicioReceber, setDataInicioReceber] = useState(defaultDateRange.inicio);
+  const [dataFimReceber, setDataFimReceber] = useState(defaultDateRange.fim);
+  const [categoriaReceber, setCategoriaReceber] = useState('');
+  const [searchReceber, setSearchReceber] = useState('');
+
   // Sorting
   const [sortPagar, setSortPagar] = useState<{ field: SortField; dir: SortDir }>({ field: 'vencimento', dir: 'asc' });
   const [sortReceber, setSortReceber] = useState<{ field: SortField; dir: SortDir }>({ field: 'vencimento', dir: 'asc' });
@@ -118,9 +143,43 @@ export default function FinanceiroPage() {
     new Date(c.vencimento) < hoje
   );
 
+  // Extract unique categories from contas
+  const categoriasPagar = useMemo(() => {
+    const cats = new Set(contasPagar.map(c => c.categoria).filter(Boolean));
+    return Array.from(cats).sort();
+  }, [contasPagar]);
+
+  const categoriasReceber = useMemo(() => {
+    const cats = new Set(contasReceber.map(c => c.categoria).filter(Boolean));
+    return Array.from(cats).sort();
+  }, [contasReceber]);
+
   // Filter and sort contas
-  const applyFilterAndSort = (contasList: any[], filter: ContaFilter, sort: { field: SortField; dir: SortDir }) => {
+  const applyFilterAndSort = (
+    contasList: any[], 
+    filter: ContaFilter, 
+    sort: { field: SortField; dir: SortDir },
+    extraFilters?: { dataInicio?: string; dataFim?: string; categoria?: string; search?: string }
+  ) => {
     let filtered = [...contasList];
+
+    // Apply extra filters (date range, category, search)
+    if (extraFilters?.dataInicio) {
+      filtered = filtered.filter(c => c.vencimento && new Date(c.vencimento) >= new Date(extraFilters.dataInicio + 'T00:00:00'));
+    }
+    if (extraFilters?.dataFim) {
+      filtered = filtered.filter(c => c.vencimento && new Date(c.vencimento) <= new Date(extraFilters.dataFim + 'T23:59:59'));
+    }
+    if (extraFilters?.categoria) {
+      filtered = filtered.filter(c => c.categoria === extraFilters.categoria);
+    }
+    if (extraFilters?.search) {
+      const searchLower = extraFilters.search.toLowerCase();
+      filtered = filtered.filter(c => 
+        (c.descricao || '').toLowerCase().includes(searchLower) || 
+        (c.fornecedor || '').toLowerCase().includes(searchLower)
+      );
+    }
 
     // Apply filter
     switch (filter) {
@@ -177,13 +236,23 @@ export default function FinanceiroPage() {
   };
 
   const contasPagarFiltered = useMemo(() => 
-    applyFilterAndSort(contasPagar, filterPagar, sortPagar),
-    [contasPagar, filterPagar, sortPagar]
+    applyFilterAndSort(contasPagar, filterPagar, sortPagar, {
+      dataInicio: dataInicioPagar,
+      dataFim: dataFimPagar,
+      categoria: categoriaPagar || undefined,
+      search: searchPagar || undefined,
+    }),
+    [contasPagar, filterPagar, sortPagar, dataInicioPagar, dataFimPagar, categoriaPagar, searchPagar]
   );
 
   const contasReceberFiltered = useMemo(() => 
-    applyFilterAndSort(contasReceber, filterReceber, sortReceber),
-    [contasReceber, filterReceber, sortReceber]
+    applyFilterAndSort(contasReceber, filterReceber, sortReceber, {
+      dataInicio: dataInicioReceber,
+      dataFim: dataFimReceber,
+      categoria: categoriaReceber || undefined,
+      search: searchReceber || undefined,
+    }),
+    [contasReceber, filterReceber, sortReceber, dataInicioReceber, dataFimReceber, categoriaReceber, searchReceber]
   );
 
   const handleSort = (
@@ -756,6 +825,66 @@ export default function FinanceiroPage() {
 
             {/* Tab A Pagar */}
             <TabsContent value="pagar">
+              {/* Filtros avançados */}
+              <Card className="mb-4">
+                <CardContent className="p-4">
+                  <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Filter className="h-4 w-4" />
+                      <span className="text-sm font-medium whitespace-nowrap">Filtros:</span>
+                    </div>
+                    <Input
+                      type="date"
+                      value={dataInicioPagar}
+                      onChange={(e) => setDataInicioPagar(e.target.value)}
+                      className="w-full md:w-[160px]"
+                      placeholder="Data Início"
+                    />
+                    <Input
+                      type="date"
+                      value={dataFimPagar}
+                      onChange={(e) => setDataFimPagar(e.target.value)}
+                      className="w-full md:w-[160px]"
+                      placeholder="Data Fim"
+                    />
+                    <Select value={categoriaPagar} onValueChange={(v) => setCategoriaPagar(v === '__all__' ? '' : v)}>
+                      <SelectTrigger className="w-full md:w-[170px]">
+                        <SelectValue placeholder="Categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">Todas as Categorias</SelectItem>
+                        {categoriasPagar.map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="relative flex-1 w-full md:max-w-[220px]">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar descrição, fornecedor..."
+                        value={searchPagar}
+                        onChange={(e) => setSearchPagar(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    {(dataInicioPagar || dataFimPagar || categoriaPagar || searchPagar) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setDataInicioPagar('');
+                          setDataFimPagar('');
+                          setCategoriaPagar('');
+                          setSearchPagar('');
+                        }}
+                        title="Limpar filtros"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
               <Card>
                 <CardHeader>
                   <CardTitle>Contas a Pagar</CardTitle>
@@ -871,6 +1000,66 @@ export default function FinanceiroPage() {
 
             {/* Tab A Receber */}
             <TabsContent value="receber">
+              {/* Filtros avançados */}
+              <Card className="mb-4">
+                <CardContent className="p-4">
+                  <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Filter className="h-4 w-4" />
+                      <span className="text-sm font-medium whitespace-nowrap">Filtros:</span>
+                    </div>
+                    <Input
+                      type="date"
+                      value={dataInicioReceber}
+                      onChange={(e) => setDataInicioReceber(e.target.value)}
+                      className="w-full md:w-[160px]"
+                      placeholder="Data Início"
+                    />
+                    <Input
+                      type="date"
+                      value={dataFimReceber}
+                      onChange={(e) => setDataFimReceber(e.target.value)}
+                      className="w-full md:w-[160px]"
+                      placeholder="Data Fim"
+                    />
+                    <Select value={categoriaReceber} onValueChange={(v) => setCategoriaReceber(v === '__all__' ? '' : v)}>
+                      <SelectTrigger className="w-full md:w-[170px]">
+                        <SelectValue placeholder="Categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="__all__">Todas as Categorias</SelectItem>
+                        {categoriasReceber.map(cat => (
+                          <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <div className="relative flex-1 w-full md:max-w-[220px]">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar descrição, cliente..."
+                        value={searchReceber}
+                        onChange={(e) => setSearchReceber(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    {(dataInicioReceber || dataFimReceber || categoriaReceber || searchReceber) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setDataInicioReceber('');
+                          setDataFimReceber('');
+                          setCategoriaReceber('');
+                          setSearchReceber('');
+                        }}
+                        title="Limpar filtros"
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
               <Card>
                 <CardHeader>
                   <CardTitle>Contas a Receber</CardTitle>

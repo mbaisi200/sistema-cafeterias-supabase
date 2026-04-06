@@ -386,14 +386,20 @@ export default function NFePage() {
           {/* TABS                                          */}
           {/* ============================================= */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2 md:w-[400px]">
-              <TabsTrigger value="entrada" className="gap-2">
-                <ArrowDownToLine className="h-4 w-4" />
-                NF-e de Entrada
+            <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-2">
+              <TabsTrigger value="entrada" className="gap-2 py-3">
+                <ArrowDownToLine className="h-5 w-5 text-blue-500" />
+                <div className="text-left">
+                  <span className="font-semibold">NF-e Entrada</span>
+                  <span className="block text-xs text-muted-foreground font-normal">Notas de compra/fornecedores</span>
+                </div>
               </TabsTrigger>
-              <TabsTrigger value="saida" className="gap-2">
-                <ArrowUpFromLine className="h-4 w-4" />
-                NF-e de Saída
+              <TabsTrigger value="saida" className="gap-2 py-3">
+                <ArrowUpFromLine className="h-5 w-5 text-orange-500" />
+                <div className="text-left">
+                  <span className="font-semibold">NF-e Saída</span>
+                  <span className="block text-xs text-muted-foreground font-normal">Notas de vendas realizadas</span>
+                </div>
               </TabsTrigger>
             </TabsList>
 
@@ -401,9 +407,15 @@ export default function NFePage() {
             {/* TAB: ENTRADA                                  */}
             {/* ============================================= */}
             <TabsContent value="entrada" className="space-y-6">
+              {/* Subtitle */}
+              <div className="flex items-center gap-2 ml-1">
+                <div className="h-1 w-6 rounded-full bg-blue-500" />
+                <p className="text-sm text-muted-foreground">Notas fiscais de compra e importação de fornecedores — clique em &quot;Importar NF-e&quot; para adicionar</p>
+              </div>
+
               {/* Stats Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card>
+                <Card className="border-blue-100">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -445,12 +457,12 @@ export default function NFePage() {
               </div>
 
               {/* Filters */}
-              <Card>
+              <Card className="border-blue-100">
                 <CardContent className="p-4">
                   <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex items-center gap-2 text-blue-600">
                       <Filter className="h-4 w-4" />
-                      <span className="text-sm font-medium whitespace-nowrap">Filtros:</span>
+                      <span className="text-sm font-semibold whitespace-nowrap">Filtros Entrada:</span>
                     </div>
                     <Input
                       type="date"
@@ -473,7 +485,7 @@ export default function NFePage() {
                         className="pl-9"
                       />
                     </div>
-                    <Button variant="outline" size="icon" onClick={fetchEntrada}>
+                    <Button variant="outline" size="icon" className="border-blue-200" onClick={fetchEntrada}>
                       <RefreshCw className={`h-4 w-4 ${loadingEntrada ? 'animate-spin' : ''}`} />
                     </Button>
                   </div>
@@ -481,11 +493,12 @@ export default function NFePage() {
               </Card>
 
               {/* Table */}
-              <Card>
+              <Card className="border-t-4 border-t-blue-500">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <ArrowDownToLine className="h-5 w-5 text-blue-600" />
                     Notas Fiscais de Entrada
+                    <Badge variant="outline" className="ml-auto bg-blue-50 text-blue-700 border-blue-200 text-xs">{statsEntrada.totalNotas} nota{statsEntrada.totalNotas !== 1 ? 's' : ''}</Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -495,14 +508,16 @@ export default function NFePage() {
                       <span className="ml-2 text-muted-foreground">Carregando notas de entrada...</span>
                     </div>
                   ) : dadosEntrada.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                      <ArrowDownToLine className="h-12 w-12 mb-4 opacity-30" />
+                    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                      <div className="h-16 w-16 rounded-full bg-blue-50 flex items-center justify-center mb-4">
+                        <ArrowDownToLine className="h-8 w-8 text-blue-300" />
+                      </div>
                       <p className="text-lg font-medium">Nenhuma nota de entrada encontrada</p>
-                      <p className="text-sm mt-1">Importe uma NFe XML para registrar notas de entrada</p>
+                      <p className="text-sm mt-1 max-w-md text-center">Importe uma NFe XML de fornecedor para registrar a entrada de produtos no estoque</p>
                       <Link href="/admin/nfe/importar">
-                        <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700">
+                        <Button className="mt-6 gap-2 bg-blue-600 hover:bg-blue-700">
                           <FileUp className="h-4 w-4" />
-                          Importar NF-e
+                          Importar NF-e de Entrada
                         </Button>
                       </Link>
                     </div>
@@ -631,9 +646,15 @@ export default function NFePage() {
             {/* TAB: SAÍDA                                    */}
             {/* ============================================= */}
             <TabsContent value="saida" className="space-y-6">
+              {/* Subtitle */}
+              <div className="flex items-center gap-2 ml-1">
+                <div className="h-1 w-6 rounded-full bg-orange-500" />
+                <p className="text-sm text-muted-foreground">Notas fiscais de venda — vendas fechadas no PDV aparecerão aqui para emissão de NF-e</p>
+              </div>
+
               {/* Stats Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <Card>
+                <Card className="border-orange-100">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
@@ -688,12 +709,12 @@ export default function NFePage() {
               </div>
 
               {/* Filters */}
-              <Card>
+              <Card className="border-orange-100">
                 <CardContent className="p-4">
                   <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
-                    <div className="flex items-center gap-2 text-muted-foreground">
+                    <div className="flex items-center gap-2 text-orange-600">
                       <Filter className="h-4 w-4" />
-                      <span className="text-sm font-medium whitespace-nowrap">Filtros:</span>
+                      <span className="text-sm font-semibold whitespace-nowrap">Filtros Saída:</span>
                     </div>
                     <Input
                       type="date"
@@ -726,7 +747,7 @@ export default function NFePage() {
                         <SelectItem value="sem_nfe">Sem NF-e</SelectItem>
                       </SelectContent>
                     </Select>
-                    <Button variant="outline" size="icon" onClick={fetchSaida}>
+                    <Button variant="outline" size="icon" className="border-orange-200" onClick={fetchSaida}>
                       <RefreshCw className={`h-4 w-4 ${loadingSaida ? 'animate-spin' : ''}`} />
                     </Button>
                   </div>
@@ -734,12 +755,13 @@ export default function NFePage() {
               </Card>
 
               {/* Table */}
-              <Card>
+              <Card className="border-t-4 border-t-orange-500">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-lg flex items-center gap-2">
                       <ArrowUpFromLine className="h-5 w-5 text-orange-600" />
                       Notas Fiscais de Saída
+                      <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-xs">{statsSaida.totalVendas} venda{statsSaida.totalVendas !== 1 ? 's' : ''}</Badge>
                     </CardTitle>
                     <Link href="/admin/nfe/emitir">
                       <Button size="sm" className="gap-2 bg-blue-600 hover:bg-blue-700">
@@ -756,10 +778,12 @@ export default function NFePage() {
                       <span className="ml-2 text-muted-foreground">Carregando vendas...</span>
                     </div>
                   ) : dadosSaida.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                      <ArrowUpFromLine className="h-12 w-12 mb-4 opacity-30" />
+                    <div className="flex flex-col items-center justify-center py-16 text-muted-foreground">
+                      <div className="h-16 w-16 rounded-full bg-orange-50 flex items-center justify-center mb-4">
+                        <ArrowUpFromLine className="h-8 w-8 text-orange-300" />
+                      </div>
                       <p className="text-lg font-medium">Nenhuma venda encontrada no período</p>
-                      <p className="text-sm mt-1">Vendas fechadas aparecerão aqui para emissão de NF-e</p>
+                      <p className="text-sm mt-1 max-w-md text-center">Vendas fechadas no PDV aparecerão aqui. Realize vendas e elas serão listadas automaticamente para emissão de NF-e</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">

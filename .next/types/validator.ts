@@ -290,6 +290,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/admin/servicos/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/admin/servicos">> = Specific
+  const handler = {} as typeof import("../../src/app/admin/servicos/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/cardapio/checkout/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/cardapio/checkout">> = Specific
@@ -411,6 +420,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends AppPageConfig<"/pdv-garcom">> = Specific
   const handler = {} as typeof import("../../src/app/pdv-garcom/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/pdv-varejo/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/pdv-varejo">> = Specific
+  const handler = {} as typeof import("../../src/app/pdv-varejo/page.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check

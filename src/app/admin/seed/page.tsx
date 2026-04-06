@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getSupabaseClient } from '@/lib/supabase';
-import { Database, CheckCircle, XCircle, Loader2, AlertTriangle, Building2, Trash2, CalendarDays } from 'lucide-react';
+import { Database, CheckCircle, XCircle, Loader2, AlertTriangle, Building2, Trash2, CalendarDays, Layers } from 'lucide-react';
 
 interface SeedStatus {
   step: string;
@@ -23,6 +23,23 @@ interface Empresa {
   id: string;
   nome: string;
   status?: string;
+}
+
+interface Segmento {
+  id: string;
+  nome: string;
+}
+
+interface SecaoMenu {
+  id: string;
+  nome: string;
+  url?: string;
+}
+
+interface SecaoAtiva {
+  secaoId: string;
+  secaoNome: string;
+  ativo: boolean;
 }
 
 const CORES_CATEGORIAS = [
@@ -116,7 +133,32 @@ const PRODUTOS_POR_CATEGORIA: Record<string, {nome: string, preco: number, custo
 };
 
 const FORMAS_PAGAMENTO = ['dinheiro', 'pix', 'cartao_credito', 'cartao_debito'];
-const TIPOS_VENDA = ['balcao', 'mesa', 'delivery'];
+
+// Mapeamento de URLs de seção para funcionalidades do seed
+const SECOES_FEATURE_MAP: Record<string, string> = {
+  '/mesas': 'mesas',
+  '/admin/mesas': 'mesas',
+  '/delivery': 'delivery',
+  '/admin/delivery': 'delivery',
+  '/integracoes/ifood': 'delivery',
+  '/admin/integracoes/ifood': 'delivery',
+  '/estoque': 'estoque',
+  '/admin/estoque': 'estoque',
+  '/financeiro': 'financeiro',
+  '/admin/financeiro': 'financeiro',
+  '/caixa': 'caixa',
+  '/admin/caixa': 'caixa',
+};
+
+const SECOES_NOMES: Record<string, string> = {
+  mesas: 'Mesas',
+  delivery: 'Delivery',
+  estoque: 'Estoque',
+  financeiro: 'Financeiro',
+  caixa: 'Caixa',
+};
+
+const TIPOS_VENDA_BASE = ['balcao', 'mesa', 'delivery'];
 
 const FORNECEDORES = [
   'Distribuidora Alimentos SA', 'Café do Brasil Ltda', 'Frios & Cia', 
@@ -163,6 +205,13 @@ function SeedContent() {
   const [logs, setLogs] = useState<string[]>([]);
   const [dataInicio, setDataInicio] = useState('2026-01-01');
   const [dataFim, setDataFim] = useState('2026-04-30');
+
+  // Estados do segmento
+  const [segmentos, setSegmentos] = useState<Segmento[]>([]);
+  const [segmentoId, setSegmentoId] = useState<string | null>(null);
+  const [loadingSegmentos, setLoadingSegmentos] = useState(false);
+  const [secoesAtivas, setSecoesAtivas] = useState<SecaoAtiva[]>([]);
+  const [loadingSecoes, setLoadingSecoes] = useState(false);
 
   const addLog = (message: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
@@ -222,8 +271,111 @@ function SeedContent() {
     if (empresa) {
       setEmpresaId(empresa.id);
       setEmpresaNome(empresa.nome);
+      setSegmentoId(null);
+      setSecoesAtivas([]);
       addLog(`Empresa selecionada: ${empresa.nome}`);
+      carregarSegmentos();
     }
+  };
+
+  const carregarSegmentos = async () => {
+    setLoadingSegmentos(true);
+    try {
+      const supabase = getSupabaseClient();
+      const { data, error } = await supabase
+        .from('segmentos')
+        .select('id, nome')
+        .eq('ativo', true)
+        .order('nome');
+      if (error) throw error;
+      setSegmentos((data || []) as Segmento[]);
+      if ((data || []).length > 0) {
+        addLog(`${(data || []).length} segmento(s) disponível(is).`);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar segmentos:', error);
+      addLog('Erro ao buscar segmentos.');
+    } finally {
+      setLoadingSegmentos(false);
+    }
+  };
+
+  const handleSegmentoChange = async (value: string) => {
+    if (value === '__all__') {
+      setSegmentoId(null);
+      setSecoesAtivas([]);
+      addLog('Segmento removido. Todos os dados serão populados.');
+      return;
+    }
+    const seg = segmentos.find(s => s.id === value);
+    if (!seg) return;
+    setSegmentoId(seg.id);
+    addLog(`Segmento selecionado: ${seg.nome}`);
+    await carregarSecoesAtivas(seg.id);
+  };
+
+  const carregarSecoesAtivas = async (segId: string) => {
+    setLoadingSecoes(true);
+    try {
+      const supabase = getSupabaseClient();
+
+      // Buscar seções do segmento
+      const { data: secoesRel, error: relError } = await supabase
+        .from('segmento_secoes')
+        .select('secao_id, ativo')
+        .eq('segmento_id', segId);
+
+      if (relError) throw relError;
+
+      // Buscar detalhes das seções do menu
+      const secaoIds = (secoesRel || []).map(s => s.secao_id);
+      let secoesMenuMap: Record<string, SecaoMenu> = {};
+
+      if (secaoIds.length > 0) {
+        const { data: secoesMenu, error: menuError } = await supabase
+          .from('secoes_menu')
+          .select('id, nome, url')
+        if (menuError) throw menuError;
+        (secoesMenu || []).forEach((s: any) => {
+          secoesMenuMap[s.id] = { id: s.id, nome: s.nome, url: s.url };
+        });
+      }
+
+      // Mapear para seções ativas
+      const resultado: SecaoAtiva[] = [];
+      (secoesRel || []).forEach((rel: any) => {
+        const menu = secoesMenuMap[rel.secao_id];
+        if (menu) {
+          const feature = SECOES_FEATURE_MAP[menu.url || ''];
+          if (feature && !resultado.find(r => r.secaoId === feature)) {
+            resultado.push({
+              secaoId: feature,
+              secaoNome: SECOES_NOMES[feature] || menu.nome,
+              ativo: rel.ativo,
+            });
+          }
+        }
+      });
+
+      setSecoesAtivas(resultado);
+
+      const ativas = resultado.filter(r => r.ativo).map(r => r.secaoNome);
+      const inativas = resultado.filter(r => !r.ativo).map(r => r.secaoNome);
+      if (ativas.length > 0) addLog(`Seções ativas: ${ativas.join(', ')}`);
+      if (inativas.length > 0) addLog(`Seções desabilitadas: ${inativas.join(', ')}`);
+    } catch (error) {
+      console.error('Erro ao carregar seções:', error);
+      addLog('Erro ao carregar seções do segmento.');
+    } finally {
+      setLoadingSecoes(false);
+    }
+  };
+
+  // Verifica se uma funcionalidade está habilitada
+  const isFeatureAtiva = (feature: string): boolean => {
+    if (!segmentoId || secoesAtivas.length === 0) return true; // Se não selecionou segmento, tudo habilitado
+    const secao = secoesAtivas.find(s => s.secaoId === feature);
+    return secao ? secao.ativo : true; // Se não encontrou, assume ativa
   };
 
   const gerarPIN = () => {
@@ -275,6 +427,14 @@ function SeedContent() {
     setProgress(0);
     setLogs([]);
     setStatusList([]);
+
+    // Determinar seções ativas
+    const criarMesas = isFeatureAtiva('mesas');
+    const incluirDelivery = isFeatureAtiva('delivery');
+    const criarEstoque = isFeatureAtiva('estoque');
+    const criarFinanceiro = isFeatureAtiva('financeiro');
+    const criarCaixas = isFeatureAtiva('caixa');
+    const tiposVenda = incluirDelivery ? TIPOS_VENDA_BASE : TIPOS_VENDA_BASE.filter(t => t !== 'delivery');
 
     const supabase = getSupabaseClient();
 
@@ -394,30 +554,35 @@ function SeedContent() {
       // ==========================================
       // 3. CRIAR MESAS
       // ==========================================
-      updateStatus('Mesas', 'running');
-      addLog('Criando mesas...');
+      let mesasIds: string[] = [];
+      if (criarMesas) {
+        updateStatus('Mesas', 'running');
+        addLog('Criando mesas...');
 
-      const mesasData = Array.from({ length: 15 }, (_, i) => ({
-        empresa_id: empresaId,
-        numero: i + 1,
-        capacidade: i < 5 ? 2 : i < 10 ? 4 : 6,
-        status: 'livre',
-        criado_em: new Date().toISOString(),
-        atualizado_em: new Date().toISOString()
-      }));
+        const mesasData = Array.from({ length: 15 }, (_, i) => ({
+          empresa_id: empresaId,
+          numero: i + 1,
+          capacidade: i < 5 ? 2 : i < 10 ? 4 : 6,
+          status: 'livre',
+          criado_em: new Date().toISOString(),
+          atualizado_em: new Date().toISOString()
+        }));
 
-      const { data: mesasInsert, error: mesasError } = await supabase
-        .from('mesas')
-        .insert(mesasData)
-        .select('id');
+        const { data: mesasInsert, error: mesasError } = await supabase
+          .from('mesas')
+          .insert(mesasData)
+          .select('id');
 
-      if (mesasError) throw mesasError;
-      
-      const mesasIds = mesasInsert?.map(m => m.id) || [];
+        if (mesasError) throw mesasError;
+        mesasIds = mesasInsert?.map(m => m.id) || [];
 
-      updateStatus('Mesas', 'done', mesasIds.length);
+        updateStatus('Mesas', 'done', mesasIds.length);
+        addLog(`${mesasIds.length} mesas criadas.`);
+      } else {
+        updateStatus('Mesas', 'done', 0, 'Desabilitada no segmento');
+        addLog('⏭️ Mesas: desabilitada no segmento selecionado.');
+      }
       setProgressValue(20);
-      addLog(`${mesasIds.length} mesas criadas.`);
 
       // ==========================================
       // 4. CRIAR PRODUTOS
@@ -482,7 +647,7 @@ function SeedContent() {
 
       for (let i = 0; i < NUM_VENDAS; i++) {
         const dataVenda = gerarDataAleatoria(periodoInicio, periodoFim);
-        const tipoVenda = TIPOS_VENDA[Math.floor(Math.random() * TIPOS_VENDA.length)];
+        const tipoVenda = tiposVenda[Math.floor(Math.random() * tiposVenda.length)];
         const formaPagamento = FORMAS_PAGAMENTO[Math.floor(Math.random() * FORMAS_PAGAMENTO.length)];
         const funcionarioIdx = Math.floor(Math.random() * funcionariosIds.length);
         const funcionarioId = funcionariosIds[funcionarioIdx];
@@ -602,105 +767,118 @@ function SeedContent() {
       // ==========================================
       // 6. CRIAR MOVIMENTOS DE ESTOQUE
       // ==========================================
-      updateStatus('Movimentos de Estoque', 'running');
-      addLog('Criando movimentos de estoque...');
+      if (criarEstoque) {
+        updateStatus('Movimentos de Estoque', 'running');
+        addLog('Criando movimentos de estoque...');
 
-      const NUM_MOVIMENTOS = 100;
-      const movimentosData = Array.from({ length: NUM_MOVIMENTOS }, () => {
-        const produto = produtosDataInfo[Math.floor(Math.random() * produtosDataInfo.length)];
-        const tipo = ['entrada', 'saida', 'ajuste'][Math.floor(Math.random() * 3)] as 'entrada' | 'saida' | 'ajuste';
-        const quantidade = tipo === 'entrada' 
-          ? Math.floor(Math.random() * 50) + 10 
-          : tipo === 'saida'
-          ? -(Math.floor(Math.random() * 20) + 1)
-          : Math.floor(Math.random() * 30) - 15;
+        const NUM_MOVIMENTOS = 100;
+        const movimentosData = Array.from({ length: NUM_MOVIMENTOS }, () => {
+          const produto = produtosDataInfo[Math.floor(Math.random() * produtosDataInfo.length)];
+          const tipo = ['entrada', 'saida', 'ajuste'][Math.floor(Math.random() * 3)] as 'entrada' | 'saida' | 'ajuste';
+          const quantidade = tipo === 'entrada' 
+            ? Math.floor(Math.random() * 50) + 10 
+            : tipo === 'saida'
+            ? -(Math.floor(Math.random() * 20) + 1)
+            : Math.floor(Math.random() * 30) - 15;
 
-        return {
-          empresa_id: empresaId,
-          produto_id: produto.id,
-          tipo,
-          quantidade,
-          preco_unitario: produto.custo,
-          observacao: tipo === 'entrada' ? 'Reposição de estoque' : tipo === 'saida' ? 'Saída manual' : 'Ajuste de inventário',
-          usuario_id: funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)],
-          criado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString()
-        };
-      });
+          return {
+            empresa_id: empresaId,
+            produto_id: produto.id,
+            tipo,
+            quantidade,
+            preco_unitario: produto.custo,
+            observacao: tipo === 'entrada' ? 'Reposição de estoque' : tipo === 'saida' ? 'Saída manual' : 'Ajuste de inventário',
+            usuario_id: funcionariosIds[Math.floor(Math.random() * funcionariosIds.length)],
+            criado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString()
+          };
+        });
 
-      const { error: movError } = await supabase
-        .from('estoque_movimentos')
-        .insert(movimentosData);
+        const { error: movError } = await supabase
+          .from('estoque_movimentos')
+          .insert(movimentosData);
 
-      if (movError) console.error('Erro ao criar movimentos:', movError);
+        if (movError) console.error('Erro ao criar movimentos:', movError);
 
-      updateStatus('Movimentos de Estoque', 'done', NUM_MOVIMENTOS);
-      setProgressValue(80);
-      addLog(`${NUM_MOVIMENTOS} movimentos de estoque criados.`);
+        updateStatus('Movimentos de Estoque', 'done', NUM_MOVIMENTOS);
+        setProgressValue(80);
+        addLog(`${NUM_MOVIMENTOS} movimentos de estoque criados.`);
+      } else {
+        updateStatus('Movimentos de Estoque', 'done', 0, 'Desabilitada no segmento');
+        addLog('⏭️ Movimentos de estoque: desabilitada no segmento selecionado.');
+        setProgressValue(80);
+      }
 
       // ==========================================
       // 7. CRIAR CONTAS A PAGAR/RECEBER
       // ==========================================
-      updateStatus('Contas a Pagar/Receber', 'running');
-      addLog('Criando contas a pagar e receber...');
+      if (criarFinanceiro) {
+        updateStatus('Contas a Pagar/Receber', 'running');
+        addLog('Criando contas a pagar e receber...');
 
-      const contasData: {empresa_id: string, tipo: string, descricao: string, valor: number, vencimento: string, categoria: string, fornecedor?: string, status: string, data_pagamento?: string, valor_pago?: number, forma_pagamento?: string, criado_em: string, atualizado_em: string}[] = [];
+        const contasData: {empresa_id: string, tipo: string, descricao: string, valor: number, vencimento: string, categoria: string, fornecedor?: string, status: string, data_pagamento?: string, valor_pago?: number, forma_pagamento?: string, criado_em: string, atualizado_em: string}[] = [];
 
-      for (let i = 0; i < 25; i++) {
-        const vencimento = gerarDataAleatoria(periodoInicio, periodoFim);
-        const status = Math.random() > 0.4 ? 'pago' : 'pendente';
+        for (let i = 0; i < 25; i++) {
+          const vencimento = gerarDataAleatoria(periodoInicio, periodoFim);
+          const status = Math.random() > 0.4 ? 'pago' : 'pendente';
 
-        contasData.push({
-          empresa_id: empresaId,
-          tipo: 'pagar',
-          descricao: `${CATEGORIAS_CONTAS_PAGAR[Math.floor(Math.random() * CATEGORIAS_CONTAS_PAGAR.length)]} - ${FORNECEDORES[Math.floor(Math.random() * FORNECEDORES.length)]}`,
-          valor: Math.floor(Math.random() * 3000) + 200,
-          vencimento: vencimento.toISOString(),
-          categoria: CATEGORIAS_CONTAS_PAGAR[Math.floor(Math.random() * CATEGORIAS_CONTAS_PAGAR.length)],
-          fornecedor: FORNECEDORES[Math.floor(Math.random() * FORNECEDORES.length)],
-          status,
-          data_pagamento: status === 'pago' ? new Date(vencimento.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
-          valor_pago: status === 'pago' ? Math.floor(Math.random() * 3000) + 200 : undefined,
-          forma_pagamento: status === 'pago' ? 'pix' : undefined,
-          criado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString(),
-          atualizado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString()
-        });
+          contasData.push({
+            empresa_id: empresaId,
+            tipo: 'pagar',
+            descricao: `${CATEGORIAS_CONTAS_PAGAR[Math.floor(Math.random() * CATEGORIAS_CONTAS_PAGAR.length)]} - ${FORNECEDORES[Math.floor(Math.random() * FORNECEDORES.length)]}`,
+            valor: Math.floor(Math.random() * 3000) + 200,
+            vencimento: vencimento.toISOString(),
+            categoria: CATEGORIAS_CONTAS_PAGAR[Math.floor(Math.random() * CATEGORIAS_CONTAS_PAGAR.length)],
+            fornecedor: FORNECEDORES[Math.floor(Math.random() * FORNECEDORES.length)],
+            status,
+            data_pagamento: status === 'pago' ? new Date(vencimento.getTime() - Math.random() * 7 * 24 * 60 * 60 * 1000).toISOString() : undefined,
+            valor_pago: status === 'pago' ? Math.floor(Math.random() * 3000) + 200 : undefined,
+            forma_pagamento: status === 'pago' ? 'pix' : undefined,
+            criado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString(),
+            atualizado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString()
+          });
+        }
+
+        for (let i = 0; i < 15; i++) {
+          const vencimento = gerarDataAleatoria(periodoInicio, periodoFim);
+          const status = Math.random() > 0.4 ? 'pago' : 'pendente';
+
+          contasData.push({
+            empresa_id: empresaId,
+            tipo: 'receber',
+            descricao: `Recebimento - ${CATEGORIAS_CONTAS_RECEBER[Math.floor(Math.random() * CATEGORIAS_CONTAS_RECEBER.length)]}`,
+            valor: Math.floor(Math.random() * 5000) + 500,
+            vencimento: vencimento.toISOString(),
+            categoria: CATEGORIAS_CONTAS_RECEBER[Math.floor(Math.random() * CATEGORIAS_CONTAS_RECEBER.length)],
+            status,
+            data_pagamento: status === 'pago' ? vencimento.toISOString() : undefined,
+            valor_pago: status === 'pago' ? Math.floor(Math.random() * 5000) + 500 : undefined,
+            forma_pagamento: status === 'pago' ? 'pix' : undefined,
+            criado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString(),
+            atualizado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString()
+          });
+        }
+
+        const { error: contasError } = await supabase
+          .from('contas')
+          .insert(contasData);
+
+        if (contasError) console.error('Erro ao criar contas:', contasError);
+
+        updateStatus('Contas a Pagar/Receber', 'done', 40);
+        setProgressValue(85);
+        addLog('40 contas (pagar/receber) criadas.');
+      } else {
+        updateStatus('Contas a Pagar/Receber', 'done', 0, 'Desabilitada no segmento');
+        addLog('⏭️ Contas a pagar/receber: desabilitada no segmento selecionado.');
+        setProgressValue(85);
       }
-
-      for (let i = 0; i < 15; i++) {
-        const vencimento = gerarDataAleatoria(periodoInicio, periodoFim);
-        const status = Math.random() > 0.4 ? 'pago' : 'pendente';
-
-        contasData.push({
-          empresa_id: empresaId,
-          tipo: 'receber',
-          descricao: `Recebimento - ${CATEGORIAS_CONTAS_RECEBER[Math.floor(Math.random() * CATEGORIAS_CONTAS_RECEBER.length)]}`,
-          valor: Math.floor(Math.random() * 5000) + 500,
-          vencimento: vencimento.toISOString(),
-          categoria: CATEGORIAS_CONTAS_RECEBER[Math.floor(Math.random() * CATEGORIAS_CONTAS_RECEBER.length)],
-          status,
-          data_pagamento: status === 'pago' ? vencimento.toISOString() : undefined,
-          valor_pago: status === 'pago' ? Math.floor(Math.random() * 5000) + 500 : undefined,
-          forma_pagamento: status === 'pago' ? 'pix' : undefined,
-          criado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString(),
-          atualizado_em: gerarDataAleatoria(periodoInicio, periodoFim).toISOString()
-        });
-      }
-
-      const { error: contasError } = await supabase
-        .from('contas')
-        .insert(contasData);
-
-      if (contasError) console.error('Erro ao criar contas:', contasError);
-
-      updateStatus('Contas a Pagar/Receber', 'done', 40);
-      setProgressValue(85);
-      addLog('40 contas (pagar/receber) criadas.');
 
       // ==========================================
       // 8. CRIAR CAIXAS
       // ==========================================
-      updateStatus('Caixas', 'running');
-      addLog('Criando sessões de caixa...');
+      if (criarCaixas) {
+        updateStatus('Caixas', 'running');
+        addLog('Criando sessões de caixa...');
 
       const caixasData: {empresa_id: string, valor_inicial: number, valor_atual: number, total_entradas: number, total_saidas: number, total_vendas: number, status: string, aberto_por: string, aberto_por_nome: string, aberto_em: string, fechado_por?: string, fechado_por_nome?: string, fechado_em?: string, valor_final?: number, quebra?: number, observacao_abertura: string, observacao_fechamento: string}[] = [];
       const movimentacoesCaixaData: {caixa_id: string, empresa_id: string, tipo: string, valor: number, forma_pagamento: string, descricao: string, usuario_id: string, usuario_nome: string, criado_em: string}[] = [];
@@ -809,6 +987,11 @@ function SeedContent() {
       updateStatus('Caixas', 'done', 20);
       setProgressValue(95);
       addLog('20 sessões de caixa criadas com suas movimentações.');
+      } else {
+        updateStatus('Caixas', 'done', 0, 'Desabilitada no segmento');
+        addLog('⏭️ Sessões de caixa: desabilitada no segmento selecionado.');
+        setProgressValue(95);
+      }
 
       // ==========================================
       // 9. CRIAR LOGS
@@ -973,6 +1156,71 @@ function SeedContent() {
             </div>
           )}
 
+          {/* Seletor de segmento */}
+          {empresaId && (
+            <div className="space-y-2">
+              <Label htmlFor="segmento" className="flex items-center gap-2">
+                <Layers className="h-4 w-4" />
+                Segmento (opcional)
+              </Label>
+              {loadingSegmentos ? (
+                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">Carregando segmentos...</span>
+                </div>
+              ) : segmentos.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Nenhum segmento ativo encontrado.</p>
+              ) : (
+                <Select value={segmentoId || '__all__'} onValueChange={handleSegmentoChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Todos os dados (sem filtro de segmento)..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">
+                      Todos os dados (sem filtro de segmento)
+                    </SelectItem>
+                    {segmentos.map((seg) => (
+                      <SelectItem key={seg.id} value={seg.id}>
+                        {seg.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+
+          {/* Resumo de seções baseado no segmento */}
+          {loadingSecoes && (
+            <div className="flex items-center gap-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
+              <span className="text-sm text-blue-700">Carregando seções do segmento...</span>
+            </div>
+          )}
+          {segmentoId && secoesAtivas.length > 0 && !loadingSecoes && (
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-2">
+              <p className="text-sm font-semibold text-blue-800">📋 As seguintes seções serão populadas:</p>
+              <div className="flex flex-wrap gap-2">
+                <Badge className="bg-green-100 text-green-700 border-green-300">✅ Categorias</Badge>
+                <Badge className="bg-green-100 text-green-700 border-green-300">✅ Produtos</Badge>
+                <Badge className="bg-green-100 text-green-700 border-green-300">✅ Funcionários</Badge>
+                <Badge className="bg-green-100 text-green-700 border-green-300">✅ Vendas</Badge>
+                <Badge className="bg-green-100 text-green-700 border-green-300">✅ Logs</Badge>
+                {secoesAtivas.map((s) => (
+                  <Badge
+                    key={s.secaoId}
+                    className={s.ativo
+                      ? 'bg-green-100 text-green-700 border-green-300'
+                      : 'bg-red-100 text-red-700 border-red-300'
+                    }
+                  >
+                    {s.ativo ? '✅' : '❌'} {s.secaoNome}{!s.ativo ? ' (desabilitada)' : ''}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Progresso */}
           {loading && (
             <div className="space-y-2">
@@ -1043,7 +1291,12 @@ function SeedContent() {
       {/* Resumo do que será criado */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">O que será criado</CardTitle>
+          <CardTitle className="text-lg">
+            O que será criado
+            {segmentoId && (
+              <span className="ml-2 text-sm font-normal text-muted-foreground">(filtrado pelo segmento)</span>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -1055,9 +1308,13 @@ function SeedContent() {
               <p className="text-2xl font-bold text-purple-600">8</p>
               <p className="text-sm text-purple-700">Funcionários</p>
             </div>
-            <div className="p-3 bg-orange-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-orange-600">15</p>
-              <p className="text-sm text-orange-700">Mesas</p>
+            <div className={`p-3 rounded-lg text-center ${isFeatureAtiva('mesas') ? 'bg-orange-50' : 'bg-gray-100 opacity-50'}`}>
+              <p className={`text-2xl font-bold ${isFeatureAtiva('mesas') ? 'text-orange-600' : 'text-gray-400'}`}>
+                {isFeatureAtiva('mesas') ? '15' : '—'}
+              </p>
+              <p className={`text-sm ${isFeatureAtiva('mesas') ? 'text-orange-700' : 'text-gray-400 line-through'}`}>
+                Mesas{!isFeatureAtiva('mesas') && segmentoId ? ' (desabilitada)' : ''}
+              </p>
             </div>
             <div className="p-3 bg-green-50 rounded-lg text-center">
               <p className="text-2xl font-bold text-green-600">~50</p>
@@ -1067,17 +1324,29 @@ function SeedContent() {
               <p className="text-2xl font-bold text-red-600">220</p>
               <p className="text-sm text-red-700">Vendas</p>
             </div>
-            <div className="p-3 bg-cyan-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-cyan-600">100</p>
-              <p className="text-sm text-cyan-700">Mov. Estoque</p>
+            <div className={`p-3 rounded-lg text-center ${isFeatureAtiva('estoque') ? 'bg-cyan-50' : 'bg-gray-100 opacity-50'}`}>
+              <p className={`text-2xl font-bold ${isFeatureAtiva('estoque') ? 'text-cyan-600' : 'text-gray-400'}`}>
+                {isFeatureAtiva('estoque') ? '100' : '—'}
+              </p>
+              <p className={`text-sm ${isFeatureAtiva('estoque') ? 'text-cyan-700' : 'text-gray-400 line-through'}`}>
+                Mov. Estoque{!isFeatureAtiva('estoque') && segmentoId ? ' (desabilitada)' : ''}
+              </p>
             </div>
-            <div className="p-3 bg-pink-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-pink-600">40</p>
-              <p className="text-sm text-pink-700">Contas</p>
+            <div className={`p-3 rounded-lg text-center ${isFeatureAtiva('financeiro') ? 'bg-pink-50' : 'bg-gray-100 opacity-50'}`}>
+              <p className={`text-2xl font-bold ${isFeatureAtiva('financeiro') ? 'text-pink-600' : 'text-gray-400'}`}>
+                {isFeatureAtiva('financeiro') ? '40' : '—'}
+              </p>
+              <p className={`text-sm ${isFeatureAtiva('financeiro') ? 'text-pink-700' : 'text-gray-400 line-through'}`}>
+                Contas{!isFeatureAtiva('financeiro') && segmentoId ? ' (desabilitada)' : ''}
+              </p>
             </div>
-            <div className="p-3 bg-yellow-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-yellow-600">20</p>
-              <p className="text-sm text-yellow-700">Sessões Caixa</p>
+            <div className={`p-3 rounded-lg text-center ${isFeatureAtiva('caixa') ? 'bg-yellow-50' : 'bg-gray-100 opacity-50'}`}>
+              <p className={`text-2xl font-bold ${isFeatureAtiva('caixa') ? 'text-yellow-600' : 'text-gray-400'}`}>
+                {isFeatureAtiva('caixa') ? '20' : '—'}
+              </p>
+              <p className={`text-sm ${isFeatureAtiva('caixa') ? 'text-yellow-700' : 'text-gray-400 line-through'}`}>
+                Sessões Caixa{!isFeatureAtiva('caixa') && segmentoId ? ' (desabilitada)' : ''}
+              </p>
             </div>
             <div className="p-3 bg-gray-100 rounded-lg text-center">
               <p className="text-2xl font-bold text-gray-600">100</p>
@@ -1085,7 +1354,11 @@ function SeedContent() {
             </div>
           </div>
           <p className="text-center mt-4 text-sm text-muted-foreground">
-            <strong>Total: ~550+ lançamentos</strong> distribuídos no período selecionado
+            {segmentoId && secoesAtivas.length > 0 ? (
+              <span>Valores ajustados pelo segmento selecionado — seções desabilitadas não geram dados</span>
+            ) : (
+              <><strong>Total: ~550+ lançamentos</strong> distribuídos no período selecionado</>
+            )}
           </p>
         </CardContent>
       </Card>

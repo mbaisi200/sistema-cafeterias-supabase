@@ -94,6 +94,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
   { title: 'Cadastros', url: '/admin/cadastros', icon: Users },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
+  { title: 'Serviços', url: '/admin/servicos', icon: Wrench },
   { title: 'Pedidos', url: '/admin/pedidos', icon: ClipboardList },
   { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
@@ -102,6 +103,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Funcionários', url: '/admin/funcionarios', icon: UserCog },
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
   { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
+  { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
   { title: 'Cupons e NFEs', url: '/admin/cupons-nfes', icon: FileText },
   { title: 'Notas Fiscais', url: '/admin/nfe', icon: FileText },
 ];
@@ -110,6 +112,7 @@ const adminMenuItems: MenuItem[] = [
 const atalhoRapidoMenuItems: MenuItem[] = [
   { title: 'Cardápio', url: '/cardapio', icon: Menu, external: true },
   { title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings },
+  { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
 ];
 
 // Fallback hardcoded para funcionário

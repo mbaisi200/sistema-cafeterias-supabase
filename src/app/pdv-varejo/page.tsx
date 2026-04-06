@@ -42,6 +42,11 @@ import {
   ChevronDown,
   X,
   Package,
+  ArrowLeft,
+  LayoutGrid,
+  List,
+  SlidersHorizontal,
+  ArrowUpDown,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -129,6 +134,12 @@ export default function PDVVarejoPage() {
   const [isMobile, setIsMobile] = useState(false);
   const [showCartMobile, setShowCartMobile] = useState(false);
 
+  // Filtros avançados
+  const [faixaPreco, setFaixaPreco] = useState<string>('todos');
+  const [somenteComEstoque, setSomenteComEstoque] = useState(false);
+  const [ordenacao, setOrdenacao] = useState<string>('nome-az');
+  const [modoExibicao, setModoExibicao] = useState<'grid' | 'lista'>('grid');
+
   // Ref para foco automático no input de busca
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -187,8 +198,38 @@ export default function PDVVarejoPage() {
         (p.codigo && p.codigo.toLowerCase().includes(searchLower))
       );
     }
+    // Filtro de faixa de preço
+    if (faixaPreco !== 'todos') {
+      lista = lista.filter(p => {
+        const preco = parseFloat(p.preco) || 0;
+        switch (faixaPreco) {
+          case 'ate-10': return preco <= 10;
+          case '10-25': return preco > 10 && preco <= 25;
+          case '25-50': return preco > 25 && preco <= 50;
+          case 'acima-50': return preco > 50;
+          default: return true;
+        }
+      });
+    }
+    // Filtro de estoque
+    if (somenteComEstoque) {
+      lista = lista.filter(p => {
+        if (!p.controlar_estoque) return true;
+        return (parseFloat(p.estoque_atual) || 0) > 0;
+      });
+    }
+    // Ordenação
+    lista = [...lista].sort((a, b) => {
+      switch (ordenacao) {
+        case 'nome-az': return (a.nome || '').localeCompare(b.nome || '');
+        case 'nome-za': return (b.nome || '').localeCompare(a.nome || '');
+        case 'menor-preco': return (parseFloat(a.preco) || 0) - (parseFloat(b.preco) || 0);
+        case 'maior-preco': return (parseFloat(b.preco) || 0) - (parseFloat(a.preco) || 0);
+        default: return 0;
+      }
+    });
     return lista;
-  }, [produtos, categoriaAtiva, search]);
+  }, [produtos, categoriaAtiva, search, faixaPreco, somenteComEstoque, ordenacao]);
 
   // Busca por código de barras — adiciona automaticamente
   useEffect(() => {
@@ -592,6 +633,15 @@ export default function PDVVarejoPage() {
         {/* HEADER */}
         <header className="bg-white border-b border-blue-100 px-3 py-2 flex items-center justify-between shrink-0 shadow-sm">
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="hidden lg:inline-flex h-8 w-8 p-0 text-gray-500 hover:text-gray-800 hover:bg-gray-100"
+              onClick={() => router.push('/admin/dashboard')}
+              title="Voltar ao painel"
+            >
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
             <div className="h-9 w-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
               <Store className="h-5 w-5" />
             </div>
@@ -689,6 +739,89 @@ export default function PDVVarejoPage() {
               />
             </div>
 
+            {/* Barra de filtros avançados */}
+            <div className="px-3 py-2 bg-white border-b border-gray-100 space-y-2">
+              {/* Linha 1: Faixa de preço + Estoque + Ordenação + Visualização */}
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Filtros de preço */}
+                <div className="flex items-center gap-1 flex-wrap">
+                  {[
+                    { key: 'todos', label: 'Todos' },
+                    { key: 'ate-10', label: 'Até R$10' },
+                    { key: '10-25', label: 'R$10-R$25' },
+                    { key: '25-50', label: 'R$25-R$50' },
+                    { key: 'acima-50', label: 'Acima R$50' },
+                  ].map(fp => (
+                    <button
+                      key={fp.key}
+                      onClick={() => setFaixaPreco(fp.key)}
+                      className={`px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors ${
+                        faixaPreco === fp.key
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {fp.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="h-4 w-px bg-gray-200 hidden sm:block" />
+
+                {/* Toggle estoque */}
+                <button
+                  onClick={() => setSomenteComEstoque(prev => !prev)}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors ${
+                    somenteComEstoque
+                      ? 'bg-green-600 text-white shadow-sm'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  <Package className="h-3 w-3" />
+                  <span className="hidden sm:inline">Com estoque</span>
+                </button>
+
+                <div className="h-4 w-px bg-gray-200 hidden sm:block" />
+
+                {/* Ordenação */}
+                <div className="relative">
+                  <button
+                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors whitespace-nowrap"
+                    onClick={(e) => {
+                      const next = ordenacao === 'nome-az' ? 'nome-za' : ordenacao === 'nome-za' ? 'menor-preco' : ordenacao === 'menor-preco' ? 'maior-preco' : 'nome-az';
+                      setOrdenacao(next);
+                    }}
+                  >
+                    <ArrowUpDown className="h-3 w-3" />
+                    <span className="hidden sm:inline">
+                      {ordenacao === 'nome-az' ? 'A-Z' : ordenacao === 'nome-za' ? 'Z-A' : ordenacao === 'menor-preco' ? 'Menor' : 'Maior'}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Spacer */}
+                <div className="flex-1" />
+
+                {/* Toggle visualização */}
+                <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">
+                  <button
+                    onClick={() => setModoExibicao('grid')}
+                    className={`p-1.5 rounded-md transition-colors ${modoExibicao === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    title="Visualização em grade"
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => setModoExibicao('lista')}
+                    className={`p-1.5 rounded-md transition-colors ${modoExibicao === 'lista' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+                    title="Visualização em lista"
+                  >
+                    <List className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
             {/* Categorias */}
             <div className="px-3 py-2 bg-white border-b border-gray-100">
               <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
@@ -719,56 +852,114 @@ export default function PDVVarejoPage() {
               </div>
             </div>
 
-            {/* Grid de Produtos */}
+            {/* Grid/Lista de Produtos */}
             <ScrollArea className="flex-1">
-              <div className="p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                {produtosFiltrados.map((produto: any) => {
-                  const estoque = parseFloat(produto.estoque_atual) || 0;
-                  const semEstoque = produto.controlar_estoque && estoque <= 0;
-                  return (
-                    <button
-                      key={produto.id}
-                      disabled={semEstoque}
-                      onClick={() => adicionarProduto(produto)}
-                      className={`relative flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all hover:shadow-md active:scale-[0.97] ${
-                        semEstoque
-                          ? 'bg-gray-50 border-gray-200 opacity-50 cursor-not-allowed'
-                          : 'bg-white border-gray-100 hover:border-blue-300 cursor-pointer'
-                      }`}
-                    >
-                      {semEstoque && (
-                        <Badge className="absolute top-1.5 right-1.5 text-[9px] bg-red-100 text-red-600 px-1.5 py-0">
-                          Esgotado
-                        </Badge>
-                      )}
-                      {produto.categoriaId && (
-                        <div
-                          className="w-full h-1 rounded-full mb-2"
-                          style={{ backgroundColor: getCorCategoria(produto.categoriaId) }}
-                        />
-                      )}
-                      <span className="text-xs font-medium text-gray-700 line-clamp-2 leading-tight min-h-[2rem]">
-                        {produto.nome}
-                      </span>
-                      <div className="flex items-center gap-1 mt-1">
-                        <Barcode className="h-3 w-3 text-gray-400" />
-                        <span className="text-[10px] text-gray-400 truncate max-w-[100px]">
-                          {produto.codigoBarras || produto.codigo || '—'}
+              {modoExibicao === 'grid' ? (
+                <div className="p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+                  {produtosFiltrados.map((produto: any) => {
+                    const estoque = parseFloat(produto.estoque_atual) || 0;
+                    const semEstoque = produto.controlar_estoque && estoque <= 0;
+                    return (
+                      <button
+                        key={produto.id}
+                        disabled={semEstoque}
+                        onClick={() => adicionarProduto(produto)}
+                        className={`relative flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all hover:shadow-md active:scale-[0.97] ${
+                          semEstoque
+                            ? 'bg-gray-50 border-gray-200 opacity-50 cursor-not-allowed'
+                            : 'bg-white border-gray-100 hover:border-blue-300 cursor-pointer'
+                        }`}
+                      >
+                        {semEstoque && (
+                          <Badge className="absolute top-1.5 right-1.5 text-[9px] bg-red-100 text-red-600 px-1.5 py-0">
+                            Esgotado
+                          </Badge>
+                        )}
+                        {produto.categoriaId && (
+                          <div
+                            className="w-full h-1 rounded-full mb-2"
+                            style={{ backgroundColor: getCorCategoria(produto.categoriaId) }}
+                          />
+                        )}
+                        <span className="text-xs font-medium text-gray-700 line-clamp-2 leading-tight min-h-[2rem]">
+                          {produto.nome}
                         </span>
-                      </div>
-                      <span className="text-sm font-bold text-blue-600 mt-auto pt-1">
-                        R$ {fmt(produto.preco)}
-                      </span>
-                    </button>
-                  );
-                })}
-                {produtosFiltrados.length === 0 && (
-                  <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-400">
-                    <Package className="h-12 w-12 mb-2" />
-                    <p className="text-sm">Nenhum produto encontrado</p>
-                  </div>
-                )}
-              </div>
+                        <div className="flex items-center gap-1 mt-1">
+                          <Barcode className="h-3 w-3 text-gray-400" />
+                          <span className="text-[10px] text-gray-400 truncate max-w-[100px]">
+                            {produto.codigoBarras || produto.codigo || '—'}
+                          </span>
+                        </div>
+                        <span className="text-sm font-bold text-blue-600 mt-auto pt-1">
+                          R$ {fmt(produto.preco)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                  {produtosFiltrados.length === 0 && (
+                    <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-400">
+                      <Package className="h-12 w-12 mb-2" />
+                      <p className="text-sm">Nenhum produto encontrado</p>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {produtosFiltrados.map((produto: any) => {
+                    const estoque = parseFloat(produto.estoque_atual) || 0;
+                    const semEstoque = produto.controlar_estoque && estoque <= 0;
+                    return (
+                      <button
+                        key={produto.id}
+                        disabled={semEstoque}
+                        onClick={() => adicionarProduto(produto)}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                          semEstoque
+                            ? 'opacity-50 cursor-not-allowed'
+                            : 'hover:bg-blue-50 cursor-pointer active:bg-blue-100'
+                        }`}
+                      >
+                        {produto.categoriaId && (
+                          <div
+                            className="w-1 h-10 rounded-full shrink-0"
+                            style={{ backgroundColor: getCorCategoria(produto.categoriaId) }}
+                          />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-gray-800 truncate">{produto.nome}</span>
+                            {semEstoque && (
+                              <Badge className="text-[9px] bg-red-100 text-red-600 px-1.5 py-0 shrink-0">Esgotado</Badge>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[11px] text-gray-400">{produto.codigo || produto.codigoBarras || '—'}</span>
+                            {produto.controlar_estoque && (
+                              <span className={`text-[11px] ${estoque > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                Estoque: {Math.floor(estoque)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-sm font-bold text-blue-600">R$ {fmt(produto.preco)}</span>
+                          {!semEstoque && (
+                            <div className="h-7 w-7 rounded-lg bg-blue-100 flex items-center justify-center">
+                              <Plus className="h-4 w-4 text-blue-600" />
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                  {produtosFiltrados.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                      <Package className="h-12 w-12 mb-2" />
+                      <p className="text-sm">Nenhum produto encontrado</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </ScrollArea>
           </div>
 

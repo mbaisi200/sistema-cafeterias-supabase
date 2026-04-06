@@ -238,9 +238,21 @@ export default function CuponsNFEsPage() {
       </div>
 
       <Tabs value={ativoTab} onValueChange={setAtivoTab}>
-        <TabsList>
-          <TabsTrigger value="nfes">NF-e (Modelo 55)</TabsTrigger>
-          <TabsTrigger value="cupons">Cupons Fiscais</TabsTrigger>
+        <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-2 gap-2">
+          <TabsTrigger value="nfes" className="gap-2 py-3">
+            <FileText className="h-5 w-5 text-orange-500" />
+            <div className="text-left">
+              <span className="font-semibold">NF-e</span>
+              <span className="block text-xs text-muted-foreground font-normal">Modelo 55 - Operações com destinatário</span>
+            </div>
+          </TabsTrigger>
+          <TabsTrigger value="cupons" className="gap-2 py-3">
+            <Receipt className="h-5 w-5 text-green-500" />
+            <div className="text-left">
+              <span className="font-semibold">NFC-e</span>
+              <span className="block text-xs text-muted-foreground font-normal">Modelo 65 - Venda ao consumidor</span>
+            </div>
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="nfes" className="space-y-6">
@@ -380,6 +392,7 @@ export default function CuponsNFEsPage() {
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[80px]">Nº</TableHead>
+                          <TableHead className="w-[80px]">Tipo</TableHead>
                           <TableHead className="w-[100px]">Série</TableHead>
                           <TableHead className="w-[260px]">Chave de Acesso</TableHead>
                           <TableHead className="w-[120px]">Destinatário</TableHead>
@@ -393,6 +406,13 @@ export default function CuponsNFEsPage() {
                         {nfes.map((nfe) => (
                           <TableRow key={nfe.id} className="cursor-pointer" onClick={() => handleVerDetalhes(nfe)}>
                             <TableCell className="font-medium">{String(nfe.numero).padStart(9, '0')}</TableCell>
+                            <TableCell>
+                              {nfe.tipo_operacao === 1 ? (
+                                <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-xs">Saída</Badge>
+                              ) : (
+                                <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">Entrada</Badge>
+                              )}
+                            </TableCell>
                             <TableCell>{nfe.serie}</TableCell>
                             <TableCell className="font-mono text-xs">{nfe.chave}</TableCell>
                             <TableCell className="text-sm truncate max-w-[120px]">
@@ -462,22 +482,51 @@ export default function CuponsNFEsPage() {
         </TabsContent>
 
         <TabsContent value="cupons" className="space-y-6">
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Receipt className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-              <h3 className="text-lg font-medium">Cupons Fiscais (NFC-e)</h3>
-              <p className="text-muted-foreground mt-2">
-                Acesse a configuração de cupons fiscais para gerenciar emissão de NFC-e (Modelo 65), 
-                configuração de impressora térmica e layout de cupom.
-              </p>
-              <Link href="/admin/configuracoes-cupom">
-                <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700">
-                  <Settings className="h-4 w-4" />
-                  Configurar Cupons Fiscais
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Card 1: About NFC-e */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Receipt className="h-5 w-5 text-green-600" />
+                  Cupons Fiscais (NFC-e)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="text-sm text-muted-foreground space-y-2">
+                <p>A NFC-e (Modelo 65) é usada para documentar vendas ao consumidor final em operações presenciais.</p>
+                <p>Configure a emissão de cupons fiscais para imprimir via impressora térmica.</p>
+              </CardContent>
+            </Card>
+            {/* Card 2: Configurar */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Configuração</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">Configure impressora e layout do cupom fiscal</p>
+                <Link href="/admin/configuracoes-cupom">
+                  <Button className="w-full bg-green-600 hover:bg-green-700 gap-2">
+                    <Settings className="h-4 w-4" />
+                    Configurar Cupons Fiscais
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+            {/* Card 3: Emitir */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Emitir NFC-e</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">Emita cupons fiscais a partir de vendas realizadas</p>
+                <Link href="/admin/nfce/emitir">
+                  <Button variant="outline" className="w-full gap-2">
+                    <Plus className="h-4 w-4" />
+                    Emitir NFC-e
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
       </Tabs>
 
