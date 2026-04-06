@@ -387,19 +387,13 @@ export default function NFePage() {
           {/* ============================================= */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-2">
-              <TabsTrigger value="entrada" className="gap-2 py-3">
-                <ArrowDownToLine className="h-5 w-5 text-blue-500" />
-                <div className="text-left">
-                  <span className="font-semibold">NF-e Entrada</span>
-                  <span className="block text-xs text-muted-foreground font-normal">Compras e importações de fornecedores</span>
-                </div>
+              <TabsTrigger value="entrada" className="gap-2">
+                <ArrowDownToLine className="h-4 w-4 text-blue-500" />
+                <span className="font-semibold">NF-e Entrada</span>
               </TabsTrigger>
-              <TabsTrigger value="saida" className="gap-2 py-3">
-                <ArrowUpFromLine className="h-5 w-5 text-orange-500" />
-                <div className="text-left">
-                  <span className="font-semibold">NF-e Saída</span>
-                  <span className="block text-xs text-muted-foreground font-normal">Vendas e emissão de notas ao cliente</span>
-                </div>
+              <TabsTrigger value="saida" className="gap-2">
+                <ArrowUpFromLine className="h-4 w-4 text-orange-500" />
+                <span className="font-semibold">NF-e Saída</span>
               </TabsTrigger>
             </TabsList>
 
@@ -408,10 +402,7 @@ export default function NFePage() {
             {/* ============================================= */}
             <TabsContent value="entrada" className="space-y-6">
               {/* Subtitle */}
-              <div className="flex items-center gap-2 ml-1">
-                <ArrowDownToLine className="h-4 w-4 text-blue-500" />
-                <p className="text-sm text-muted-foreground">Registre aqui as notas fiscais de <strong>entrada</strong> (compras de fornecedores). Use o botão <strong>&quot;Importar NF-e&quot;</strong> para adicionar XMLs de compra.</p>
-              </div>
+              <p className="text-sm text-muted-foreground ml-1">Notas fiscais de compra e importação — clique em <strong>Importar NF-e</strong> para adicionar.</p>
 
               {/* Stats Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -441,14 +432,14 @@ export default function NFePage() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="col-span-2 md:col-span-1">
+                <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
                         <DollarSign className="h-5 w-5 text-emerald-600" />
                       </div>
                       <div>
-                        <p className="text-xl font-bold">{formatCurrency(statsEntrada.valorTotal)}</p>
+                        <p className="text-2xl font-bold">{formatCurrency(statsEntrada.valorTotal)}</p>
                         <p className="text-xs text-muted-foreground">Valor Total</p>
                       </div>
                     </div>
@@ -647,10 +638,7 @@ export default function NFePage() {
             {/* ============================================= */}
             <TabsContent value="saida" className="space-y-6">
               {/* Subtitle */}
-              <div className="flex items-center gap-2 ml-1">
-                <ArrowUpFromLine className="h-4 w-4 text-orange-500" />
-                <p className="text-sm text-muted-foreground">Acompanhe aqui as notas fiscais de <strong>saída</strong> (vendas realizadas). Vendas fechadas no PDV aparecerão aqui para emissão de NF-e.</p>
-              </div>
+              <p className="text-sm text-muted-foreground ml-1">Notas fiscais de vendas — vendas fechadas no PDV aparecerão aqui para emissão.</p>
 
               {/* Stats Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -693,14 +681,14 @@ export default function NFePage() {
                     </div>
                   </CardContent>
                 </Card>
-                <Card className="col-span-2 md:col-span-1">
+                <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
                       <div className="h-10 w-10 rounded-lg bg-emerald-100 flex items-center justify-center">
                         <DollarSign className="h-5 w-5 text-emerald-600" />
                       </div>
                       <div>
-                        <p className="text-xl font-bold">{formatCurrency(statsSaida.valorTotal)}</p>
+                        <p className="text-2xl font-bold">{formatCurrency(statsSaida.valorTotal)}</p>
                         <p className="text-xs text-muted-foreground">Total Vendido</p>
                       </div>
                     </div>
