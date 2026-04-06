@@ -216,12 +216,6 @@ export default function CuponsNFEsPage() {
             <Download className="h-4 w-4" />
             Exportar PDF
           </Button>
-          <Link href="/admin/nfe/emitir">
-            <Button className="gap-2 bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4" />
-              Emitir NF-e
-            </Button>
-          </Link>
           <Link href="/admin/nfe/config">
             <Button variant="outline" className="gap-2">
               <Settings className="h-4 w-4" />
@@ -239,19 +233,13 @@ export default function CuponsNFEsPage() {
 
       <Tabs value={ativoTab} onValueChange={setAtivoTab}>
         <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-2 gap-2">
-          <TabsTrigger value="nfes" className="gap-2 py-3">
-            <FileText className="h-5 w-5 text-orange-500" />
-            <div className="text-left">
-              <span className="font-semibold">NF-e</span>
-              <span className="block text-xs text-muted-foreground font-normal">Modelo 55 - Operações com destinatário</span>
-            </div>
+          <TabsTrigger value="nfes" className="gap-2">
+            <FileText className="h-4 w-4 text-orange-500" />
+            <span className="font-semibold">NF-e</span>
           </TabsTrigger>
-          <TabsTrigger value="cupons" className="gap-2 py-3">
-            <Receipt className="h-5 w-5 text-green-500" />
-            <div className="text-left">
-              <span className="font-semibold">NFC-e</span>
-              <span className="block text-xs text-muted-foreground font-normal">Modelo 65 - Venda ao consumidor</span>
-            </div>
+          <TabsTrigger value="cupons" className="gap-2">
+            <Receipt className="h-4 w-4 text-green-500" />
+            <span className="font-semibold">NFC-e</span>
           </TabsTrigger>
         </TabsList>
 
@@ -302,7 +290,7 @@ export default function CuponsNFEsPage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="col-span-2 md:col-span-1">
+            <Card>
               <CardContent className="p-4">
                 <div className="flex items-center gap-2">
                   <DollarSign className="h-5 w-5 text-emerald-600" />
