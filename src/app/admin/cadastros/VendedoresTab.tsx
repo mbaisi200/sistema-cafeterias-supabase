@@ -47,6 +47,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useState, useEffect } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
 import {
   Plus,
@@ -71,6 +72,7 @@ interface Vendedor {
   cep: string;
   email: string;
   ativo: boolean;
+  empresa_id: string;
   criado_em?: string;
 }
 
@@ -90,6 +92,7 @@ function formatCEP(cep?: string) {
 }
 
 export function VendedoresTab() {
+  const { empresaId } = useAuth();
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -101,12 +104,18 @@ export function VendedoresTab() {
 
   // Carregar vendedores do Supabase
   const loadVendedores = async () => {
+    if (!empresaId) {
+      setVendedores([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const supabase = getSupabaseClient();
       const { data, error } = await supabase
         .from('vendedores')
         .select('*')
+        .eq('empresa_id', empresaId)
         .order('nome', { ascending: true });
       if (error) throw error;
       setVendedores(data || []);
@@ -120,7 +129,8 @@ export function VendedoresTab() {
 
   useEffect(() => {
     loadVendedores();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empresaId]);
 
   // Filtrar vendedores
   const filteredVendedores = vendedores.filter(v => {
@@ -151,6 +161,12 @@ export function VendedoresTab() {
     const supabase = getSupabaseClient();
 
     try {
+      if (!empresaId) {
+        toast.error('Empresa não definida');
+        setSaving(false);
+        return;
+      }
+
       const dados = {
         nome: formData.get('nome') as string,
         endereco: (formData.get('endereco') as string) || null,
@@ -160,6 +176,7 @@ export function VendedoresTab() {
         cep: (formData.get('cep') as string) || null,
         email: (formData.get('email') as string) || null,
         ativo: true,
+        empresa_id: empresaId,
       };
 
       if (editandoVendedor) {

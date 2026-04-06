@@ -148,6 +148,8 @@ const SECOES_FEATURE_MAP: Record<string, string> = {
   '/admin/financeiro': 'financeiro',
   '/caixa': 'caixa',
   '/admin/caixa': 'caixa',
+  '/servicos': 'servicos',
+  '/admin/servicos': 'servicos',
 };
 
 const SECOES_NOMES: Record<string, string> = {
@@ -156,6 +158,7 @@ const SECOES_NOMES: Record<string, string> = {
   estoque: 'Estoque',
   financeiro: 'Financeiro',
   caixa: 'Caixa',
+  servicos: 'Serviços',
 };
 
 const TIPOS_VENDA_BASE = ['balcao', 'mesa', 'delivery'];

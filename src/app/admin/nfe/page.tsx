@@ -391,14 +391,14 @@ export default function NFePage() {
                 <ArrowDownToLine className="h-5 w-5 text-blue-500" />
                 <div className="text-left">
                   <span className="font-semibold">NF-e Entrada</span>
-                  <span className="block text-xs text-muted-foreground font-normal">Notas de compra/fornecedores</span>
+                  <span className="block text-xs text-muted-foreground font-normal">Compras e importações de fornecedores</span>
                 </div>
               </TabsTrigger>
               <TabsTrigger value="saida" className="gap-2 py-3">
                 <ArrowUpFromLine className="h-5 w-5 text-orange-500" />
                 <div className="text-left">
                   <span className="font-semibold">NF-e Saída</span>
-                  <span className="block text-xs text-muted-foreground font-normal">Notas de vendas realizadas</span>
+                  <span className="block text-xs text-muted-foreground font-normal">Vendas e emissão de notas ao cliente</span>
                 </div>
               </TabsTrigger>
             </TabsList>
@@ -409,8 +409,8 @@ export default function NFePage() {
             <TabsContent value="entrada" className="space-y-6">
               {/* Subtitle */}
               <div className="flex items-center gap-2 ml-1">
-                <div className="h-1 w-6 rounded-full bg-blue-500" />
-                <p className="text-sm text-muted-foreground">Notas fiscais de compra e importação de fornecedores — clique em &quot;Importar NF-e&quot; para adicionar</p>
+                <ArrowDownToLine className="h-4 w-4 text-blue-500" />
+                <p className="text-sm text-muted-foreground">Registre aqui as notas fiscais de <strong>entrada</strong> (compras de fornecedores). Use o botão <strong>&quot;Importar NF-e&quot;</strong> para adicionar XMLs de compra.</p>
               </div>
 
               {/* Stats Cards */}
@@ -648,8 +648,8 @@ export default function NFePage() {
             <TabsContent value="saida" className="space-y-6">
               {/* Subtitle */}
               <div className="flex items-center gap-2 ml-1">
-                <div className="h-1 w-6 rounded-full bg-orange-500" />
-                <p className="text-sm text-muted-foreground">Notas fiscais de venda — vendas fechadas no PDV aparecerão aqui para emissão de NF-e</p>
+                <ArrowUpFromLine className="h-4 w-4 text-orange-500" />
+                <p className="text-sm text-muted-foreground">Acompanhe aqui as notas fiscais de <strong>saída</strong> (vendas realizadas). Vendas fechadas no PDV aparecerão aqui para emissão de NF-e.</p>
               </div>
 
               {/* Stats Cards */}
