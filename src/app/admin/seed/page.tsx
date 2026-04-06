@@ -461,6 +461,48 @@ const FORNECEDORES = [
 const CATEGORIAS_CONTAS_PAGAR = ['fornecedores', 'aluguel', 'energia', 'água', 'impostos', 'salários', 'manutenção'];
 const CATEGORIAS_CONTAS_RECEBER = ['clientes', 'eventos', 'delivery parceiros'];
 
+// Mapeamento de URLs do menu para features usadas no seed
+const SECOES_FEATURE_MAP: Record<string, string> = {
+  '/admin/mesas': 'mesas',
+  '/admin/delivery': 'delivery',
+  '/admin/estoque': 'estoque',
+  '/admin/financeiro': 'financeiro',
+  '/admin/caixa': 'caixa',
+  '/admin/servicos': 'servicos',
+  '/admin/produtos': 'produtos',
+  '/admin/pedidos': 'pedidos',
+  '/admin/funcionarios': 'funcionarios',
+  '/admin/relatorios': 'relatorios',
+  '/pdv': 'pdv',
+  '/pdv-varejo': 'pdv-varejo',
+  '/pdv-garcom': 'pdv-garcom',
+  '/cardapio': 'cardapio',
+};
+
+// Nomes amigáveis das features
+const SECOES_NOMES: Record<string, string> = {
+  'mesas': 'Mesas',
+  'delivery': 'Delivery',
+  'estoque': 'Estoque',
+  'financeiro': 'Financeiro',
+  'caixa': 'Caixa',
+  'servicos': 'Serviços',
+  'produtos': 'Produtos',
+  'pedidos': 'Pedidos',
+  'funcionarios': 'Funcionários',
+  'relatorios': 'Relatórios',
+  'pdv': 'PDV',
+  'pdv-varejo': 'PDV Varejo',
+  'pdv-garcom': 'PDV Garçon',
+  'cardapio': 'Cardápio',
+};
+
+// Tipos de venda base
+const TIPOS_VENDA_BASE = ['balcao', 'mesa', 'delivery'];
+
+// Formas de pagamento
+const FORMAS_PAGAMENTO = ['dinheiro', 'debito', 'credito', 'pix'];
+
 // Tabelas que serão limpas
 const TABELAS_PARA_LIMPAR = [
   'categorias',
