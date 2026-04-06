@@ -770,6 +770,7 @@ function SeedContent() {
       // ==========================================
       // 6. CRIAR MOVIMENTOS DE ESTOQUE
       // ==========================================
+      let numMovimentos = 0;
       if (criarEstoque) {
         updateStatus('Movimentos de Estoque', 'running');
         addLog('Criando movimentos de estoque...');
@@ -805,6 +806,7 @@ function SeedContent() {
         updateStatus('Movimentos de Estoque', 'done', NUM_MOVIMENTOS);
         setProgressValue(80);
         addLog(`${NUM_MOVIMENTOS} movimentos de estoque criados.`);
+        numMovimentos = NUM_MOVIMENTOS;
       } else {
         updateStatus('Movimentos de Estoque', 'done', 0, 'Desabilitada no segmento');
         addLog('⏭️ Movimentos de estoque: desabilitada no segmento selecionado.');
@@ -884,7 +886,7 @@ function SeedContent() {
         addLog('Criando sessões de caixa...');
 
       const caixasData: {empresa_id: string, valor_inicial: number, valor_atual: number, total_entradas: number, total_saidas: number, total_vendas: number, status: string, aberto_por: string, aberto_por_nome: string, aberto_em: string, fechado_por?: string, fechado_por_nome?: string, fechado_em?: string, valor_final?: number, quebra?: number, observacao_abertura: string, observacao_fechamento: string}[] = [];
-      const movimentacoesCaixaData: {caixa_id: string, empresa_id: string, tipo: string, valor: number, forma_pagamento: string, descricao: string, usuario_id: string, usuario_nome: string, criado_em: string}[] = [];
+      const movimentacoesCaixaData: {caixa_id: string, empresa_id: string, venda_id?: string, tipo: string, valor: number, forma_pagamento: string, descricao: string, usuario_id: string, usuario_nome: string, criado_em: string}[] = [];
 
       for (let i = 0; i < 20; i++) {
         const dataAbertura = gerarDataAleatoria(periodoInicio, periodoFim);
@@ -1032,7 +1034,7 @@ function SeedContent() {
       addLog('═══════════════════════════════════════');
       addLog('✅ SEED CONCLUÍDO COM SUCESSO!');
       addLog('═══════════════════════════════════════');
-      addLog(`Total de registros criados: ${8 + funcionariosIds.length + mesasIds.length + produtosDataInfo.length + NUM_VENDAS * 3 + NUM_MOVIMENTOS + 40 + 20 * 2 + 100}`);
+      addLog(`Total de registros criados: ${8 + funcionariosIds.length + mesasIds.length + produtosDataInfo.length + NUM_VENDAS * 3 + numMovimentos + 40 + 20 * 2 + 100}`);
 
     } catch (error) {
       console.error('Erro no seed:', error);
