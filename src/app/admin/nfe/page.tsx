@@ -57,8 +57,10 @@ import {
   FilePlus2,
   DollarSign,
   Settings,
+  Trash2,
 } from 'lucide-react';
 import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
+import { useToast } from '@/hooks/use-toast';
 
 // =====================================================
 // Types
@@ -98,7 +100,11 @@ interface NFeSaida {
 
 export default function NFePage() {
   const { empresaId } = useAuth();
+  const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('entrada');
+
+  // Delete NFe state
+  const [excluindoNFe, setExcluindoNFe] = useState(false);
 
   // Data states
   const [dadosEntrada, setDadosEntrada] = useState<NFeEntrada[]>([]);
@@ -123,6 +129,53 @@ export default function NFePage() {
   // DANFE preview dialog
   const [dialogDanfe, setDialogDanfe] = useState(false);
   const [danfeVenda, setDanfeVenda] = useState<NFeSaida | null>(null);
+
+  // ========================================
+  // Delete NFe Entrada
+  // ========================================
+  const handleExcluirNFeEntrada = async () => {
+    if (expandedRows.size === 0) {
+      toast({
+        variant: 'destructive',
+        title: 'Expanda uma nota fiscal primeiro para selecioná-la',
+      });
+      return;
+    }
+
+    const documentoRef = Array.from(expandedRows)[0];
+    const nfe = dadosEntrada.find(n => n.documento_ref === documentoRef);
+    if (!nfe) return;
+
+    setExcluindoNFe(true);
+    try {
+      const response = await fetch('/api/nfe/excluir-entrada', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresaId,
+          documentoRef,
+          excluirProdutosNovos: true,
+        }),
+      });
+      const data = await response.json();
+      if (data.sucesso) {
+        const r = data.resultado;
+        const msg = [`NF-e excluída!`, `Estoque revertido: ${r.estoqueRevertido} produto(s)`];
+        if (r.produtosExcluidos > 0) msg.push(`${r.produtosExcluidos} produto(s) excluído(s)`);
+        if (r.nfeImportadaRemovida) msg.push('Registro de NFe removido');
+        if (r.erros.length > 0) msg.push(`Erros: ${r.erros.join(', ')}`);
+        toast({ title: msg.join(' — ') });
+        setExpandedRows(new Set());
+        fetchEntrada();
+      } else {
+        toast({ variant: 'destructive', title: data.erro || 'Erro ao excluir' });
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro de conexão' });
+    } finally {
+      setExcluindoNFe(false);
+    }
+  };
 
   // Set default date range (last 30 days)
   useEffect(() => {
@@ -315,6 +368,15 @@ export default function NFePage() {
                 </Button>
               </Link>
               <Button
+                variant="destructive"
+                className="gap-2"
+                onClick={handleExcluirNFeEntrada}
+                disabled={excluindoNFe || expandedRows.size === 0}
+              >
+                {excluindoNFe ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                Excluir NF-e Entrada
+              </Button>
+              <Button
                 variant="outline"
                 className="gap-2"
                 onClick={() => {
@@ -495,7 +557,19 @@ export default function NFePage() {
                   <CardTitle className="text-lg flex items-center gap-2">
                     <ArrowDownToLine className="h-5 w-5 text-blue-600" />
                     Notas Fiscais de Entrada
-                    <Badge variant="outline" className="ml-auto bg-blue-50 text-blue-700 border-blue-200 text-xs">{statsEntrada.totalNotas} nota{statsEntrada.totalNotas !== 1 ? 's' : ''}</Badge>
+                    <div className="ml-auto flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="gap-1 text-xs"
+                        onClick={handleExcluirNFeEntrada}
+                        disabled={excluindoNFe || expandedRows.size === 0}
+                      >
+                        {excluindoNFe ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}
+                        Excluir NF-e Selecionada
+                      </Button>
+                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">{statsEntrada.totalNotas} nota{statsEntrada.totalNotas !== 1 ? 's' : ''}</Badge>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -574,19 +648,35 @@ export default function NFePage() {
                                     {formatCurrency(nfe.valor_total)}
                                   </TableCell>
                                   <TableCell className="text-right">
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        setDetailItem(nfe);
-                                        setDetailType('entrada');
-                                      }}
-                                      title="Ver detalhes"
-                                    >
-                                      <Eye className="h-4 w-4" />
-                                    </Button>
+                                    <div className="flex items-center justify-end gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setDetailItem(nfe);
+                                          setDetailType('entrada');
+                                        }}
+                                        title="Ver detalhes"
+                                      >
+                                        <Eye className="h-4 w-4" />
+                                      </Button>
+                                      <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          setExpandedRows(new Set([nfe.documento_ref]));
+                                          setTimeout(() => handleExcluirNFeEntrada(), 50);
+                                        }}
+                                        title="Excluir esta NF-e"
+                                        disabled={excluindoNFe}
+                                      >
+                                        <Trash2 className="h-4 w-4" />
+                                      </Button>
+                                    </div>
                                   </TableCell>
                                 </TableRow>
                                 {/* Expanded: product list */}
