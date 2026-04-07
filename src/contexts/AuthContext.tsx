@@ -95,37 +95,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Buscar funcionário pelo PIN
+  // Buscar funcionário pelo PIN via API route (bypass RLS com service role)
   const fetchFuncionarioByPin = async (codigoEmpresa: string, pin: string): Promise<User | null> => {
     try {
-      const { data: funcionarios, error } = await supabase
-        .from('funcionarios')
-        .select('*')
-        .eq('pin', pin)
-        .eq('ativo', true);
+      const response = await fetch('/api/funcionario-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin, codigoEmpresa }),
+      });
 
-      if (error || !funcionarios || funcionarios.length === 0) {
+      const result = await response.json();
+
+      if (!response.ok) {
+        console.warn('⚠️ Login funcionário:', result.error);
         return null;
       }
 
-      const codigoUpper = codigoEmpresa.toUpperCase();
-      for (const func of funcionarios) {
-        const funcEmpresaId = func.empresa_id || '';
-        const funcCodigoEmpresa = funcEmpresaId.substring(0, 8).toUpperCase();
-        if (funcCodigoEmpresa === codigoUpper && func.ativo) {
-          return {
-            id: func.id,
-            email: func.email || '',
-            nome: func.nome,
-            role: 'funcionario',
-            empresaId: func.empresa_id,
-            ativo: func.ativo,
-            criadoEm: new Date(func.criado_em),
-            atualizadoEm: new Date(func.atualizado_em),
-          };
-        }
+      if (!result.funcionario) {
+        return null;
       }
-      return null;
+
+      const func = result.funcionario;
+      return {
+        id: func.id,
+        email: func.email || '',
+        nome: func.nome,
+        role: 'funcionario',
+        empresaId: func.empresaId,
+        ativo: func.ativo,
+        criadoEm: new Date(func.criadoEm),
+        atualizadoEm: new Date(func.atualizadoEm),
+      };
     } catch (error) {
       console.error('Error fetching funcionario:', error);
       return null;

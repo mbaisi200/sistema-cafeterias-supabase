@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS funcionarios (
   
   -- Permissões
   perm_pdv BOOLEAN DEFAULT true,
+  perm_pdv_garcom BOOLEAN DEFAULT false,
   perm_estoque BOOLEAN DEFAULT false,
   perm_financeiro BOOLEAN DEFAULT false,
   perm_relatorios BOOLEAN DEFAULT false,

@@ -556,6 +556,7 @@ export function useFuncionarios() {
     if (dados.permissoes) {
       // Compatibilidade com formato antigo (objeto permissoes)
       updateData.perm_pdv = dados.permissoes.pdv;
+      updateData.perm_pdv_garcom = dados.permissoes.pdv_garcom;
       updateData.perm_estoque = dados.permissoes.estoque;
       updateData.perm_financeiro = dados.permissoes.financeiro;
       updateData.perm_relatorios = dados.permissoes.relatorios;
