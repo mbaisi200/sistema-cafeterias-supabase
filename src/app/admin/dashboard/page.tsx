@@ -1,120 +1,465 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
+import { useState, useMemo } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { DashboardCard } from '@/components/layout/DashboardCard';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProdutos, useVendas, useFuncionarios, useContas } from '@/hooks/useSupabase';
+import { useVendas } from '@/hooks/useSupabase';
 import {
   ShoppingCart,
   DollarSign,
   Package,
-  Users,
-  AlertTriangle,
-  Loader2,
+  Hash,
   TrendingUp,
-  TrendingDown,
-  ArrowRight,
-  Search,
+  BarChart3,
+  Loader2,
+  CalendarDays,
+  ShoppingCart as CartIcon,
+  Layers,
 } from 'lucide-react';
-import { fmt } from '@/lib/utils';
+import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
+import { motion } from 'framer-motion';
+import {
+  MonthlyEvolutionChart,
+  ProductRankingChart,
+  DayOfWeekChart,
+  ShiftChart,
+  ItemsPerOrderCard,
+} from '@/components/bi/DashboardCharts';
 
+// ─────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────
+
+function formatBRL(value: number): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat('pt-BR').format(Math.round(value));
+}
+
+// ─────────────────────────────────────────
+// Onepet KPI Card
+// ─────────────────────────────────────────
+interface KPICardData {
+  titulo: string;
+  valor: string;
+  subtitulo: string;
+  icone: React.ElementType;
+  corIcone: string;
+  corBg: string;
+  variacao?: number;
+}
+
+function KPICard({ data, index }: { data: KPICardData; index: number }) {
+  const Icon = data.icone;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.05, duration: 0.3 }}
+    >
+      <div className="rounded-lg border border-gray-200 bg-white p-4 hover:shadow-sm transition-shadow">
+        <div className="flex items-start justify-between">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide truncate">{data.titulo}</p>
+            <p className="text-2xl font-bold text-gray-800 mt-1 truncate">{data.valor}</p>
+            {data.subtitulo && (
+              <p className="text-xs text-gray-400 mt-1 truncate">{data.subtitulo}</p>
+            )}
+          </div>
+          <div className={`flex-shrink-0 p-2 rounded-lg ${data.corBg}`}>
+            <Icon className={`h-4 w-4 ${data.corIcone}`} />
+          </div>
+        </div>
+        {data.variacao !== undefined && data.variacao !== null && (
+          <div className="mt-2">
+            <span
+              className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                data.variacao >= 0
+                  ? 'bg-green-50 text-green-700'
+                  : 'bg-red-50 text-red-700'
+              }`}
+            >
+              <span>{data.variacao >= 0 ? '▲' : '▼'}</span>
+              <span>{Math.abs(data.variacao).toFixed(2)}%</span>
+              <span className="text-gray-400 font-normal ml-0.5">em relação ao mês anterior</span>
+            </span>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
+// ─────────────────────────────────────────
+// Section Title (green, Onepet style)
+// ─────────────────────────────────────────
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <div className="w-1 h-5 rounded-full bg-green-600" />
+      <h2 className="text-sm font-semibold text-green-700 uppercase tracking-wide">{children}</h2>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
+// Main Dashboard Page
+// ─────────────────────────────────────────
 export default function AdminDashboardPage() {
   const { user } = useAuth();
-  const { produtos, loading: loadingProdutos } = useProdutos();
   const { vendas, loading: loadingVendas } = useVendas();
-  const { funcionarios, loading: loadingFuncionarios } = useFuncionarios();
-  const { totalPagarPendente, totalReceberPendente, loading: loadingContas } = useContas();
 
-  const [produtoSearch, setProdutoSearch] = useState('');
+  const loading = loadingVendas;
 
-  const loading = loadingProdutos || loadingVendas || loadingFuncionarios || loadingContas;
+  // Filters state
+  const [excluirDelivery, setExcluirDelivery] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  // Calcular estatísticas
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+  // ── Date helpers ──
+  const currentMonthStart = useMemo(() => startOfMonth(new Date()), []);
+  const currentMonthEnd = useMemo(() => endOfMonth(new Date()), []);
+  const prevMonthStart = useMemo(() => startOfMonth(subMonths(new Date(), 1)), []);
+  const prevMonthEnd = useMemo(() => endOfMonth(subMonths(new Date(), 1)), []);
+  const selectedDayStart = useMemo(() => startOfDay(selectedDate), [selectedDate]);
+  const selectedDayEnd = useMemo(() => endOfDay(selectedDate), [selectedDate]);
 
-  // Semana atual e anterior
-  const inicioSemanaAtual = new Date(hoje);
-  inicioSemanaAtual.setDate(hoje.getDate() - hoje.getDay());
-  
-  const inicioSemanaAnterior = new Date(inicioSemanaAtual);
-  inicioSemanaAnterior.setDate(inicioSemanaAnterior.getDate() - 7);
-  
-  const fimSemanaAnterior = new Date(inicioSemanaAtual);
-  fimSemanaAnterior.setDate(fimSemanaAnterior.getDate() - 1);
+  // ── Helper: check if venda is concluded ──
+  function isConcluida(v: any) {
+    return v.status === 'concluida' || v.status === 'fechada' || v.status === 'finalizada';
+  }
 
-  const vendasHoje = vendas.filter(v => {
-    const dataVenda = new Date(v.criadoEm);
-    dataVenda.setHours(0, 0, 0, 0);
-    return dataVenda.getTime() === hoje.getTime() && (v.status === 'concluida' || v.status === 'fechada');
-  });
+  // ── Filtered vendas for selected day ──
+  const vendasDia = useMemo(() => {
+    const excDelivery = excluirDelivery;
+    return vendas.filter(v => {
+      if (!isConcluida(v)) return false;
+      if (excDelivery && (v.canal === 'delivery' || v.tipo === 'delivery')) return false;
+      if (!v.criadoEm) return false;
+      const d = new Date(v.criadoEm);
+      return d >= selectedDayStart && d <= selectedDayEnd;
+    });
+  }, [vendas, selectedDayStart, selectedDayEnd, excluirDelivery]);
 
-  const vendasSemanaAtual = vendas.filter(v => {
-    const dataVenda = new Date(v.criadoEm);
-    return dataVenda >= inicioSemanaAtual && (v.status === 'concluida' || v.status === 'fechada');
-  });
+  // ── Filtered vendas for current month ──
+  const vendasMesAtual = useMemo(() => {
+    const excDelivery = excluirDelivery;
+    return vendas.filter(v => {
+      if (!isConcluida(v)) return false;
+      if (excDelivery && (v.canal === 'delivery' || v.tipo === 'delivery')) return false;
+      if (!v.criadoEm) return false;
+      const d = new Date(v.criadoEm);
+      return d >= currentMonthStart && d <= currentMonthEnd;
+    });
+  }, [vendas, currentMonthStart, currentMonthEnd, excluirDelivery]);
 
-  const vendasSemanaAnterior = vendas.filter(v => {
-    const dataVenda = new Date(v.criadoEm);
-    return dataVenda >= inicioSemanaAnterior && dataVenda <= fimSemanaAnterior && (v.status === 'concluida' || v.status === 'fechada');
-  });
+  // ── Filtered vendas for previous month ──
+  const vendasMesAnterior = useMemo(() => {
+    return vendas.filter(v => {
+      if (!isConcluida(v)) return false;
+      if (!v.criadoEm) return false;
+      const d = new Date(v.criadoEm);
+      return d >= prevMonthStart && d <= prevMonthEnd;
+    });
+  }, [vendas, prevMonthStart, prevMonthEnd]);
 
-  const vendasMes = vendas.filter(v => {
-    const dataVenda = new Date(v.criadoEm);
-    const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-    return dataVenda >= inicioMes && (v.status === 'concluida' || v.status === 'fechada');
-  });
+  // ── Compute metrics from vendas array ──
+  function computeMetrics(vendasList: any[]) {
+    const totalVendido = vendasList.reduce((acc, v) => acc + (v.total || 0), 0);
+    const qtdVendas = vendasList.length;
 
-  const totalVendasHoje = vendasHoje.reduce((acc, v) => acc + (v.total || 0), 0);
-  const totalVendasSemanaAtual = vendasSemanaAtual.reduce((acc, v) => acc + (v.total || 0), 0);
-  const totalVendasSemanaAnterior = vendasSemanaAnterior.reduce((acc, v) => acc + (v.total || 0), 0);
-  const totalVendasMes = vendasMes.reduce((acc, v) => acc + (v.total || 0), 0);
-  const ticketMedio = vendasHoje.length > 0 ? totalVendasHoje / vendasHoje.length : 0;
+    const skusSet = new Set<string>();
+    let unidadesTotal = 0;
+    let itensTotal = 0;
 
-  // Calcular variação percentual
-  const variacaoVendas = totalVendasSemanaAnterior > 0 
-    ? ((totalVendasSemanaAtual - totalVendasSemanaAnterior) / totalVendasSemanaAnterior) * 100 
-    : totalVendasSemanaAtual > 0 ? 100 : 0;
+    vendasList.forEach(v => {
+      v.itens?.forEach((item: any) => {
+        if (item.produtoId) skusSet.add(item.produtoId);
+        unidadesTotal += item.quantidade || 0;
+        itensTotal += 1;
+      });
+    });
 
-  const produtosEstoqueBaixo = produtos.filter(p => p.estoqueAtual <= p.estoqueMinimo);
-  const funcionariosAtivos = funcionarios.filter(f => f.ativo);
+    const itensSKU = skusSet.size;
+    const mediaItensPorPedido = qtdVendas > 0 ? unidadesTotal / qtdVendas : 0;
+    const ticketMedio = qtdVendas > 0 ? totalVendido / qtdVendas : 0;
 
-  // Product search filter - prioritize nome/codigo matches, descricao as fallback
-  const produtosFiltrados = produtoSearch
-    ? produtos
-        .map(p => {
-          const s = produtoSearch.toLowerCase();
-          const matchNome = p.nome?.toLowerCase().includes(s) || false;
-          const matchCodigo = p.codigo?.toLowerCase().includes(s) || false;
-          const matchDescricao = p.descricao?.toLowerCase().includes(s) || false;
-          return { ...p, _matchPriority: matchNome ? 0 : matchCodigo ? 1 : matchDescricao ? 2 : 3, _matched: matchNome || matchCodigo || matchDescricao };
-        })
-        .filter(p => p._matched)
-        .sort((a, b) => a._matchPriority - b._matchPriority)
-    : [];
+    return { totalVendido, qtdVendas, itensSKU, unidadesTotal, mediaItensPorPedido, ticketMedio };
+  }
 
-  // Saldo projetado
-  const saldoProjetado = totalReceberPendente - totalPagarPendente;
+  const metricasDia = useMemo(() => computeMetrics(vendasDia), [vendasDia]);
+  const metricasMesAtual = useMemo(() => computeMetrics(vendasMesAtual), [vendasMesAtual]);
+  const metricasMesAnterior = useMemo(() => computeMetrics(vendasMesAnterior), [vendasMesAnterior]);
 
+  // ── Variation calculation ──
+  function calcVariacao(atual: number, anterior: number): number | null {
+    if (anterior === 0) return atual > 0 ? 100 : null;
+    return ((atual - anterior) / anterior) * 100;
+  }
+
+  // ── KPI Cards Data - Dia ──
+  const kpisDia: KPICardData[] = [
+    {
+      titulo: 'Valor vendido',
+      valor: formatBRL(metricasDia.totalVendido),
+      subtitulo: `#${metricasDia.qtdVendas} venda${metricasDia.qtdVendas !== 1 ? 's' : ''} hoje`,
+      icone: DollarSign,
+      corIcone: 'text-green-600',
+      corBg: 'bg-green-50',
+    },
+    {
+      titulo: 'Quantidade de vendas',
+      valor: formatNumber(metricasDia.qtdVendas),
+      subtitulo: 'Pedidos finalizados',
+      icone: ShoppingCart,
+      corIcone: 'text-blue-600',
+      corBg: 'bg-blue-50',
+    },
+    {
+      titulo: 'Itens vendidos (SKU)',
+      valor: formatNumber(metricasDia.itensSKU),
+      subtitulo: 'Produtos diferentes',
+      icone: Layers,
+      corIcone: 'text-violet-600',
+      corBg: 'bg-violet-50',
+    },
+    {
+      titulo: 'Unidades vendidas',
+      valor: formatNumber(metricasDia.unidadesTotal),
+      subtitulo: 'Total de itens',
+      icone: Package,
+      corIcone: 'text-amber-600',
+      corBg: 'bg-amber-50',
+    },
+    {
+      titulo: 'Média de itens por pedido',
+      valor: metricasDia.mediaItensPorPedido.toFixed(2),
+      subtitulo: 'Itens/venda',
+      icone: Hash,
+      corIcone: 'text-cyan-600',
+      corBg: 'bg-cyan-50',
+    },
+    {
+      titulo: 'Ticket médio',
+      valor: formatBRL(metricasDia.ticketMedio),
+      subtitulo: 'Valor médio por venda',
+      icone: BarChart3,
+      corIcone: 'text-rose-600',
+      corBg: 'bg-rose-50',
+    },
+  ];
+
+  // ── KPI Cards Data - Mês ──
+  const kpisMes: KPICardData[] = [
+    {
+      titulo: 'Valor vendido',
+      valor: formatBRL(metricasMesAtual.totalVendido),
+      subtitulo: `#${metricasMesAtual.qtdVendas} venda${metricasMesAtual.qtdVendas !== 1 ? 's' : ''} no mês`,
+      icone: DollarSign,
+      corIcone: 'text-green-600',
+      corBg: 'bg-green-50',
+      variacao: calcVariacao(metricasMesAtual.totalVendido, metricasMesAnterior.totalVendido),
+    },
+    {
+      titulo: 'Quantidade de vendas',
+      valor: formatNumber(metricasMesAtual.qtdVendas),
+      subtitulo: 'Pedidos finalizados',
+      icone: ShoppingCart,
+      corIcone: 'text-blue-600',
+      corBg: 'bg-blue-50',
+      variacao: calcVariacao(metricasMesAtual.qtdVendas, metricasMesAnterior.qtdVendas),
+    },
+    {
+      titulo: 'Itens vendidos (SKU)',
+      valor: formatNumber(metricasMesAtual.itensSKU),
+      subtitulo: 'Produtos diferentes',
+      icone: Layers,
+      corIcone: 'text-violet-600',
+      corBg: 'bg-violet-50',
+      variacao: calcVariacao(metricasMesAtual.itensSKU, metricasMesAnterior.itensSKU),
+    },
+    {
+      titulo: 'Unidades vendidas',
+      valor: formatNumber(metricasMesAtual.unidadesTotal),
+      subtitulo: 'Total de itens',
+      icone: Package,
+      corIcone: 'text-amber-600',
+      corBg: 'bg-amber-50',
+      variacao: calcVariacao(metricasMesAtual.unidadesTotal, metricasMesAnterior.unidadesTotal),
+    },
+    {
+      titulo: 'Média de itens por pedido',
+      valor: metricasMesAtual.mediaItensPorPedido.toFixed(2),
+      subtitulo: 'Itens/venda',
+      icone: Hash,
+      corIcone: 'text-cyan-600',
+      corBg: 'bg-cyan-50',
+      variacao: calcVariacao(metricasMesAtual.mediaItensPorPedido, metricasMesAnterior.mediaItensPorPedido),
+    },
+    {
+      titulo: 'Ticket médio',
+      valor: formatBRL(metricasMesAtual.ticketMedio),
+      subtitulo: 'Valor médio por venda',
+      icone: BarChart3,
+      corIcone: 'text-rose-600',
+      corBg: 'bg-rose-50',
+      variacao: calcVariacao(metricasMesAtual.ticketMedio, metricasMesAnterior.ticketMedio),
+    },
+  ];
+
+  // ── Vendas por Forma de Pagamento (monthly) ──
+  const vendasPorForma = useMemo(() => {
+    const formasMap: Record<string, string> = {
+      dinheiro: 'Dinheiro',
+      credito: 'Cartão Crédito',
+      debito: 'Cartão Débito',
+      cartao_credito: 'Cartão Crédito',
+      cartao_debito: 'Cartão Débito',
+      pix: 'PIX/Transferência',
+      voucher: 'Voucher',
+      vale: 'Vale',
+      ifood_online: 'iFood Online',
+    };
+
+    const porForma: Record<string, { valor: number; quantidade: number }> = {};
+    vendasMesAtual.forEach(v => {
+      const formaKey = v.formaPagamento || 'outros';
+      const formaLabel = formasMap[formaKey] || formaKey.charAt(0).toUpperCase() + formaKey.slice(1);
+
+      // Group cartao_credito and cartao_debito
+      let normalizada: string;
+      if (formaKey === 'credito' || formaKey === 'cartao_credito') normalizada = 'Cartão Crédito';
+      else if (formaKey === 'debito' || formaKey === 'cartao_debito') normalizada = 'Cartão Débito';
+      else if (formaKey === 'pix') normalizada = 'PIX/Transferência';
+      else if (formaKey === 'voucher' || formaKey === 'vale') normalizada = 'Vale';
+      else normalizada = formaLabel || 'Outros';
+
+      if (!porForma[normalizada]) porForma[normalizada] = { valor: 0, quantidade: 0 };
+      porForma[normalizada].valor += v.total || 0;
+      porForma[normalizada].quantidade += 1;
+    });
+
+    return Object.entries(porForma)
+      .map(([forma, dados]) => ({ forma, ...dados }))
+      .sort((a, b) => b.valor - a.valor);
+  }, [vendasMesAtual]);
+
+  const totalFormaPagamento = useMemo(
+    () => vendasPorForma.reduce((acc, f) => acc + f.valor, 0),
+    [vendasPorForma]
+  );
+
+  // ── Monthly Evolution (6 months) ──
+  const evolucaoMensal = useMemo(() => {
+    const meses: { mes: string; valor: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const mStart = startOfMonth(subMonths(new Date(), i));
+      const mEnd = endOfMonth(subMonths(new Date(), i));
+      let total = 0;
+      vendas.forEach(v => {
+        if (!isConcluida(v)) return;
+        if (!v.criadoEm) return;
+        const d = new Date(v.criadoEm);
+        if (d >= mStart && d <= mEnd) total += v.total || 0;
+      });
+      meses.push({
+        mes: format(mStart, 'MMM/yy', { locale: ptBR }),
+        valor: total,
+      });
+    }
+    return meses;
+  }, [vendas]);
+
+  // ── Product Ranking (top 10) ──
+  const rankingProdutos = useMemo(() => {
+    const porProduto: Record<string, { nome: string; valor: number; quantidade: number }> = {};
+    vendasMesAtual.forEach(v => {
+      v.itens?.forEach((item: any) => {
+        const pid = item.produtoId;
+        const nome = item.nome || 'Produto';
+        if (!porProduto[pid]) porProduto[pid] = { nome, valor: 0, quantidade: 0 };
+        const preco = item.precoUnitario || item.preco || 0;
+        porProduto[pid].valor += preco * (item.quantidade || 0);
+        porProduto[pid].quantidade += item.quantidade || 0;
+      });
+    });
+    return Object.values(porProduto)
+      .sort((a, b) => b.valor - a.valor)
+      .slice(0, 10)
+      .map(p => ({
+        nome: p.nome.length > 22 ? p.nome.substring(0, 20) + '…' : p.nome,
+        valor: p.valor,
+        quantidade: p.quantidade,
+      }));
+  }, [vendasMesAtual]);
+
+  // ── Day of Week Analysis ──
+  const vendasPorDiaSemana = useMemo(() => {
+    const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const porDia: Record<number, { dia: string; valor: number; quantidade: number }> = {};
+    for (let i = 0; i < 7; i++) {
+      porDia[i] = { dia: diasSemana[i], valor: 0, quantidade: 0 };
+    }
+    vendasMesAtual.forEach(v => {
+      if (!v.criadoEm) return;
+      const dayNum = new Date(v.criadoEm).getDay();
+      porDia[dayNum].valor += v.total || 0;
+      porDia[dayNum].quantidade += 1;
+    });
+    return Object.values(porDia);
+  }, [vendasMesAtual]);
+
+  // ── Shift Analysis (Manhã 6-12, Tarde 12-18, Noite 18-24) ──
+  const vendasPorTurno = useMemo(() => {
+    const turnos = [
+      { turno: 'Manhã (6-12h)', minH: 6, maxH: 12 },
+      { turno: 'Tarde (12-18h)', minH: 12, maxH: 18 },
+      { turno: 'Noite (18-24h)', minH: 18, maxH: 24 },
+    ];
+    const resultado = turnos.map(t => ({ ...t, valor: 0, quantidade: 0 }));
+    vendasMesAtual.forEach(v => {
+      if (!v.criadoEm) return;
+      const h = new Date(v.criadoEm).getHours();
+      const turno = resultado.find(t => h >= t.minH && h < t.maxH);
+      if (turno) {
+        turno.valor += v.total || 0;
+        turno.quantidade += 1;
+      }
+    });
+    return resultado.map(t => ({ turno: t.turno, valor: t.valor, quantidade: t.quantidade }));
+  }, [vendasMesAtual]);
+
+  // ── Items per order (monthly) ──
+  const mediaItensAtual = metricasMesAtual.mediaItensPorPedido;
+  const mediaItensAnterior = metricasMesAnterior.mediaItensPorPedido;
+
+  // ─────────────────────────────────────────
+  // Loading State
+  // ─────────────────────────────────────────
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
         <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Dashboard' }]}>
           <div className="flex items-center justify-center h-96">
-            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
           </div>
         </MainLayout>
       </ProtectedRoute>
     );
   }
 
+  // ─────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────
   return (
     <ProtectedRoute allowedRoles={['admin']}>
       <MainLayout
@@ -123,248 +468,187 @@ export default function AdminDashboardPage() {
           { title: 'Dashboard' },
         ]}
       >
-        <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Dashboard</h1>
-              <p className="text-muted-foreground">
-                Bem-vindo, {user?.nome}! Resumo do seu estabelecimento.
-              </p>
-            </div>
-            <Button asChild className="bg-blue-600 hover:bg-blue-700">
-              <a href="/pdv">
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Abrir PDV
-              </a>
-            </Button>
+        <div className="space-y-6 max-w-[1600px] mx-auto">
+          {/* ── Header ── */}
+          <div>
+            <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Bem-vindo, {user?.nome || 'Admin'}! &middot;{' '}
+              {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+            </p>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <DashboardCard
-              title="Vendas Hoje"
-              value={`R$ ${totalVendasHoje.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-              description={`${vendasHoje.length} pedidos`}
-              icon={DollarSign}
-            />
-            <DashboardCard
-              title="Vendas da Semana"
-              value={`R$ ${totalVendasSemanaAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-              description={
-                <div className="flex items-center gap-1">
-                  {variacaoVendas !== 0 && (
-                    <>
-                      {variacaoVendas > 0 ? (
-                        <TrendingUp className="h-4 w-4 text-green-500" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4 text-red-500" />
-                      )}
-                      <span className={variacaoVendas > 0 ? 'text-green-500' : 'text-red-500'}>
-                        {variacaoVendas > 0 ? '+' : ''}{fmt(variacaoVendas, 1)}%
-                      </span>
-                      <span className="text-muted-foreground">vs semana anterior</span>
-                    </>
-                  )}
-                  {variacaoVendas === 0 && (
-                    <span className="text-muted-foreground">Semana anterior: R$ 0</span>
-                  )}
-                </div>
-              }
-              icon={ShoppingCart}
-            />
-            <DashboardCard
-              title="Ticket Médio"
-              value={`R$ ${fmt(ticketMedio)}`}
-              description="Por pedido hoje"
-              icon={Package}
-            />
-            <DashboardCard
-              title="Funcionários Ativos"
-              value={funcionariosAtivos.length}
-              description="Trabalhando hoje"
-              icon={Users}
-            />
-          </div>
-
-          {/* Financial Summary */}
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card className="border-blue-100">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">A Receber</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      R$ {totalReceberPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  <DollarSign className="h-8 w-8 text-green-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-blue-100">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">A Pagar</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      R$ {totalPagarPendente.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  <ShoppingCart className="h-8 w-8 text-red-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-blue-100">
-              <CardContent className="pt-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Saldo Projetado</p>
-                    <p className={`text-2xl font-bold ${saldoProjetado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      R$ {saldoProjetado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                    </p>
-                  </div>
-                  <Package className={`h-8 w-8 ${saldoProjetado >= 0 ? 'text-green-500' : 'text-red-500'} opacity-50`} />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Alerts */}
-          {produtosEstoqueBaixo.length > 0 && (
-            <Card className="border-orange-200 bg-orange-50">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-orange-100 flex items-center justify-center">
-                    <AlertTriangle className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-orange-800">
-                      Atenção: {produtosEstoqueBaixo.length} produtos com estoque baixo
-                    </p>
-                    <p className="text-sm text-orange-700">
-                      Alguns produtos estão abaixo do estoque mínimo. Verifique o controle de estoque.
-                    </p>
-                  </div>
-                  <Button variant="outline" className="border-blue-300 text-blue-600 hover:bg-blue-50" asChild>
-                    <a href="/admin/estoque">Ver Estoque</a>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Quick Stats */}
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card className="border-blue-100">
-              <CardHeader>
-                <CardTitle>Produtos Cadastrados</CardTitle>
-                <CardDescription>Resumo do cardápio</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-4xl font-bold">{produtos.length}</div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  {produtos.filter(p => p.destaque).length} em destaque no PDV
-                </p>
-                <div className="relative mb-3 mt-3">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Buscar produto por nome ou código..."
-                    value={produtoSearch}
-                    onChange={(e) => setProdutoSearch(e.target.value)}
-                    className="pl-9 h-9"
+          {/* ═══════════════════════════════════ */}
+          {/* INFORMAÇÕES DO DIA                 */}
+          {/* ═══════════════════════════════════ */}
+          <section>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <SectionTitle>Informações do dia</SectionTitle>
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="excluir-delivery"
+                    checked={excluirDelivery}
+                    onCheckedChange={(checked) => setExcluirDelivery(checked === true)}
                   />
+                  <Label htmlFor="excluir-delivery" className="text-xs text-gray-500 cursor-pointer">
+                    Excluindo Delivery
+                  </Label>
                 </div>
-                {produtoSearch && (
-                  <div className="max-h-[200px] overflow-y-auto mt-2 space-y-1">
-                    {produtosFiltrados.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-2">Nenhum produto encontrado.</p>
-                    ) : (
-                      produtosFiltrados.slice(0, 10).map((p: any) => (
-                        <Link key={p.id} href={`/admin/produtos?buscar=${encodeURIComponent(p.nome)}`} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted text-sm">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-muted-foreground">{p.codigo || '-'}</span>
-                            <span className="truncate">{p.nome}</span>
-                          </div>
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <span className="text-xs text-muted-foreground">Est: {p.estoqueAtual || 0}</span>
-                            <span className="font-semibold text-green-600">R$ {(p.preco || 0).toFixed(2)}</span>
-                          </div>
-                        </Link>
-                      ))
-                    )}
-                    {produtosFiltrados.length > 10 && (
-                      <p className="text-xs text-muted-foreground text-center py-1">
-                        ...e mais {produtosFiltrados.length - 10} produto(s)
-                      </p>
-                    )}
-                  </div>
-                )}
-                <Button variant="link" className="p-0 h-auto mt-2" asChild>
-                  <a href="/admin/produtos">
-                    Gerenciar produtos <ArrowRight className="h-4 w-4 ml-1" />
-                  </a>
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card className="border-blue-100">
-              <CardHeader>
-                <CardTitle>Pedidos Recentes</CardTitle>
-                <CardDescription>Últimas vendas</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="text-4xl font-bold">{vendas.length}</div>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Total de vendas registradas
-                </p>
-                <Button variant="link" className="p-0 h-auto mt-2" asChild>
-                  <a href="/admin/financeiro">
-                    Ver financeiro <ArrowRight className="h-4 w-4 ml-1" />
-                  </a>
-                </Button>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Week Comparison */}
-          <Card className="border-blue-100">
-            <CardHeader>
-              <CardTitle>Comparativo Semanal</CardTitle>
-              <CardDescription>Desempenho de vendas comparado com a semana anterior</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="p-4 rounded-lg border border-blue-100 bg-blue-50">
-                  <p className="text-sm text-muted-foreground">Semana Atual</p>
-                  <p className="text-2xl font-bold mt-1">
-                    R$ {totalVendasSemanaAtual.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{vendasSemanaAtual.length} vendas</p>
-                </div>
-                <div className="p-4 rounded-lg border border-blue-100 bg-white">
-                  <p className="text-sm text-muted-foreground">Semana Anterior</p>
-                  <p className="text-2xl font-bold mt-1">
-                    R$ {totalVendasSemanaAnterior.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-sm text-muted-foreground">{vendasSemanaAnterior.length} vendas</p>
-                </div>
-              </div>
-              {variacaoVendas !== 0 && (
-                <div className={`mt-4 flex items-center gap-2 p-3 rounded-lg ${variacaoVendas > 0 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {variacaoVendas > 0 ? (
-                    <TrendingUp className="h-5 w-5" />
-                  ) : (
-                    <TrendingDown className="h-5 w-5" />
-                  )}
+                <div className="flex items-center gap-2 text-xs text-gray-500">
+                  <CalendarDays className="h-3.5 w-3.5" />
                   <span className="font-medium">
-                    {variacaoVendas > 0 ? 'Crescimento' : 'Queda'} de {fmt(Math.abs(variacaoVendas), 1)}% 
-                    em relação à semana anterior
+                    {format(selectedDate, "dd/MM/yyyy")}
                   </span>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {kpisDia.map((kpi, i) => (
+                <KPICard key={kpi.titulo} data={kpi} index={i} />
+              ))}
+            </div>
+          </section>
+
+          {/* ═══════════════════════════════════ */}
+          {/* INFORMAÇÕES DO MÊS                */}
+          {/* ═══════════════════════════════════ */}
+          <section>
+            <SectionTitle>Informações do mês</SectionTitle>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {kpisMes.map((kpi, i) => (
+                <KPICard key={`mes-${kpi.titulo}`} data={kpi} index={i + 6} />
+              ))}
+            </div>
+          </section>
+
+          {/* ═══════════════════════════════════ */}
+          {/* VENDAS POR FORMA DE PAGAMENTO      */}
+          {/* ═══════════════════════════════════ */}
+          <section>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+              <Card className="border border-gray-200">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base font-semibold text-gray-700">
+                      Formas de Pagamento
+                    </CardTitle>
+                    <Badge variant="secondary" className="text-xs text-gray-500">
+                      {format(currentMonthStart, 'MMM/yyyy', { locale: ptBR })}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-gray-100">
+                          <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Forma de Pagamento
+                          </th>
+                          <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Quantidade
+                          </th>
+                          <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                            Valor
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {vendasPorForma.length === 0 ? (
+                          <tr>
+                            <td colSpan={3} className="text-center py-6 text-gray-400">
+                              Nenhuma venda registrada este mês
+                            </td>
+                          </tr>
+                        ) : (
+                          <>
+                            {vendasPorForma.map((row, idx) => (
+                              <tr
+                                key={row.forma}
+                                className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
+                              >
+                                <td className="py-2.5 px-3 font-medium text-gray-700">{row.forma}</td>
+                                <td className="py-2.5 px-3 text-right text-gray-600">{row.quantidade}</td>
+                                <td className="py-2.5 px-3 text-right font-medium text-gray-700">
+                                  {formatBRL(row.valor)}
+                                </td>
+                              </tr>
+                            ))}
+                            {/* Total row */}
+                            <tr className="border-t-2 border-gray-200 bg-gray-50">
+                              <td className="py-2.5 px-3 font-bold text-gray-800">Total</td>
+                              <td className="py-2.5 px-3 text-right font-bold text-gray-800">
+                                {vendasPorForma.reduce((acc, f) => acc + f.quantidade, 0)}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-bold text-gray-800">
+                                {formatBRL(totalFormaPagamento)}
+                              </td>
+                            </tr>
+                          </>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </section>
+
+          {/* ═══════════════════════════════════ */}
+          {/* CHARTS ROW - TOP                   */}
+          {/* ═══════════════════════════════════ */}
+          <section>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <MonthlyEvolutionChart dados={evolucaoMensal} />
+              <ProductRankingChart dados={rankingProdutos} />
+            </div>
+          </section>
+
+          {/* ═══════════════════════════════════ */}
+          {/* CHARTS ROW - BOTTOM                */}
+          {/* ═══════════════════════════════════ */}
+          <section>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <DayOfWeekChart dados={vendasPorDiaSemana} />
+              <ShiftChart dados={vendasPorTurno} />
+              <ItemsPerOrderCard
+                mediaAtual={mediaItensAtual}
+                mediaAnterior={mediaItensAnterior}
+              />
+            </div>
+          </section>
+
+          {/* ── Quick Actions ── */}
+          <section>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <Button asChild variant="outline" className="h-12 justify-start gap-2 border-gray-200 hover:bg-gray-50">
+                <a href="/pdv">
+                  <CartIcon className="h-4 w-4" />
+                  <span className="text-sm">Abrir PDV</span>
+                </a>
+              </Button>
+              <Button asChild variant="outline" className="h-12 justify-start gap-2 border-gray-200 hover:bg-gray-50">
+                <a href="/admin/caixa">
+                  <DollarSign className="h-4 w-4" />
+                  <span className="text-sm">Caixa</span>
+                </a>
+              </Button>
+              <Button asChild variant="outline" className="h-12 justify-start gap-2 border-gray-200 hover:bg-gray-50">
+                <a href="/admin/relatorios">
+                  <TrendingUp className="h-4 w-4" />
+                  <span className="text-sm">Relatórios</span>
+                </a>
+              </Button>
+              <Button asChild variant="outline" className="h-12 justify-start gap-2 border-gray-200 hover:bg-gray-50">
+                <a href="/admin/produtos">
+                  <Package className="h-4 w-4" />
+                  <span className="text-sm">Produtos</span>
+                </a>
+              </Button>
+            </div>
+          </section>
         </div>
       </MainLayout>
     </ProtectedRoute>
