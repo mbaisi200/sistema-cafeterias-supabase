@@ -48,6 +48,7 @@ interface Movimentacao {
 export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Categoria[], movimentacoes: Movimentacao[]) {
   const [filtros, setFiltros] = useState<FiltrosBI>({
     periodo: 'ano',
+    filtroCategoria: 'todos',
     categorias: [],
     formasPagamento: [],
     tiposVenda: [],
@@ -101,6 +102,15 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
       if (filtros.tiposVenda.length > 0 && !filtros.tiposVenda.includes(venda.tipo || venda.tipoVenda || '')) return false;
       if (filtros.status.length > 0 && !filtros.status.includes(venda.status)) return false;
       if (filtros.canais && filtros.canais.length > 0 && !filtros.canais.includes(venda.canal || '')) return false;
+      // Filtro por categoria única (dropdown rápido)
+      if (filtros.filtroCategoria && filtros.filtroCategoria !== 'todos') {
+        const temCategoria = venda.itens?.some(item => {
+          const produto = produtosMap.get(item.produtoId);
+          const catId = item.categoriaId || produto?.categoriaId || '';
+          return catId === filtros.filtroCategoria;
+        });
+        if (!temCategoria) return false;
+      }
       // Filtro por categoria (verifica se algum item pertence à categoria filtrada)
       if (filtros.categorias.length > 0) {
         const temCategoriaFiltrada = venda.itens?.some(item => {
@@ -477,7 +487,7 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
 
   // Resetar filtros
   const resetarFiltros = useCallback(() => {
-    setFiltros({ periodo: 'ano', categorias: [], formasPagamento: [], tiposVenda: [], produtos: [], status: [], canais: [] });
+    setFiltros({ periodo: 'ano', filtroCategoria: 'todos', categorias: [], formasPagamento: [], tiposVenda: [], produtos: [], status: [], canais: [] });
   }, []);
 
   // Opções de filtros

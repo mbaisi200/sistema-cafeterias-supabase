@@ -46,7 +46,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
 import {
@@ -101,6 +101,47 @@ export function VendedoresTab() {
   const [editandoVendedor, setEditandoVendedor] = useState<Vendedor | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Vendedor | null>(null);
+  const [cepVendedor, setCepVendedor] = useState('');
+  const [enderecoVendedor, setEnderecoVendedor] = useState('');
+  const [cidadeVendedor, setCidadeVendedor] = useState('');
+  const [estadoVendedor, setEstadoVendedor] = useState('');
+  const [buscandoCEP, setBuscandoCEP] = useState(false);
+  const cepTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const mascaraCEP = (valor: string) => valor.replace(/\D/g, '').replace(/(\d{5})(\d{0,3})/, '$1-$2');
+
+  const buscarCEP = useCallback(async (cepLimpo: string) => {
+    if (cepLimpo.length !== 8) return;
+    setBuscandoCEP(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        toast.error('CEP não encontrado');
+        return;
+      }
+      setEnderecoVendedor(data.logradouro || '');
+      setCidadeVendedor(data.localidade || '');
+      setEstadoVendedor(data.uf || '');
+      toast.success('Endereço preenchido via CEP');
+    } catch {
+      toast.error('Erro ao buscar CEP. Verifique sua conexão.');
+    } finally {
+      setBuscandoCEP(false);
+    }
+  }, []);
+
+  // Auto-search CEP with debounce when 8 digits are typed
+  useEffect(() => {
+    if (cepTimerRef.current) clearTimeout(cepTimerRef.current);
+    const cepLimpo = cepVendedor.replace(/\D/g, '');
+    if (cepLimpo.length === 8) {
+      cepTimerRef.current = setTimeout(() => buscarCEP(cepLimpo), 500);
+    }
+    return () => {
+      if (cepTimerRef.current) clearTimeout(cepTimerRef.current);
+    };
+  }, [cepVendedor, buscarCEP]);
 
   // Carregar vendedores do Supabase
   const loadVendedores = async () => {
@@ -150,6 +191,10 @@ export function VendedoresTab() {
   useEffect(() => {
     if (!dialogOpen) {
       setEditandoVendedor(null);
+      setCepVendedor('');
+      setEnderecoVendedor('');
+      setCidadeVendedor('');
+      setEstadoVendedor('');
     }
   }, [dialogOpen]);
 
@@ -211,6 +256,10 @@ export function VendedoresTab() {
 
   const handleEditar = (vendedor: Vendedor) => {
     setEditandoVendedor(vendedor);
+    setCepVendedor(vendedor.cep || '');
+    setEnderecoVendedor(vendedor.endereco || '');
+    setCidadeVendedor(vendedor.cidade || '');
+    setEstadoVendedor(vendedor.estado || '');
     setDialogOpen(true);
   };
 
@@ -341,13 +390,19 @@ export function VendedoresTab() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="cep">CEP</Label>
-                  <Input
-                    id="cep"
-                    name="cep"
-                    placeholder="00000-000"
-                    defaultValue={editandoVendedor?.cep || ''}
-                    maxLength={10}
-                  />
+                  <div className="relative">
+                    <Input
+                      id="cep"
+                      name="cep"
+                      placeholder="00000-000"
+                      value={cepVendedor}
+                      onChange={(e) => setCepVendedor(mascaraCEP(e.target.value))}
+                      maxLength={9}
+                    />
+                    {buscandoCEP && (
+                      <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -362,7 +417,8 @@ export function VendedoresTab() {
                       id="endereco"
                       name="endereco"
                       placeholder="Rua, Avenida, etc."
-                      defaultValue={editandoVendedor?.endereco || ''}
+                      value={enderecoVendedor}
+                      onChange={(e) => setEnderecoVendedor(e.target.value)}
                     />
                   </div>
                   <Input
@@ -381,12 +437,13 @@ export function VendedoresTab() {
                     id="cidade"
                     name="cidade"
                     placeholder="Cidade"
-                    defaultValue={editandoVendedor?.cidade || ''}
+                    value={cidadeVendedor}
+                    onChange={(e) => setCidadeVendedor(e.target.value)}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="estado">Estado</Label>
-                  <Select name="estado" defaultValue={editandoVendedor?.estado || ''}>
+                  <Select name="estado" value={estadoVendedor} onValueChange={setEstadoVendedor}>
                     <SelectTrigger>
                       <SelectValue placeholder="UF" />
                     </SelectTrigger>

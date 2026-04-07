@@ -121,7 +121,8 @@ export default function RelatoriosPage() {
 
           {/* Tabs de navegação */}
           <Tabs defaultValue="visao-geral" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 lg:w-auto lg:inline-grid">
+            <div className="overflow-x-auto -mx-1 px-1">
+              <TabsList className="grid w-min md:w-auto md:inline-grid grid-cols-5 min-w-full md:min-w-0">
               <TabsTrigger value="visao-geral" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Visão Geral</span>
@@ -143,6 +144,7 @@ export default function RelatoriosPage() {
                 <span className="hidden sm:inline">Financeiro</span>
               </TabsTrigger>
             </TabsList>
+            </div>
 
             {/* Tab: Visão Geral */}
             <TabsContent value="visao-geral" className="space-y-6">

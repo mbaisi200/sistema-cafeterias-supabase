@@ -57,6 +57,7 @@ import {
   Filter,
   X,
   ChevronLeft,
+  Clock,
 } from 'lucide-react';
 import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
 import { useToast } from '@/hooks/use-toast';
@@ -137,6 +138,15 @@ export default function FinanceiroPage() {
 
   // Calcular saldo projetado
   const saldoProjetado = totalReceberPendente - totalPagarPendente;
+
+  // Contas vencidas - totals
+  const totalPagarVencido = contasPagar
+    .filter(c => c.status === 'pendente' && c.vencimento && new Date(c.vencimento) < hoje)
+    .reduce((acc, c) => acc + (c.valor || 0), 0);
+
+  const totalReceberVencido = contasReceber
+    .filter(c => c.status === 'pendente' && c.vencimento && new Date(c.vencimento) < hoje)
+    .reduce((acc, c) => acc + (c.valor || 0), 0);
 
   // Contas vencidas
   const contasVencidas = contas.filter(c => 
@@ -670,66 +680,107 @@ export default function FinanceiroPage() {
           )}
 
           {/* Stats */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {/* Card 1: Vendas Hoje */}
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
                     <DollarSign className="h-6 w-6 text-green-600" />
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm text-muted-foreground">Vendas Hoje</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {formatCurrency(totalVendasHoje)}
-                    </p>
+                    <p className="text-xl font-bold text-green-600 whitespace-nowrap">{formatCurrency(totalVendasHoje)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Card 2: A Pagar */}
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
                     <ArrowUpCircle className="h-6 w-6 text-red-600" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">A Pagar</p>
-                    <p className="text-2xl font-bold text-red-600">
-                      {formatCurrency(totalPagarPendente)}
-                    </p>
+                  <div className="min-w-0">
+                    <p className="text-sm text-muted-foreground">A Pagar (Pendente)</p>
+                    <p className="text-xl font-bold text-red-600 whitespace-nowrap">{formatCurrency(totalPagarPendente)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
+            {/* Card 3: A Receber */}
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center">
                     <ArrowDownCircle className="h-6 w-6 text-blue-600" />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">A Receber</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {formatCurrency(totalReceberPendente)}
-                    </p>
+                  <div className="min-w-0">
+                    <p className="text-sm text-muted-foreground">A Receber (Pendente)</p>
+                    <p className="text-xl font-bold text-blue-600 whitespace-nowrap">{formatCurrency(totalReceberPendente)}</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            {/* Card 4: Pagar Vencidas */}
+            <Card className={totalPagarVencido > 0 ? 'border-red-300 bg-red-50/50' : ''}>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-red-200 flex items-center justify-center">
+                    <AlertTriangle className="h-6 w-6 text-red-700" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm text-muted-foreground">A Pagar Vencidas</p>
+                    <p className="text-xl font-bold text-red-700 whitespace-nowrap">{formatCurrency(totalPagarVencido)}</p>
+                    {totalPagarVencido > 0 && (
+                      <p className="text-xs text-red-600">
+                        {contasPagar.filter(c => c.status === 'pendente' && c.vencimento && new Date(c.vencimento) < hoje).length} conta(s)
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 5: Receber Vencidas */}
+            <Card className={totalReceberVencido > 0 ? 'border-amber-300 bg-amber-50/50' : ''}>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-amber-200 flex items-center justify-center">
+                    <Clock className="h-6 w-6 text-amber-700" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm text-muted-foreground">A Receber Vencidas</p>
+                    <p className="text-xl font-bold text-amber-700 whitespace-nowrap">{formatCurrency(totalReceberVencido)}</p>
+                    {totalReceberVencido > 0 && (
+                      <p className="text-xs text-amber-600">
+                        {contasReceber.filter(c => c.status === 'pendente' && c.vencimento && new Date(c.vencimento) < hoje).length} conta(s)
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Card 6: Saldo Projetado */}
+            <Card className={saldoProjetado < 0 ? 'border-red-300' : 'border-green-300'}>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
                   <div className={`h-12 w-12 rounded-full flex items-center justify-center ${saldoProjetado >= 0 ? 'bg-green-100' : 'bg-red-100'}`}>
                     <Wallet className={`h-6 w-6 ${saldoProjetado >= 0 ? 'text-green-600' : 'text-red-600'}`} />
                   </div>
-                  <div>
+                  <div className="min-w-0 flex-1">
                     <p className="text-sm text-muted-foreground">Saldo Projetado</p>
-                    <p className={`text-2xl font-bold ${saldoProjetado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {formatCurrency(saldoProjetado)}
+                    <p className={`text-xl font-bold whitespace-nowrap ${saldoProjetado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {formatCurrency(Math.abs(saldoProjetado))}
                     </p>
+                    {saldoProjetado < 0 && (
+                      <p className="text-xs text-red-500 font-medium">Déficit</p>
+                    )}
                   </div>
                 </div>
               </CardContent>

@@ -28,6 +28,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -118,6 +119,10 @@ export default function NFePage() {
   // Detail dialog
   const [detailItem, setDetailItem] = useState<NFeEntrada | NFeSaida | null>(null);
   const [detailType, setDetailType] = useState<'entrada' | 'saida' | null>(null);
+
+  // DANFE preview dialog
+  const [dialogDanfe, setDialogDanfe] = useState(false);
+  const [danfeVenda, setDanfeVenda] = useState<NFeSaida | null>(null);
 
   // Set default date range (last 30 days)
   useEffect(() => {
@@ -822,36 +827,23 @@ export default function NFePage() {
                               </TableCell>
                               <TableCell className="text-right">
                                 <div className="flex items-center justify-end gap-1">
+                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setDetailItem(venda); setDetailType('saida'); }} title="Ver detalhes">
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
                                   <Button
                                     variant="ghost"
                                     size="icon"
                                     className="h-8 w-8"
-                                    onClick={() => {
-                                      setDetailItem(venda);
-                                      setDetailType('saida');
-                                    }}
-                                    title="Ver detalhes"
+                                    title={venda.status === 'nfe_emitida' ? 'Imprimir DANFE' : 'Imprimir Recibo'}
+                                    onClick={() => window.open(`/api/nfe/danfe/${venda.nfe_id || venda.id}`, '_blank')}
                                   >
-                                    <Eye className="h-4 w-4" />
+                                    <Printer className="h-4 w-4" />
                                   </Button>
-                                  {venda.status === 'nfe_emitida' && (
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-8 w-8"
-                                      title="Imprimir DANFE"
-                                      onClick={() =>
-                                        window.open(`/api/nfe/danfe/${venda.nfe_id}`, '_blank')
-                                      }
-                                    >
-                                      <Printer className="h-4 w-4" />
-                                    </Button>
-                                  )}
                                   {venda.status === 'pendente' && (
                                     <Link href="/admin/nfe/emitir">
                                       <Button size="sm" className="gap-1 h-8 text-xs bg-blue-600 hover:bg-blue-700">
                                         <FilePlus2 className="h-3.5 w-3.5" />
-                                        Emitir
+                                        Emitir NF
                                       </Button>
                                     </Link>
                                   )}
@@ -1063,6 +1055,36 @@ export default function NFePage() {
                   )}
                 </div>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* ============================================= */}
+          {/* DIALOG: DANFE Preview                          */}
+          {/* ============================================= */}
+          <Dialog open={dialogDanfe} onOpenChange={setDialogDanfe}>
+            <DialogContent className="max-w-4xl max-h-[90vh]">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Printer className="h-5 w-5" />
+                  DANFE - {danfeVenda?.numero}
+                </DialogTitle>
+              </DialogHeader>
+              <div className="border rounded-lg overflow-hidden">
+                {danfeVenda && (
+                  <iframe
+                    src={`/api/nfe/danfe/${danfeVenda.nfe_id || danfeVenda.id}`}
+                    className="w-full h-[70vh]"
+                    title="DANFE Preview"
+                  />
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogDanfe(false)}>Fechar</Button>
+                <Button className="bg-blue-600 hover:bg-blue-700 gap-2" onClick={() => window.open(`/api/nfe/danfe/${danfeVenda?.nfe_id || danfeVenda?.id}`, '_blank')}>
+                  <Printer className="h-4 w-4" />
+                  Imprimir
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>

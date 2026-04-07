@@ -4,6 +4,7 @@ export interface FiltrosBI {
   periodo: 'hoje' | 'ontem' | 'semana' | 'mes' | 'trimestre' | 'ano' | 'personalizado';
   dataInicio?: Date;
   dataFim?: Date;
+  filtroCategoria: string;
   categorias: string[];
   formasPagamento: string[];
   tiposVenda: string[];

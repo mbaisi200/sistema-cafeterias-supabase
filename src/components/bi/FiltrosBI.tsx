@@ -153,16 +153,24 @@ function ProdutoSelect({ opcoes, valores, onChange }: {
 }
 
 function FiltrosContent({ filtros, opcoesFiltros, onAtualizarFiltros, onResetarFiltros }: { filtros: FiltrosBI; opcoesFiltros: FiltrosBIProps['opcoesFiltros']; onAtualizarFiltros: FiltrosBIProps['onAtualizarFiltros']; onResetarFiltros: FiltrosBIProps['onResetarFiltros'] }) {
-  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos].length;
+  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos].length + (filtros.filtroCategoria !== 'todos' ? 1 : 0);
 
   return (
     <div className="space-y-4">
       <div className="space-y-3">
-        <Label className="text-sm font-medium">Período</Label>
+        <Label className="text-sm font-medium whitespace-nowrap">Período</Label>
         <Select value={filtros.periodo} onValueChange={(valor) => { onAtualizarFiltros({ periodo: valor as FiltrosBI['periodo'] }); }}>
           <SelectTrigger><SelectValue placeholder="Selecione o período" /></SelectTrigger>
           <SelectContent>
             {periodos.map((p) => (<SelectItem key={p.valor} value={p.valor}>{p.label}</SelectItem>))}
+          </SelectContent>
+        </Select>
+        <Label className="text-sm font-medium whitespace-nowrap">Categoria</Label>
+        <Select value={filtros.filtroCategoria} onValueChange={(valor) => { onAtualizarFiltros({ filtroCategoria: valor }); }}>
+          <SelectTrigger><SelectValue placeholder="Todas as categorias" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todas as categorias</SelectItem>
+            {opcoesFiltros.categorias.map((c) => (<SelectItem key={c.valor} value={c.valor}>{c.label}</SelectItem>))}
           </SelectContent>
         </Select>
         {filtros.periodo === 'personalizado' && (
@@ -214,7 +222,7 @@ function FiltrosContent({ filtros, opcoesFiltros, onAtualizarFiltros, onResetarF
 
 export function FiltrosBI({ filtros, periodoFormatado, opcoesFiltros, onAtualizarFiltros, onResetarFiltros }: FiltrosBIProps) {
   const isMobile = useIsMobile();
-  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos].length;
+  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos].length + (filtros.filtroCategoria !== 'todos' ? 1 : 0);
 
   if (isMobile) {
     return (

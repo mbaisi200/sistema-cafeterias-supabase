@@ -49,7 +49,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useFornecedores } from '@/hooks/useSupabase';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus,
   Search,
@@ -135,6 +135,49 @@ export function FornecedoresTab() {
   const [categoriaInput, setCategoriaInput] = useState('');
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('dados');
+  const [cepFornecedor, setCepFornecedor] = useState('');
+  const [logradouroFornecedor, setLogradouroFornecedor] = useState('');
+  const [bairroFornecedor, setBairroFornecedor] = useState('');
+  const [cidadeFornecedor, setCidadeFornecedor] = useState('');
+  const [estadoFornecedor, setEstadoFornecedor] = useState('');
+  const [buscandoCEP, setBuscandoCEP] = useState(false);
+  const cepTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const mascaraCEP = (valor: string) => valor.replace(/\D/g, '').replace(/(\d{5})(\d{0,3})/, '$1-$2');
+
+  const buscarCEP = useCallback(async (cepLimpo: string) => {
+    if (cepLimpo.length !== 8) return;
+    setBuscandoCEP(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        toast.error('CEP não encontrado');
+        return;
+      }
+      setLogradouroFornecedor(data.logradouro || '');
+      setBairroFornecedor(data.bairro || '');
+      setCidadeFornecedor(data.localidade || '');
+      setEstadoFornecedor(data.uf || '');
+      toast.success('Endereço preenchido via CEP');
+    } catch {
+      toast.error('Erro ao buscar CEP. Verifique sua conexão.');
+    } finally {
+      setBuscandoCEP(false);
+    }
+  }, []);
+
+  // Auto-search CEP with debounce when 8 digits are typed
+  useEffect(() => {
+    if (cepTimerRef.current) clearTimeout(cepTimerRef.current);
+    const cepLimpo = cepFornecedor.replace(/\D/g, '');
+    if (cepLimpo.length === 8) {
+      cepTimerRef.current = setTimeout(() => buscarCEP(cepLimpo), 500);
+    }
+    return () => {
+      if (cepTimerRef.current) clearTimeout(cepTimerRef.current);
+    };
+  }, [cepFornecedor, buscarCEP]);
 
   // Filtrar fornecedores
   const filteredFornecedores = fornecedores.filter(f => {
@@ -159,6 +202,11 @@ export function FornecedoresTab() {
       setCategoriasSelecionadas([]);
       setCategoriaInput('');
       setActiveTab('dados');
+      setCepFornecedor('');
+      setLogradouroFornecedor('');
+      setBairroFornecedor('');
+      setCidadeFornecedor('');
+      setEstadoFornecedor('');
     }
   }, [dialogOpen]);
 
@@ -166,6 +214,11 @@ export function FornecedoresTab() {
   useEffect(() => {
     if (editandoFornecedor) {
       setCategoriasSelecionadas(editandoFornecedor.categorias || []);
+      setCepFornecedor(editandoFornecedor.cep || '');
+      setLogradouroFornecedor(editandoFornecedor.logradouro || '');
+      setBairroFornecedor(editandoFornecedor.bairro || '');
+      setCidadeFornecedor(editandoFornecedor.cidade || '');
+      setEstadoFornecedor(editandoFornecedor.estado || '');
     }
   }, [editandoFornecedor]);
 
@@ -533,7 +586,8 @@ export function FornecedoresTab() {
                       id="logradouro"
                       name="logradouro"
                       placeholder="Rua, Avenida, etc."
-                      defaultValue={editandoFornecedor?.logradouro || ''}
+                      value={logradouroFornecedor}
+                      onChange={(e) => setLogradouroFornecedor(e.target.value)}
                     />
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -557,13 +611,19 @@ export function FornecedoresTab() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="cep">CEP</Label>
-                      <Input
-                        id="cep"
-                        name="cep"
-                        placeholder="00000-000"
-                        defaultValue={editandoFornecedor?.cep || ''}
-                        maxLength={10}
-                      />
+                      <div className="relative">
+                        <Input
+                          id="cep"
+                          name="cep"
+                          placeholder="00000-000"
+                          value={cepFornecedor}
+                          onChange={(e) => setCepFornecedor(mascaraCEP(e.target.value))}
+                          maxLength={9}
+                        />
+                        {buscandoCEP && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -573,7 +633,8 @@ export function FornecedoresTab() {
                         id="bairro"
                         name="bairro"
                         placeholder="Bairro"
-                        defaultValue={editandoFornecedor?.bairro || ''}
+                        value={bairroFornecedor}
+                        onChange={(e) => setBairroFornecedor(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
@@ -582,12 +643,13 @@ export function FornecedoresTab() {
                         id="cidade"
                         name="cidade"
                         placeholder="Cidade"
-                        defaultValue={editandoFornecedor?.cidade || ''}
+                        value={cidadeFornecedor}
+                        onChange={(e) => setCidadeFornecedor(e.target.value)}
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="estado">Estado</Label>
-                      <Select name="estado" defaultValue={editandoFornecedor?.estado || ''}>
+                      <Select name="estado" value={estadoFornecedor} onValueChange={setEstadoFornecedor}>
                         <SelectTrigger>
                           <SelectValue placeholder="UF" />
                         </SelectTrigger>

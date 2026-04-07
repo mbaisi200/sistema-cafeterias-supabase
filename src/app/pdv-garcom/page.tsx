@@ -39,6 +39,7 @@ import {
   CircleDot,
   Eraser,
   Lock,
+  Menu,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -1095,6 +1096,13 @@ export default function PDVGarcomPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => router.push('/admin/dashboard')}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold bg-gray-100 hover:bg-gray-200 transition-colors text-gray-700"
+            >
+              <Menu className="h-4 w-4" />
+              Menu
+            </button>
             <button
               onClick={async () => {
                 // Verificar caixa antes de abrir dialog

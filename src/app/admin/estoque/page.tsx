@@ -55,6 +55,7 @@ import {
   X,
   Download,
   ChevronLeft,
+  ArrowUpDown,
 } from 'lucide-react';
 import { exportToPDF } from '@/lib/export-pdf';
 
@@ -96,6 +97,7 @@ export default function EstoquePage() {
   const [dialogSaida, setDialogSaida] = useState(false);
   const [dialogHistorico, setDialogHistorico] = useState(false);
   const [dialogLote, setDialogLote] = useState(false);
+  const [dialogMovimentacao, setDialogMovimentacao] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   
@@ -119,6 +121,13 @@ export default function EstoquePage() {
   // Movimentações
   const [movimentacoes, setMovimentacoes] = useState<MovimentacaoEstoque[]>([]);
   const [loadingMovimentacoes, setLoadingMovimentacoes] = useState(false);
+
+  // Filtros da movimentação
+  const [movFiltroProduto, setMovFiltroProduto] = useState('');
+  const [movFiltroCategoria, setMovFiltroCategoria] = useState('todos');
+  const [movDataInicio, setMovDataInicio] = useState('');
+  const [movDataFim, setMovDataFim] = useState('');
+  const [movFiltroTipo, setMovFiltroTipo] = useState<'todos' | 'entrada' | 'saida'>('todos');
 
   // Fornecedor resolvido (nome do registry ou texto livre)
   const fornecedorResolvido = useMemo(() => {
@@ -499,6 +508,28 @@ export default function EstoquePage() {
     ? movimentacoes.filter(m => m.produtoId === produtoSelecionado.id)
     : [];
 
+  // Movimentações filtradas para o dialog de movimentação
+  const movimentacoesFiltradas = useMemo(() => {
+    return movimentacoes.filter(m => {
+      if (movFiltroTipo !== 'todos' && m.tipo !== movFiltroTipo) return false;
+      if (movFiltroProduto && !m.produtoNome.toLowerCase().includes(movFiltroProduto.toLowerCase())) return false;
+      if (movFiltroCategoria !== 'todos') {
+        const prod = produtos.find(p => p.id === m.produtoId);
+        if (!prod || prod.categoriaId !== movFiltroCategoria) return false;
+      }
+      if (movDataInicio && m.criadoEm && new Date(m.criadoEm) < new Date(movDataInicio + 'T00:00:00')) return false;
+      if (movDataFim && m.criadoEm && new Date(m.criadoEm) > new Date(movDataFim + 'T23:59:59')) return false;
+      return true;
+    });
+  }, [movimentacoes, movFiltroTipo, movFiltroProduto, movFiltroCategoria, movDataInicio, movDataFim, produtos]);
+
+  const totalEntradas = movimentacoesFiltradas
+    .filter(m => m.tipo === 'entrada')
+    .reduce((acc, m) => acc + m.quantidade, 0);
+  const totalSaidas = movimentacoesFiltradas
+    .filter(m => m.tipo === 'saida')
+    .reduce((acc, m) => acc + m.quantidade, 0);
+
   // Exportar PDF
   const handleExportPDF = () => {
     const totalItens = produtosFiltrados.length;
@@ -615,7 +646,7 @@ export default function EstoquePage() {
       <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Estoque' }]}>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col gap-4">
             <div className="flex items-center gap-3">
               <Link href="/admin/dashboard">
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -630,30 +661,17 @@ export default function EstoquePage() {
               </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
-              <Button 
-                variant="outline"
-                onClick={handleAbrirLote}
-                className="gap-2"
-              >
-                <Layers className="h-4 w-4" />
-                Entrada em Lote
+              <Button variant="outline" onClick={handleAbrirLote} className="gap-2">
+                <Layers className="h-4 w-4" /> Entrada em Lote
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={() => { setProdutoSelecionado(null); setDialogHistorico(true); }}
-                className="gap-2"
-              >
-                <History className="h-4 w-4" />
-                Histórico Geral
+              <Button variant="outline" onClick={() => { setProdutoSelecionado(null); setDialogHistorico(true); }} className="gap-2">
+                <History className="h-4 w-4" /> Histórico Geral
               </Button>
-              <Button 
-                variant="outline"
-                onClick={handleExportPDF}
-                className="gap-2"
-                disabled={produtosFiltrados.length === 0}
-              >
-                <Download className="h-4 w-4" />
-                Exportar PDF
+              <Button variant="outline" onClick={handleExportPDF} className="gap-2" disabled={produtosFiltrados.length === 0}>
+                <Download className="h-4 w-4" /> Exportar PDF
+              </Button>
+              <Button variant="outline" onClick={() => setDialogMovimentacao(true)} className="gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100">
+                <ArrowUpDown className="h-4 w-4" /> Movimentação de Estoque
               </Button>
             </div>
           </div>
@@ -1399,6 +1417,177 @@ export default function EstoquePage() {
                               <span className="text-muted-foreground">-</span>
                             )}
                           </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* DIALOG MOVIMENTAÇÃO DE ESTOQUE */}
+        <Dialog open={dialogMovimentacao} onOpenChange={setDialogMovimentacao}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ArrowUpDown className="h-5 w-5" />
+                Movimentação de Estoque
+              </DialogTitle>
+              <DialogDescription>
+                Relatório de movimentações de entrada e saída de estoque
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Filters */}
+            <div className="flex flex-col md:flex-row gap-3 items-start md:items-center p-3 bg-muted/50 rounded-lg">
+              <Select value={movFiltroTipo} onValueChange={(v: any) => setMovFiltroTipo(v)}>
+                <SelectTrigger className="w-full md:w-[150px]">
+                  <SelectValue placeholder="Tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  <SelectItem value="entrada">Entrada</SelectItem>
+                  <SelectItem value="saida">Saída</SelectItem>
+                </SelectContent>
+              </Select>
+              <div className="relative flex-1 w-full md:max-w-[200px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar produto..."
+                  value={movFiltroProduto}
+                  onChange={(e) => setMovFiltroProduto(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+              <Select value={movFiltroCategoria} onValueChange={setMovFiltroCategoria}>
+                <SelectTrigger className="w-full md:w-[170px]">
+                  <SelectValue placeholder="Categoria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todas as Categorias</SelectItem>
+                  {categorias.map((cat: any) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      <div className="flex items-center gap-1.5">
+                        <div className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: cat.cor || '#6B7280' }} />
+                        <span>{cat.nome}</span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                type="date"
+                value={movDataInicio}
+                onChange={(e) => setMovDataInicio(e.target.value)}
+                className="w-full md:w-[150px]"
+                placeholder="Data Início"
+              />
+              <Input
+                type="date"
+                value={movDataFim}
+                onChange={(e) => setMovDataFim(e.target.value)}
+                className="w-full md:w-[150px]"
+                placeholder="Data Fim"
+              />
+              <Button
+                variant="outline"
+                onClick={() => {
+                  exportToPDF({
+                    title: 'Relatório de Movimentação de Estoque',
+                    subtitle: `Total entradas: ${totalEntradas} | Total saídas: ${totalSaidas}`,
+                    columns: [
+                      { header: 'Data/Hora', accessor: (row: any) => row.criadoEm ? new Date(row.criadoEm).toLocaleString('pt-BR') : '-', width: 35 },
+                      { header: 'Produto', accessor: (row: any) => row.produtoNome || '-', width: 35 },
+                      { header: 'Tipo', accessor: (row: any) => row.tipo === 'entrada' ? 'Entrada' : row.tipo === 'saida' ? 'Saída' : row.tipo, width: 15 },
+                      { header: 'Quantidade', accessor: (row: any) => row.quantidade, width: 15, totalize: true },
+                      { header: 'Observação', accessor: (row: any) => row.observacao || '-', width: 40 },
+                      { header: 'Usuário', accessor: (row: any) => row.criadoPorNome || '-', width: 25 },
+                    ],
+                    data: movimentacoesFiltradas,
+                    filename: `relatorio-movimentacao-estoque-${new Date().toISOString().slice(0, 10)}`,
+                    orientation: 'landscape',
+                    totals: { label: 'TOTAL' },
+                  });
+                }}
+                className="gap-2"
+                disabled={movimentacoesFiltradas.length === 0}
+              >
+                <Download className="h-4 w-4" /> Exportar PDF
+              </Button>
+            </div>
+
+            {/* Summary cards */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-green-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-muted-foreground">Entradas</p>
+                <p className="text-lg font-bold text-green-600">{totalEntradas}</p>
+              </div>
+              <div className="bg-red-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-muted-foreground">Saídas</p>
+                <p className="text-lg font-bold text-red-600">{totalSaidas}</p>
+              </div>
+              <div className="bg-blue-50 rounded-lg p-3 text-center">
+                <p className="text-xs text-muted-foreground">Total Registros</p>
+                <p className="text-lg font-bold text-blue-600">{movimentacoesFiltradas.length}</p>
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="max-h-[400px] overflow-y-auto">
+              {movimentacoesFiltradas.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <ArrowUpDown className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                  <p>Nenhuma movimentação encontrada</p>
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Data/Hora</TableHead>
+                      <TableHead>Produto</TableHead>
+                      <TableHead className="text-center">Tipo</TableHead>
+                      <TableHead className="text-center">Quantidade</TableHead>
+                      <TableHead>Observação</TableHead>
+                      <TableHead>Usuário</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {movimentacoesFiltradas.map((mov) => (
+                      <TableRow key={mov.id} className={mov.tipo === 'entrada' ? 'bg-green-50/50' : 'bg-red-50/50'}>
+                        <TableCell className="text-sm">
+                          {mov.criadoEm
+                            ? new Date(mov.criadoEm).toLocaleDateString('pt-BR') + ' ' + new Date(mov.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                            : '-'}
+                        </TableCell>
+                        <TableCell>
+                          <p className="font-medium">{mov.produtoNome}</p>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {mov.tipo === 'entrada' ? (
+                            <Badge className="bg-green-500 text-xs">
+                              <ArrowUp className="h-3 w-3 mr-1" /> Entrada
+                            </Badge>
+                          ) : (
+                            <Badge variant="destructive" className="text-xs">
+                              <ArrowDown className="h-3 w-3 mr-1" /> Saída
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className={`font-bold ${mov.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
+                            {mov.tipo === 'entrada' ? '+' : '-'}{mov.quantidade}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">
+                            {mov.observacao && <p className="text-muted-foreground truncate max-w-[200px]">{mov.observacao}</p>}
+                            {!mov.observacao && <span className="text-muted-foreground">-</span>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {mov.criadoPorNome}
                         </TableCell>
                       </TableRow>
                     ))}
