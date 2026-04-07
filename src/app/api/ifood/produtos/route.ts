@@ -149,6 +149,7 @@ export async function GET(request: NextRequest) {
         preco,
         estoque_atual,
         ativo,
+        foto,
         categoria:categorias(id, nome),
         ifood_sync:ifood_produtos_sync(
           id,
@@ -235,7 +236,7 @@ export async function POST(request: NextRequest) {
         const externalCode = produto.codigo || produto.id;
 
         // Preparar payload
-        const payload = {
+        const payload: Record<string, unknown> = {
           externalCode,
           name: produto.nome,
           description: produto.descricao || produto.nome,
@@ -246,6 +247,11 @@ export async function POST(request: NextRequest) {
           },
           status: produto.ativo ? 'AVAILABLE' : 'UNAVAILABLE',
         };
+
+        // Add image URL if the product has one
+        if (produto.foto) {
+          payload.image = produto.foto;
+        }
 
         let result;
 
@@ -343,7 +349,7 @@ export async function POST(request: NextRequest) {
 
           const externalCode = produto.codigo || produto.id;
 
-          const payload = {
+          const payload: Record<string, unknown> = {
             externalCode,
             name: produto.nome,
             description: produto.descricao || produto.nome,
@@ -354,6 +360,11 @@ export async function POST(request: NextRequest) {
             },
             status: produto.ativo ? 'AVAILABLE' : 'UNAVAILABLE',
           };
+
+          // Add image URL if the product has one
+          if (produto.foto) {
+            payload.image = produto.foto;
+          }
 
           let result;
           if (existingSync?.ifood_product_id) {

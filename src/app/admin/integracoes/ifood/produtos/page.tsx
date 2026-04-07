@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -26,6 +26,9 @@ import {
   DollarSign,
   Filter,
   ArrowUpDown,
+  Camera,
+  Trash2,
+  ImageIcon,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -38,6 +41,7 @@ interface Produto {
   preco: number;
   estoque_atual: number;
   ativo: boolean;
+  foto?: string | null;
   categoria?: {
     id: string;
     nome: string;
@@ -52,6 +56,158 @@ interface Produto {
     erro_sync?: string;
     preco_sincronizado?: number;
   };
+}
+
+function ProdutoImageUpload({
+  produto,
+  empresaId,
+  onUpdated,
+}: {
+  produto: Produto;
+  empresaId: string;
+  onUpdated: () => void;
+}) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [imgError, setImgError] = useState(false);
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate mime type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error('Tipo de arquivo inválido. Use JPEG, PNG, WebP ou GIF.');
+      return;
+    }
+
+    // Validate size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Arquivo muito grande. Tamanho máximo: 5MB.');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('empresaId', empresaId);
+      formData.append('produtoId', produto.id);
+
+      const response = await fetch('/api/produto-imagem', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Foto do produto atualizada!');
+        setImgError(false);
+        onUpdated();
+      } else {
+        toast.error(data.error || 'Erro ao fazer upload da foto');
+      }
+    } catch {
+      toast.error('Erro de conexão ao enviar foto');
+    } finally {
+      setUploading(false);
+      // Reset file input so same file can be re-selected
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleRemove = async () => {
+    if (!produto.foto) return;
+
+    setDeleting(true);
+    try {
+      const response = await fetch('/api/produto-imagem', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          empresaId,
+          produtoId: produto.id,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        toast.success('Foto removida!');
+        setImgError(false);
+        onUpdated();
+      } else {
+        toast.error(data.error || 'Erro ao remover foto');
+      }
+    } catch {
+      toast.error('Erro de conexão ao remover foto');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  return (
+    <div className="relative flex-shrink-0">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp,image/gif"
+        className="hidden"
+        onChange={handleUpload}
+      />
+
+      {/* Thumbnail / Upload button */}
+      <button
+        type="button"
+        className="relative w-10 h-10 rounded-lg overflow-hidden border-2 border-muted hover:border-primary transition-colors flex items-center justify-center bg-muted/30 flex-shrink-0"
+        onClick={() => fileInputRef.current?.click()}
+        disabled={uploading || deleting}
+        title={produto.foto ? 'Alterar foto' : 'Adicionar foto'}
+      >
+        {uploading || deleting ? (
+          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+        ) : produto.foto && !imgError ? (
+          <img
+            src={produto.foto}
+            alt={produto.nome}
+            className="w-full h-full object-cover"
+            onError={() => setImgError(true)}
+          />
+        ) : (
+          <Camera className="h-4 w-4 text-muted-foreground" />
+        )}
+
+        {/* Hover overlay */}
+        {!uploading && !deleting && (
+          <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+            <Camera className="h-4 w-4 text-white" />
+          </div>
+        )}
+      </button>
+
+      {/* Remove button (only if has image) */}
+      {produto.foto && !uploading && (
+        <button
+          type="button"
+          className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center hover:bg-destructive/80 transition-colors"
+          onClick={handleRemove}
+          disabled={deleting}
+          title="Remover foto"
+        >
+          {deleting ? (
+            <Loader2 className="h-2.5 w-2.5 animate-spin" />
+          ) : (
+            <XCircle className="h-3 w-3" />
+          )}
+        </button>
+      )}
+    </div>
+  );
 }
 
 function ProdutosIFoodContent() {
@@ -89,6 +245,7 @@ function ProdutosIFoodContent() {
           preco,
           estoque_atual,
           ativo,
+          foto,
           categoria:categorias(id, nome)
         `)
         .eq('empresa_id', empresaId)
@@ -430,17 +587,26 @@ function ProdutosIFoodContent() {
               Nenhum produto encontrado
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[600px] overflow-y-auto">
               {produtosFiltrados.map((produto) => (
                 <div
                   key={produto.id}
-                  className="flex items-center gap-4 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-3 p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                 >
                   {/* Checkbox */}
                   <Checkbox
                     checked={produtosSelecionados.includes(produto.id)}
                     onCheckedChange={() => toggleSelecao(produto.id)}
                   />
+
+                  {/* Product photo upload */}
+                  {empresaId && (
+                    <ProdutoImageUpload
+                      produto={produto}
+                      empresaId={empresaId}
+                      onUpdated={carregarProdutos}
+                    />
+                  )}
 
                   {/* Info do produto */}
                   <div className="flex-1 min-w-0">
@@ -450,6 +616,9 @@ function ProdutosIFoodContent() {
                         <span className="text-xs text-muted-foreground">
                           ({produto.codigo})
                         </span>
+                      )}
+                      {produto.foto && (
+                        <ImageIcon className="h-3 w-3 text-green-500 flex-shrink-0" title="Possui foto" />
                       )}
                     </div>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -468,13 +637,13 @@ function ProdutosIFoodContent() {
                   </div>
 
                   {/* Status badges */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {getStatusBadge(produto)}
                     {getDisponibilidadeBadge(produto)}
                   </div>
 
                   {/* Ações */}
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     {produto.ifood_sync?.status === 'synced' && (
                       <Switch
                         checked={produto.ifood_sync?.ifood_status === 'AVAILABLE'}
@@ -487,6 +656,7 @@ function ProdutosIFoodContent() {
                       variant="outline"
                       onClick={() => sincronizarProduto(produto.id)}
                       disabled={sincronizando || !ifoodAtivo}
+                      title="Sincronizar com iFood (inclui foto)"
                     >
                       {sincronizando ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
