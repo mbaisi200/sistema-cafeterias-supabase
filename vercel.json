@@ -1,5 +1,5 @@
 {
-  "installCommand": "bun install",
+  "installCommand": "npm install",
   "framework": "nextjs",
   "headers": [
     {
