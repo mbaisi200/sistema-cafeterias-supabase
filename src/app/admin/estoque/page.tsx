@@ -348,7 +348,6 @@ export default function EstoquePage() {
           quantidade: qtd,
           quantidade_informada: qtdInformada,
           tipo_entrada: tipoEntrada,
-          unidades_por_caixa: tipoEntrada === 'caixa' ? unidadesPorCaixa : null,
           estoque_anterior: estoqueAnterior,
           estoque_novo: estoqueNovo,
           fornecedor: fornecedorResolvido || null,
@@ -402,7 +401,6 @@ export default function EstoquePage() {
           quantidade: qtd,
           quantidade_informada: qtd,
           tipo_entrada: 'unidade',
-          unidades_por_caixa: null,
           estoque_anterior: estoqueAnterior,
           estoque_novo: estoqueNovo,
           fornecedor: loteFornecedorResolvido || null,
@@ -913,7 +911,7 @@ export default function EstoquePage() {
 
         {/* DIALOG ENTRADA DE ESTOQUE */}
         <Dialog open={dialogEntrada} onOpenChange={setDialogEntrada}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-green-600">
                 <ArrowUp className="h-5 w-5" />

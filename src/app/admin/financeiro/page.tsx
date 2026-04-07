@@ -165,12 +165,21 @@ export default function FinanceiroPage() {
 
     // Apply extra filters (date range, category, search)
     // Skip date range when filter is "vencidas" to show ALL overdue items
-    if (filter !== 'vencidas') {
+    // When filtering "pagas", use data_pagamento instead of vencimento for date range
+    if (filter !== 'vencidas' && filter !== 'pagas') {
       if (extraFilters?.dataInicio) {
         filtered = filtered.filter(c => c.vencimento && new Date(c.vencimento) >= new Date(extraFilters.dataInicio + 'T00:00:00'));
       }
       if (extraFilters?.dataFim) {
         filtered = filtered.filter(c => c.vencimento && new Date(c.vencimento) <= new Date(extraFilters.dataFim + 'T23:59:59'));
+      }
+    } else if (filter === 'pagas') {
+      // For "pagas", filter by data_pagamento instead of vencimento
+      if (extraFilters?.dataInicio) {
+        filtered = filtered.filter(c => c.dataPagamento && new Date(c.dataPagamento) >= new Date(extraFilters.dataInicio + 'T00:00:00'));
+      }
+      if (extraFilters?.dataFim) {
+        filtered = filtered.filter(c => c.dataPagamento && new Date(c.dataPagamento) <= new Date(extraFilters.dataFim + 'T23:59:59'));
       }
     }
     if (extraFilters?.categoria) {

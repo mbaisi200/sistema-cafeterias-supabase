@@ -532,6 +532,33 @@ export default function ClientesPage() {
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2">
+                <Label>CEP *</Label>
+                <div className="flex gap-2">
+                  <Input value={cep} onChange={(e) => setCep(mascaraCEP(e.target.value))} placeholder="00000-000" maxLength={9} />
+                  <Button type="button" variant="outline" disabled={cep.replace(/\D/g, '').length < 8} onClick={async () => {
+                    const cepLimpo = cep.replace(/\D/g, '');
+                    if (cepLimpo.length < 8) return;
+                    try {
+                      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+                      const data = await res.json();
+                      if (data.erro) {
+                        toast.error('CEP não encontrado');
+                        return;
+                      }
+                      setLogradouro(data.logradouro || '');
+                      setComplemento(data.complemento || '');
+                      setBairro(data.bairro || '');
+                      setMunicipio(data.localidade || '');
+                      setUf(data.uf || '');
+                      setCodigoMunicipio(data.ibge || '');
+                      toast.success('Endereço preenchido via CEP');
+                    } catch {
+                      toast.error('Erro ao buscar CEP');
+                    }
+                  }}>Buscar</Button>
+                </div>
+              </div>
+              <div>
                 <Label>Logradouro *</Label>
                 <Input value={logradouro} onChange={(e) => setLogradouro(e.target.value)} placeholder="Rua, Av, etc." />
               </div>
@@ -539,20 +566,16 @@ export default function ClientesPage() {
                 <Label>Número *</Label>
                 <Input value={numero} onChange={(e) => setNumero(e.target.value)} />
               </div>
-              <div>
-                <Label>Complemento</Label>
-                <Input value={complemento} onChange={(e) => setComplemento(e.target.value)} />
-              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>Bairro *</Label>
-                <Input value={bairro} onChange={(e) => setBairro(e.target.value)} />
+                <Label>Complemento</Label>
+                <Input value={complemento} onChange={(e) => setComplemento(e.target.value)} />
               </div>
               <div>
-                <Label>Código Município IBGE *</Label>
-                <Input value={codigoMunicipio} onChange={(e) => setCodigoMunicipio(e.target.value)} placeholder="3550308" />
+                <Label>Bairro *</Label>
+                <Input value={bairro} onChange={(e) => setBairro(e.target.value)} />
               </div>
             </div>
 
@@ -573,8 +596,8 @@ export default function ClientesPage() {
                 </Select>
               </div>
               <div>
-                <Label>CEP *</Label>
-                <Input value={cep} onChange={(e) => setCep(mascaraCEP(e.target.value))} placeholder="00000-000" />
+                <Label>Código Município IBGE</Label>
+                <Input value={codigoMunicipio} onChange={(e) => setCodigoMunicipio(e.target.value)} placeholder="3550308" />
               </div>
             </div>
 
