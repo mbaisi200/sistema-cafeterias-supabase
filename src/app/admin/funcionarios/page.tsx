@@ -49,8 +49,10 @@ import {
   Copy,
   Check,
   Download,
+  ChevronLeft,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
 import { maskPhone, unmask } from '@/lib/masks';
 import { useAuth } from '@/contexts/AuthContext';
 import { exportToPDF } from '@/lib/export-pdf';
@@ -330,11 +332,18 @@ export default function FuncionariosPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Funcionários</h1>
-              <p className="text-muted-foreground">
-                Gerencie a equipe do seu estabelecimento
-              </p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Funcionários</h1>
+                <p className="text-muted-foreground">
+                  Gerencie a equipe do seu estabelecimento
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={handleExportPDF} disabled={filteredFuncionarios.length === 0}>

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,6 +56,7 @@ import {
   Search,
   Filter,
   X,
+  ChevronLeft,
 } from 'lucide-react';
 import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
 import { useToast } from '@/hooks/use-toast';
@@ -164,22 +166,13 @@ export default function FinanceiroPage() {
     let filtered = [...contasList];
 
     // Apply extra filters (date range, category, search)
-    // Skip date range when filter is "vencidas" to show ALL overdue items
-    // When filtering "pagas", use data_pagamento instead of vencimento for date range
+    // Skip date range when filter is "vencidas" or "pagas" to show ALL matching items
     if (filter !== 'vencidas' && filter !== 'pagas') {
       if (extraFilters?.dataInicio) {
         filtered = filtered.filter(c => c.vencimento && new Date(c.vencimento) >= new Date(extraFilters.dataInicio + 'T00:00:00'));
       }
       if (extraFilters?.dataFim) {
         filtered = filtered.filter(c => c.vencimento && new Date(c.vencimento) <= new Date(extraFilters.dataFim + 'T23:59:59'));
-      }
-    } else if (filter === 'pagas') {
-      // For "pagas", filter by data_pagamento instead of vencimento
-      if (extraFilters?.dataInicio) {
-        filtered = filtered.filter(c => c.dataPagamento && new Date(c.dataPagamento) >= new Date(extraFilters.dataInicio + 'T00:00:00'));
-      }
-      if (extraFilters?.dataFim) {
-        filtered = filtered.filter(c => c.dataPagamento && new Date(c.dataPagamento) <= new Date(extraFilters.dataFim + 'T23:59:59'));
       }
     }
     if (extraFilters?.categoria) {
@@ -467,11 +460,18 @@ export default function FinanceiroPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Área Financeira</h1>
-              <p className="text-muted-foreground">
-                Gerencie o fluxo de caixa e contas do estabelecimento
-              </p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Área Financeira</h1>
+                <p className="text-muted-foreground">
+                  Gerencie o fluxo de caixa e contas do estabelecimento
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button

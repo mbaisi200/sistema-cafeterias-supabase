@@ -13,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
+import Link from 'next/link';
 import { 
   Settings, 
   Truck, 
@@ -24,9 +25,10 @@ import {
   Smartphone,
   Save,
   Loader2,
-  Link,
+  Link as LinkIcon,
   Copy,
-  Check
+  Check,
+  ChevronLeft,
 } from 'lucide-react';
 
 interface DeliveryConfig {
@@ -169,9 +171,16 @@ export default function DeliveryConfigPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">Configurações de Delivery</h1>
-              <p className="text-muted-foreground">Configure as opções do seu cardápio online</p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/delivery">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Configurações de Delivery</h1>
+                <p className="text-muted-foreground">Configure as opções do seu cardápio online</p>
+              </div>
             </div>
             <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
               {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
@@ -183,7 +192,7 @@ export default function DeliveryConfigPage() {
           <Card className="border-blue-200 bg-blue-50">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-blue-800">
-                <Link className="h-5 w-5" />
+                <LinkIcon className="h-5 w-5" />
                 Link do Seu Cardápio
               </CardTitle>
               <CardDescription className="text-blue-700">

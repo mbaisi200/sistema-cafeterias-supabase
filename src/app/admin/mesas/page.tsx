@@ -27,6 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import Link from 'next/link';
 import { useMesas } from '@/hooks/useSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
@@ -39,6 +40,7 @@ import {
   Edit,
   Trash2,
   Unlock,
+  ChevronLeft,
 } from 'lucide-react';
 
 type StatusMesa = 'livre' | 'ocupada' | 'reservada' | 'manutencao';
@@ -168,11 +170,18 @@ export default function MesasPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Mesas</h1>
-              <p className="text-muted-foreground">
-                Gerencie as mesas do seu estabelecimento
-              </p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Mesas</h1>
+                <p className="text-muted-foreground">
+                  Gerencie as mesas do seu estabelecimento
+                </p>
+              </div>
             </div>
             <Dialog open={dialogOpen} onOpenChange={(open) => {
               setDialogOpen(open);

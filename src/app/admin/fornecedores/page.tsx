@@ -50,6 +50,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import Link from 'next/link';
 import { useFornecedores } from '@/hooks/useSupabase';
 import { useState, useEffect } from 'react';
 import {
@@ -69,6 +70,7 @@ import {
   Globe,
   Tag,
   Download,
+  ChevronLeft,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { exportToPDF } from '@/lib/export-pdf';
@@ -344,11 +346,18 @@ export default function FornecedoresPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Fornecedores</h1>
-              <p className="text-muted-foreground">
-                Gerencie os fornecedores do seu estabelecimento
-              </p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Fornecedores</h1>
+                <p className="text-muted-foreground">
+                  Gerencie os fornecedores do seu estabelecimento
+                </p>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button variant="outline" onClick={handleExportPDF}>

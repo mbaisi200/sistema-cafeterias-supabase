@@ -24,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import Link from 'next/link';
 import { useCategorias, useProdutos } from '@/hooks/useSupabase';
 import { useState } from 'react';
 import {
@@ -34,6 +35,7 @@ import {
   FolderOpen,
   GripVertical,
   Loader2,
+  ChevronLeft,
 } from 'lucide-react';
 
 const colorOptions = [
@@ -95,11 +97,18 @@ export default function CategoriasPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Categorias</h1>
-              <p className="text-muted-foreground">
-                Organize os produtos do cardápio por categorias
-              </p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Categorias</h1>
+                <p className="text-muted-foreground">
+                  Organize os produtos do cardápio por categorias
+                </p>
+              </div>
             </div>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>

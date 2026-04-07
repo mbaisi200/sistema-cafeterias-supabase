@@ -32,6 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import Link from 'next/link';
 import {
   Shield,
   ShieldCheck,
@@ -46,6 +47,7 @@ import {
   UserCheck,
   UserX,
   RefreshCw,
+  ChevronLeft,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -279,6 +281,11 @@ export default function DispositivosPage() {
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
               <div className="h-12 w-12 rounded-xl bg-blue-600 flex items-center justify-center">
                 <Shield className="h-6 w-6 text-white" />
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +39,7 @@ import {
   RefreshCw,
   Building2,
   User,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -98,6 +99,8 @@ export function ClientesTab() {
   const [uf, setUf] = useState('');
   const [cep, setCep] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  const [buscandoCEP, setBuscandoCEP] = useState(false);
+  const cepTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const carregar = useCallback(async () => {
     if (!empresaId) return;
@@ -250,6 +253,42 @@ export function ClientesTab() {
 
   const mascaraCEP = (valor: string) => valor.replace(/\D/g, '').replace(/(\d{5})(\d{0,3})/, '$1-$2');
   const mascaraFone = (valor: string) => valor.replace(/\D/g, '').replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/(-\s*)$/, '');
+
+  const buscarCEP = useCallback(async (cepLimpo: string) => {
+    if (cepLimpo.length !== 8) return;
+    setBuscandoCEP(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        toast.error('CEP não encontrado');
+        return;
+      }
+      setLogradouro(data.logradouro || '');
+      setComplemento(data.complemento || '');
+      setBairro(data.bairro || '');
+      setMunicipio(data.localidade || '');
+      setUf(data.uf || '');
+      setCodigoMunicipio(data.ibge || '');
+      toast.success('Endereço preenchido via CEP');
+    } catch {
+      toast.error('Erro ao buscar CEP. Verifique sua conexão.');
+    } finally {
+      setBuscandoCEP(false);
+    }
+  }, []);
+
+  // Auto-search CEP with debounce when 8 digits are typed
+  useEffect(() => {
+    if (cepTimerRef.current) clearTimeout(cepTimerRef.current);
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length === 8) {
+      cepTimerRef.current = setTimeout(() => buscarCEP(cepLimpo), 500);
+    }
+    return () => {
+      if (cepTimerRef.current) clearTimeout(cepTimerRef.current);
+    };
+  }, [cep, buscarCEP]);
 
   return (
     <div className="space-y-6">
@@ -485,6 +524,15 @@ export function ClientesTab() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div>
+                <Label>CEP *</Label>
+                <div className="relative">
+                  <Input value={cep} onChange={(e) => setCep(mascaraCEP(e.target.value))} placeholder="00000-000" maxLength={9} />
+                  {buscandoCEP && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
+                </div>
+              </div>
               <div className="md:col-span-2">
                 <Label>Logradouro *</Label>
                 <Input value={logradouro} onChange={(e) => setLogradouro(e.target.value)} placeholder="Rua, Av, etc." />
@@ -493,20 +541,16 @@ export function ClientesTab() {
                 <Label>Número *</Label>
                 <Input value={numero} onChange={(e) => setNumero(e.target.value)} />
               </div>
-              <div>
-                <Label>Complemento</Label>
-                <Input value={complemento} onChange={(e) => setComplemento(e.target.value)} />
-              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label>Bairro *</Label>
-                <Input value={bairro} onChange={(e) => setBairro(e.target.value)} />
+                <Label>Complemento</Label>
+                <Input value={complemento} onChange={(e) => setComplemento(e.target.value)} />
               </div>
               <div>
-                <Label>Código Município IBGE *</Label>
-                <Input value={codigoMunicipio} onChange={(e) => setCodigoMunicipio(e.target.value)} placeholder="3550308" />
+                <Label>Bairro *</Label>
+                <Input value={bairro} onChange={(e) => setBairro(e.target.value)} />
               </div>
             </div>
 
@@ -527,8 +571,8 @@ export function ClientesTab() {
                 </Select>
               </div>
               <div>
-                <Label>CEP *</Label>
-                <Input value={cep} onChange={(e) => setCep(mascaraCEP(e.target.value))} placeholder="00000-000" />
+                <Label>Código Município IBGE *</Label>
+                <Input value={codigoMunicipio} onChange={(e) => setCodigoMunicipio(e.target.value)} placeholder="3550308" />
               </div>
             </div>
 

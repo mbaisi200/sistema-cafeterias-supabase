@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Separator } from '@/components/ui/separator';
 import {
   Dialog,
   DialogContent,
@@ -42,20 +44,22 @@ import {
   AlertTriangle,
   CheckCircle,
   Download,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { exportToPDF, formatCurrencyPDF } from '@/lib/export-pdf';
 
 export default function CaixaPage() {
   const { caixaAberto, movimentacoes, historico, loading, loadingDetalhes, abrirCaixa, fecharCaixa, adicionarReforco, adicionarSangria, resumo, detalhesCaixa, carregarDetalhesCaixa, limparDetalhesCaixa } = useCaixa();
   const { toast } = useToast();
-  
+
   const [dialogAbertura, setDialogAbertura] = useState(false);
   const [dialogFechamento, setDialogFechamento] = useState(false);
   const [dialogReforco, setDialogReforco] = useState(false);
   const [dialogSangria, setDialogSangria] = useState(false);
   const [dialogRelatorio, setDialogRelatorio] = useState(false);
   const [saving, setSaving] = useState(false);
-  
+
   // Form states
   const [valorAbertura, setValorAbertura] = useState('');
   const [obsAbertura, setObsAbertura] = useState('');
@@ -66,6 +70,9 @@ export default function CaixaPage() {
   const [formaReforco, setFormaReforco] = useState('dinheiro');
   const [valorSangria, setValorSangria] = useState('');
   const [descricaoSangria, setDescricaoSangria] = useState('');
+
+  // History item being viewed
+  const [selectedHistoricoId, setSelectedHistoricoId] = useState<string | null>(null);
 
   const handleAbrirCaixa = async () => {
     if (!valorAbertura || parseFloat(valorAbertura) < 0) {
@@ -199,11 +206,21 @@ export default function CaixaPage() {
   };
 
   const handleVerRelatorio = async (caixaId: string) => {
+    setSelectedHistoricoId(caixaId);
     try {
       await carregarDetalhesCaixa(caixaId);
       setDialogRelatorio(true);
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Erro ao carregar relatório do caixa' });
+      setSelectedHistoricoId(null);
+    }
+  };
+
+  const handleCloseRelatorio = (open: boolean) => {
+    if (!open) {
+      setDialogRelatorio(false);
+      limparDetalhesCaixa();
+      setSelectedHistoricoId(null);
     }
   };
 
@@ -223,26 +240,33 @@ export default function CaixaPage() {
     <ProtectedRoute allowedRoles={['admin', 'funcionario']}>
       <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Caixa' }]}>
         <div className="space-y-6">
-          
+
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Caixa</h1>
-              <p className="text-muted-foreground">
-                Controle de fluxo de caixa diário
-              </p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Caixa</h1>
+                <p className="text-muted-foreground">
+                  Controle de fluxo de caixa diário
+                </p>
+              </div>
             </div>
-            
+
             {caixaAberto ? (
-              <div className="flex gap-2">
-                <Button 
+              <div className="flex flex-wrap gap-2">
+                <Button
                   onClick={() => setDialogReforco(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-emerald-600 hover:bg-emerald-700"
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Reforço
                 </Button>
-                <Button 
+                <Button
                   onClick={() => setDialogSangria(true)}
                   variant="outline"
                   className="border-red-300 text-red-600 hover:bg-red-50"
@@ -250,7 +274,7 @@ export default function CaixaPage() {
                   <Minus className="mr-2 h-4 w-4" />
                   Sangria
                 </Button>
-                <Button 
+                <Button
                   onClick={() => setDialogFechamento(true)}
                   variant="destructive"
                 >
@@ -296,9 +320,9 @@ export default function CaixaPage() {
                 </Button>
               </div>
             ) : (
-              <Button 
+              <Button
                 onClick={() => setDialogAbertura(true)}
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-emerald-600 hover:bg-emerald-700"
               >
                 <Unlock className="mr-2 h-4 w-4" />
                 Abrir Caixa
@@ -306,52 +330,45 @@ export default function CaixaPage() {
             )}
           </div>
 
-          {/* Status do Caixa */}
-          <Card className={caixaAberto ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}>
-            <CardContent className="pt-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className={`h-12 w-12 rounded-full flex items-center justify-center ${caixaAberto ? 'bg-green-100' : 'bg-red-100'}`}>
-                    <Wallet className={`h-6 w-6 ${caixaAberto ? 'text-green-600' : 'text-red-600'}`} />
-                  </div>
-                  <div>
-                    <p className="text-lg font-semibold">
-                      {caixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {caixaAberto ? (
-                        <>
+          {/* ===== SECTION 1: Open Cash Register ===== */}
+          {caixaAberto ? (
+            <section aria-label="Caixa Aberto">
+              {/* Status Card */}
+              <Card className="border-green-200 bg-green-50/60">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="h-12 w-12 rounded-full flex items-center justify-center bg-green-100">
+                        <Wallet className="h-6 w-6 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="text-lg font-semibold text-green-800">
+                          Caixa Aberto
+                        </p>
+                        <p className="text-sm text-muted-foreground">
                           Aberto por {caixaAberto.abertoPorNome} em {caixaAberto.abertoEm?.toLocaleString('pt-BR')}
-                        </>
-                      ) : (
-                        'Abra o caixa para começar as vendas'
-                      )}
-                    </p>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">Valor Atual</p>
+                      <p className="text-3xl font-bold text-green-600">
+                        R$ {(resumo.valorAtual || 0).toFixed(2)}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                {caixaAberto && (
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Valor Atual</p>
-                    <p className="text-3xl font-bold text-green-600">
-                      R$ {(resumo.valorAtual || 0).toFixed(2)}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                </CardContent>
+              </Card>
 
-          {caixaAberto && (
-            <>
-              {/* Cards de Resumo por Forma de Pagamento */}
-              <div className="grid gap-4 md:grid-cols-4">
+              {/* Payment Method Summary Cards */}
+              <div className="grid gap-4 grid-cols-2 md:grid-cols-4">
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
                         <Banknote className="h-5 w-5 text-blue-600" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm text-muted-foreground">Dinheiro</p>
                         <p className="text-xl font-bold">R$ {resumo.vendasDinheiro.toFixed(2)}</p>
                       </div>
@@ -361,10 +378,10 @@ export default function CaixaPage() {
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center">
+                      <div className="h-10 w-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
                         <CreditCard className="h-5 w-5 text-purple-600" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm text-muted-foreground">Crédito</p>
                         <p className="text-xl font-bold">R$ {resumo.vendasCredito.toFixed(2)}</p>
                       </div>
@@ -374,10 +391,10 @@ export default function CaixaPage() {
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-teal-100 flex items-center justify-center">
+                      <div className="h-10 w-10 rounded-full bg-teal-100 flex items-center justify-center shrink-0">
                         <CreditCard className="h-5 w-5 text-teal-600" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm text-muted-foreground">Débito</p>
                         <p className="text-xl font-bold">R$ {resumo.vendasDebito.toFixed(2)}</p>
                       </div>
@@ -387,10 +404,10 @@ export default function CaixaPage() {
                 <Card>
                   <CardContent className="pt-6">
                     <div className="flex items-center gap-3">
-                      <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center">
+                      <div className="h-10 w-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
                         <Smartphone className="h-5 w-5 text-green-600" />
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-sm text-muted-foreground">PIX</p>
                         <p className="text-xl font-bold">R$ {resumo.vendasPix.toFixed(2)}</p>
                       </div>
@@ -399,7 +416,7 @@ export default function CaixaPage() {
                 </Card>
               </div>
 
-              {/* Resumo Financeiro */}
+              {/* Financial Summary */}
               <div className="grid gap-4 md:grid-cols-3">
                 <Card className="border-green-200">
                   <CardContent className="pt-6">
@@ -445,12 +462,12 @@ export default function CaixaPage() {
                 </Card>
               </div>
 
-              {/* Movimentações */}
+              {/* Movements */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Clock className="h-5 w-5" />
-                    Movimentações do Dia
+                    Movimentações do Caixa Aberto
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -461,20 +478,20 @@ export default function CaixaPage() {
                   ) : (
                     <ScrollArea className="h-96">
                       <div className="space-y-2">
-                        {movimentacoes.map((mov) => (
-                          <div 
-                            key={mov.id} 
+                        {movimentacoes.map((mov: any) => (
+                          <div
+                            key={mov.id}
                             className={`flex items-center justify-between p-3 rounded-lg border ${
-                              mov.tipo === 'sangria' ? 'bg-red-50 border-red-200' : 
-                              mov.tipo === 'reforco' ? 'bg-green-50 border-green-200' : 
+                              mov.tipo === 'sangria' ? 'bg-red-50 border-red-200' :
+                              mov.tipo === 'reforco' ? 'bg-green-50 border-green-200' :
                               'bg-gray-50'
                             }`}
                           >
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 min-w-0">
                               {getTipoIcon(mov.tipo)}
-                              <div>
-                                <p className="font-medium">{mov.descricao}</p>
-                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <div className="min-w-0">
+                                <p className="font-medium truncate">{mov.descricao}</p>
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                                   <Badge variant="outline" className="text-xs">
                                     {getTipoLabel(mov.tipo)}
                                   </Badge>
@@ -488,7 +505,7 @@ export default function CaixaPage() {
                                 </div>
                               </div>
                             </div>
-                            <div className="text-right">
+                            <div className="text-right shrink-0 ml-3">
                               <p className={`text-lg font-bold ${
                                 mov.tipo === 'sangria' ? 'text-red-600' : 'text-green-600'
                               }`}>
@@ -503,79 +520,117 @@ export default function CaixaPage() {
                   )}
                 </CardContent>
               </Card>
-            </>
+            </section>
+          ) : (
+            /* No open register — show prompt */
+            <Card className="border-amber-200 bg-amber-50/60">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="h-12 w-12 rounded-full flex items-center justify-center bg-amber-100">
+                    <Wallet className="h-6 w-6 text-amber-600" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-semibold text-amber-800">Caixa Fechado</p>
+                    <p className="text-sm text-muted-foreground">
+                      Abra o caixa para começar as vendas
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Histórico de Caixas */}
-          {!caixaAberto && historico.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <History className="h-5 w-5" />
-                  Histórico de Caixas
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-96">
-                  <div className="space-y-2">
-                    {historico.map((cx) => (
-                      <div 
-                        key={cx.id} 
-                        className="flex items-center justify-between p-4 rounded-lg border bg-gray-50 cursor-pointer hover:bg-gray-100 hover:border-blue-300 transition-all"
-                        onClick={() => handleVerRelatorio(cx.id)}
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
-                            <Lock className="h-5 w-5 text-gray-600" />
-                          </div>
-                          <div>
-                            <p className="font-medium">
-                              {cx.abertoEm?.toLocaleDateString('pt-BR')}
-                            </p>
-                            <p className="text-sm text-muted-foreground">
-                              Aberto por {cx.aberto_por_nome || cx.abertoPorNome} • Fechado por {cx.fechado_por_nome || '—'}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <div className="text-right">
-                            <p className="text-lg font-bold">R$ {(cx.valor_final || cx.valorFinal || 0).toFixed(2)}</p>
-                            <div className="flex items-center gap-2">
-                              {(cx.quebra || 0) !== 0 && (
-                                <Badge 
-                                  variant={cx.quebra > 0 ? 'default' : 'destructive'}
-                                  className="text-xs"
-                                >
-                                  {cx.quebra > 0 ? 'Sobra' : 'Falta'}: R$ {Math.abs(cx.quebra).toFixed(2)}
-                                </Badge>
-                              )}
-                              {(cx.quebra || 0) === 0 && cx.fechado_em && (
-                                <Badge variant="outline" className="text-xs bg-green-100 text-green-700">
-                                  Conferido
-                                </Badge>
-                              )}
+          {/* Separator between sections when both exist */}
+          {caixaAberto && historico.length > 0 && <Separator />}
+
+          {/* ===== SECTION 2: Closed Cash Registers (History) ===== */}
+          <section aria-label="Histórico de Caixas Fechados">
+            {historico.length > 0 ? (
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Caixas Fechados
+                    <Badge variant="secondary" className="ml-1">{historico.length}</Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ScrollArea className="max-h-96">
+                    <div className="space-y-2">
+                      {historico.map((cx: any) => {
+                        const isSelected = selectedHistoricoId === cx.id;
+                        return (
+                          <div
+                            key={cx.id}
+                            className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-200'
+                                : 'bg-gray-50 hover:bg-gray-100 hover:border-gray-300'
+                            }`}
+                            onClick={() => handleVerRelatorio(cx.id)}
+                          >
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
+                                <Lock className="h-5 w-5 text-gray-600" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium">
+                                  {cx.abertoEm?.toLocaleDateString('pt-BR')}
+                                  {cx.fechadoEm && (
+                                    <span className="text-muted-foreground font-normal">
+                                      {' — '}{cx.fechadoEm.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                  )}
+                                </p>
+                                <p className="text-sm text-muted-foreground truncate">
+                                  Aberto por {cx.aberto_por_nome || cx.abertoPorNome}
+                                  {cx.fechado_por_nome ? ` • Fechado por ${cx.fechado_por_nome}` : ''}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0 ml-3">
+                              <div className="text-right">
+                                <p className="text-lg font-bold">R$ {(cx.valor_final || cx.valorFinal || 0).toFixed(2)}</p>
+                                <div className="flex items-center gap-2">
+                                  {(cx.quebra || 0) !== 0 && (
+                                    <Badge
+                                      variant={cx.quebra > 0 ? 'default' : 'destructive'}
+                                      className="text-xs"
+                                    >
+                                      {cx.quebra > 0 ? 'Sobra' : 'Falta'}: R$ {Math.abs(cx.quebra).toFixed(2)}
+                                    </Badge>
+                                  )}
+                                  {(cx.quebra || 0) === 0 && cx.fechado_em && (
+                                    <Badge variant="outline" className="text-xs bg-green-100 text-green-700">
+                                      Conferido
+                                    </Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
                             </div>
                           </div>
-                          <Receipt className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Mensagem quando não há caixa e nem histórico */}
-          {!caixaAberto && historico.length === 0 && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-16">
-                <Wallet className="h-16 w-16 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium">Nenhum caixa registrado</p>
-                <p className="text-sm text-muted-foreground">Abra o caixa para começar</p>
-              </CardContent>
-            </Card>
-          )}
+                        );
+                      })}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            ) : !caixaAberto ? (
+              /* Empty state: no open register and no history */
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <Wallet className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium">Nenhum caixa registrado</p>
+                  <p className="text-sm text-muted-foreground mb-4">Abra o caixa para começar</p>
+                  <Button onClick={() => setDialogAbertura(true)} className="bg-emerald-600 hover:bg-emerald-700">
+                    <Unlock className="mr-2 h-4 w-4" />
+                    Abrir Caixa
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : null}
+          </section>
         </div>
 
         {/* Dialog Abertura de Caixa */}
@@ -614,7 +669,7 @@ export default function CaixaPage() {
               <Button variant="outline" onClick={() => setDialogAbertura(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleAbrirCaixa} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleAbrirCaixa} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Abrir Caixa
               </Button>
@@ -747,7 +802,7 @@ export default function CaixaPage() {
               <Button variant="outline" onClick={() => setDialogReforco(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleReforco} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleReforco} disabled={saving} className="bg-emerald-600 hover:bg-emerald-700">
                 {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Adicionar
               </Button>
@@ -755,12 +810,59 @@ export default function CaixaPage() {
           </DialogContent>
         </Dialog>
 
+        {/* Dialog Sangria */}
+        <Dialog open={dialogSangria} onOpenChange={setDialogSangria}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ArrowDownCircle className="h-5 w-5 text-red-600" />
+                Realizar Sangria
+              </DialogTitle>
+              <DialogDescription>
+                Retire dinheiro do caixa
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-blue-50 rounded-lg text-sm">
+                Disponível em caixa: <strong>R$ {resumo.valorAtual.toFixed(2)}</strong>
+              </div>
+              <div className="space-y-2">
+                <Label>Valor (R$)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  value={valorSangria}
+                  onChange={(e) => setValorSangria(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <Input
+                  placeholder="Ex: Pagamento de fornecedor"
+                  value={descricaoSangria}
+                  onChange={(e) => setDescricaoSangria(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogSangria(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSangria} disabled={saving} variant="destructive">
+                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Realizar Sangria
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         {/* Dialog Relatório de Caixa Fechado */}
-        <Dialog open={dialogRelatorio} onOpenChange={(open) => { if (!open) { setDialogRelatorio(false); limparDetalhesCaixa(); }}}>
+        <Dialog open={dialogRelatorio} onOpenChange={handleCloseRelatorio}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-blue-600" />
+                <Receipt className="h-5 w-5 text-emerald-600" />
                 Relatório de Caixa
               </DialogTitle>
               <DialogDescription>
@@ -770,26 +872,26 @@ export default function CaixaPage() {
 
             {loadingDetalhes ? (
               <div className="flex items-center justify-center py-16">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
                 <span className="ml-3 text-muted-foreground">Carregando relatório...</span>
               </div>
             ) : detalhesCaixa ? (
               <div className="space-y-6">
                 {/* Info do Caixa */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="p-3 bg-emerald-50 rounded-lg">
                     <p className="text-xs text-muted-foreground">Abertura</p>
                     <p className="font-semibold text-sm">{detalhesCaixa.caixa.abertoEm?.toLocaleString('pt-BR')}</p>
                   </div>
-                  <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="p-3 bg-emerald-50 rounded-lg">
                     <p className="text-xs text-muted-foreground">Fechamento</p>
                     <p className="font-semibold text-sm">{detalhesCaixa.caixa.fechadoEm?.toLocaleString('pt-BR') || '—'}</p>
                   </div>
-                  <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="p-3 bg-emerald-50 rounded-lg">
                     <p className="text-xs text-muted-foreground">Aberto por</p>
                     <p className="font-semibold text-sm">{detalhesCaixa.caixa.aberto_por_nome || detalhesCaixa.caixa.abertoPorNome || '—'}</p>
                   </div>
-                  <div className="p-3 bg-blue-50 rounded-lg">
+                  <div className="p-3 bg-emerald-50 rounded-lg">
                     <p className="text-xs text-muted-foreground">Fechado por</p>
                     <p className="font-semibold text-sm">{detalhesCaixa.caixa.fechado_por_nome || '—'}</p>
                   </div>
@@ -900,7 +1002,7 @@ export default function CaixaPage() {
                           {detalhesCaixa.vendas.map((venda: any) => (
                             <div key={venda.id} className="p-3 border rounded-lg bg-gray-50">
                               <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
                                   <Badge variant="outline" className="text-xs">#{venda.id?.substring(0, 8)}</Badge>
                                   <span className="text-xs text-muted-foreground">
                                     {new Date(venda.criado_em).toLocaleString('pt-BR')}
@@ -910,7 +1012,7 @@ export default function CaixaPage() {
                                     {getFormaLabel(venda.forma_pagamento)}
                                   </span>
                                 </div>
-                                <p className="font-bold text-green-600">R$ {(venda.total || 0).toFixed(2)}</p>
+                                <p className="font-bold text-green-600 shrink-0">R$ {(venda.total || 0).toFixed(2)}</p>
                               </div>
                               {venda.itens && venda.itens.length > 0 && (
                                 <div className="ml-4 space-y-1">
@@ -934,7 +1036,7 @@ export default function CaixaPage() {
                 </Card>
 
                 {/* Outras Movimentações (Reforços e Sangrias) */}
-                {detalhesCaixa.movimentacoes.filter(m => m.tipo === 'reforco' || m.tipo === 'sangria').length > 0 && (
+                {detalhesCaixa.movimentacoes.filter((m: any) => m.tipo === 'reforco' || m.tipo === 'sangria').length > 0 && (
                   <Card>
                     <CardHeader className="pb-3">
                       <CardTitle className="text-base flex items-center gap-2">
@@ -945,7 +1047,7 @@ export default function CaixaPage() {
                     <CardContent>
                       <div className="space-y-2">
                         {detalhesCaixa.movimentacoes
-                          .filter(m => m.tipo === 'reforco' || m.tipo === 'sangria')
+                          .filter((m: any) => m.tipo === 'reforco' || m.tipo === 'sangria')
                           .map((mov: any) => (
                             <div key={mov.id} className={`flex items-center justify-between p-3 rounded-lg border ${
                               mov.tipo === 'sangria' ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'
@@ -968,53 +1070,6 @@ export default function CaixaPage() {
                 )}
               </div>
             ) : null}
-          </DialogContent>
-        </Dialog>
-
-        {/* Dialog Sangria */}
-        <Dialog open={dialogSangria} onOpenChange={setDialogSangria}>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <ArrowDownCircle className="h-5 w-5 text-red-600" />
-                Realizar Sangria
-              </DialogTitle>
-              <DialogDescription>
-                Retire dinheiro do caixa
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-4 py-4">
-              <div className="p-3 bg-blue-50 rounded-lg text-sm">
-                Disponível em caixa: <strong>R$ {resumo.valorAtual.toFixed(2)}</strong>
-              </div>
-              <div className="space-y-2">
-                <Label>Valor (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={valorSangria}
-                  onChange={(e) => setValorSangria(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Descrição</Label>
-                <Input
-                  placeholder="Ex: Pagamento de fornecedor"
-                  value={descricaoSangria}
-                  onChange={(e) => setDescricaoSangria(e.target.value)}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogSangria(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSangria} disabled={saving} variant="destructive">
-                {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Realizar Sangria
-              </Button>
-            </DialogFooter>
           </DialogContent>
         </Dialog>
 

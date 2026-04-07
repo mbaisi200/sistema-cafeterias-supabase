@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -17,13 +18,13 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
-import { 
-  Clock, 
-  CheckCircle, 
-  ChefHat, 
-  Package, 
-  Bike, 
-  Home, 
+import {
+  Clock,
+  CheckCircle,
+  ChefHat,
+  Package,
+  Bike,
+  Home,
   XCircle,
   Phone,
   MapPin,
@@ -31,7 +32,8 @@ import {
   Eye,
   Timer,
   DollarSign,
-  AlertCircle
+  AlertCircle,
+  ChevronLeft
 } from 'lucide-react';
 import type { PedidoDeliveryStatus } from '@/types/delivery';
 
@@ -253,14 +255,21 @@ export default function DeliveryAdminPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-3xl font-bold">Pedidos de Delivery</h1>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-3xl font-bold">Pedidos de Delivery</h1>
                 <Badge className="bg-green-500 animate-pulse">NOVO</Badge>
               </div>
               <p className="text-muted-foreground">Gerencie os pedidos recebidos pelo cardápio online</p>
             </div>
-            <Button variant="outline" onClick={loadPedidos}>
+          </div>
+          <Button variant="outline" onClick={loadPedidos}>
               <RefreshCw className="h-4 w-4 mr-2" /> Atualizar
             </Button>
           </div>

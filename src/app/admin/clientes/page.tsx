@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -44,6 +45,8 @@ import {
   User,
   FileText,
   Download,
+  ChevronLeft,
+  Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportToPDF } from '@/lib/export-pdf';
@@ -104,6 +107,8 @@ export default function ClientesPage() {
   const [uf, setUf] = useState('');
   const [cep, setCep] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  const [buscandoCEP, setBuscandoCEP] = useState(false);
+  const cepTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const carregar = useCallback(async () => {
     if (!empresaId) return;
@@ -257,6 +262,42 @@ export default function ClientesPage() {
   const mascaraCEP = (valor: string) => valor.replace(/\D/g, '').replace(/(\d{5})(\d{0,3})/, '$1-$2');
   const mascaraFone = (valor: string) => valor.replace(/\D/g, '').replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/(-\s*)$/, '');
 
+  const buscarCEP = useCallback(async (cepLimpo: string) => {
+    if (cepLimpo.length !== 8) return;
+    setBuscandoCEP(true);
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const data = await res.json();
+      if (data.erro) {
+        toast.error('CEP não encontrado');
+        return;
+      }
+      setLogradouro(data.logradouro || '');
+      setComplemento(data.complemento || '');
+      setBairro(data.bairro || '');
+      setMunicipio(data.localidade || '');
+      setUf(data.uf || '');
+      setCodigoMunicipio(data.ibge || '');
+      toast.success('Endereço preenchido via CEP');
+    } catch {
+      toast.error('Erro ao buscar CEP. Verifique sua conexão.');
+    } finally {
+      setBuscandoCEP(false);
+    }
+  }, []);
+
+  // Auto-search CEP with debounce when 8 digits are typed
+  useEffect(() => {
+    if (cepTimerRef.current) clearTimeout(cepTimerRef.current);
+    const cepLimpo = cep.replace(/\D/g, '');
+    if (cepLimpo.length === 8) {
+      cepTimerRef.current = setTimeout(() => buscarCEP(cepLimpo), 500);
+    }
+    return () => {
+      if (cepTimerRef.current) clearTimeout(cepTimerRef.current);
+    };
+  }, [cep, buscarCEP]);
+
   const labelIE = indicadorIE === '2' ? 'Isento' : indicadorIE === '1' ? 'Contribuinte ICMS' : 'Não Contribuinte';
 
   return (
@@ -264,14 +305,21 @@ export default function ClientesPage() {
       <MainLayout breadcrumbs={[{ title: 'Clientes', href: '/admin/clientes' }]}>
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold flex items-center gap-2">
-                <Users className="h-7 w-7" />
-                Clientes
-              </h1>
-              <p className="text-muted-foreground text-sm mt-1">
-                Cadastro de clientes para emissão de NF-e ({clientes.length} cliente{clientes.length !== 1 ? 's' : ''})
-              </p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-2xl font-bold flex items-center gap-2">
+                  <Users className="h-7 w-7" />
+                  Clientes
+                </h1>
+                <p className="text-muted-foreground text-sm mt-1">
+                  Cadastro de clientes para emissão de NF-e ({clientes.length} cliente{clientes.length !== 1 ? 's' : ''})
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" className="gap-2" onClick={() => {
@@ -531,34 +579,16 @@ export default function ClientesPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="md:col-span-2">
+              <div>
                 <Label>CEP *</Label>
-                <div className="flex gap-2">
+                <div className="relative">
                   <Input value={cep} onChange={(e) => setCep(mascaraCEP(e.target.value))} placeholder="00000-000" maxLength={9} />
-                  <Button type="button" variant="outline" disabled={cep.replace(/\D/g, '').length < 8} onClick={async () => {
-                    const cepLimpo = cep.replace(/\D/g, '');
-                    if (cepLimpo.length < 8) return;
-                    try {
-                      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
-                      const data = await res.json();
-                      if (data.erro) {
-                        toast.error('CEP não encontrado');
-                        return;
-                      }
-                      setLogradouro(data.logradouro || '');
-                      setComplemento(data.complemento || '');
-                      setBairro(data.bairro || '');
-                      setMunicipio(data.localidade || '');
-                      setUf(data.uf || '');
-                      setCodigoMunicipio(data.ibge || '');
-                      toast.success('Endereço preenchido via CEP');
-                    } catch {
-                      toast.error('Erro ao buscar CEP');
-                    }
-                  }}>Buscar</Button>
+                  {buscandoCEP && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                  )}
                 </div>
               </div>
-              <div>
+              <div className="md:col-span-2">
                 <Label>Logradouro *</Label>
                 <Input value={logradouro} onChange={(e) => setLogradouro(e.target.value)} placeholder="Rua, Av, etc." />
               </div>

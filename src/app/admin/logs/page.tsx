@@ -21,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import Link from 'next/link';
 import { useLogs } from '@/hooks/useSupabase';
 import { useState } from 'react';
 import {
@@ -35,6 +36,7 @@ import {
   MoreHorizontal,
   Filter,
   Download,
+  ChevronLeft,
 } from 'lucide-react';
 import { exportToPDF, formatDatePDF } from '@/lib/export-pdf';
 
@@ -103,11 +105,18 @@ export default function LogsPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Histórico de Atividades</h1>
-              <p className="text-muted-foreground">
-                Acompanhe todas as ações realizadas no sistema
-              </p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Histórico de Atividades</h1>
+                <p className="text-muted-foreground">
+                  Acompanhe todas as ações realizadas no sistema
+                </p>
+              </div>
             </div>
             <Button
               variant="outline"

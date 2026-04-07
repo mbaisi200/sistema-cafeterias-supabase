@@ -61,7 +61,9 @@ import {
   Layers,
   Settings2,
   Download,
+  ChevronLeft,
 } from 'lucide-react';
+import Link from 'next/link';
 import { exportToPDF, formatCurrencyPDF } from '@/lib/export-pdf';
 
 const colorOptions = [
@@ -416,9 +418,16 @@ export default function ProdutosPage() {
         <Tabs defaultValue="produtos" className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Produtos & Categorias</h1>
-              <p className="text-muted-foreground">Gerencie o cardápio do seu estabelecimento</p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Produtos & Categorias</h1>
+                <p className="text-muted-foreground">Gerencie o cardápio do seu estabelecimento</p>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" onClick={handleExportPDF}>

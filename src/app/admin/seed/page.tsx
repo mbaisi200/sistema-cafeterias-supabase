@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getSupabaseClient } from '@/lib/supabase';
-import { Database, CheckCircle, XCircle, Loader2, AlertTriangle, Building2, Trash2, CalendarDays, Layers } from 'lucide-react';
+import Link from 'next/link';
+import { Database, CheckCircle, XCircle, Loader2, AlertTriangle, Building2, Trash2, CalendarDays, Layers, ChevronLeft } from 'lucide-react';
 
 interface SeedStatus {
   step: string;
@@ -1398,6 +1399,19 @@ function SeedContent() {
 
   return (
     <div className="container mx-auto py-8 px-4 max-w-4xl">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <Link href="/admin/dashboard">
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold">Seed de Dados</h1>
+          <p className="text-muted-foreground mt-1">População de dados de teste</p>
+        </div>
+      </div>
+
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

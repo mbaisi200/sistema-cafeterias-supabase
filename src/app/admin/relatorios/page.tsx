@@ -12,7 +12,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { BarChart3, TrendingUp, PieChart, DollarSign, PiggyBank, Download } from 'lucide-react';
+import { BarChart3, TrendingUp, PieChart, DollarSign, PiggyBank, Download, ChevronLeft } from 'lucide-react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { exportToPDF, formatCurrencyPDF } from '@/lib/export-pdf';
 
@@ -57,9 +58,16 @@ export default function RelatoriosPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Dashboard BI</h1>
-              <p className="text-muted-foreground">Análises e métricas do seu estabelecimento</p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Dashboard BI</h1>
+                <p className="text-muted-foreground">Análises e métricas do seu estabelecimento</p>
+              </div>
             </div>
             <Button
               variant="outline"

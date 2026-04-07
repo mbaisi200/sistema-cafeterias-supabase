@@ -9,7 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { getSupabaseClient } from '@/lib/supabase';
-import { KeyRound, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import Link from 'next/link';
+import { KeyRound, Loader2, CheckCircle, AlertTriangle, Eye, EyeOff, ChevronLeft } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -124,14 +125,21 @@ export default function AlterarSenhaPage() {
       >
         <div className="max-w-lg mx-auto space-y-6">
           {/* Header */}
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <KeyRound className="h-8 w-8" />
-              Alterar Senha
-            </h1>
-            <p className="text-muted-foreground mt-2">
-              Altere sua senha de acesso ao sistema
-            </p>
+          <div className="flex items-center gap-3">
+            <Link href="/admin/dashboard">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-3xl font-bold flex items-center gap-2">
+                <KeyRound className="h-8 w-8" />
+                Alterar Senha
+              </h1>
+              <p className="text-muted-foreground mt-2">
+                Altere sua senha de acesso ao sistema
+              </p>
+            </div>
           </div>
 
           {/* Info do usuário */}

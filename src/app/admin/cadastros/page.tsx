@@ -1,10 +1,12 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, Truck, UserCheck, Wrench } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, Truck, UserCheck, Wrench, ChevronLeft } from 'lucide-react';
 import { ClientesTab } from './ClientesTab';
 import { FornecedoresTab } from './FornecedoresTab';
 import { VendedoresTab } from './VendedoresTab';
@@ -15,11 +17,18 @@ export default function CadastrosPage() {
     <ProtectedRoute allowedRoles={['admin', 'master']}>
       <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Cadastros' }]}>
         <div className="space-y-6">
-          <div>
-            <h1 className="text-2xl font-bold">Cadastros</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Gerencie clientes, vendedores, fornecedores e serviços
-            </p>
+          <div className="flex items-center gap-3">
+            <Link href="/admin/dashboard">
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+            </Link>
+            <div>
+              <h1 className="text-2xl font-bold">Cadastros</h1>
+              <p className="text-muted-foreground text-sm mt-1">
+                Gerencie clientes, vendedores, fornecedores e serviços
+              </p>
+            </div>
           </div>
 
           <Tabs defaultValue="clientes" className="space-y-6">

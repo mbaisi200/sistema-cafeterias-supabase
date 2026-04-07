@@ -19,6 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
+import Link from 'next/link';
 import { 
   Printer, 
   Save, 
@@ -33,7 +34,8 @@ import {
   Trash2,
   CheckCircle,
   AlertCircle,
-  Loader2
+  Loader2,
+  ChevronLeft,
 } from 'lucide-react';
 
 function LoadingSkeleton() {
@@ -476,14 +478,21 @@ export default function ConfiguracoesCupomPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold flex items-center gap-2">
-                <Printer className="h-8 w-8 text-blue-600" />
-                Configurações do Cupom Fiscal
-              </h1>
-              <p className="text-muted-foreground">
-                Configure o cupom, impressão e emissão de NFC-e
-              </p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold flex items-center gap-2">
+                  <Printer className="h-8 w-8 text-blue-600" />
+                  Configurações do Cupom Fiscal
+                </h1>
+                <p className="text-muted-foreground">
+                  Configure o cupom, impressão e emissão de NFC-e
+                </p>
+              </div>
             </div>
           </div>
 

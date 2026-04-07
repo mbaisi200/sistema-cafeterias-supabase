@@ -38,6 +38,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import {
   Package,
   AlertTriangle,
@@ -53,6 +54,7 @@ import {
   Check,
   X,
   Download,
+  ChevronLeft,
 } from 'lucide-react';
 import { exportToPDF } from '@/lib/export-pdf';
 
@@ -62,8 +64,8 @@ interface MovimentacaoEstoque {
   produtoNome: string;
   tipo: 'entrada' | 'saida' | 'ajuste';
   quantidade: number;
-  estoqueAnterior: number;
-  estoqueNovo: number;
+  estoqueAnterior?: number;
+  estoqueNovo?: number;
   observacao?: string;
   fornecedor?: string;
   documentoRef?: string;
@@ -167,16 +169,16 @@ export default function EstoquePage() {
         const movimentacoes = (data || []).map(item => ({
           id: item.id,
           produtoId: item.produto_id,
-          produtoNome: item.produto_nome,
+          produtoNome: item.produto_nome || '-',
           tipo: item.tipo,
           quantidade: item.quantidade,
-          estoqueAnterior: item.estoque_anterior,
-          estoqueNovo: item.estoque_novo,
-          observacao: item.observacao,
-          fornecedor: item.fornecedor,
-          documentoRef: item.documento_ref,
-          criadoPor: item.criado_por,
-          criadoPorNome: item.criado_por_nome,
+          estoqueAnterior: item.estoque_anterior ?? undefined,
+          estoqueNovo: item.estoque_novo ?? undefined,
+          observacao: item.observacao ?? undefined,
+          fornecedor: item.fornecedor ?? undefined,
+          documentoRef: item.documento_ref ?? undefined,
+          criadoPor: item.criado_por || item.usuario_id || '-',
+          criadoPorNome: item.criado_por_nome || item.usuario_nome || '-',
           criadoEm: item.criado_em ? new Date(item.criado_em) : undefined,
         })) as MovimentacaoEstoque[];
         
@@ -337,25 +339,24 @@ export default function EstoquePage() {
         estoqueAtual: estoqueNovo,
       });
 
-      // Registrar movimentação
+      // Registrar movimentação (base schema columns only)
+      const obsPartes: string[] = [];
+      if (fornecedorResolvido) obsPartes.push(`Fornecedor: ${fornecedorResolvido}`);
+      if (documentoRef) obsPartes.push(`Doc: ${documentoRef}`);
+      if (tipoEntrada === 'caixa') obsPartes.push(`Entrada: ${qtdInformada} caixas`);
+      const observacaoFinal = [observacao || '', obsPartes.join('; ')].filter(Boolean).join(' | ') || null;
+
       const { error } = await supabase
         .from('estoque_movimentos')
         .insert({
           empresa_id: empresaId,
           produto_id: produtoSelecionado.id,
-          produto_nome: produtoSelecionado.nome,
           tipo: 'entrada',
           quantidade: qtd,
-          quantidade_informada: qtdInformada,
-          tipo_entrada: tipoEntrada,
-          estoque_anterior: estoqueAnterior,
-          estoque_novo: estoqueNovo,
-          fornecedor: fornecedorResolvido || null,
-          documento_ref: documentoRef || null,
-          observacao: observacao || null,
-          criado_por: user?.id,
-          criado_por_nome: user?.nome,
-          criado_em: new Date().toISOString(),
+          preco_unitario: null,
+          observacao: observacaoFinal,
+          usuario_id: user?.id,
+          usuario_nome: user?.nome,
         });
       
       if (error) throw error;
@@ -391,24 +392,19 @@ export default function EstoquePage() {
     try {
       const movimentos = itensValidos.map(item => {
         const qtd = parseFloat(item.quantidade);
-        const estoqueAnterior = item.estoqueAtual;
-        const estoqueNovo = estoqueAnterior + qtd;
+        const obsPartes: string[] = [];
+        if (loteFornecedorResolvido) obsPartes.push(`Fornecedor: ${loteFornecedorResolvido}`);
+        if (loteDocumentoRef) obsPartes.push(`Doc: ${loteDocumentoRef}`);
+        const observacaoFinal = [loteObservacao || '', obsPartes.join('; ')].filter(Boolean).join(' | ') || null;
         return {
           empresa_id: empresaId,
           produto_id: item.produtoId,
-          produto_nome: item.produtoNome,
           tipo: 'entrada',
           quantidade: qtd,
-          quantidade_informada: qtd,
-          tipo_entrada: 'unidade',
-          estoque_anterior: estoqueAnterior,
-          estoque_novo: estoqueNovo,
-          fornecedor: loteFornecedorResolvido || null,
-          documento_ref: loteDocumentoRef || null,
-          observacao: loteObservacao || null,
-          criado_por: user?.id,
-          criado_por_nome: user?.nome,
-          criado_em: new Date().toISOString(),
+          preco_unitario: null,
+          observacao: observacaoFinal,
+          usuario_id: user?.id,
+          usuario_nome: user?.nome,
         };
       });
 
@@ -465,21 +461,18 @@ export default function EstoquePage() {
         estoqueAtual: estoqueNovo,
       });
 
-      // Registrar movimentação
+      // Registrar movimentação (base schema columns only)
       const { error } = await supabase
         .from('estoque_movimentos')
         .insert({
           empresa_id: empresaId,
           produto_id: produtoSelecionado.id,
-          produto_nome: produtoSelecionado.nome,
           tipo: 'saida',
           quantidade: qtd,
-          estoque_anterior: estoqueAnterior,
-          estoque_novo: estoqueNovo,
+          preco_unitario: null,
           observacao: observacao || null,
-          criado_por: user?.id,
-          criado_por_nome: user?.nome,
-          criado_em: new Date().toISOString(),
+          usuario_id: user?.id,
+          usuario_nome: user?.nome,
         });
       
       if (error) throw error;
@@ -623,11 +616,18 @@ export default function EstoquePage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Controle de Estoque</h1>
-              <p className="text-muted-foreground">
-                Gerencie o estoque do seu estabelecimento
-              </p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Controle de Estoque</h1>
+                <p className="text-muted-foreground">
+                  Gerencie o estoque do seu estabelecimento
+                </p>
+              </div>
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <Button 
@@ -1024,12 +1024,12 @@ export default function EstoquePage() {
               )}
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogEntrada(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setDialogEntrada(false)} className="w-full sm:w-auto">
                 Cancelar
               </Button>
               <Button 
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                 onClick={registrarEntrada}
                 disabled={saving || !quantidade || parseFloat(quantidade) <= 0}
               >
@@ -1233,12 +1233,12 @@ export default function EstoquePage() {
               </div>
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogLote(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setDialogLote(false)} className="w-full sm:w-auto">
                 Cancelar
               </Button>
               <Button 
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
                 onClick={registrarEntradaLote}
                 disabled={saving || loteItens.filter(i => i.quantidade && parseFloat(i.quantidade) > 0).length === 0}
               >
@@ -1304,12 +1304,13 @@ export default function EstoquePage() {
               )}
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogSaida(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setDialogSaida(false)} className="w-full sm:w-auto">
                 Cancelar
               </Button>
               <Button 
                 variant="destructive"
+                className="w-full sm:w-auto"
                 onClick={registrarSaida}
                 disabled={saving || !quantidade || parseFloat(quantidade) <= 0 || parseFloat(quantidade) > (produtoSelecionado?.estoqueAtual || 0)}
               >
@@ -1372,10 +1373,10 @@ export default function EstoquePage() {
                           {mov.quantidade}
                         </TableCell>
                         <TableCell className="text-center text-muted-foreground">
-                          {mov.estoqueAnterior}
+                          {mov.estoqueAnterior ?? '-'}
                         </TableCell>
                         <TableCell className="text-center font-bold">
-                          {mov.estoqueNovo}
+                          {mov.estoqueNovo ?? '-'}
                         </TableCell>
                         <TableCell className="text-sm max-w-[200px]">
                           <div className="space-y-0.5">

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -66,6 +67,7 @@ import {
   Clock,
   TrendingUp,
   ArrowDownCircle,
+  ChevronLeft,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -408,11 +410,18 @@ export default function ServicosPage() {
         <div className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Serviços</h1>
-              <p className="text-muted-foreground">
-                Gerencie o catálogo de serviços do seu estabelecimento
-              </p>
+            <div className="flex items-center gap-3">
+              <Link href="/admin/dashboard">
+                <Button variant="ghost" size="icon" className="h-8 w-8">
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+              </Link>
+              <div>
+                <h1 className="text-3xl font-bold">Serviços</h1>
+                <p className="text-muted-foreground">
+                  Gerencie o catálogo de serviços do seu estabelecimento
+                </p>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button onClick={handleNovo} className="bg-blue-600 hover:bg-blue-700">

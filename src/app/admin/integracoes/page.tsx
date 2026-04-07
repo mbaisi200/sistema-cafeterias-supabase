@@ -11,6 +11,7 @@ import {
   ExternalLink, 
   CheckCircle2, 
   XCircle, 
+  ChevronLeft,
   ArrowRight,
   ShoppingCart,
   Bike,
@@ -207,16 +208,23 @@ function IntegracoesContent() {
   return (
       <div className="space-y-6">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">Integrações</h1>
-        <p className="text-muted-foreground mt-2">
-          Conecte seu sistema com as principais plataformas de delivery e pagamento do mercado
-        </p>
-        {empresaNome && (
-          <p className="text-sm text-muted-foreground mt-1">
-            Empresa: <strong>{empresaNome}</strong>
+      <div className="flex items-center gap-3 mb-8">
+        <Link href="/admin/dashboard">
+          <Button variant="ghost" size="icon" className="h-8 w-8">
+            <ChevronLeft className="h-5 w-5" />
+          </Button>
+        </Link>
+        <div>
+          <h1 className="text-3xl font-bold">Integrações</h1>
+          <p className="text-muted-foreground mt-2">
+            Conecte seu sistema com as principais plataformas de delivery e pagamento do mercado
           </p>
-        )}
+          {empresaNome && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Empresa: <strong>{empresaNome}</strong>
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Integrações disponíveis */}
