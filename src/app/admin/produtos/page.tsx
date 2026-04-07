@@ -38,7 +38,8 @@ import {
 import { useProdutos, useCategorias, useCombos } from '@/hooks/useSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState, useEffect } from 'react';
+import { getSupabaseClient } from '@/lib/supabase';
+import { useState, useEffect, useRef } from 'react';
 import {
   Plus,
   Search,
@@ -62,6 +63,9 @@ import {
   Settings2,
   Download,
   ChevronLeft,
+  Camera,
+  ImageIcon,
+  Upload,
 } from 'lucide-react';
 import Link from 'next/link';
 import { exportToPDF, formatCurrencyPDF } from '@/lib/export-pdf';
@@ -136,6 +140,103 @@ export default function ProdutosPage() {
   const [comboItensState, setComboItensState] = useState<Array<{ itemProdutoId: string; quantidade: number; custoIncluido: boolean }>>([]);
   const [savingCombo, setSavingCombo] = useState(false);
   const [comboSearch, setComboSearch] = useState('');
+
+  // Estado de foto do produto
+  const [produtoFoto, setProdutoFoto] = useState<string | null>(null);
+  const [fotoUploading, setFotoUploading] = useState(false);
+  const [fotoDeleting, setFotoDeleting] = useState(false);
+  const [fotoError, setFotoError] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Carregar foto do produto ao abrir dialog de edição
+  useEffect(() => {
+    if (editandoProduto && dialogOpen) {
+      setProdutoFoto(null);
+      setFotoError(false);
+      loadProdutoFoto(editandoProduto.id);
+    } else if (!dialogOpen) {
+      setProdutoFoto(null);
+      setFotoError(false);
+    }
+  }, [editandoProduto, dialogOpen]);
+
+  const loadProdutoFoto = async (produtoId: string) => {
+    if (!empresaId) return;
+    try {
+      const supabase = getSupabaseClient();
+      const { data } = await supabase
+        .from('produtos')
+        .select('foto')
+        .eq('id', produtoId)
+        .single();
+      if (data?.foto) setProdutoFoto(data.foto);
+    } catch (error) {
+      console.error('Erro ao carregar foto:', error);
+    }
+  };
+
+  const handleFotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !editandoProduto || !empresaId) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ variant: 'destructive', title: 'Tipo inválido. Use JPEG, PNG, WebP ou GIF.' });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ variant: 'destructive', title: 'Arquivo muito grande. Máximo: 5MB.' });
+      return;
+    }
+
+    setFotoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('empresaId', empresaId);
+      formData.append('produtoId', editandoProduto.id);
+
+      const res = await fetch('/api/produto-imagem', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (data.success) {
+        setProdutoFoto(data.url);
+        setFotoError(false);
+        toast({ title: 'Foto atualizada!' });
+      } else {
+        toast({ variant: 'destructive', title: data.error || 'Erro ao enviar foto' });
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro de conexão ao enviar foto' });
+    } finally {
+      setFotoUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFotoRemove = async () => {
+    if (!editandoProduto || !empresaId) return;
+    setFotoDeleting(true);
+    try {
+      const res = await fetch('/api/produto-imagem', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId, produtoId: editandoProduto.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProdutoFoto(null);
+        setFotoError(false);
+        toast({ title: 'Foto removida!' });
+      } else {
+        toast({ variant: 'destructive', title: data.error || 'Erro ao remover foto' });
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro de conexão ao remover foto' });
+    } finally {
+      setFotoDeleting(false);
+    }
+  };
 
   const loading = loadingProdutos || loadingCategorias;
 
@@ -486,6 +587,76 @@ export default function ProdutosPage() {
                     {/* TAB: Dados Gerais */}
                     <TabsContent value="geral" className="mt-4">
                       <div className="grid gap-4 py-2">
+                        {/* Foto do Produto */}
+                        <div className="space-y-2">
+                          <Label>Foto do Produto</Label>
+                          <div className="flex items-center gap-4">
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/jpeg,image/png,image/webp,image/gif"
+                              className="hidden"
+                              onChange={handleFotoUpload}
+                            />
+                            {editandoProduto ? (
+                              <button
+                                type="button"
+                                className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-dashed border-muted-foreground/30 hover:border-primary transition-colors flex items-center justify-center bg-muted/20 flex-shrink-0"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={fotoUploading || fotoDeleting}
+                              >
+                                {fotoUploading || fotoDeleting ? (
+                                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                                ) : produtoFoto && !fotoError ? (
+                                  <img
+                                    src={produtoFoto}
+                                    alt="Foto do produto"
+                                    className="w-full h-full object-cover"
+                                    onError={() => setFotoError(true)}
+                                  />
+                                ) : (
+                                  <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                                    <Camera className="h-6 w-6" />
+                                    <span className="text-[10px]">Adicionar foto</span>
+                                  </div>
+                                )}
+                                {!fotoUploading && !fotoDeleting && (
+                                  <div className="absolute inset-0 bg-black/40 opacity-0 hover:opacity-100 transition-opacity flex items-center justify-center">
+                                    <Upload className="h-5 w-5 text-white" />
+                                  </div>
+                                )}
+                              </button>
+                            ) : (
+                              <div className="w-24 h-24 rounded-lg border-2 border-dashed border-muted-foreground/20 flex items-center justify-center bg-muted/10 flex-shrink-0">
+                                <div className="flex flex-col items-center gap-1 text-muted-foreground/50">
+                                  <ImageIcon className="h-6 w-6" />
+                                  <span className="text-[10px]">Salve primeiro</span>
+                                </div>
+                              </div>
+                            )}
+                            <div className="flex flex-col gap-2">
+                              <p className="text-xs text-muted-foreground">
+                                {produtoFoto ? 'Clique na imagem para trocar a foto' : 'Clique no quadro para adicionar uma foto ao produto'}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                Formatos: JPEG, PNG, WebP, GIF — Máximo: 5MB
+                              </p>
+                              {produtoFoto && editandoProduto && (
+                                <Button
+                                  type="button"
+                                  variant="destructive"
+                                  size="sm"
+                                  className="w-fit"
+                                  onClick={handleFotoRemove}
+                                  disabled={fotoDeleting}
+                                >
+                                  {fotoDeleting ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Trash2 className="h-3 w-3 mr-1" />}
+                                  Remover foto
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="nome">Nome</Label>
