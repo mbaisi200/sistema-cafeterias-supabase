@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Retornar dados do funcionário
-    return NextResponse.json({
+    // Retornar dados do funcionário com cookie para o middleware
+    const response = NextResponse.json({
       funcionario: {
         id: funcionario.id,
         nome: funcionario.nome,
@@ -112,6 +112,18 @@ export async function POST(request: NextRequest) {
         },
       },
     });
+
+    // Definir cookie para o middleware reconhecer o funcionário autenticado
+    // Cookie válido por 24 horas, NÃO HttpOnly para client poder verificar
+    response.cookies.set('func_auth', 'true', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24, // 24 horas
+      path: '/',
+    });
+
+    return response;
   } catch (error) {
     console.error('Erro no login de funcionário:', error);
     return NextResponse.json(
@@ -119,4 +131,17 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// DELETE: Limpar cookie de autenticação do funcionário (logout)
+export async function DELETE() {
+  const response = NextResponse.json({ success: true });
+  response.cookies.set('func_auth', '', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 0,
+    path: '/',
+  });
+  return response;
 }

@@ -65,6 +65,10 @@ export async function middleware(request: NextRequest) {
     error,
   } = await supabase.auth.getUser()
 
+  // Verificar se funcionário está autenticado via cookie (PIN login)
+  const funcAuthCookie = request.cookies.get('func_auth')?.value
+  const isFuncionarioAuth = funcAuthCookie === 'true'
+
   // Rotas públicas que não precisam de autenticação
   const publicRoutes = ['/', '/recuperar-senha', '/setup-master', '/diagnostico']
   const isPublicRoute = publicRoutes.some(route =>
@@ -72,7 +76,8 @@ export async function middleware(request: NextRequest) {
   )
 
   // Se há erro de autenticação ou usuário null em rota protegida
-  if ((!user || error) && !isPublicRoute) {
+  // MAS se o funcionário está autenticado via cookie, permitir acesso
+  if ((!user || error) && !isPublicRoute && !isFuncionarioAuth) {
     console.log('🚪 Middleware: Sessão inválida, redirecionando para login')
     const url = request.nextUrl.clone()
     url.pathname = '/'

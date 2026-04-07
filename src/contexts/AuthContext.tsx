@@ -133,9 +133,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   // Carregar sessão do funcionário do localStorage
+  // Só restaura se o cookie func_auth também existir (evita loop com middleware)
   const loadFuncionarioSession = (): User | null => {
     if (typeof window === 'undefined') return null;
     try {
+      // Verificar se o cookie de autenticação do funcionário existe
+      const hasCookie = document.cookie.split(';').some(c => c.trim().startsWith('func_auth='));
+      if (!hasCookie) {
+        // Cookie expirou ou não existe, limpar localStorage para evitar loop
+        localStorage.removeItem(FUNCIONARIO_SESSION_KEY);
+        return null;
+      }
+
       const sessionStr = localStorage.getItem(FUNCIONARIO_SESSION_KEY);
       if (sessionStr) {
         const parsed = JSON.parse(sessionStr);
@@ -463,6 +472,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    // Limpar cookie de autenticação do funcionário
+    try {
+      await fetch('/api/funcionario-login', { method: 'DELETE' });
+    } catch {
+      // Ignorar erro ao limpar cookie
+    }
     await getSupabase().auth.signOut();
     setSession(null);
     setSupabaseUser(null);
