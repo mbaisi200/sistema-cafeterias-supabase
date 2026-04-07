@@ -69,6 +69,14 @@ interface Dispositivo {
   atualizado_em: string;
 }
 
+// Verifica se um dispositivo pertence a um funcionário (não está na tabela usuarios)
+function isFuncionarioDevice(usuarioId: string | null): boolean {
+  if (!usuarioId) return false;
+  // Funcionários têm UUID na tabela funcionarios, não na usuarios
+  // IDs de funcionários geralmente não correspondem a auth.users
+  return true; // Se chegou aqui via login de funcionário, é funcionário
+}
+
 export default function DispositivosPage() {
   const { empresaId, role } = useAuth();
   const { toast } = useToast();
@@ -215,11 +223,11 @@ export default function DispositivosPage() {
     }
   };
 
-  // Stats
+  // Stats - diferenciar pendentes (nunca aprovados) de revogados (já foram ativos)
   const totalDevices = devices.length;
   const ativosDevices = devices.filter(d => d.ativo).length;
-  const revogadosDevices = devices.filter(d => !d.ativo).length;
-  const pendentesDevices = devices.filter(d => !d.ativo).length;
+  const pendentesDevices = devices.filter(d => !d.ativo && new Date(d.criado_em).getTime() === new Date(d.atualizado_em).getTime()).length;
+  const revogadosDevices = devices.filter(d => !d.ativo && new Date(d.criado_em).getTime() !== new Date(d.atualizado_em).getTime()).length;
 
   // Format date
   const formatDate = (dateStr: string) => {
@@ -238,21 +246,34 @@ export default function DispositivosPage() {
     }
   };
 
-  // Get status badge
-  const getStatusBadge = (ativo: boolean, criadoEm: string) => {
-    // If not active and was just created (never been active), it's "pending"
-    if (!ativo) {
+  // Get status badge - diferenciar Pendente de Revogado
+  const getStatusBadge = (ativo: boolean, criadoEm: string, atualizadoEm: string) => {
+    if (ativo) {
       return (
-        <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
-          <ShieldAlert className="h-3 w-3 mr-1" />
-          Pendente
+        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+          <ShieldCheck className="h-3 w-3 mr-1" />
+          Ativo
+        </Badge>
+      );
+    }
+    // Se criado_em === atualizado_em, nunca foi modificado = Pendente (nunca aprovado)
+    // Se criado_em !== atualizado_em, foi modificado = Revogado (já foi aprovado e depois revogado)
+    const criado = new Date(criadoEm).getTime();
+    const atualizado = new Date(atualizadoEm).getTime();
+    const isRevogado = criado !== atualizado;
+
+    if (isRevogado) {
+      return (
+        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
+          <ShieldX className="h-3 w-3 mr-1" />
+          Revogado
         </Badge>
       );
     }
     return (
-      <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-        <ShieldCheck className="h-3 w-3 mr-1" />
-        Ativo
+      <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
+        <ShieldAlert className="h-3 w-3 mr-1" />
+        Pendente
       </Badge>
     );
   };
@@ -315,7 +336,7 @@ export default function DispositivosPage() {
                     <p className="text-xs text-muted-foreground mt-1">
                       {restringir
                         ? 'Novos dispositivos serão bloqueados até que um administrador os aprove manualmente. Funcionários não poderão acessar de dispositivos não registrados.'
-                        : 'Novos dispositivos serão registrados automaticamente. Você pode revogar dispositivos individualmente a qualquer momento.'
+                        : 'Dispositivos de funcionários sempre precisam de aprovação do administrador. Dispositivos de admin são registrados automaticamente.'
                       }
                     </p>
                   </div>
@@ -458,7 +479,7 @@ export default function DispositivosPage() {
                             </span>
                           </TableCell>
                           <TableCell>
-                            {getStatusBadge(device.ativo, device.criado_em)}
+                            {getStatusBadge(device.ativo, device.criado_em, device.atualizado_em)}
                           </TableCell>
                           <TableCell className="text-right">
                             <DropdownMenu>

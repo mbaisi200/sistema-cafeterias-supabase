@@ -348,7 +348,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Função auxiliar para verificação de dispositivo
-  const verifyDevice = async (empresaId: string, usuarioId: string, usuarioNome: string): Promise<void> => {
+  const verifyDevice = async (empresaId: string, usuarioId: string, usuarioNome: string, isFuncionario = false): Promise<void> => {
     try {
       const { getDeviceId, getDeviceName } = await import('@/lib/device-fingerprint');
       const deviceId = getDeviceId();
@@ -365,6 +365,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           userAgent,
           usuarioId,
           usuarioNome,
+          isFuncionario,
         }),
       });
 
@@ -458,10 +459,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!userData.ativo) {
       throw new Error('Seu acesso foi desativado.');
     }
-    // Device check
+    // Device check - funcionários SEMPRE exigem aprovação de novo dispositivo
     if (userData.empresaId) {
       try {
-        await verifyDevice(userData.empresaId, userData.id, userData.nome);
+        await verifyDevice(userData.empresaId, userData.id, userData.nome, true);
       } catch (deviceError) {
         clearFuncionarioSession();
         throw deviceError;

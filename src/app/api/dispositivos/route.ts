@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { empresaId, deviceId, deviceName, userAgent, usuarioId, usuarioNome } = body;
+    const { empresaId, deviceId, deviceName, userAgent, usuarioId, usuarioNome, isFuncionario } = body;
 
     if (!empresaId || !deviceId) {
       return NextResponse.json(
@@ -105,7 +105,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Empresa não encontrada' }, { status: 404 });
     }
 
-    const restringir = empresa?.restringir_dispositivos || false;
+    // Funcionários SEMPRE precisam de aprovação do admin para novos dispositivos
+    // Admins seguem a flag restringir_dispositivos da empresa
+    const restringir = isFuncionario ? true : (empresa?.restringir_dispositivos || false);
 
     // Check if device_id already exists for this empresa
     const { data: existingDevice, error: searchError } = await supabase
@@ -167,7 +169,7 @@ export async function POST(request: NextRequest) {
       device_id: deviceId,
       device_name: deviceName || null,
       user_agent: userAgent || null,
-      ativo: !restringir, // If restriction enabled, register as inactive
+      ativo: !restringir, // Funcionários sempre false; Admins dependem da flag
       ultimo_acesso: new Date().toISOString(),
     };
 
@@ -183,7 +185,9 @@ export async function POST(request: NextRequest) {
     if (restringir) {
       return NextResponse.json({
         allowed: false,
-        message: 'Novo dispositivo detectado. Aguardando aprovação do administrador.',
+        message: isFuncionario
+          ? 'Novo dispositivo detectado. Solicite ao administrador que autorize este equipamento para acesso como funcionário.'
+          : 'Novo dispositivo detectado. Aguardando aprovação do administrador.',
       });
     }
 
