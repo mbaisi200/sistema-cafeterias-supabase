@@ -2,7 +2,7 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProdutos, useCategorias, useCaixa, registrarLog } from '@/hooks/useFirestore';
+import { useProdutos, useCategorias, useCaixa, registrarLog } from '@/hooks/useSupabase';
 import { CupomFiscalModal, imprimirCupomFiscal, DadosCupomFiscal } from '@/components/pdv/CupomFiscal';
 import { BuscaCliente, ClienteEncontrado } from '@/components/pdv/BuscaCliente';
 import { Badge } from '@/components/ui/badge';

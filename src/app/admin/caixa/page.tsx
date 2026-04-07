@@ -18,7 +18,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { useCaixa } from '@/hooks/useFirestore';
+import { useCaixa } from '@/hooks/useSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import {

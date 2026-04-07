@@ -21,7 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useLogs } from '@/hooks/useFirestore';
+import { useLogs } from '@/hooks/useSupabase';
 import { useState } from 'react';
 import {
   Search,

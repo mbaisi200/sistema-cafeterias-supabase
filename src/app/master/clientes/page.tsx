@@ -34,7 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useEmpresas } from '@/hooks/useFirestore';
+import { useEmpresas } from '@/hooks/useSupabase';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useState, useEffect } from 'react';
 import {

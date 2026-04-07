@@ -2,7 +2,7 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useVendas, useProdutos, useCategorias, useMovimentacoesBI } from '@/hooks/useFirestore';
+import { useVendas, useProdutos, useCategorias, useMovimentacoesBI } from '@/hooks/useSupabase';
 import { useBIData } from '@/hooks/useBIData';
 import { KPICards } from '@/components/bi/KPICards';
 import { FiltrosBI } from '@/components/bi/FiltrosBI';

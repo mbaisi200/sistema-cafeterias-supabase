@@ -27,7 +27,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useMesas } from '@/hooks/useFirestore';
+import { useMesas } from '@/hooks/useSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import {

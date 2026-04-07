@@ -3,7 +3,7 @@
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useEmpresas } from '@/hooks/useFirestore';
+import { useEmpresas } from '@/hooks/useSupabase';
 import { Loader2 } from 'lucide-react';
 
 export default function MetricasPage() {

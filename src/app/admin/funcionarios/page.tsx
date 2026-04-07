@@ -33,7 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useFuncionarios } from '@/hooks/useFirestore';
+import { useFuncionarios } from '@/hooks/useSupabase';
 import { useState, useEffect } from 'react';
 import {
   Plus,

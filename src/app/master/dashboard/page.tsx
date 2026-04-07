@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/contexts/AuthContext';
-import { useEmpresas } from '@/hooks/useFirestore';
+import { useEmpresas } from '@/hooks/useSupabase';
 import {
   Users,
   Building2,

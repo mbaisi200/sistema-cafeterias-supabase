@@ -3,7 +3,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useConfiguracoesCupom, configuracoesCupomPadrao, ConfiguracoesCupom } from '@/hooks/useFirestore';
+import { useConfiguracoesCupom, configuracoesCupomPadrao, ConfiguracoesCupom } from '@/hooks/useSupabase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

@@ -24,7 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { useCategorias, useProdutos } from '@/hooks/useFirestore';
+import { useCategorias, useProdutos } from '@/hooks/useSupabase';
 import { useState } from 'react';
 import {
   Plus,

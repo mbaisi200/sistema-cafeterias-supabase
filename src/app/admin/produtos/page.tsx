@@ -35,7 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useProdutos, useCategorias, useCombos } from '@/hooks/useFirestore';
+import { useProdutos, useCategorias, useCombos } from '@/hooks/useSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';

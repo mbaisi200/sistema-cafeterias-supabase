@@ -32,7 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { useVendas, useContas } from '@/hooks/useFirestore';
+import { useVendas, useContas } from '@/hooks/useSupabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useMemo } from 'react';
 import {

@@ -50,7 +50,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useFornecedores } from '@/hooks/useFirestore';
+import { useFornecedores } from '@/hooks/useSupabase';
 import { useState, useEffect } from 'react';
 import {
   Plus,

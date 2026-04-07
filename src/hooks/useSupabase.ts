@@ -92,7 +92,7 @@ export function useProdutos() {
     }
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (channel) channel.unsubscribe();
     };
   }, [carregarDados]);
 
@@ -298,7 +298,7 @@ export function useCategorias() {
     }
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (channel) channel.unsubscribe();
     };
   }, [carregarDados]);
 
@@ -410,8 +410,8 @@ export function useMesas() {
     }
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
-      if (pedidosTempChannel) supabase.removeChannel(pedidosTempChannel);
+      if (channel) channel.unsubscribe();
+      if (pedidosTempChannel) pedidosTempChannel.unsubscribe();
     };
   }, [carregarDados]);
 
@@ -518,7 +518,7 @@ export function useFuncionarios() {
     }
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (channel) channel.unsubscribe();
     };
   }, [carregarDados]);
 
@@ -689,7 +689,7 @@ export function useVendas() {
     }
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (channel) channel.unsubscribe();
     };
   }, [carregarDados]);
 
@@ -2129,7 +2129,7 @@ export function useFornecedores() {
     }
 
     return () => {
-      if (channel) supabase.removeChannel(channel);
+      if (channel) channel.unsubscribe();
     };
   }, [carregarDados]);
 

@@ -34,7 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { useProdutos, useCategorias } from '@/hooks/useFirestore';
+import { useProdutos, useCategorias } from '@/hooks/useSupabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -208,7 +208,7 @@ export default function NFeImportarPage() {
   const verificarFornecedorExistente = async (cnpj: string) => {
     setVerificandoFornecedor(true);
     try {
-      const { buscarFornecedorPorCNPJ } = await import('@/hooks/useFirestore');
+      const { buscarFornecedorPorCNPJ } = await import('@/hooks/useSupabase');
       const fornecedor = await buscarFornecedorPorCNPJ(empresaId || '', cnpj);
       setFornecedorEncontrado(fornecedor || null);
     } catch {
