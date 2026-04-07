@@ -197,7 +197,9 @@ export async function POST(request: NextRequest) {
         try {
           if (item.status === 'novo') {
             // ---- CRIAR NOVO PRODUTO COM TODOS OS DADOS FISCAIS ----
-            const precoCusto = item.valorUnitario || 0;
+            const precoCustoCaixa = item.valorUnitario || 0;
+            const unidadesPorCaixa = item.unidadesPorCaixa || 0;
+            const precoCusto = unidadesPorCaixa > 0 ? precoCustoCaixa / unidadesPorCaixa : precoCustoCaixa;
             const precoVenda = item.precoVenda || (precoCusto * (1 + (opcoes.markupPercentual || 30) / 100));
 
             const { data: novoProduto, error: errorProduto } = await supabase
@@ -290,7 +292,8 @@ export async function POST(request: NextRequest) {
 
             // Atualizar custo
             if (item.valorUnitario) {
-              updateData.custo = item.valorUnitario;
+              const unidadesPorCaixa = item.unidadesPorCaixa || 0;
+              updateData.custo = unidadesPorCaixa > 0 ? item.valorUnitario / unidadesPorCaixa : item.valorUnitario;
             }
 
             // Aplicar markup ao preço de venda se fornecido
@@ -373,7 +376,7 @@ export async function POST(request: NextRequest) {
                 tipo_entrada: item.unidadesPorCaixa > 0 ? 'caixa' : 'unidade',
                 estoque_anterior: estoqueAnterior,
                 estoque_novo: estoqueNovo,
-                preco_unitario: item.valorUnitario || 0,
+                preco_unitario: (item.unidadesPorCaixa || 0) > 0 ? (item.valorUnitario || 0) / (item.unidadesPorCaixa || 1) : (item.valorUnitario || 0),
                 fornecedor: resultado.fornecedorNome || nfeData.emitente?.nome || null,
                 documento_ref: `NFe ${nfeData.numero}/${nfeData.serie}`,
                 observacao,
@@ -443,9 +446,10 @@ export async function POST(request: NextRequest) {
     // ========================================
     // 4. REGISTRAR IMPORTAÇÃO DA NFE
     // ========================================
+    let nfeImportadaId: string | null = null;
     if (nfeData.chaveAcesso) {
       try {
-        const { error: errorRegistro } = await supabase.from('nfe_importadas').insert({
+        const { data: nfeRegistro, error: errorRegistro } = await supabase.from('nfe_importadas').insert({
           empresa_id: empresaId,
           chave_acesso: nfeData.chaveAcesso,
           numero: nfeData.numero || null,
@@ -458,14 +462,38 @@ export async function POST(request: NextRequest) {
           importado_por: userId || null,
           importado_por_nome: userName || null,
           criado_em: new Date().toISOString(),
-        });
+        }).select('id').single();
         if (errorRegistro) {
           console.error('Erro ao registrar NFe importada:', errorRegistro.message);
-          // Não bloqueia a importação, apenas registra o erro
           resultado.erros.push(`Aviso: não foi possível registrar a NFe importada (${errorRegistro.message})`);
+        } else if (nfeRegistro) {
+          nfeImportadaId = nfeRegistro.id;
         }
       } catch (err: any) {
         console.error('Erro ao registrar NFe importada:', err.message);
+      }
+    }
+
+    // ========================================
+    // 5. VINCULAR REGISTROS COM nfe_importada_id
+    // ========================================
+    if (nfeImportadaId) {
+      const documentoRef = `NFe ${nfeData.numero}/${nfeData.serie}`;
+
+      // 5a. Vincular movimentações de estoque
+      await supabase
+        .from('estoque_movimentos')
+        .update({ nfe_importada_id: nfeImportadaId })
+        .eq('empresa_id', empresaId)
+        .eq('documento_ref', documentoRef);
+
+      // 5b. Vincular conta a pagar
+      if (nfeData.chaveAcesso) {
+        await supabase
+          .from('contas')
+          .update({ nfe_importada_id: nfeImportadaId })
+          .eq('empresa_id', empresaId)
+          .like('observacao_pagamento', `%Chave: ${nfeData.chaveAcesso}%`);
       }
     }
 
