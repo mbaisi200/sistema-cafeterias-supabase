@@ -35,6 +35,7 @@ import {
   Smartphone,
   Coffee,
   LogOut,
+  ArrowLeft,
   UtensilsCrossed,
   Package,
   User,
@@ -1085,6 +1086,15 @@ export default function PDVPage() {
         {/* HEADER */}
         <header className="bg-white border-b border-blue-100 px-3 py-1.5 flex items-center justify-between shrink-0 shadow-sm">
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-500 hover:text-blue-600 hover:bg-blue-50"
+              onClick={() => router.push('/admin/dashboard')}
+              title="Voltar ao menu"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
             <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold shadow-sm text-sm">
               {user?.nome?.charAt(0)}
             </div>

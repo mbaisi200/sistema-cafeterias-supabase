@@ -308,6 +308,12 @@ export default function NFePage() {
               </div>
             </div>
             <div className="flex gap-2">
+              <Link href="/admin/nfe/importar">
+                <Button variant="outline" className="gap-2">
+                  <FileUp className="h-4 w-4" />
+                  Importar NF-e
+                </Button>
+              </Link>
               <Button
                 variant="outline"
                 className="gap-2"
