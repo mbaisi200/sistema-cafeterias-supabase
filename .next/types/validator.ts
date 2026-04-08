@@ -272,6 +272,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/admin/os-lavanderia/catalogo/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/admin/os-lavanderia/catalogo">> = Specific
+  const handler = {} as typeof import("../../src/app/admin/os-lavanderia/catalogo/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/admin/os-lavanderia/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/admin/os-lavanderia">> = Specific

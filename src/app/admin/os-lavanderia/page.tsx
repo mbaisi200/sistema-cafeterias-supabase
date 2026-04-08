@@ -46,6 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getSupabaseClient } from '@/lib/supabase';
+import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
 import {
   Plus,
   ChevronLeft,
@@ -70,6 +71,9 @@ import {
   Phone,
   MapPin,
   FileText,
+  DollarSign,
+  BookOpen,
+  FileDown,
 } from 'lucide-react';
 
 // ============================================================
@@ -108,6 +112,7 @@ interface OSLavanderia {
   criadoEm: string;
   criadoPorNome: string;
   dataConclusao: string;
+  vendaId: string;
 }
 
 const TIPOS_SERVICO = [
@@ -177,12 +182,16 @@ export default function OSLavanderiaPage() {
 
   // Data lists
   const [clientes, setClientes] = useState<any[]>([]);
+  const [catalogoItens, setCatalogoItens] = useState<any[]>([]);
+  const [catalogoServicos, setCatalogoServicos] = useState<any[]>([]);
 
   // Load data
   useEffect(() => {
     if (empresaId) {
       loadOrdens();
       loadClientes();
+      loadCatalogoItens();
+      loadCatalogoServicos();
       const now = new Date();
       setFormDataEntrada(now.toISOString().split('T')[0]);
       setFormHoraEntrada(now.toTimeString().slice(0, 5));
@@ -252,6 +261,7 @@ export default function OSLavanderiaPage() {
             criadoEm: o.criado_em || '',
             criadoPorNome: o.criado_por_nome || '',
             dataConclusao: o.data_conclusao || '',
+            vendaId: metadata.vendaId || '',
           };
         });
 
@@ -298,6 +308,32 @@ export default function OSLavanderiaPage() {
         .eq('empresa_id', empresaId)
         .order('nome_razao_social');
       setClientes(data || []);
+    } catch { /* ignore */ }
+  };
+
+  const loadCatalogoItens = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data } = await supabase
+        .from('lavanderia_itens_catalogo')
+        .select('id, descricao, categoria, ativo')
+        .eq('empresa_id', empresaId)
+        .eq('ativo', true)
+        .order('descricao');
+      setCatalogoItens(data || []);
+    } catch { /* ignore */ }
+  };
+
+  const loadCatalogoServicos = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data } = await supabase
+        .from('lavanderia_servicos_catalogo')
+        .select('id, nome, descricao, preco, ativo')
+        .eq('empresa_id', empresaId)
+        .eq('ativo', true)
+        .order('nome');
+      setCatalogoServicos(data || []);
     } catch { /* ignore */ }
   };
 
@@ -500,6 +536,102 @@ export default function OSLavanderiaPage() {
   };
 
   // ============================================================
+  // Faturamento
+  // ============================================================
+  const handleFaturar = async (os: OSLavanderia) => {
+    if (!confirm(`Faturar OS #${os.numero} no valor de ${formatCurrency(os.valorTotal)}? Uma venda será criada no PDV.`)) return;
+    try {
+      const supabase = getSupabase();
+
+      const { data: vendaData, error: vendaError } = await supabase
+        .from('vendas')
+        .insert({
+          empresa_id: empresaId,
+          tipo: 'balcao',
+          canal: 'lavanderia',
+          status: 'fechada',
+          total: os.valorTotal,
+          desconto: 0,
+          cliente_id: os.clienteId || null,
+          nome_cliente: os.clienteNome || null,
+          telefone_cliente: os.clienteTelefone || null,
+          criado_por: user?.id,
+          criado_por_nome: user?.nome,
+          observacao: `Faturamento OS Lavanderia #${os.numero}`,
+          criado_em: new Date().toISOString(),
+          fechado_em: new Date().toISOString(),
+        })
+        .select('id')
+        .single();
+
+      if (vendaError) throw vendaError;
+
+      const itensVenda = (os.itens || []).map(item => ({
+        empresa_id: empresaId,
+        venda_id: vendaData.id,
+        nome: `${item.descricaoPeca} - ${TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label || item.tipoServico}`,
+        quantidade: item.quantidade,
+        preco_unitario: item.valorUnitario,
+        subtotal: item.total,
+        criado_em: new Date().toISOString(),
+      }));
+
+      if (itensVenda.length > 0) {
+        await supabase.from('itens_venda').insert(itensVenda);
+      }
+
+      // Update OS: set vendido_id in metadata, change status to entregue
+      let metadata: any = {};
+      if (os.observacoes) {
+        try {
+          const obsText = os.observacoes;
+          if (obsText.startsWith('[LAVANDERIA]')) {
+            metadata = JSON.parse(obsText.replace('[LAVANDERIA]', '').trim());
+          }
+        } catch { /* ignore */ }
+      }
+      metadata.vendaId = vendaData.id;
+      metadata.vendaNumero = vendaData.id.substring(0, 8);
+
+      await supabase
+        .from('ordens_servico')
+        .update({
+          status: 'aprovada',
+          observacoes: `[LAVANDERIA]${JSON.stringify(metadata)}`,
+        })
+        .eq('id', os.id);
+
+      toast({ title: 'OS faturada!', description: `Venda criada para OS #${os.numero}. ID: ${vendaData.id.substring(0, 8)}` });
+      loadOrdens();
+    } catch (err: any) {
+      console.error('Erro ao faturar OS:', err);
+      toast({ variant: 'destructive', title: 'Erro ao faturar', description: err.message });
+    }
+  };
+
+  // ============================================================
+  // PDF Export
+  // ============================================================
+  const handleExportPDF = () => {
+    exportToPDF({
+      title: 'Ordens de Serviço - Lavanderia',
+      subtitle: `${ordensFiltradas.length} OS encontrada(s)`,
+      columns: [
+        { header: 'Nº OS', accessor: (r: any) => `#${r.numero}`, width: 20 },
+        { header: 'Cliente', accessor: (r: any) => r.clienteNome || '-', width: 50 },
+        { header: 'Peças', accessor: (r: any) => r.totalPecas, width: 20, align: 'center' as const },
+        { header: 'Entrada', accessor: (r: any) => formatDatePDF(r.dataEntrada), width: 25 },
+        { header: 'Previsão', accessor: (r: any) => formatDatePDF(r.dataPrevisao), width: 25 },
+        { header: 'Valor', accessor: (r: any) => formatCurrencyPDF(r.valorTotal), width: 25, align: 'right' as const, totalize: true },
+        { header: 'Status', accessor: (r: any) => STATUS_OPTIONS.find(s => s.value === r.status)?.label || r.status, width: 30 },
+      ],
+      data: ordensFiltradas,
+      filename: `os-lavanderia-${new Date().toISOString().slice(0, 10)}`,
+      totals: { label: 'TOTAL GERAL' },
+    });
+  };
+
+  // ============================================================
   // Edit & Reset
   // ============================================================
   const handleEdit = (os: OSLavanderia) => {
@@ -655,9 +787,12 @@ export default function OSLavanderiaPage() {
   };
 
   const getTipoServicoBadge = (tipo: string) => {
+    // Check if it's a catalog service ID
+    const catalogService = catalogoServicos.find((cs: any) => cs.id === tipo);
+    const label = catalogService?.nome || TIPOS_SERVICO.find(s => s.value === tipo)?.label || tipo;
     return (
       <Badge variant="secondary" className="text-xs">
-        {TIPOS_SERVICO.find(s => s.value === tipo)?.label || tipo}
+        {label}
       </Badge>
     );
   };
@@ -697,6 +832,18 @@ export default function OSLavanderiaPage() {
               <Plus className="h-4 w-4" />
               Nova OS
             </Button>
+            <div className="flex gap-2">
+              <Link href="/admin/os-lavanderia/catalogo">
+                <Button variant="outline" className="gap-2">
+                  <BookOpen className="h-4 w-4" />
+                  Catálogo
+                </Button>
+              </Link>
+              <Button variant="outline" className="gap-2" onClick={handleExportPDF} disabled={ordensFiltradas.length === 0}>
+                <FileDown className="h-4 w-4" />
+                Exportar PDF
+              </Button>
+            </div>
           </div>
 
           {/* Stats Cards */}
@@ -862,6 +1009,16 @@ export default function OSLavanderiaPage() {
                                   <PackageCheck className="h-4 w-4" />
                                 </Button>
                               )}
+                              {(os.status === 'pronta' || os.status === 'entregue') && !os.vendaId && (
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-green-700" onClick={() => handleFaturar(os)} title="Faturar OS">
+                                  <DollarSign className="h-4 w-4" />
+                                </Button>
+                              )}
+                              {os.vendaId && (
+                                <Badge variant="secondary" className="text-[9px] bg-green-100 text-green-700 border-0">
+                                  <DollarSign className="h-2.5 w-2.5 mr-0.5" /> FAT
+                                </Badge>
+                              )}
                             </div>
                           </TableCell>
                         </TableRow>
@@ -1007,14 +1164,23 @@ export default function OSLavanderiaPage() {
                     <Shirt className="h-4 w-4 text-sky-600" />
                     Itens e Serviços
                   </Label>
-                  <Button type="button" variant="outline" size="sm" className="gap-1 text-xs" onClick={adicionarItem}>
-                    <Plus className="h-3 w-3" /> Adicionar Peça
-                  </Button>
+                  <div className="flex gap-2">
+                    <Link href="/admin/os-lavanderia/catalogo" target="_blank">
+                      <Button type="button" variant="ghost" size="sm" className="gap-1 text-xs text-sky-600">
+                        <BookOpen className="h-3 w-3" /> Catálogo
+                      </Button>
+                    </Link>
+                    <Button type="button" variant="outline" size="sm" className="gap-1 text-xs" onClick={adicionarItem}>
+                      <Plus className="h-3 w-3" /> Adicionar Peça
+                    </Button>
+                  </div>
                 </div>
 
                 {itens.length === 0 ? (
                   <p className="text-xs text-muted-foreground bg-muted rounded-lg p-4 text-center">
                     Nenhuma peça adicionada. Clique em &quot;Adicionar Peça&quot; para começar.
+                    <br />
+                    <span className="text-sky-600">Os itens e serviços serão buscados automaticamente do catálogo.</span>
                   </p>
                 ) : (
                   <div className="border rounded-lg overflow-hidden">
@@ -1037,17 +1203,74 @@ export default function OSLavanderiaPage() {
                               <Input type="number" min="1" className="h-8 text-center w-14" value={item.quantidade} onChange={(e) => atualizarItem(idx, 'quantidade', parseInt(e.target.value) || 1)} />
                             </TableCell>
                             <TableCell>
-                              <Input className="h-8" placeholder="Ex: Camisa Social, Calça Jeans..." value={item.descricaoPeca} onChange={(e) => atualizarItem(idx, 'descricaoPeca', e.target.value)} />
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="h-8 w-full justify-start font-normal text-xs">
+                                    {item.descricaoPeca ? item.descricaoPeca : (
+                                      <span className="text-muted-foreground">Buscar item...</span>
+                                    )}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-72 p-0">
+                                  <Command shouldFilter={false}>
+                                    <CommandInput placeholder="Buscar peça no catálogo..." />
+                                    <CommandList>
+                                      <CommandEmpty>
+                                        <div className="p-2">
+                                          <p className="text-xs text-muted-foreground mb-1">Nenhum item encontrado. Digite para cadastrar manualmente:</p>
+                                          <Input className="h-7 text-xs" placeholder="Descrição da peça..." value={item.descricaoPeca} onChange={(e) => atualizarItem(idx, 'descricaoPeca', e.target.value)} autoFocus />
+                                        </div>
+                                      </CommandEmpty>
+                                      <CommandGroup className="max-h-48 overflow-y-auto">
+                                        {catalogoItens.filter((ci: any) =>
+                                          !item.descricaoPeca || ci.descricao.toLowerCase().includes(item.descricaoPeca.toLowerCase())
+                                        ).map((ci: any) => (
+                                          <CommandItem key={ci.id} value={ci.descricao} onSelect={() => atualizarItem(idx, 'descricaoPeca', ci.descricao)}>
+                                            <Shirt className="mr-2 h-3 w-3" />
+                                            <span className="text-xs">{ci.descricao}</span>
+                                            {ci.categoria && <Badge variant="secondary" className="text-[9px] ml-auto">{ci.categoria}</Badge>}
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
                             </TableCell>
                             <TableCell>
-                              <Select value={item.tipoServico} onValueChange={(val) => atualizarItem(idx, 'tipoServico', val)}>
-                                <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                  {TIPOS_SERVICO.map(ts => (
-                                    <SelectItem key={ts.value} value={ts.value}>{ts.label}</SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button variant="outline" className="h-8 w-full justify-start font-normal text-xs">
+                                    {item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : (
+                                      <span className="text-muted-foreground">Serviço...</span>
+                                    )}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-64 p-0">
+                                  <Command shouldFilter={false}>
+                                    <CommandInput placeholder="Buscar serviço..." />
+                                    <CommandList>
+                                      <CommandEmpty>
+                                        <p className="text-xs text-muted-foreground p-2">Nenhum serviço cadastrado.</p>
+                                      </CommandEmpty>
+                                      <CommandGroup className="max-h-48 overflow-y-auto">
+                                        {catalogoServicos.map((cs: any) => (
+                                          <CommandItem key={cs.id} value={cs.nome} onSelect={() => {
+                                            atualizarItem(idx, 'tipoServico', cs.id);
+                                            atualizarItem(idx, 'valorUnitario', parseFloat(cs.preco) || 0);
+                                          }}>
+                                            <Sparkles className="mr-2 h-3 w-3" />
+                                            <div className="flex flex-col">
+                                              <span className="text-xs">{cs.nome}</span>
+                                              <span className="text-[10px] text-green-600">{formatCurrency(parseFloat(cs.preco) || 0)}</span>
+                                            </div>
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    </CommandList>
+                                  </Command>
+                                </PopoverContent>
+                              </Popover>
                             </TableCell>
                             <TableCell>
                               <Input className="h-8 text-xs" placeholder="Manchas, defeitos..." value={item.observacoes} onChange={(e) => atualizarItem(idx, 'observacoes', e.target.value)} />
