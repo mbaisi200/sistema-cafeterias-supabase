@@ -126,6 +126,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
   { title: 'Cupons e NFEs', url: '/admin/cupons-nfes', icon: FileText },
   { title: 'Notas Fiscais', url: '/admin/nfe', icon: FileText },
+  { title: 'Configurações', url: '/admin/configuracoes', icon: Settings },
 ];
 
 // Fallback hardcoded para atalho rápido

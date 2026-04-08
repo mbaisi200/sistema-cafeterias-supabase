@@ -42,7 +42,29 @@ export interface PDFExportOptions {
   };
 }
 
-export function exportToPDF(options: PDFExportOptions) {
+/**
+ * Helper: fetches an image URL and returns a base64 data-URI string.
+ * Returns `null` if the fetch fails or the response is not a valid image.
+ */
+async function loadLogoAsBase64(url: string): Promise<string | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type')?.split(';')[0] ?? '';
+    if (!contentType.startsWith('image/')) return null;
+    const blob = await res.blob();
+    return new Promise<string | null>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string | null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function exportToPDF(options: PDFExportOptions): Promise<void> {
   const {
     title,
     subtitle,
@@ -50,6 +72,7 @@ export function exportToPDF(options: PDFExportOptions) {
     data,
     filename = 'relatorio',
     orientation = 'portrait',
+    logo,
     companyInfo,
     summary,
     footerText,
@@ -67,10 +90,30 @@ export function exportToPDF(options: PDFExportOptions) {
 
   // Logo or company name
   if (companyInfo) {
+    let logoLoaded = false;
+
+    // Try to load and render the logo image if a URL was provided
+    if (logo) {
+      const logoDataUrl = await loadLogoAsBase64(logo);
+      if (logoDataUrl) {
+        const maxW = 25;
+        const maxH = 25;
+        // Detect image format from the data-URI (e.g. "data:image/png;…")
+        const imgFormat = logoDataUrl.match(/data:image\/(\w+);/)?.[1]?.toUpperCase() as 'JPEG' | 'PNG' | 'WEBP' | 'GIF' | undefined;
+        // addImage dimensions are calculated internally by jsPDF;
+        // we pass max dimensions and let it scale proportionally.
+        doc.addImage(logoDataUrl, imgFormat ?? 'JPEG', 14, 10, maxW, maxH);
+        logoLoaded = true;
+      }
+    }
+
+    // When a logo is rendered, shift the text block to the right
+    const textX = logoLoaded ? 45 : 14;
+
     if (companyInfo.name) {
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text(companyInfo.name, 14, y);
+      doc.text(companyInfo.name, textX, y);
       y += 5;
     }
     if (companyInfo.cnpj || companyInfo.phone || companyInfo.email) {
@@ -79,7 +122,7 @@ export function exportToPDF(options: PDFExportOptions) {
       doc.setTextColor(100, 100, 100);
       const infoParts = [companyInfo.cnpj, companyInfo.phone, companyInfo.email].filter(Boolean);
       if (infoParts.length > 0) {
-        doc.text(infoParts.join('  |  '), 14, y);
+        doc.text(infoParts.join('  |  '), textX, y);
         y += 2;
       }
       doc.setTextColor(0, 0, 0);

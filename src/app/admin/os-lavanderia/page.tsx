@@ -184,6 +184,7 @@ export default function OSLavanderiaPage() {
   const [clientes, setClientes] = useState<any[]>([]);
   const [catalogoItens, setCatalogoItens] = useState<any[]>([]);
   const [catalogoServicos, setCatalogoServicos] = useState<any[]>([]);
+  const [empresaData, setEmpresaData] = useState<any>(null);
 
   // Load data
   useEffect(() => {
@@ -192,6 +193,7 @@ export default function OSLavanderiaPage() {
       loadClientes();
       loadCatalogoItens();
       loadCatalogoServicos();
+      loadEmpresaData();
       const now = new Date();
       setFormDataEntrada(now.toISOString().split('T')[0]);
       setFormHoraEntrada(now.toTimeString().slice(0, 5));
@@ -302,13 +304,18 @@ export default function OSLavanderiaPage() {
   const loadClientes = async () => {
     try {
       const supabase = getSupabase();
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('clientes')
-        .select('id, nome_razao_social, nome_fantasia, cnpj_cpf, tipo_pessoa, telefone, email, logradouro, numero, complemento, bairro, cidade, uf, cep')
+        .select('id, nome_razao_social, nome_fantasia, cnpj_cpf, tipo_pessoa, telefone, celular, email, logradouro, numero, complemento, bairro, municipio, uf, cep')
         .eq('empresa_id', empresaId)
         .order('nome_razao_social');
+      if (error) {
+        console.error('Erro ao carregar clientes:', error.message);
+      }
       setClientes(data || []);
-    } catch { /* ignore */ }
+    } catch (err) {
+      console.error('Erro ao carregar clientes:', err);
+    }
   };
 
   const loadCatalogoItens = async () => {
@@ -334,6 +341,18 @@ export default function OSLavanderiaPage() {
         .eq('ativo', true)
         .order('nome');
       setCatalogoServicos(data || []);
+    } catch { /* ignore */ }
+  };
+
+  const loadEmpresaData = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data } = await supabase
+        .from('empresas')
+        .select('nome, nome_marca, cnpj, telefone, email, logradouro, numero, complemento, bairro, cidade, estado, cep, logo_url')
+        .eq('id', empresaId)
+        .single();
+      setEmpresaData(data);
     } catch { /* ignore */ }
   };
 
@@ -612,8 +631,17 @@ export default function OSLavanderiaPage() {
   // ============================================================
   // PDF Export
   // ============================================================
-  const handleExportPDF = () => {
-    exportToPDF({
+  const handleExportPDF = async () => {
+    const empresaNome = empresaData?.nome_marca || empresaData?.nome || '';
+    const empresaCNPJ = empresaData?.cnpj || '';
+    const empresaTelefone = empresaData?.telefone || '';
+    const empresaEmail = empresaData?.email || '';
+    const empresaLogo = empresaData?.logo_url || '';
+
+    const enderecoPartes = [empresaData?.logradouro, empresaData?.numero, empresaData?.complemento, empresaData?.bairro, empresaData?.cidade, empresaData?.estado].filter(Boolean);
+    const empresaEndereco = enderecoPartes.join(', ');
+
+    await exportToPDF({
       title: 'Ordens de Serviço - Lavanderia',
       subtitle: `${ordensFiltradas.length} OS encontrada(s)`,
       columns: [
@@ -628,6 +656,14 @@ export default function OSLavanderiaPage() {
       data: ordensFiltradas,
       filename: `os-lavanderia-${new Date().toISOString().slice(0, 10)}`,
       totals: { label: 'TOTAL GERAL' },
+      companyInfo: empresaNome ? {
+        name: empresaNome,
+        cnpj: empresaCNPJ ? `CNPJ: ${empresaCNPJ}` : undefined,
+        phone: empresaTelefone,
+        email: empresaEmail,
+      } : undefined,
+      logo: empresaLogo || undefined,
+      footerText: empresaEndereco ? `${empresaNome} — ${empresaEndereco}` : undefined,
     });
   };
 
@@ -722,10 +758,21 @@ export default function OSLavanderiaPage() {
     const getTipoLabel = (v: string) => TIPOS_SERVICO.find(t => t.value === v)?.label || v || '-';
     const getStatusLabel = (v: string) => STATUS_OPTIONS.find(s => s.value === v)?.label || v || '-';
 
+    const empNome = empresaData?.nome_marca || empresaData?.nome || 'LAVANDERIA';
+    const empCNPJ = empresaData?.cnpj || '';
+    const empTel = empresaData?.telefone || '';
+    const empEmail = empresaData?.email || '';
+    const empLogo = empresaData?.logo_url || '';
+    const empEndereco = [empresaData?.logradouro, empresaData?.numero, empresaData?.complemento, empresaData?.bairro, empresaData?.cidade, empresaData?.estado].filter(Boolean).join(', ');
+
+    const infoParts = [empCNPJ ? `CNPJ: ${empCNPJ}` : '', empTel, empEmail].filter(Boolean).join(' | ');
+
     return `
       <div class="header">
-        <h1>LAVANDERIA</h1>
-        <p>CNPJ: 00.000.000/0000-00 | Telefone/WhatsApp | Endereço</p>
+        ${empLogo ? `<img src="${empLogo}" style="max-height:50px;max-width:120px;object-fit:contain;margin-bottom:6px;" alt="Logo" onerror="this.style.display='none'" />` : ''}
+        <h1>${empNome}</h1>
+        ${infoParts ? `<p>${infoParts}</p>` : ''}
+        ${empEndereco ? `<p>${empEndereco}</p>` : ''}
       </div>
       <div style="display:flex;justify-content:space-between;margin-bottom:15px;font-size:14px;">
         <div><strong>Nº da OS:</strong> ${os.numero}</div>
@@ -1117,8 +1164,8 @@ export default function OSLavanderiaPage() {
                               onSelect={() => {
                                 setClienteId(c.id);
                                 setClienteNome(c.nome_razao_social || c.nome_fantasia);
-                                setClienteTelefone(c.telefone || '');
-                                const endereco = [c.logradouro, c.numero, c.complemento, c.bairro, c.cidade, c.uf].filter(Boolean).join(', ');
+                                setClienteTelefone(c.celular || c.telefone || '');
+                                const endereco = [c.logradouro, c.numero, c.complemento, c.bairro, c.municipio, c.uf].filter(Boolean).join(', ');
                                 setClienteEndereco(endereco);
                                 setOpenClienteSearch(false);
                                 setClienteSearch('');
