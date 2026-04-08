@@ -188,6 +188,12 @@ export default function OSLavanderiaPage() {
   const [empresaData, setEmpresaData] = useState<any>(null);
   const [precosMap, setPrecosMap] = useState<Record<string, Record<string, number>>>({});
 
+  // Popover control states
+  const [openItemPopover, setOpenItemPopover] = useState(false);
+  const [openServicoPopover, setOpenServicoPopover] = useState(false);
+  const [itemSearch, setItemSearch] = useState('');
+  const [servicoSearch, setServicoSearch] = useState('');
+
   // Load data
   useEffect(() => {
     if (empresaId) {
@@ -1283,36 +1289,43 @@ export default function OSLavanderiaPage() {
                               <Input type="number" min="1" className="h-8 text-center w-14" value={item.quantidade} onChange={(e) => atualizarItem(idx, 'quantidade', parseInt(e.target.value) || 1)} />
                             </TableCell>
                             <TableCell>
-                              <Popover>
+                              <Popover open={openItemPopover} onOpenChange={(open) => { setOpenItemPopover(open); if (!open) setItemSearch(''); }}>
                                 <PopoverTrigger asChild>
-                                  <Button variant="outline" className="h-8 w-full justify-start font-normal text-xs">
+                                  <Button variant="outline" className="h-8 w-full justify-start font-normal text-xs" onClick={() => setOpenItemPopover(true)}>
                                     {item.descricaoPeca ? item.descricaoPeca : (
                                       <span className="text-muted-foreground">Buscar item...</span>
                                     )}
                                   </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-72 p-0" align="start">
-                                  <Command>
-                                    <CommandInput placeholder="Buscar peça no catálogo..." />
+                                <PopoverContent className="w-72 p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                                  <Command shouldFilter={false}>
+                                    <CommandInput
+                                      placeholder="Buscar peça no catálogo..."
+                                      value={itemSearch}
+                                      onValueChange={setItemSearch}
+                                    />
                                     <CommandList>
                                       <CommandEmpty>
                                         <div className="p-2">
                                           <p className="text-xs text-muted-foreground mb-1">Nenhum item encontrado. Digite para cadastrar manualmente:</p>
-                                          <Input className="h-7 text-xs" placeholder="Descrição da peça..." value={item.descricaoPeca} onChange={(e) => atualizarItem(idx, 'descricaoPeca', e.target.value)} autoFocus />
+                                          <Input className="h-7 text-xs" placeholder="Descrição da peça..." value={item.descricaoPeca} onChange={(e) => { atualizarItem(idx, 'descricaoPeca', e.target.value); }} autoFocus onKeyDown={(e) => { if (e.key === 'Enter') { setOpenItemPopover(false); } }} />
                                         </div>
                                       </CommandEmpty>
                                       <CommandGroup className="max-h-48 overflow-y-auto">
-                                        {catalogoItens.map((ci: any) => (
+                                        {catalogoItens
+                                          .filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase()))
+                                          .map((ci: any) => (
                                           <CommandItem key={ci.id} value={ci.descricao} onSelect={() => {
                                             atualizarItem(idx, 'descricaoPeca', ci.descricao);
                                             atualizarItem(idx, 'itemCatalogoId', ci.id);
-                                            // Auto-lookup price if service already selected
                                             if (item.tipoServico) {
                                               const preco = lookupPreco(ci.id, item.tipoServico);
                                               if (preco >= 0) atualizarItem(idx, 'valorUnitario', preco);
                                             }
+                                            setOpenItemPopover(false);
+                                            setItemSearch('');
                                           }}>
-                                            <Shirt className="mr-2 h-3 w-3" />
+                                            <Shirt className="mr-2 h-3 w-3 shrink-0" />
                                             <span className="text-xs">{ci.descricao}</span>
                                             {ci.categoria && <Badge variant="secondary" className="text-[9px] ml-auto">{ci.categoria}</Badge>}
                                           </CommandItem>
@@ -1324,23 +1337,29 @@ export default function OSLavanderiaPage() {
                               </Popover>
                             </TableCell>
                             <TableCell>
-                              <Popover>
+                              <Popover open={openServicoPopover} onOpenChange={(open) => { setOpenServicoPopover(open); if (!open) setServicoSearch(''); }}>
                                 <PopoverTrigger asChild>
-                                  <Button variant="outline" className="h-8 w-full justify-start font-normal text-xs">
+                                  <Button variant="outline" className="h-8 w-full justify-start font-normal text-xs" onClick={() => setOpenServicoPopover(true)}>
                                     {item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : (
                                       <span className="text-muted-foreground">Serviço...</span>
                                     )}
                                   </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-64 p-0" align="start">
-                                  <Command>
-                                    <CommandInput placeholder="Buscar serviço..." />
+                                <PopoverContent className="w-64 p-0" align="start" onOpenAutoFocus={(e) => e.preventDefault()}>
+                                  <Command shouldFilter={false}>
+                                    <CommandInput
+                                      placeholder="Buscar serviço..."
+                                      value={servicoSearch}
+                                      onValueChange={setServicoSearch}
+                                    />
                                     <CommandList>
                                       <CommandEmpty>
-                                        <p className="text-xs text-muted-foreground p-2">Nenhum serviço no catálogo. Use os tipos padrão abaixo ou cadastre no Catálogo.</p>
+                                        <p className="text-xs text-muted-foreground p-2">Nenhum serviço encontrado.</p>
                                       </CommandEmpty>
                                       <CommandGroup className="max-h-48 overflow-y-auto">
-                                        {catalogoServicos.length > 0 && catalogoServicos.map((cs: any) => {
+                                        {catalogoServicos
+                                          .filter((cs: any) => !servicoSearch.trim() || cs.nome.toLowerCase().includes(servicoSearch.toLowerCase()))
+                                          .map((cs: any) => {
                                           const precoEspecifico = item.itemCatalogoId ? lookupPreco(item.itemCatalogoId, cs.id) : -1;
                                           const hasPreco = precoEspecifico >= 0;
                                           const precoDisplay = hasPreco ? precoEspecifico : (parseFloat(cs.preco) || 0);
@@ -1354,8 +1373,10 @@ export default function OSLavanderiaPage() {
                                             } else {
                                               atualizarItem(idx, 'valorUnitario', parseFloat(cs.preco) || 0);
                                             }
+                                            setOpenServicoPopover(false);
+                                            setServicoSearch('');
                                           }}>
-                                            <Sparkles className="mr-2 h-3 w-3" />
+                                            <Sparkles className="mr-2 h-3 w-3 shrink-0" />
                                             <div className="flex flex-col">
                                               <span className="text-xs">{cs.nome}</span>
                                               <span className={`text-[10px] ${hasPreco ? 'text-green-600' : (precoDisplay > 0 ? 'text-amber-600' : 'text-muted-foreground')}`}>
@@ -1365,12 +1386,16 @@ export default function OSLavanderiaPage() {
                                           </CommandItem>
                                           );
                                         })}
-                                        {catalogoServicos.length === 0 && TIPOS_SERVICO.map(ts => (
+                                        {catalogoServicos.length === 0 && TIPOS_SERVICO
+                                          .filter(ts => !servicoSearch.trim() || ts.label.toLowerCase().includes(servicoSearch.toLowerCase()))
+                                          .map(ts => (
                                           <CommandItem key={ts.value} value={ts.label} onSelect={() => {
                                             atualizarItem(idx, 'tipoServico', ts.value);
                                             atualizarItem(idx, 'valorUnitario', 0);
+                                            setOpenServicoPopover(false);
+                                            setServicoSearch('');
                                           }}>
-                                            <ts.icon className="mr-2 h-3 w-3" />
+                                            <ts.icon className="mr-2 h-3 w-3 shrink-0" />
                                             <div className="flex flex-col">
                                               <span className="text-xs">{ts.label}</span>
                                               <span className="text-[10px] text-muted-foreground">Sem preço cadastrado</span>
