@@ -1291,8 +1291,8 @@ export default function OSLavanderiaPage() {
                                     )}
                                   </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-72 p-0">
-                                  <Command shouldFilter={false}>
+                                <PopoverContent className="w-72 p-0" align="start">
+                                  <Command>
                                     <CommandInput placeholder="Buscar peça no catálogo..." />
                                     <CommandList>
                                       <CommandEmpty>
@@ -1302,9 +1302,7 @@ export default function OSLavanderiaPage() {
                                         </div>
                                       </CommandEmpty>
                                       <CommandGroup className="max-h-48 overflow-y-auto">
-                                        {catalogoItens.filter((ci: any) =>
-                                          !item.descricaoPeca || ci.descricao.toLowerCase().includes(item.descricaoPeca.toLowerCase())
-                                        ).map((ci: any) => (
+                                        {catalogoItens.map((ci: any) => (
                                           <CommandItem key={ci.id} value={ci.descricao} onSelect={() => {
                                             atualizarItem(idx, 'descricaoPeca', ci.descricao);
                                             atualizarItem(idx, 'itemCatalogoId', ci.id);
@@ -1334,8 +1332,8 @@ export default function OSLavanderiaPage() {
                                     )}
                                   </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-64 p-0">
-                                  <Command shouldFilter={false}>
+                                <PopoverContent className="w-64 p-0" align="start">
+                                  <Command>
                                     <CommandInput placeholder="Buscar serviço..." />
                                     <CommandList>
                                       <CommandEmpty>

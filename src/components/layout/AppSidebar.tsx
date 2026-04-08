@@ -165,13 +165,32 @@ export function AppSidebar() {
   const [hasSegment, setHasSegment] = useState<boolean>(false);
   const [openSubmenus, setOpenSubmenus] = useState<string[]>(['pedidos-os']);
 
-  // Carregar seções dinâmicas do Supabase para admin e funcionário
+  // Carregar seções dinâmicas do Supabase para admin e funcionário (com cache)
   useEffect(() => {
     if (role !== 'admin' && role !== 'funcionario') return;
     if (!empresaId) return;
 
+    const CACHE_KEY = `sidebar_menu_${empresaId}_${role}`;
+    const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
     const loadSections = async () => {
       try {
+        // Verificar cache no sessionStorage
+        const cached = sessionStorage.getItem(CACHE_KEY);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            const { timestamp, principal, atalho, hasSeg } = parsed;
+            if (Date.now() - timestamp < CACHE_TTL) {
+              // Usar cache — sem flicker
+              setDynamicMenuItems(principal || []);
+              setDynamicAtalhoItems(atalho || []);
+              setHasSegment(hasSeg || false);
+              return;
+            }
+          } catch { /* cache inválido, seguir com fetch */ }
+        }
+
         const supabase = getSupabaseClient();
         if (!supabase) return;
 
@@ -185,7 +204,6 @@ export function AppSidebar() {
         const segId = empresa?.segmento_id;
         let ativoIds: string[] = [];
 
-        // Track whether empresa has a segment
         if (segId) {
           setHasSegment(true);
         } else {
@@ -193,7 +211,6 @@ export function AppSidebar() {
         }
 
         if (segId) {
-          // Query segmento_secoes for this segment
           const { data: segSecoes } = await supabase
             .from('segmento_secoes')
             .select('secao_id, ativo')
@@ -204,54 +221,60 @@ export function AppSidebar() {
             .map((s: any) => s.secao_id);
         }
 
+        let principalResult: MenuItem[] = [];
+        let atalhoResult: MenuItem[] = [];
+
         if (ativoIds.length === 0 && !segId) {
-          // No segment: fallback to all active sections
           const { data: allSecoes } = await supabase
             .from('secoes_menu')
             .select('*')
             .eq('ativo', true)
             .order('ordem');
 
-          const principal = (allSecoes || [])
+          principalResult = (allSecoes || [])
             .filter((s: any) => s.grupo === 'principal' && s.visivel_para?.includes(role))
             .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: false }));
-          const atalho = (allSecoes || [])
+          atalhoResult = (allSecoes || [])
             .filter((s: any) => s.grupo === 'atalho_rapido' && s.visivel_para?.includes(role))
             .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: s.url === '/cardapio' }));
+        } else {
+          const { data: secoes } = await supabase
+            .from('secoes_menu')
+            .select('*')
+            .in('id', ativoIds)
+            .eq('ativo', true)
+            .order('ordem');
 
-          if (principal.length > 0) {
-            setDynamicMenuItems(principal);
-          }
-          if (atalho.length > 0) {
-            setDynamicAtalhoItems(atalho);
-          }
-          return;
+          principalResult = (secoes || [])
+            .filter((s: any) => s.grupo === 'principal' && s.visivel_para?.includes(role))
+            .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: false }));
+          atalhoResult = (secoes || [])
+            .filter((s: any) => s.grupo === 'atalho_rapido' && s.visivel_para?.includes(role))
+            .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: s.url === '/cardapio' }));
         }
 
-        // Load specific sections
-        const { data: secoes } = await supabase
-          .from('secoes_menu')
-          .select('*')
-          .in('id', ativoIds)
-          .eq('ativo', true)
-          .order('ordem');
+        setDynamicMenuItems(principalResult);
+        setDynamicAtalhoItems(atalhoResult);
 
-        const principal = (secoes || [])
-          .filter((s: any) => s.grupo === 'principal' && s.visivel_para?.includes(role))
-          .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: false }));
-        const atalho = (secoes || [])
-          .filter((s: any) => s.grupo === 'atalho_rapido' && s.visivel_para?.includes(role))
-          .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: s.url === '/cardapio' }));
-
-        if (principal.length > 0) {
-          setDynamicMenuItems(principal);
-        }
-        if (atalho.length > 0) {
-          setDynamicAtalhoItems(atalho);
-        }
+        // Salvar no cache
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify({
+          timestamp: Date.now(),
+          principal: principalResult,
+          atalho: atalhoResult,
+          hasSeg: !!segId,
+        }));
       } catch (error) {
         console.error('Erro ao carregar seções:', error);
-        // Fallback: mantém arrays vazios, usa menus hardcoded na renderização
+        // Se há cache mesmo expirado, usar como fallback
+        const cached = sessionStorage.getItem(CACHE_KEY);
+        if (cached) {
+          try {
+            const parsed = JSON.parse(cached);
+            setDynamicMenuItems(parsed.principal || []);
+            setDynamicAtalhoItems(parsed.atalho || []);
+            setHasSegment(parsed.hasSeg || false);
+          } catch { /* ignore */ }
+        }
       }
     };
 
