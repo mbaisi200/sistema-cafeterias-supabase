@@ -392,18 +392,21 @@ export function matchProdutoByCodigoOuEan(
   // Isso evita conflito quando fornecedores diferentes usam o mesmo código
   if (produto.codigo && nfeProduto.codigo) {
     if (produto.codigo.trim() === nfeProduto.codigo.trim()) {
-      // Só match por código se:
-      // a) O produto tem um fornecedor_id E é o mesmo fornecedor da NFe, OU
-      // b) O produto NÃO tem fornecedor_id (legado — sem vínculo com fornecedor)
-      if (produto.fornecedorId && fornecedorId) {
-        if (produto.fornecedorId === fornecedorId) {
+      // Se o produto no banco tem fornecedor vinculado:
+      if (produto.fornecedorId) {
+        // a) Se sabemos o fornecedor da NFe e é o mesmo → match
+        if (fornecedorId && produto.fornecedorId === fornecedorId) {
           return true;
         }
-        // Códigos iguais mas fornecedores diferentes → NÃO é o mesmo produto
+        // b) Produto tem fornecedor mas NFe é de outro (ou desconhecido) → NÃO match
         return false;
       }
-      // Produto sem fornecedor definido (legado) — match normalmente por código
-      return true;
+      // Produto sem fornecedor definido (legado):
+      // - Se sabemos o fornecedor da NFe → criar como novo (não match legado)
+      // - Se não sabemos o fornecedor da NFe → não match por segurança
+      // Em ambos os casos, produtos sem fornecedor são tratados como legado
+      // e podem ser vinculados ao importar, então não match por código aqui
+      return false;
     }
   }
 
