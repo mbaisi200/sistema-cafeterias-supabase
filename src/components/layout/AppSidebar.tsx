@@ -60,6 +60,7 @@ import {
   ChevronDown,
   ChevronRight,
   Shield,
+  WashingMachine,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -74,7 +75,7 @@ const iconMap: Record<string, any> = {
   Plug, FileText, Bike, ExternalLink, Users, Menu, Settings,
   ClipboardList, Database, Zap, Receipt, Truck, Scissors,
   ShoppingBag, Stethoscope, Wrench, Dumbbell, PawPrint, Store,
-  Heart, Layers, Building2, Croissant, Shield,
+  Heart, Layers, Building2, Croissant, Shield, WashingMachine,
 };
 
 interface MenuItem {
@@ -111,6 +112,7 @@ const adminMenuItems: MenuItem[] = [
     submenu: [
       { title: 'Pedidos', url: '/admin/pedidos', icon: ClipboardList },
       { title: 'Ordens de Serviço', url: '/admin/ordens-servico', icon: Wrench },
+      { title: 'OS Lavanderia', url: '/admin/os-lavanderia', icon: WashingMachine },
     ],
   },
   { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
@@ -259,16 +261,20 @@ export function AppSidebar() {
   const groupDynamicMenus = (items: MenuItem[]): MenuItem[] => {
     const pedidosItem = items.find(i => i.url === '/admin/pedidos');
     const osItem = items.find(i => i.url === '/admin/ordens-servico');
+    const osLavanderiaItem = items.find(i => i.url === '/admin/os-lavanderia');
 
-    if (pedidosItem && osItem) {
-      const filtered = items.filter(i => i.url !== '/admin/pedidos' && i.url !== '/admin/ordens-servico');
-      // Encontrar posição do pedidos para inserir o grupo no mesmo lugar
+    // Group Pedidos + OS + OS Lavanderia into a submenu
+    const osItems = [osItem, osLavanderiaItem].filter(Boolean) as MenuItem[];
+
+    if (pedidosItem && osItems.length > 0) {
+      const urlsToRemove = ['/admin/pedidos', '/admin/ordens-servico', '/admin/os-lavanderia'];
+      const filtered = items.filter(i => !urlsToRemove.includes(i.url));
       const insertIdx = items.findIndex(i => i.url === '/admin/pedidos');
       const parent: MenuItem = {
         title: 'Pedidos e OS',
         url: '#',
         icon: FileSpreadsheet,
-        submenu: [pedidosItem, osItem],
+        submenu: [pedidosItem, ...osItems],
       };
       filtered.splice(insertIdx, 0, parent);
       return filtered;

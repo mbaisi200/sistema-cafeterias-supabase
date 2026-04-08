@@ -70,6 +70,7 @@ import {
   PawPrint,
   Settings,
   Heart,
+  WashingMachine,
   type LucideIcon,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -91,6 +92,7 @@ const iconMap: Record<string, LucideIcon> = {
   Settings,
   Heart,
   Layers,
+  WashingMachine,
 };
 
 const availableIcons = Object.keys(iconMap);

@@ -272,6 +272,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/admin/os-lavanderia/page.tsx
+{
+  type __IsExpected<Specific extends AppPageConfig<"/admin/os-lavanderia">> = Specific
+  const handler = {} as typeof import("../../src/app/admin/os-lavanderia/page.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/admin/pedidos/page.tsx
 {
   type __IsExpected<Specific extends AppPageConfig<"/admin/pedidos">> = Specific
@@ -650,6 +659,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/api/funcionario-login/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/funcionario-login">> = Specific
+  const handler = {} as typeof import("../../src/app/api/funcionario-login/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/ifood/config/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/ifood/config">> = Specific
@@ -821,6 +839,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
   type __Unused = __Check
 }
 
+// Validate ../../src/app/api/nfe/excluir-entrada/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/nfe/excluir-entrada">> = Specific
+  const handler = {} as typeof import("../../src/app/api/nfe/excluir-entrada/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
 // Validate ../../src/app/api/nfe/importar/route.ts
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/nfe/importar">> = Specific
@@ -852,6 +879,15 @@ type RouteHandlerConfig<Route extends AppRouteHandlerRoutes = AppRouteHandlerRou
 {
   type __IsExpected<Specific extends RouteHandlerConfig<"/api/nfe/xml/[id]">> = Specific
   const handler = {} as typeof import("../../src/app/api/nfe/xml/[id]/route.js")
+  type __Check = __IsExpected<typeof handler>
+  // @ts-ignore
+  type __Unused = __Check
+}
+
+// Validate ../../src/app/api/produto-imagem/route.ts
+{
+  type __IsExpected<Specific extends RouteHandlerConfig<"/api/produto-imagem">> = Specific
+  const handler = {} as typeof import("../../src/app/api/produto-imagem/route.js")
   type __Check = __IsExpected<typeof handler>
   // @ts-ignore
   type __Unused = __Check
