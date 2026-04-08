@@ -173,18 +173,21 @@ export function AppSidebar() {
     const CACHE_KEY = `sidebar_menu_${empresaId}_${role}`;
     const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
 
+    // Reconstruir MenuItem a partir de dados serializáveis (sem funções/ícones)
+    const rebuildMenuItems = (raw: Array<{ title: string; url: string; icone: string; external: boolean }>): MenuItem[] =>
+      raw.map(r => ({ title: r.title, url: r.url, icon: iconMap[r.icone] || LayoutDashboard, external: r.external }));
+
     const loadSections = async () => {
       try {
-        // Verificar cache no sessionStorage
+        // Verificar cache no sessionStorage (dados brutos sem ícones)
         const cached = sessionStorage.getItem(CACHE_KEY);
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
             const { timestamp, principal, atalho, hasSeg } = parsed;
-            if (Date.now() - timestamp < CACHE_TTL) {
-              // Usar cache — sem flicker
-              setDynamicMenuItems(principal || []);
-              setDynamicAtalhoItems(atalho || []);
+            if (Date.now() - timestamp < CACHE_TTL && Array.isArray(principal)) {
+              setDynamicMenuItems(rebuildMenuItems(principal));
+              setDynamicAtalhoItems(rebuildMenuItems(atalho || []));
               setHasSegment(hasSeg || false);
               return;
             }
@@ -221,22 +224,15 @@ export function AppSidebar() {
             .map((s: any) => s.secao_id);
         }
 
-        let principalResult: MenuItem[] = [];
-        let atalhoResult: MenuItem[] = [];
-
+        // Coletar seções do banco
+        let secoesData: any[] = [];
         if (ativoIds.length === 0 && !segId) {
           const { data: allSecoes } = await supabase
             .from('secoes_menu')
             .select('*')
             .eq('ativo', true)
             .order('ordem');
-
-          principalResult = (allSecoes || [])
-            .filter((s: any) => s.grupo === 'principal' && s.visivel_para?.includes(role))
-            .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: false }));
-          atalhoResult = (allSecoes || [])
-            .filter((s: any) => s.grupo === 'atalho_rapido' && s.visivel_para?.includes(role))
-            .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: s.url === '/cardapio' }));
+          secoesData = allSecoes || [];
         } else {
           const { data: secoes } = await supabase
             .from('secoes_menu')
@@ -244,23 +240,31 @@ export function AppSidebar() {
             .in('id', ativoIds)
             .eq('ativo', true)
             .order('ordem');
-
-          principalResult = (secoes || [])
-            .filter((s: any) => s.grupo === 'principal' && s.visivel_para?.includes(role))
-            .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: false }));
-          atalhoResult = (secoes || [])
-            .filter((s: any) => s.grupo === 'atalho_rapido' && s.visivel_para?.includes(role))
-            .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: s.url === '/cardapio' }));
+          secoesData = secoes || [];
         }
+
+        const principalResult = secoesData
+          .filter((s: any) => s.grupo === 'principal' && s.visivel_para?.includes(role))
+          .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: false }));
+        const atalhoResult = secoesData
+          .filter((s: any) => s.grupo === 'atalho_rapido' && s.visivel_para?.includes(role))
+          .map((s: any) => ({ title: s.nome, url: s.url, icon: iconMap[s.icone] || LayoutDashboard, external: s.url === '/cardapio' }));
 
         setDynamicMenuItems(principalResult);
         setDynamicAtalhoItems(atalhoResult);
 
-        // Salvar no cache
+        // Salvar no cache apenas dados brutos serializáveis (nome da string do ícone, não a função)
+        const rawPrincipal = secoesData
+          .filter((s: any) => s.grupo === 'principal' && s.visivel_para?.includes(role))
+          .map((s: any) => ({ title: s.nome, url: s.url, icone: s.icone, external: false }));
+        const rawAtalho = secoesData
+          .filter((s: any) => s.grupo === 'atalho_rapido' && s.visivel_para?.includes(role))
+          .map((s: any) => ({ title: s.nome, url: s.url, icone: s.icone, external: s.url === '/cardapio' }));
+
         sessionStorage.setItem(CACHE_KEY, JSON.stringify({
           timestamp: Date.now(),
-          principal: principalResult,
-          atalho: atalhoResult,
+          principal: rawPrincipal,
+          atalho: rawAtalho,
           hasSeg: !!segId,
         }));
       } catch (error) {
@@ -270,9 +274,11 @@ export function AppSidebar() {
         if (cached) {
           try {
             const parsed = JSON.parse(cached);
-            setDynamicMenuItems(parsed.principal || []);
-            setDynamicAtalhoItems(parsed.atalho || []);
-            setHasSegment(parsed.hasSeg || false);
+            if (Array.isArray(parsed.principal)) {
+              setDynamicMenuItems(rebuildMenuItems(parsed.principal));
+              setDynamicAtalhoItems(rebuildMenuItems(parsed.atalho || []));
+              setHasSegment(parsed.hasSeg || false);
+            }
           } catch { /* ignore */ }
         }
       }
