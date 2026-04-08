@@ -84,6 +84,7 @@ interface ProdutoImportacao {
   selecionado: boolean;
   unidadesPorCaixa: number;  // conversion factor (units per box)
   markupPercentual: number; // per-product markup percentage
+  irParaEstoque: boolean; // whether to update stock for this item
   precoVenda: number;  // per-item selling price (editable)
 }
 
@@ -176,9 +177,10 @@ export default function NFeImportarPage() {
           produtoId: existente?.id,
           produtoNome: existente?.nome,
           selecionado: true,
+          irParaEstoque: true,
           unidadesPorCaixa,
           markupPercentual: markup,
-          precoVenda: p.valorUnitario * (1 + markup / 100),
+          precoVenda: arredondarPreco(p.valorUnitario * (1 + markup / 100)),
         };
       });
 
@@ -303,7 +305,13 @@ export default function NFeImportarPage() {
     const num = parseFloat(value) || 0;
     setProdutosImportacao((prev) =>
       prev.map((p, i) =>
-        i === index ? { ...p, precoVenda: num } : p
+        i === index
+          ? (() => {
+              const custo = p.nfeProduto.valorUnitario;
+              const markupCalc = custo > 0 ? ((num / custo) - 1) * 100 : 0;
+              return { ...p, precoVenda: num, markupPercentual: Math.round(markupCalc * 10) / 10 };
+            })()
+          : p
       )
     );
   };
@@ -316,10 +324,29 @@ export default function NFeImportarPage() {
           ? {
               ...p,
               markupPercentual: markup,
-              precoVenda: p.nfeProduto.valorUnitario * (1 + markup / 100),
+              precoVenda: arredondarPreco(p.nfeProduto.valorUnitario * (1 + markup / 100)),
             }
           : p
       )
+    );
+  };
+
+  // Helper: round price to nearest R$ 0.05
+  const arredondarPreco = (v: number): number => Math.round(v / 0.05) * 0.05;
+
+  // Toggle irParaEstoque for a single item
+  const updateIrParaEstoque = (index: number, value: boolean) => {
+    setProdutosImportacao((prev) =>
+      prev.map((p, i) =>
+        i === index ? { ...p, irParaEstoque: value } : p
+      )
+    );
+  };
+
+  // Toggle irParaEstoque for all items
+  const toggleIrParaEstoqueTodos = (value: boolean) => {
+    setProdutosImportacao((prev) =>
+      prev.map((p) => ({ ...p, irParaEstoque: value }))
     );
   };
 
@@ -330,7 +357,7 @@ export default function NFeImportarPage() {
       prev.map((p) => ({
         ...p,
         markupPercentual: markup,
-        precoVenda: p.nfeProduto.valorUnitario * (1 + markup / 100),
+        precoVenda: arredondarPreco(p.nfeProduto.valorUnitario * (1 + markup / 100)),
       }))
     );
   };
@@ -426,6 +453,7 @@ export default function NFeImportarPage() {
             cofinsValor: p.nfeProduto.cofinsValor,
             unidadesPorCaixa: p.unidadesPorCaixa || 0,
             precoVenda: p.precoVenda,
+            irParaEstoque: p.irParaEstoque,
           })),
         }),
       });
@@ -489,6 +517,7 @@ export default function NFeImportarPage() {
   const totalSelecionados = produtosImportacao.filter((p) => p.selecionado).length;
   const novosCount = produtosImportacao.filter((p) => p.status === 'novo' && p.selecionado).length;
   const cadastradosCount = produtosImportacao.filter((p) => p.status === 'cadastrado' && p.selecionado).length;
+  const estoqueCount = produtosImportacao.filter((p) => p.irParaEstoque && p.selecionado).length;
   const novosSemCategoria = produtosImportacao.filter(
     (p) => p.status === 'novo' && p.selecionado && !p.categoriaId
   );
@@ -666,7 +695,7 @@ export default function NFeImportarPage() {
         {/* DIALOG PREVIEW DA IMPORTAÇÃO                 */}
         {/* ============================================= */}
         <Dialog open={dialogPreview} onOpenChange={setDialogPreview}>
-          <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden flex flex-col">
+          <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-orange-500" />
@@ -848,6 +877,10 @@ export default function NFeImportarPage() {
                         <Badge variant="outline" className="text-xs text-green-600">
                           {cadastradosCount} cadastrado(s)
                         </Badge>
+                        <Badge variant="outline" className="text-xs text-cyan-600">
+                          <Package className="h-3 w-3 mr-1" />
+                          {estoqueCount} estoque
+                        </Badge>
                         <Button variant="ghost" size="sm" onClick={() => toggleTodos(true)}>
                           Todos
                         </Button>
@@ -866,7 +899,7 @@ export default function NFeImportarPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <div className="max-h-[400px] overflow-y-auto">
+                    <div className="max-h-[500px] overflow-y-auto">
                       <Table>
                         <TableHeader>
                           <TableRow>
@@ -883,6 +916,22 @@ export default function NFeImportarPage() {
                                 }
                               />
                             </TableHead>
+                            <TableHead className="text-center" title="Ir para Estoque">
+                              <div className="flex items-center justify-center gap-1">
+                                <Package className="h-3 w-3" />
+                                <span className="text-xs">Estoque</span>
+                              </div>
+                              <div className="flex justify-center mt-1">
+                                <Checkbox
+                                  checked={
+                                    estoqueCount === totalSelecionados &&
+                                    totalSelecionados > 0
+                                  }
+                                  onCheckedChange={(checked) => toggleIrParaEstoqueTodos(!!checked)}
+                                  className="h-4 w-4"
+                                />
+                              </div>
+                            </TableHead>
                             <TableHead>Código</TableHead>
                             <TableHead>Produto</TableHead>
                             <TableHead className="text-center">Qtd</TableHead>
@@ -890,7 +939,7 @@ export default function NFeImportarPage() {
                             <TableHead className="text-right">Custo</TableHead>
                             <TableHead className="text-right">Total</TableHead>
                             <TableHead className="text-center">Markup %</TableHead>
-                            <TableHead className="text-right">Preço Venda</TableHead>
+                            <TableHead className="text-right">P. Venda</TableHead>
                             <TableHead>Status</TableHead>
                             <TableHead className="text-center">Categoria</TableHead>
                             <TableHead className="w-10"></TableHead>
@@ -906,6 +955,14 @@ export default function NFeImportarPage() {
                                 <Checkbox
                                   checked={item.selecionado}
                                   onCheckedChange={() => toggleProduto(index)}
+                                />
+                              </TableCell>
+                              <TableCell className="text-center">
+                                <Checkbox
+                                  checked={item.irParaEstoque}
+                                  onCheckedChange={(checked) => updateIrParaEstoque(index, !!checked)}
+                                  disabled={!item.selecionado}
+                                  className="h-4 w-4"
                                 />
                               </TableCell>
                               <TableCell className="font-mono text-xs">
@@ -1001,6 +1058,11 @@ export default function NFeImportarPage() {
                                   placeholder="0.00"
                                   title="Preço de venda (editável para arredondamento)"
                                 />
+                                {item.unidadesPorCaixa > 0 && item.precoVenda > 0 && (
+                                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                                    → R$ {(item.precoVenda / item.unidadesPorCaixa).toFixed(2)} un
+                                  </p>
+                                )}
                               </TableCell>
                               <TableCell>
                                 {item.status === 'cadastrado' ? (
