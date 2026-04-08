@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -63,6 +63,7 @@ import {
   XCircle,
   Tag,
   Zap,
+  DollarSign,
 } from 'lucide-react';
 
 // ============================================================
@@ -83,6 +84,13 @@ interface ServicoCatalogo {
   preco: number;
   ativo: boolean;
   criado_em: string;
+}
+
+interface PrecoCatalogo {
+  id: string;
+  item_id: string;
+  servico_id: string;
+  preco: number;
 }
 
 const CATEGORIAS = [
@@ -141,6 +149,14 @@ export default function CatalogoLavanderiaPage() {
   const [servicoPreco, setServicoPreco] = useState('');
   const [servicoAtivo, setServicoAtivo] = useState(true);
 
+  // --- Tabela de Preços (Matrix) ---
+  const [precos, setPrecos] = useState<PrecoCatalogo[]>([]);
+  const [precosLoading, setPrecosLoading] = useState(false);
+  const [precosSearch, setPrecosSearch] = useState('');
+  const [editingPrices, setEditingPrices] = useState<Record<string, string>>({});
+  const [savingPriceKey, setSavingPriceKey] = useState<string | null>(null);
+  const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
   // Delete confirmation
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
@@ -160,6 +176,13 @@ export default function CatalogoLavanderiaPage() {
       loadServicos();
     }
   }, [empresaId]);
+
+  // Load prices when the precos tab is activated
+  useEffect(() => {
+    if (empresaId && activeTab === 'precos') {
+      loadPrecos();
+    }
+  }, [activeTab, empresaId]);
 
   const loadItens = async () => {
     setItensLoading(true);
@@ -214,6 +237,98 @@ export default function CatalogoLavanderiaPage() {
     }
   };
 
+  const loadPrecos = async () => {
+    setPrecosLoading(true);
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('lavanderia_precos')
+        .select('*')
+        .eq('empresa_id', empresaId);
+
+      if (error) throw error;
+      setPrecos((data || []).map((row: any) => ({
+        id: row.id,
+        item_id: row.item_id,
+        servico_id: row.servico_id,
+        preco: parseFloat(row.preco) || 0,
+      })));
+    } catch (err: any) {
+      console.error('Erro ao carregar preços:', err);
+      toast({ variant: 'destructive', title: 'Erro ao carregar preços', description: err.message });
+    } finally {
+      setPrecosLoading(false);
+    }
+  };
+
+  const handleSavePreco = useCallback(async (itemId: string, servicoId: string, preco: number) => {
+    const key = `${itemId}_${servicoId}`;
+    setSavingPriceKey(key);
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase
+        .from('lavanderia_precos')
+        .upsert({
+          empresa_id: empresaId,
+          item_id: itemId,
+          servico_id: servicoId,
+          preco,
+        }, { onConflict: 'item_id,servico_id' });
+
+      if (error) throw error;
+    } catch (err: any) {
+      console.error('Erro ao salvar preço:', err);
+      toast({ variant: 'destructive', title: 'Erro ao salvar preço', description: err.message });
+    } finally {
+      setSavingPriceKey(null);
+    }
+  }, [empresaId]);
+
+  const handlePriceChange = useCallback((itemId: string, servicoId: string, rawValue: string) => {
+    const key = `${itemId}_${servicoId}`;
+
+    // Update local editing state immediately
+    setEditingPrices(prev => ({ ...prev, [key]: rawValue }));
+
+    // Clear any existing debounce timer for this cell
+    if (debounceTimers.current[key]) {
+      clearTimeout(debounceTimers.current[key]);
+    }
+
+    // Debounce save (500ms)
+    const numericValue = parseFloat(rawValue.replace(',', '.'));
+    if (!isNaN(numericValue) && numericValue >= 0) {
+      debounceTimers.current[key] = setTimeout(() => {
+        handleSavePreco(itemId, servicoId, numericValue);
+      }, 500);
+    }
+  }, [handleSavePreco]);
+
+  const handlePriceBlur = useCallback((itemId: string, servicoId: string) => {
+    const key = `${itemId}_${servicoId}`;
+
+    // Clear debounce timer since we're saving now
+    if (debounceTimers.current[key]) {
+      clearTimeout(debounceTimers.current[key]);
+      delete debounceTimers.current[key];
+    }
+
+    const rawValue = editingPrices[key];
+    if (rawValue === undefined) return;
+
+    const numericValue = parseFloat(rawValue.replace(',', '.'));
+    if (!isNaN(numericValue) && numericValue >= 0) {
+      handleSavePreco(itemId, servicoId, numericValue);
+    }
+  }, [editingPrices, handleSavePreco]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      Object.values(debounceTimers.current).forEach(clearTimeout);
+    };
+  }, []);
+
   // ============================================================
   // Filters
   // ============================================================
@@ -239,6 +354,35 @@ export default function CatalogoLavanderiaPage() {
   const totalItensAtivos = itens.filter(i => i.ativo).length;
   const totalServicos = servicos.length;
   const totalServicosAtivos = servicos.filter(s => s.ativo).length;
+  const totalPrecosCadastrados = precos.filter(p => p.preco > 0).length;
+
+  // Active items and services for the price matrix
+  const itensAtivos = useMemo(() => itens.filter(i => i.ativo), [itens]);
+  const servicosAtivos = useMemo(() => servicos.filter(s => s.ativo), [servicos]);
+
+  // Filter items for the matrix based on search
+  const matrixItens = useMemo(() => {
+    if (!precosSearch.trim()) return itensAtivos;
+    const term = precosSearch.toLowerCase();
+    return itensAtivos.filter(item =>
+      item.descricao.toLowerCase().includes(term) ||
+      item.categoria.toLowerCase().includes(term)
+    );
+  }, [itensAtivos, precosSearch]);
+
+  // Helper to get price for a given item_id + servico_id
+  const getPreco = useCallback((itemId: string, servicoId: string): number => {
+    const found = precos.find(p => p.item_id === itemId && p.servico_id === servicoId);
+    return found ? found.preco : 0;
+  }, [precos]);
+
+  // Helper to get the raw editing value for a cell
+  const getEditingValue = useCallback((itemId: string, servicoId: string): string => {
+    const key = `${itemId}_${servicoId}`;
+    if (editingPrices[key] !== undefined) return editingPrices[key];
+    const preco = getPreco(itemId, servicoId);
+    return preco > 0 ? String(preco) : '';
+  }, [editingPrices, getPreco]);
 
   // ============================================================
   // Itens CRUD
@@ -511,7 +655,7 @@ export default function CatalogoLavanderiaPage() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid gap-4 md:grid-cols-4">
+          <div className="grid gap-4 grid-cols-2 md:grid-cols-5">
             <Card>
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
@@ -564,14 +708,31 @@ export default function CatalogoLavanderiaPage() {
                 </div>
               </CardContent>
             </Card>
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4">
+                  <div className="h-12 w-12 rounded-full bg-violet-100 flex items-center justify-center">
+                    <DollarSign className="h-6 w-6 text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Preços Cadastrados</p>
+                    <p className="text-2xl font-bold">{totalPrecosCadastrados}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2 max-w-md">
+            <TabsList className="grid w-full grid-cols-3 max-w-2xl">
               <TabsTrigger value="itens" className="gap-2">
                 <Shirt className="h-4 w-4" />
                 Itens do Catálogo
+              </TabsTrigger>
+              <TabsTrigger value="precos" className="gap-2">
+                <DollarSign className="h-4 w-4" />
+                Tabela de Preços
               </TabsTrigger>
               <TabsTrigger value="servicos" className="gap-2">
                 <Sparkles className="h-4 w-4" />
@@ -709,7 +870,150 @@ export default function CatalogoLavanderiaPage() {
             </TabsContent>
 
             {/* ============================================================ */}
-            {/* TAB 2: Serviços e Preços */}
+            {/* TAB 2: Tabela de Preços (Price Matrix) */}
+            {/* ============================================================ */}
+            <TabsContent value="precos" className="space-y-4">
+              {/* Info Card */}
+              <Card className="bg-gradient-to-r from-violet-50 to-purple-50 border-violet-200">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-3">
+                    <div className="h-10 w-10 rounded-full bg-violet-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <DollarSign className="h-5 w-5 text-violet-600" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-violet-900">Tabela de Preços</p>
+                      <p className="text-sm text-violet-700 mt-1">
+                        Defina o preço para cada combinação de Item × Tipo de Serviço. Esses preços serão usados automaticamente ao criar uma OS.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {precosLoading ? (
+                <Card>
+                  <CardContent className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  </CardContent>
+                </Card>
+              ) : itensAtivos.length === 0 || servicosAtivos.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                    <PackageSearch className="h-12 w-12 mb-4 opacity-30" />
+                    <p className="text-lg font-medium">Dados insuficientes para montar a tabela</p>
+                    <p className="text-sm mt-1">
+                      {itensAtivos.length === 0 && servicosAtivos.length === 0
+                        ? 'Você precisa cadastrar itens e serviços antes de definir preços. Use as abas "Itens do Catálogo" e "Serviços e Preços" para criar.'
+                        : itensAtivos.length === 0
+                          ? 'Nenhum item ativo encontrado. Cadastre itens na aba "Itens do Catálogo" primeiro.'
+                          : 'Nenhum serviço ativo encontrado. Cadastre serviços na aba "Serviços e Preços" primeiro.'
+                      }
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {/* Search filter for items */}
+                  <Card>
+                    <CardContent className="p-4">
+                      <div className="relative flex-1 w-full md:max-w-[400px]">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Buscar item..."
+                          value={precosSearch}
+                          onChange={(e) => setPrecosSearch(e.target.value)}
+                          className="pl-9"
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Price Matrix Table */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-base flex items-center gap-2">
+                        <DollarSign className="h-5 w-5 text-violet-600" />
+                        Matriz de Preços
+                      </CardTitle>
+                      <CardDescription>
+                        {matrixItens.length} item(ns) × {servicosAtivos.length} serviço(s) — {totalPrecosCadastrados} preço(s) cadastrado(s)
+                        {precosSearch && ` para "${precosSearch}"`}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b bg-muted/50">
+                              <th className="sticky left-0 bg-muted/50 z-10 text-left px-4 py-3 font-semibold text-muted-foreground whitespace-nowrap">
+                                Item
+                              </th>
+                              {servicosAtivos.map((servico) => (
+                                <th
+                                  key={servico.id}
+                                  className="text-center px-3 py-3 font-semibold text-muted-foreground whitespace-nowrap min-w-[120px]"
+                                >
+                                  <span className="block text-xs font-medium">{servico.nome}</span>
+                                </th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {matrixItens.map((item) => (
+                              <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
+                                <td className="sticky left-0 bg-background z-10 px-4 py-2.5 whitespace-nowrap">
+                                  <p className="font-medium">{item.descricao}</p>
+                                  <Badge variant="secondary" className={`text-[10px] mt-0.5 ${CATEGORIA_ICONS[item.categoria] || 'bg-gray-100 text-gray-700'}`}>
+                                    {item.categoria}
+                                  </Badge>
+                                </td>
+                                {servicosAtivos.map((servico) => {
+                                  const key = `${item.id}_${servico.id}`;
+                                  const preco = getPreco(item.id, servico.id);
+                                  const editVal = getEditingValue(item.id, servico.id);
+                                  const isSaving = savingPriceKey === key;
+                                  const hasPrice = preco > 0;
+
+                                  return (
+                                    <td key={servico.id} className="text-center px-2 py-2">
+                                      <div className="relative">
+                                        <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground pointer-events-none">
+                                          R$
+                                        </span>
+                                        <input
+                                          type="number"
+                                          step="0.01"
+                                          min="0"
+                                          value={editVal}
+                                          onChange={(e) => handlePriceChange(item.id, servico.id, e.target.value)}
+                                          onBlur={() => handlePriceBlur(item.id, servico.id)}
+                                          placeholder="0,00"
+                                          className={`w-full text-right pl-8 pr-2 py-1.5 rounded-md border text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-violet-500 ${
+                                            hasPrice
+                                              ? 'border-green-200 bg-green-50/50 font-medium text-green-700'
+                                              : 'border-gray-200 bg-white text-gray-700'
+                                          } ${isSaving ? 'opacity-70' : ''}`}
+                                        />
+                                        {isSaving && (
+                                          <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-violet-500" />
+                                        )}
+                                      </div>
+                                    </td>
+                                  );
+                                })}
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+            </TabsContent>
+
+            {/* ============================================================ */}
+            {/* TAB 3: Serviços e Preços */}
             {/* ============================================================ */}
             <TabsContent value="servicos" className="space-y-4">
               {/* Search + Create */}

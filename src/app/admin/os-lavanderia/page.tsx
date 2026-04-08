@@ -87,6 +87,7 @@ interface ItemLavanderia {
   observacoes: string;
   valorUnitario: number;
   total: number;
+  itemCatalogoId?: string;
 }
 
 interface OSLavanderia {
@@ -185,6 +186,7 @@ export default function OSLavanderiaPage() {
   const [catalogoItens, setCatalogoItens] = useState<any[]>([]);
   const [catalogoServicos, setCatalogoServicos] = useState<any[]>([]);
   const [empresaData, setEmpresaData] = useState<any>(null);
+  const [precosMap, setPrecosMap] = useState<Record<string, Record<string, number>>>({});
 
   // Load data
   useEffect(() => {
@@ -193,6 +195,7 @@ export default function OSLavanderiaPage() {
       loadClientes();
       loadCatalogoItens();
       loadCatalogoServicos();
+      loadPrecos();
       loadEmpresaData();
       const now = new Date();
       setFormDataEntrada(now.toISOString().split('T')[0]);
@@ -237,7 +240,11 @@ export default function OSLavanderiaPage() {
           let parsedItens: ItemLavanderia[] = [];
           try {
             const raw = o.servicos;
-            parsedItens = typeof raw === 'string' ? JSON.parse(raw) : (raw || []);
+            const rawParsed = typeof raw === 'string' ? JSON.parse(raw) : (raw || []);
+            parsedItens = rawParsed.map((parsedItem: any) => ({
+              ...parsedItem,
+              itemCatalogoId: parsedItem.itemCatalogoId || '',
+            }));
           } catch { /* ignore */ }
 
           return {
@@ -344,6 +351,30 @@ export default function OSLavanderiaPage() {
     } catch { /* ignore */ }
   };
 
+  const loadPrecos = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data } = await supabase
+        .from('lavanderia_precos')
+        .select('item_id, servico_id, preco')
+        .eq('empresa_id', empresaId);
+
+      const map: Record<string, Record<string, number>> = {};
+      (data || []).forEach((p: any) => {
+        if (!map[p.item_id]) map[p.item_id] = {};
+        map[p.item_id][p.servico_id] = parseFloat(p.preco) || 0;
+      });
+      setPrecosMap(map);
+    } catch { /* ignore */ }
+  };
+
+  const lookupPreco = (itemCatalogoId: string | undefined, servicoId: string): number => {
+    if (itemCatalogoId && precosMap[itemCatalogoId]?.[servicoId]) {
+      return precosMap[itemCatalogoId][servicoId];
+    }
+    return -1; // -1 means no specific price found
+  };
+
   const loadEmpresaData = async () => {
     try {
       const supabase = getSupabase();
@@ -367,6 +398,7 @@ export default function OSLavanderiaPage() {
       observacoes: '',
       valorUnitario: 0,
       total: 0,
+      itemCatalogoId: '',
     }]);
   };
 
@@ -455,6 +487,7 @@ export default function OSLavanderiaPage() {
         valorUnitario: item.valorUnitario,
         total: item.total,
         observacoes: item.observacoes,
+        itemCatalogoId: item.itemCatalogoId || '',
       })));
 
       if (editingOS) {
@@ -1272,7 +1305,15 @@ export default function OSLavanderiaPage() {
                                         {catalogoItens.filter((ci: any) =>
                                           !item.descricaoPeca || ci.descricao.toLowerCase().includes(item.descricaoPeca.toLowerCase())
                                         ).map((ci: any) => (
-                                          <CommandItem key={ci.id} value={ci.descricao} onSelect={() => atualizarItem(idx, 'descricaoPeca', ci.descricao)}>
+                                          <CommandItem key={ci.id} value={ci.descricao} onSelect={() => {
+                                            atualizarItem(idx, 'descricaoPeca', ci.descricao);
+                                            atualizarItem(idx, 'itemCatalogoId', ci.id);
+                                            // Auto-lookup price if service already selected
+                                            if (item.tipoServico) {
+                                              const preco = lookupPreco(ci.id, item.tipoServico);
+                                              if (preco >= 0) atualizarItem(idx, 'valorUnitario', preco);
+                                            }
+                                          }}>
                                             <Shirt className="mr-2 h-3 w-3" />
                                             <span className="text-xs">{ci.descricao}</span>
                                             {ci.categoria && <Badge variant="secondary" className="text-[9px] ml-auto">{ci.categoria}</Badge>}
@@ -1301,18 +1342,31 @@ export default function OSLavanderiaPage() {
                                         <p className="text-xs text-muted-foreground p-2">Nenhum serviço no catálogo. Use os tipos padrão abaixo ou cadastre no Catálogo.</p>
                                       </CommandEmpty>
                                       <CommandGroup className="max-h-48 overflow-y-auto">
-                                        {catalogoServicos.length > 0 && catalogoServicos.map((cs: any) => (
+                                        {catalogoServicos.length > 0 && catalogoServicos.map((cs: any) => {
+                                          const precoEspecifico = item.itemCatalogoId ? lookupPreco(item.itemCatalogoId, cs.id) : -1;
+                                          const hasPreco = precoEspecifico >= 0;
+                                          const precoDisplay = hasPreco ? precoEspecifico : (parseFloat(cs.preco) || 0);
+
+                                          return (
                                           <CommandItem key={cs.id} value={cs.nome} onSelect={() => {
                                             atualizarItem(idx, 'tipoServico', cs.id);
-                                            atualizarItem(idx, 'valorUnitario', parseFloat(cs.preco) || 0);
+                                            if (item.itemCatalogoId) {
+                                              const p = lookupPreco(item.itemCatalogoId, cs.id);
+                                              atualizarItem(idx, 'valorUnitario', p >= 0 ? p : (parseFloat(cs.preco) || 0));
+                                            } else {
+                                              atualizarItem(idx, 'valorUnitario', parseFloat(cs.preco) || 0);
+                                            }
                                           }}>
                                             <Sparkles className="mr-2 h-3 w-3" />
                                             <div className="flex flex-col">
                                               <span className="text-xs">{cs.nome}</span>
-                                              <span className="text-[10px] text-green-600">{formatCurrency(parseFloat(cs.preco) || 0)}</span>
+                                              <span className={`text-[10px] ${hasPreco ? 'text-green-600' : (precoDisplay > 0 ? 'text-amber-600' : 'text-muted-foreground')}`}>
+                                                {hasPreco ? `R$ ${precoDisplay.toFixed(2)} (preço do item)` : (precoDisplay > 0 ? `R$ ${precoDisplay.toFixed(2)} (preço padrão)` : 'Sem preço cadastrado')}
+                                              </span>
                                             </div>
                                           </CommandItem>
-                                        ))}
+                                          );
+                                        })}
                                         {catalogoServicos.length === 0 && TIPOS_SERVICO.map(ts => (
                                           <CommandItem key={ts.value} value={ts.label} onSelect={() => {
                                             atualizarItem(idx, 'tipoServico', ts.value);
