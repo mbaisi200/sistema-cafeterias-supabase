@@ -1298,10 +1298,10 @@ export default function OSLavanderiaPage() {
                                     <CommandInput placeholder="Buscar serviço..." />
                                     <CommandList>
                                       <CommandEmpty>
-                                        <p className="text-xs text-muted-foreground p-2">Nenhum serviço cadastrado.</p>
+                                        <p className="text-xs text-muted-foreground p-2">Nenhum serviço no catálogo. Use os tipos padrão abaixo ou cadastre no Catálogo.</p>
                                       </CommandEmpty>
                                       <CommandGroup className="max-h-48 overflow-y-auto">
-                                        {catalogoServicos.map((cs: any) => (
+                                        {catalogoServicos.length > 0 && catalogoServicos.map((cs: any) => (
                                           <CommandItem key={cs.id} value={cs.nome} onSelect={() => {
                                             atualizarItem(idx, 'tipoServico', cs.id);
                                             atualizarItem(idx, 'valorUnitario', parseFloat(cs.preco) || 0);
@@ -1310,6 +1310,18 @@ export default function OSLavanderiaPage() {
                                             <div className="flex flex-col">
                                               <span className="text-xs">{cs.nome}</span>
                                               <span className="text-[10px] text-green-600">{formatCurrency(parseFloat(cs.preco) || 0)}</span>
+                                            </div>
+                                          </CommandItem>
+                                        ))}
+                                        {catalogoServicos.length === 0 && TIPOS_SERVICO.map(ts => (
+                                          <CommandItem key={ts.value} value={ts.label} onSelect={() => {
+                                            atualizarItem(idx, 'tipoServico', ts.value);
+                                            atualizarItem(idx, 'valorUnitario', 0);
+                                          }}>
+                                            <ts.icon className="mr-2 h-3 w-3" />
+                                            <div className="flex flex-col">
+                                              <span className="text-xs">{ts.label}</span>
+                                              <span className="text-[10px] text-muted-foreground">Sem preço cadastrado</span>
                                             </div>
                                           </CommandItem>
                                         ))}

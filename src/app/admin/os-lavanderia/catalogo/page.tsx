@@ -62,6 +62,7 @@ import {
   CheckCircle2,
   XCircle,
   Tag,
+  Zap,
 } from 'lucide-react';
 
 // ============================================================
@@ -412,6 +413,56 @@ export default function CatalogoLavanderiaPage() {
   };
 
   // ============================================================
+  // Popular Serviços Padrão
+  // ============================================================
+  const [populating, setPopulating] = useState(false);
+
+  const SERVICOS_PADRAO = [
+    { nome: 'Lavar', descricao: 'Lavagem convencional em máquina', preco: 0 },
+    { nome: 'Secar', descricao: 'Secagem em secadora', preco: 0 },
+    { nome: 'Passar', descricao: 'Passadoria convencional', preco: 0 },
+    { nome: 'Lavar/Passar', descricao: 'Lavagem e passadoria completa', preco: 0 },
+    { nome: 'Lavar/Secar', descricao: 'Lavagem e secagem', preco: 0 },
+    { nome: 'Lavagem a Seco', descricao: 'Lavagem profissional a seco para peças delicadas', preco: 0 },
+  ];
+
+  const popularServicosPadrao = async () => {
+    if (!confirm('Isso vai criar os 6 serviços padrão (Lavar, Secar, Passar, Lavar/Passar, Lavar/Secar, Lavagem a Seco) com preço R$ 0,00. Você poderá editar os preços depois. Continuar?')) return;
+    setPopulating(true);
+    try {
+      const supabase = getSupabase();
+      // Check which already exist
+      const { data: existing } = await supabase
+        .from('lavanderia_servicos_catalogo')
+        .select('nome')
+        .eq('empresa_id', empresaId);
+      const existingNames = new Set((existing || []).map((s: any) => s.nome.toLowerCase()));
+      const toInsert = SERVICOS_PADRAO.filter(s => !existingNames.has(s.nome.toLowerCase()));
+      if (toInsert.length === 0) {
+        toast({ title: 'Nada a criar', description: 'Todos os serviços padrão já existem no catálogo.' });
+        setPopulating(false);
+        return;
+      }
+      const rows = toInsert.map(s => ({
+        empresa_id: empresaId,
+        nome: s.nome,
+        descricao: s.descricao,
+        preco: s.preco,
+        ativo: true,
+      }));
+      const { error } = await supabase.from('lavanderia_servicos_catalogo').insert(rows);
+      if (error) throw error;
+      toast({ title: `${toInsert.length} serviço(s) criado(s)!`, description: 'Agora edite os preços em cada serviço.' });
+      loadServicos();
+    } catch (err: any) {
+      console.error('Erro ao popular serviços:', err);
+      toast({ variant: 'destructive', title: 'Erro ao criar serviços', description: err.message });
+    } finally {
+      setPopulating(false);
+    }
+  };
+
+  // ============================================================
   // Helpers
   // ============================================================
   const formatCurrency = (v: number) =>
@@ -678,6 +729,12 @@ export default function CatalogoLavanderiaPage() {
                       <Plus className="h-4 w-4" />
                       Novo Serviço
                     </Button>
+                    {servicos.length === 0 && (
+                      <Button variant="outline" className="gap-2" onClick={popularServicosPadrao} disabled={populating}>
+                        {populating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Zap className="h-4 w-4" />}
+                        Popular Padrão
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
