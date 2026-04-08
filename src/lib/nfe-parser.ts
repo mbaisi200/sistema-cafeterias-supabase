@@ -364,24 +364,45 @@ export function parseNFeXML(xmlString: string): NFeParsed {
 
 /**
  * Verifica se um produto cadastrado corresponde a um produto da NFe
- * por código interno ou código de barras (EAN)
+ * por código de barras (EAN) ou código interno do fornecedor.
+ *
+ * Prioridade de matching:
+ *   1. EAN/GTIN (código de barras universal) — funciona entre fornecedores
+ *   2. código interno (cProd) APENAS se o produto pertence ao mesmo fornecedor
+ *
+ * Isso evita que produtos com o mesmo código interno de fornecedores
+ * diferentes sejam confundidos durante a importação.
  */
 export function matchProdutoByCodigoOuEan(
-  produto: { codigo?: string | null; codigoBarras?: string | null },
-  nfeProduto: NFeProduto
+  produto: { codigo?: string | null; codigoBarras?: string | null; fornecedorId?: string | null },
+  nfeProduto: NFeProduto,
+  fornecedorId?: string | null
 ): boolean {
-  // Match por código de produto
-  if (produto.codigo && nfeProduto.codigo) {
-    if (produto.codigo.trim() === nfeProduto.codigo.trim()) {
+  // 1ª prioridade: Match por código de barras (EAN/GTIN)
+  // EAN é universal — o mesmo produto de qualquer fornecedor tem o mesmo EAN
+  if (produto.codigoBarras && nfeProduto.ean) {
+    const barrasProd = produto.codigoBarras.trim();
+    const eanNFe = nfeProduto.ean.trim();
+    if (barrasProd && eanNFe && barrasProd === eanNFe) {
       return true;
     }
   }
 
-  // Match por código de barras (EAN)
-  if (produto.codigoBarras && nfeProduto.ean) {
-    const barrasProd = produto.codigoBarras.trim();
-    const eanNFe = nfeProduto.ean.trim();
-    if (barrasProd === eanNFe) {
+  // 2ª prioridade: Match por código interno (cProd) APENAS se for do mesmo fornecedor
+  // Isso evita conflito quando fornecedores diferentes usam o mesmo código
+  if (produto.codigo && nfeProduto.codigo) {
+    if (produto.codigo.trim() === nfeProduto.codigo.trim()) {
+      // Só match por código se:
+      // a) O produto tem um fornecedor_id E é o mesmo fornecedor da NFe, OU
+      // b) O produto NÃO tem fornecedor_id (legado — sem vínculo com fornecedor)
+      if (produto.fornecedorId && fornecedorId) {
+        if (produto.fornecedorId === fornecedorId) {
+          return true;
+        }
+        // Códigos iguais mas fornecedores diferentes → NÃO é o mesmo produto
+        return false;
+      }
+      // Produto sem fornecedor definido (legado) — match normalmente por código
       return true;
     }
   }

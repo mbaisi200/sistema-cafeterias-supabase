@@ -155,10 +155,31 @@ export default function NFeImportarPage() {
       const dados = parseNFeXML(texto);
       setNfeData(dados);
 
-      // Mapear produtos com status de cadastro
+      // === VERIFICAR FORNECEDOR ANTES DO MATCHING ===
+      // Isso é necessário para que o matchProdutoByCodigoOuEan possa
+      // diferenciar produtos com o mesmo código de fornecedores diferentes
+      let fornecedorId: string | null = null;
+      if (dados.emitente?.cnpj) {
+        try {
+          const { buscarFornecedorPorCNPJ } = await import('@/hooks/useSupabase');
+          const fornecedor = await buscarFornecedorPorCNPJ(empresaId || '', dados.emitente.cnpj);
+          if (fornecedor) {
+            fornecedorId = fornecedor.id;
+            setFornecedorEncontrado(fornecedor);
+          } else {
+            setFornecedorEncontrado(null);
+          }
+        } catch {
+          setFornecedorEncontrado(null);
+        }
+      } else {
+        setFornecedorEncontrado(null);
+      }
+
+      // Mapear produtos com status de cadastro (agora com fornecedorId)
       const produtosMapeados: ProdutoImportacao[] = dados.produtos.map((p) => {
         const existente = produtos.find((prod) =>
-          matchProdutoByCodigoOuEan(prod, p)
+          matchProdutoByCodigoOuEan(prod, p, fornecedorId)
         );
         // Auto-detect: if commercial unit is CX/PAC/FARDO and tributary unit is UN,
         // use qTrib/qCom as conversion factor
@@ -185,13 +206,6 @@ export default function NFeImportarPage() {
       });
 
       setProdutosImportacao(produtosMapeados);
-
-      // Verificar fornecedor
-      if (dados.emitente?.cnpj) {
-        verificarFornecedorExistente(dados.emitente.cnpj);
-      } else {
-        setFornecedorEncontrado(null);
-      }
 
       // Verificar se NFe já foi importada
       if (dados.chaveAcesso && empresaId) {

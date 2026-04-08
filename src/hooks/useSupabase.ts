@@ -55,6 +55,7 @@ export function useProdutos() {
         unidadesPorCaixa: p.unidades_por_caixa,
         precoUnidade: p.preco_unidade,
         // NFE/NFCe fiscal fields
+        fornecedorId: p.fornecedor_id || null,
         ncm: p.ncm,
         cest: p.cest,
         cfop: p.cfop,

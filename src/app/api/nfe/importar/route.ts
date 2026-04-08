@@ -202,6 +202,9 @@ export async function POST(request: NextRequest) {
             const precoCusto = unidadesPorCaixa > 0 ? precoCustoCaixa / unidadesPorCaixa : precoCustoCaixa;
             const precoVenda = item.precoVenda || (precoCusto * (1 + (opcoes.markupPercentual || 30) / 100));
 
+            // Verificar se deve atualizar estoque (opção global E item individual)
+            const deveAtualizarEstoque = opcoes.atualizarEstoque && item.irParaEstoque;
+
             const { data: novoProduto, error: errorProduto } = await supabase
               .from('produtos')
               .insert({
@@ -214,7 +217,8 @@ export async function POST(request: NextRequest) {
                 preco: precoVenda,
                 unidade: normalizarUnidade(item.unidade),
                 categoria_id: item.categoriaId || null,
-                estoque_atual: opcoes.atualizarEstoque 
+                fornecedor_id: fornecedorId || null, // Vincular ao fornecedor da NFe
+                estoque_atual: deveAtualizarEstoque 
                   ? ((item.quantidade || 0) * (item.unidadesPorCaixa || 1)) 
                   : 0,
                 estoque_minimo: 0,
@@ -249,12 +253,12 @@ export async function POST(request: NextRequest) {
             resultado.produtosCriados++;
             resultado.detalhes.push({
               descricao: item.descricao,
-              acao: `Novo produto criado (R$ ${precoVenda.toFixed(2)})`,
+              acao: `Novo produto criado (R$ ${precoVenda.toFixed(2)})${!deveAtualizarEstoque ? ' [sem estoque]' : ''}`,
               status: 'criado',
             });
 
             // Registrar movimentação de estoque para produto novo
-            if (opcoes.atualizarEstoque && item.quantidade > 0) {
+            if (deveAtualizarEstoque && item.quantidade > 0) {
               const qtdUnidades = item.unidadesPorCaixa > 0 
                 ? item.quantidade * item.unidadesPorCaixa 
                 : item.quantidade;
@@ -290,6 +294,18 @@ export async function POST(request: NextRequest) {
               atualizado_em: new Date().toISOString(),
             };
 
+            // Vincular fornecedor se o produto ainda não tem um
+            if (fornecedorId) {
+              const { data: prodAtual } = await supabase
+                .from('produtos')
+                .select('fornecedor_id')
+                .eq('id', item.produtoId)
+                .single();
+              if (!(prodAtual as any)?.fornecedor_id) {
+                updateData.fornecedor_id = fornecedorId;
+              }
+            }
+
             // Atualizar custo
             if (item.valorUnitario) {
               const unidadesPorCaixa = item.unidadesPorCaixa || 0;
@@ -318,12 +334,12 @@ export async function POST(request: NextRequest) {
 
             // Atualizar EAN se o produto não tem e a NFe tem
             if (item.ean) {
-              const { data: prodAtual } = await supabase
+              const { data: prodAtualEan } = await supabase
                 .from('produtos')
                 .select('codigo_barras')
                 .eq('id', item.produtoId)
                 .single();
-              if (!(prodAtual as any)?.codigo_barras && item.ean && item.ean !== 'SEM GTIN') {
+              if (!(prodAtualEan as any)?.codigo_barras && item.ean && item.ean !== 'SEM GTIN') {
                 updateData.codigo_barras = item.ean;
               }
             }
@@ -340,8 +356,8 @@ export async function POST(request: NextRequest) {
             if (opcoes.atualizarDadosFiscais) acoes.push('dados fiscais atualizados');
             if (item.valorUnitario) acoes.push(`custo atualizado R$ ${item.valorUnitario.toFixed(2)}`);
 
-            // Atualizar estoque
-            if (opcoes.atualizarEstoque && item.quantidade > 0) {
+            // Atualizar estoque (respeitando opção global E item individual)
+            if (opcoes.atualizarEstoque && item.irParaEstoque && item.quantidade > 0) {
               // Buscar estoque atual
               const { data: produtoAtual } = await supabase
                 .from('produtos')
