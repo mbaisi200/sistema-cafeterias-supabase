@@ -167,7 +167,7 @@ export default function CatalogoLavanderiaPage() {
   const [savingPriceKey, setSavingPriceKey] = useState<string | null>(null);
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-  // Drag-and-drop column order for price matrix
+  // Drag-and-drop column order for price matrix — persisted in Supabase (shared across all workstations)
   const [servicoOrdem, setServicoOrdem] = useState<string[]>([]);
   const [draggedServicoId, setDraggedServicoId] = useState<string | null>(null);
 
@@ -232,17 +232,20 @@ export default function CatalogoLavanderiaPage() {
         .from('lavanderia_servicos_catalogo')
         .select('*')
         .eq('empresa_id', empresaId)
-        .order('criado_em', { ascending: false });
+        .order('ordem', { ascending: true });
 
       if (error) throw error;
-      setServicos((data || []).map((row: any) => ({
+      const loaded = (data || []).map((row: any) => ({
         id: row.id,
         nome: row.nome || '',
         descricao: row.descricao || null,
         preco: parseFloat(row.preco) || 0,
         ativo: row.ativo ?? true,
         criado_em: row.criado_em || '',
-      })));
+      }));
+      setServicos(loaded);
+      // Build servicoOrdem from the DB order (sorted by 'ordem' column)
+      setServicoOrdem(loaded.map(s => s.id));
     } catch (err: any) {
       console.error('Erro ao carregar serviços do catálogo:', err);
       toast({ variant: 'destructive', title: 'Erro ao carregar serviços', description: err.message });
@@ -682,17 +685,32 @@ export default function CatalogoLavanderiaPage() {
     e.preventDefault();
     const sourceId = draggedServicoId;
     if (!sourceId || sourceId === targetServicoId) return;
-    setServicoOrdem(prev => {
-      const newOrdem = [...prev];
-      const fromIdx = newOrdem.indexOf(sourceId);
-      const toIdx = newOrdem.indexOf(targetServicoId);
-      if (fromIdx === -1 || toIdx === -1) return prev;
-      newOrdem.splice(fromIdx, 1);
-      newOrdem.splice(toIdx, 0, sourceId);
-      return newOrdem;
-    });
+
+    const prevOrdem = [...servicoOrdem];
+    const fromIdx = prevOrdem.indexOf(sourceId);
+    const toIdx = prevOrdem.indexOf(targetServicoId);
+    if (fromIdx === -1 || toIdx === -1) return;
+
+    // Reorder locally
+    prevOrdem.splice(fromIdx, 1);
+    prevOrdem.splice(toIdx, 0, sourceId);
+    setServicoOrdem(prevOrdem);
     setDraggedServicoId(null);
-  }, [draggedServicoId]);
+
+    // Persist to Supabase — update 'ordem' column for reordered services
+    (async () => {
+      try {
+        const supabase = getSupabase();
+        const updates = prevOrdem.map((id, idx) => ({ id, ordem: idx }));
+        // Batch update each service ordem
+        await Promise.all(updates.map(u =>
+          supabase.from('lavanderia_servicos_catalogo').update({ ordem: u.ordem }).eq('id', u.id)
+        ));
+      } catch (err) {
+        console.error('Erro ao salvar ordem dos serviços:', err);
+ }
+    })();
+  }, [draggedServicoId, servicoOrdem]);
 
   // Sort handler for items table
   const handleItensSort = useCallback((field: 'descricao' | 'categoria' | 'criado_em') => {
@@ -1031,6 +1049,34 @@ export default function CatalogoLavanderiaPage() {
                 </CardContent>
               </Card>
 
+              {/* Search filter + Status filter for items — always visible */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+                    <div className="relative flex-1 w-full md:max-w-[300px]">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar item..."
+                        value={precosSearch}
+                        onChange={(e) => setPrecosSearch(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    <Select value={precosServicoStatus} onValueChange={(v: any) => setPrecosServicoStatus(v)}>
+                      <SelectTrigger className="w-full md:w-[140px]">
+                        <Filter className="h-4 w-4 mr-1 text-muted-foreground" />
+                        <SelectValue placeholder="Serviços" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ativo">Serviços Ativos</SelectItem>
+                        <SelectItem value="inativo">Serviços Inativos</SelectItem>
+                        <SelectItem value="todos">Todos Serviços</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
               {precosLoading ? (
                 <Card>
                   <CardContent className="flex items-center justify-center py-12">
@@ -1054,34 +1100,6 @@ export default function CatalogoLavanderiaPage() {
                 </Card>
               ) : (
                 <>
-                  {/* Search filter + Status filter for items */}
-                  <Card>
-                    <CardContent className="p-4">
-                      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
-                        <div className="relative flex-1 w-full md:max-w-[300px]">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            placeholder="Buscar item..."
-                            value={precosSearch}
-                            onChange={(e) => setPrecosSearch(e.target.value)}
-                            className="pl-9"
-                          />
-                        </div>
-                        <Select value={precosServicoStatus} onValueChange={(v: any) => setPrecosServicoStatus(v)}>
-                          <SelectTrigger className="w-full md:w-[140px]">
-                            <Filter className="h-4 w-4 mr-1 text-muted-foreground" />
-                            <SelectValue placeholder="Serviços" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ativo">Serviços Ativos</SelectItem>
-                            <SelectItem value="inativo">Serviços Inativos</SelectItem>
-                            <SelectItem value="todos">Todos Serviços</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </CardContent>
-                  </Card>
-
                   {/* Price Matrix Table */}
                   <Card>
                     <CardHeader className="pb-2">
