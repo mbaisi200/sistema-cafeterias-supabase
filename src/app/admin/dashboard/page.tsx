@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
+import { getSupabaseClient } from '@/lib/supabase';
 import { useVendas } from '@/hooks/useSupabase';
 import {
   ShoppingCart,
@@ -21,7 +22,21 @@ import {
   CalendarDays,
   ShoppingCart as CartIcon,
   Layers,
+  WashingMachine,
+  Shirt,
+  PackageCheck,
+  CheckCircle,
+  Download,
+  DatabaseBackup,
 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { format, startOfDay, endOfDay, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { motion } from 'framer-motion';
@@ -43,6 +58,18 @@ function formatBRL(value: number): string {
 
 function formatNumber(value: number): string {
   return new Intl.NumberFormat('pt-BR').format(Math.round(value));
+}
+
+// ─────────────────────────────────────────
+// Lavanderia Section Title (sky, Laundry style)
+// ─────────────────────────────────────────
+function LavanderiaSectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2 mb-3">
+      <div className="w-1 h-5 rounded-full bg-sky-600" />
+      <h2 className="text-sm font-semibold text-sky-700 uppercase tracking-wide">{children}</h2>
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────
@@ -116,14 +143,71 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 // Main Dashboard Page
 // ─────────────────────────────────────────
 export default function AdminDashboardPage() {
-  const { user } = useAuth();
+  const { user, empresaId } = useAuth();
   const { vendas, loading: loadingVendas } = useVendas();
 
-  const loading = loadingVendas;
-
-  // Filters state
+  // ── All state declarations ──
+  const [osLavanderia, setOsLavanderia] = useState<any[]>([]);
+  const [loadingOS, setLoadingOS] = useState(true);
   const [excluirDelivery, setExcluirDelivery] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [backupLoading, setBackupLoading] = useState(false);
+  const [backupDialogOpen, setBackupDialogOpen] = useState(false);
+  const [backupProgress, setBackupProgress] = useState('');
+
+  useEffect(() => {
+    if (!empresaId) return;
+    const loadOSLavanderia = async () => {
+      try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+          .from('ordens_servico')
+          .select('*')
+          .eq('empresa_id', empresaId)
+          .eq('ativo', true)
+          .order('criado_em', { ascending: false });
+
+        if (error) throw error;
+
+        const parsed = (data || [])
+          .filter((o: any) => (o.observacoes || '').startsWith('[LAVANDERIA]'))
+          .map((o: any) => {
+            let parsedItens: any[] = [];
+            try {
+              const raw = o.servicos;
+              parsedItens = (typeof raw === 'string' ? JSON.parse(raw) : (raw || []));
+            } catch { /* ignore */ }
+
+            const totalPecas = parsedItens.reduce((acc: number, i: any) => acc + (i.quantidade || 0), 0);
+
+            return {
+              id: o.id,
+              status: (() => {
+                const map: Record<string, string> = {
+                  aberta: 'recebida',
+                  em_andamento: 'em_lavagem',
+                  concluida: 'pronta',
+                  aprovada: 'entregue',
+                  cancelada: 'cancelada',
+                };
+                return map[o.status] || o.status;
+              })(),
+              valorTotal: parseFloat(o.valor_total) || 0,
+              totalPecas,
+              criadoEm: o.criado_em || '',
+            };
+          });
+
+        setOsLavanderia(parsed);
+      } catch (err) {
+        console.error('Erro ao carregar OS Lavanderia:', err);
+        setOsLavanderia([]);
+      } finally {
+        setLoadingOS(false);
+      }
+    };
+    loadOSLavanderia();
+  }, [empresaId]);
 
   // ── Date helpers ──
   const currentMonthStart = useMemo(() => startOfMonth(new Date()), []);
@@ -132,6 +216,101 @@ export default function AdminDashboardPage() {
   const prevMonthEnd = useMemo(() => endOfMonth(subMonths(new Date(), 1)), []);
   const selectedDayStart = useMemo(() => startOfDay(selectedDate), [selectedDate]);
   const selectedDayEnd = useMemo(() => endOfDay(selectedDate), [selectedDate]);
+
+  // ── Lavanderia KPIs ──
+  const todayStart = useMemo(() => startOfDay(new Date()), []);
+  const todayEnd = useMemo(() => endOfDay(new Date()), []);
+
+  const osRecebidasHoje = useMemo(() =>
+    osLavanderia.filter(os => os.status === 'recebida' && os.criadoEm && new Date(os.criadoEm) >= todayStart && new Date(os.criadoEm) <= todayEnd).length,
+    [osLavanderia, todayStart, todayEnd]
+  );
+
+  const osEmLavagem = useMemo(() =>
+    osLavanderia.filter(os => os.status === 'em_lavagem').length,
+    [osLavanderia]
+  );
+
+  const osProntas = useMemo(() =>
+    osLavanderia.filter(os => os.status === 'pronta').length,
+    [osLavanderia]
+  );
+
+  const osEntreguesHoje = useMemo(() =>
+    osLavanderia.filter(os => os.status === 'entregue' && os.criadoEm && new Date(os.criadoEm) >= todayStart && new Date(os.criadoEm) <= todayEnd).length,
+    [osLavanderia, todayStart, todayEnd]
+  );
+
+  const totalPecasEmProcessamento = useMemo(() =>
+    osLavanderia
+      .filter(os => ['recebida', 'em_lavagem', 'pronta'].includes(os.status))
+      .reduce((acc, os) => acc + (os.totalPecas || 0), 0),
+    [osLavanderia]
+  );
+
+  const valorTotalOSMes = useMemo(() =>
+    osLavanderia
+      .filter(os => {
+        if (!os.criadoEm) return false;
+        const d = new Date(os.criadoEm);
+        return d >= currentMonthStart && d <= currentMonthEnd;
+      })
+      .reduce((acc, os) => acc + (os.valorTotal || 0), 0),
+    [osLavanderia, currentMonthStart, currentMonthEnd]
+  );
+
+  const kpisLavanderia: KPICardData[] = [
+    {
+      titulo: 'OS Recebidas',
+      valor: String(osRecebidasHoje),
+      subtitulo: 'Hoje',
+      icone: PackageCheck,
+      corIcone: 'text-amber-600',
+      corBg: 'bg-amber-50',
+    },
+    {
+      titulo: 'OS Em Lavagem',
+      valor: String(osEmLavagem),
+      subtitulo: 'Em andamento',
+      icone: WashingMachine,
+      corIcone: 'text-blue-600',
+      corBg: 'bg-blue-50',
+    },
+    {
+      titulo: 'OS Prontas p/ Retirada',
+      valor: String(osProntas),
+      subtitulo: 'Aguardando cliente',
+      icone: CheckCircle,
+      corIcone: 'text-green-600',
+      corBg: 'bg-green-50',
+    },
+    {
+      titulo: 'OS Entregues',
+      valor: String(osEntreguesHoje),
+      subtitulo: 'Hoje',
+      icone: Package,
+      corIcone: 'text-emerald-600',
+      corBg: 'bg-emerald-50',
+    },
+    {
+      titulo: 'Peças em Process.',
+      valor: formatNumber(totalPecasEmProcessamento),
+      subtitulo: 'Total em aberto',
+      icone: Shirt,
+      corIcone: 'text-cyan-600',
+      corBg: 'bg-cyan-50',
+    },
+    {
+      titulo: 'Valor OS (mês)',
+      valor: formatBRL(valorTotalOSMes),
+      subtitulo: 'Receita lavanderia',
+      icone: DollarSign,
+      corIcone: 'text-violet-600',
+      corBg: 'bg-violet-50',
+    },
+  ];
+
+  const loading = loadingVendas || loadingOS;
 
   // ── Helper: check if venda is concluded ──
   function isConcluida(v: any) {
@@ -443,6 +622,168 @@ export default function AdminDashboardPage() {
   const mediaItensAnterior = metricasMesAnterior.mediaItensPorPedido;
 
   // ─────────────────────────────────────────
+  // Backup CSV - Exporta dados do admin logado
+  // ─────────────────────────────────────────
+  const handleBackupCSV = async () => {
+    if (!empresaId) return;
+    setBackupLoading(true);
+    setBackupDialogOpen(true);
+    setBackupProgress('Preparando backup...');
+
+    try {
+      const supabase = getSupabaseClient();
+      if (!supabase) throw new Error('Supabase não disponível');
+
+      const results: Record<string, { headers: string[]; rows: string[][] }> = {};
+
+      // 1. Vendas
+      setBackupProgress('Exportando vendas...');
+      const { data: vendasData } = await supabase
+        .from('vendas')
+        .select('id, tipo, canal, status, total, desconto, forma_pagamento, cliente_id, nome_cliente, criado_em, fechado_em')
+        .eq('empresa_id', empresaId)
+        .order('criado_em', { ascending: false })
+        .limit(10000);
+      if (vendasData && vendasData.length > 0) {
+        results['vendas'] = {
+          headers: ['ID', 'Tipo', 'Canal', 'Status', 'Total', 'Desconto', 'Forma Pagamento', 'Cliente', 'Data Criação', 'Data Fechamento'],
+          rows: vendasData.map((v: any) => [
+            v.id, v.tipo || '', v.canal || '', v.status || '',
+            (v.total || 0).toFixed(2), (v.desconto || 0).toFixed(2),
+            v.forma_pagamento || '', v.nome_cliente || '',
+            v.criado_em || '', v.fechado_em || '',
+          ]),
+        };
+      }
+
+      // 2. Clientes
+      setBackupProgress('Exportando clientes...');
+      const { data: clientesData } = await supabase
+        .from('clientes')
+        .select('id, nome_razao_social, nome_fantasia, cnpj_cpf, tipo_pessoa, telefone, celular, email, logradouro, numero, bairro, municipio, uf, cep, ativo')
+        .eq('empresa_id', empresaId)
+        .limit(10000);
+      if (clientesData && clientesData.length > 0) {
+        results['clientes'] = {
+          headers: ['ID', 'Nome/Razão Social', 'Nome Fantasia', 'CNPJ/CPF', 'Tipo', 'Telefone', 'Celular', 'Email', 'Logradouro', 'Número', 'Bairro', 'Município', 'UF', 'CEP', 'Ativo'],
+          rows: clientesData.map((c: any) => [
+            c.id, c.nome_razao_social || '', c.nome_fantasia || '', c.cnpj_cpf || '',
+            c.tipo_pessoa || '', c.telefone || '', c.celular || '', c.email || '',
+            c.logradouro || '', c.numero || '', c.bairro || '', c.municipio || '',
+            c.uf || '', c.cep || '', c.ativo ? 'Sim' : 'Não',
+          ]),
+        };
+      }
+
+      // 3. Produtos
+      setBackupProgress('Exportando produtos...');
+      const { data: produtosData } = await supabase
+        .from('produtos')
+        .select('id, nome, descricao, codigo, codigo_barras, preco, custo, unidade, estoque_atual, estoque_minimo, ativo, destaque, disponivel_ifood, is_combo')
+        .eq('empresa_id', empresaId)
+        .limit(10000);
+      if (produtosData && produtosData.length > 0) {
+        results['produtos'] = {
+          headers: ['ID', 'Nome', 'Descrição', 'Código', 'Código Barras', 'Preço', 'Custo', 'Unidade', 'Estoque Atual', 'Estoque Mínimo', 'Ativo', 'Destaque', 'iFood', 'Combo'],
+          rows: produtosData.map((p: any) => [
+            p.id, p.nome || '', p.descricao || '', p.codigo || '', p.codigo_barras || '',
+            (p.preco || 0).toFixed(2), (p.custo || 0).toFixed(2), p.unidade || '',
+            p.estoque_atual || 0, p.estoque_minimo || 0,
+            p.ativo ? 'Sim' : 'Não', p.destaque ? 'Sim' : 'Não',
+            p.disponivel_ifood ? 'Sim' : 'Não', p.is_combo ? 'Sim' : 'Não',
+          ]),
+        };
+      }
+
+      // 4. Categorias
+      setBackupProgress('Exportando categorias...');
+      const { data: categoriasData } = await supabase
+        .from('categorias')
+        .select('id, nome, cor, ordem, ativo')
+        .eq('empresa_id', empresaId)
+        .limit(1000);
+      if (categoriasData && categoriasData.length > 0) {
+        results['categorias'] = {
+          headers: ['ID', 'Nome', 'Cor', 'Ordem', 'Ativo'],
+          rows: categoriasData.map((c: any) => [
+            c.id, c.nome || '', c.cor || '', c.ordem || 0, c.ativo ? 'Sim' : 'Não',
+          ]),
+        };
+      }
+
+      // 5. Ordens de Serviço (Lavanderia)
+      setBackupProgress('Exportando ordens de serviço...');
+      const { data: osData } = await supabase
+        .from('ordens_servico')
+        .select('id, numero, cliente_nome, descricao, status, valor_total, valor_servicos, data_previsao, data_conclusao, criado_em, criado_por_nome, observacoes')
+        .eq('empresa_id', empresaId)
+        .order('criado_em', { ascending: false })
+        .limit(10000);
+      if (osData && osData.length > 0) {
+        results['ordens_servico'] = {
+          headers: ['ID', 'Número', 'Cliente', 'Descrição', 'Status', 'Valor Total', 'Valor Serviços', 'Data Previsão', 'Data Conclusão', 'Criado Em', 'Criado Por'],
+          rows: osData.map((o: any) => [
+            o.id, o.numero || 0, o.cliente_nome || '', o.descricao || '', o.status || '',
+            (o.valor_total || 0).toFixed(2), (o.valor_servicos || 0).toFixed(2),
+            o.data_previsao || '', o.data_conclusao || '', o.criado_em || '', o.criado_por_nome || '',
+          ]),
+        };
+      }
+
+      // 6. Fornecedores
+      setBackupProgress('Exportando fornecedores...');
+      const { data: fornecedoresData } = await supabase
+        .from('fornecedores')
+        .select('id, nome_razao_social, nome_fantasia, cnpj_cpf, telefone, celular, email, logradouro, numero, bairro, municipio, uf, ativo')
+        .eq('empresa_id', empresaId)
+        .limit(5000);
+      if (fornecedoresData && fornecedoresData.length > 0) {
+        results['fornecedores'] = {
+          headers: ['ID', 'Nome/Razão Social', 'Nome Fantasia', 'CNPJ/CPF', 'Telefone', 'Celular', 'Email', 'Logradouro', 'Número', 'Bairro', 'Município', 'UF', 'Ativo'],
+          rows: fornecedoresData.map((f: any) => [
+            f.id, f.nome_razao_social || '', f.nome_fantasia || '', f.cnpj_cpf || '',
+            f.telefone || '', f.celular || '', f.email || '',
+            f.logradouro || '', f.numero || '', f.bairro || '', f.municipio || '',
+            f.uf || '', f.ativo ? 'Sim' : 'Não',
+          ]),
+        };
+      }
+
+      setBackupProgress('Gerando arquivo CSV...');
+
+      // Gerar arquivo CSV combinado
+      const allSections: string[] = [];
+      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+
+      for (const [sectionName, section] of Object.entries(results)) {
+        allSections.push(`\n=== ${sectionName.toUpperCase()} ===`);
+        allSections.push(section.headers.join(';'));
+        section.rows.forEach(row => {
+          allSections.push(row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'));
+        });
+        allSections.push(`Total de registros: ${section.rows.length}`);
+      }
+
+      const csvContent = '\uFEFF' + allSections.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `backup-dados-${timestamp}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      const totalRows = Object.values(results).reduce((acc, r) => acc + r.rows.length, 0);
+      setBackupProgress(`Backup concluído! ${totalRows} registros exportados em ${Object.keys(results).length} tabelas.`);
+    } catch (error: any) {
+      console.error('Erro no backup:', error);
+      setBackupProgress(`Erro: ${error.message}`);
+    } finally {
+      setBackupLoading(false);
+    }
+  };
+
+  // ─────────────────────────────────────────
   // Loading State
   // ─────────────────────────────────────────
   if (loading) {
@@ -620,9 +961,29 @@ export default function AdminDashboardPage() {
             </div>
           </section>
 
+          {/* ═══════════════════════════════════ */}
+          {/* OS LAVANDERIA                       */}
+          {/* ═══════════════════════════════════ */}
+          <section>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <LavanderiaSectionTitle>OS Lavanderia</LavanderiaSectionTitle>
+              <a
+                href="/admin/os-lavanderia"
+                className="text-xs text-sky-600 hover:text-sky-800 font-medium transition-colors"
+              >
+                Ver todas as OS →
+              </a>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {kpisLavanderia.map((kpi, i) => (
+                <KPICard key={`lav-${kpi.titulo}`} data={kpi} index={i + 12} />
+              ))}
+            </div>
+          </section>
+
           {/* ── Quick Actions ── */}
           <section>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <Button asChild variant="outline" className="h-12 justify-start gap-2 border-gray-200 hover:bg-gray-50">
                 <a href="/pdv">
                   <CartIcon className="h-4 w-4" />
@@ -647,8 +1008,61 @@ export default function AdminDashboardPage() {
                   <span className="text-sm">Produtos</span>
                 </a>
               </Button>
+              <Button
+                variant="outline"
+                className="h-12 justify-start gap-2 border-gray-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200"
+                onClick={handleBackupCSV}
+                disabled={backupLoading}
+              >
+                {backupLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <DatabaseBackup className="h-4 w-4" />
+                )}
+                <span className="text-sm">Backup CSV</span>
+              </Button>
             </div>
           </section>
+
+          {/* ── Dialog: Backup Progress ── */}
+          <Dialog open={backupDialogOpen} onOpenChange={(open) => { if (!open && !backupLoading) setBackupDialogOpen(false); }}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <DatabaseBackup className="h-5 w-5 text-blue-600" />
+                  Backup de Dados
+                </DialogTitle>
+                <DialogDescription>
+                  Exportando dados da sua conta no formato CSV
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                {backupLoading ? (
+                  <div className="flex flex-col items-center gap-4">
+                    <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                    <p className="text-sm text-center text-gray-600">{backupProgress}</p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircle className="h-6 w-6 text-green-600" />
+                    </div>
+                    <p className="text-sm text-center text-gray-700 font-medium">{backupProgress}</p>
+                    <p className="text-xs text-gray-500 text-center">
+                      Os dados exportados são exclusivos da sua conta ({empresaId?.substring(0, 8)}...)
+                    </p>
+                  </div>
+                )}
+              </div>
+              {!backupLoading && (
+                <DialogFooter>
+                  <Button onClick={() => setBackupDialogOpen(false)} className="bg-blue-600 hover:bg-blue-700">
+                    Fechar
+                  </Button>
+                </DialogFooter>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       </MainLayout>
     </ProtectedRoute>

@@ -64,6 +64,11 @@ import {
   Tag,
   Zap,
   DollarSign,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  GripVertical,
+  Filter,
 } from 'lucide-react';
 
 // ============================================================
@@ -124,6 +129,10 @@ export default function CatalogoLavanderiaPage() {
   const [itens, setItens] = useState<ItemCatalogo[]>([]);
   const [itensLoading, setItensLoading] = useState(true);
   const [itensSearch, setItensSearch] = useState('');
+  const [itensCategoriaFilter, setItensCategoriaFilter] = useState<string>('todos');
+  const [itensStatusFilter, setItensStatusFilter] = useState<string>('todos');
+  const [itensSortField, setItensSortField] = useState<'descricao' | 'categoria' | 'criado_em'>('criado_em');
+  const [itensSortDir, setItensSortDir] = useState<'asc' | 'desc'>('desc');
 
   const [itemDialogOpen, setItemDialogOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ItemCatalogo | null>(null);
@@ -153,9 +162,14 @@ export default function CatalogoLavanderiaPage() {
   const [precos, setPrecos] = useState<PrecoCatalogo[]>([]);
   const [precosLoading, setPrecosLoading] = useState(false);
   const [precosSearch, setPrecosSearch] = useState('');
+  const [precosServicoStatus, setPrecosServicoStatus] = useState<'todos' | 'ativo' | 'inativo'>('ativo');
   const [editingPrices, setEditingPrices] = useState<Record<string, string>>({});
   const [savingPriceKey, setSavingPriceKey] = useState<string | null>(null);
   const debounceTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  // Drag-and-drop column order for price matrix
+  const [servicoOrdem, setServicoOrdem] = useState<string[]>([]);
+  const [draggedServicoId, setDraggedServicoId] = useState<string | null>(null);
 
   // Delete confirmation
   const [deleteDialog, setDeleteDialog] = useState<{
@@ -329,17 +343,41 @@ export default function CatalogoLavanderiaPage() {
     };
   }, []);
 
+  // Initialize servicoOrdem when services load
+  useEffect(() => {
+    if (servicos.length > 0 && servicoOrdem.length === 0) {
+      setServicoOrdem(servicos.map(s => s.id));
+    }
+  }, [servicos]);
+
   // ============================================================
   // Filters
   // ============================================================
   const itensFiltrados = useMemo(() => {
-    if (!itensSearch.trim()) return itens;
-    const term = itensSearch.toLowerCase();
-    return itens.filter(item =>
-      item.descricao.toLowerCase().includes(term) ||
-      item.categoria.toLowerCase().includes(term)
-    );
-  }, [itens, itensSearch]);
+    let result = [...itens];
+    // Status filter
+    if (itensStatusFilter === 'ativo') result = result.filter(i => i.ativo);
+    else if (itensStatusFilter === 'inativo') result = result.filter(i => !i.ativo);
+    // Category filter
+    if (itensCategoriaFilter !== 'todos') result = result.filter(i => i.categoria === itensCategoriaFilter);
+    // Text search
+    if (itensSearch.trim()) {
+      const term = itensSearch.toLowerCase();
+      result = result.filter(item =>
+        item.descricao.toLowerCase().includes(term) ||
+        item.categoria.toLowerCase().includes(term)
+      );
+    }
+    // Sorting
+    result.sort((a, b) => {
+      let cmp = 0;
+      if (itensSortField === 'descricao') cmp = a.descricao.localeCompare(b.descricao);
+      else if (itensSortField === 'categoria') cmp = a.categoria.localeCompare(b.categoria);
+      else cmp = (a.criado_em || '').localeCompare(b.criado_em || '');
+      return itensSortDir === 'asc' ? cmp : -cmp;
+    });
+    return result;
+  }, [itens, itensSearch, itensCategoriaFilter, itensStatusFilter, itensSortField, itensSortDir]);
 
   const servicosFiltrados = useMemo(() => {
     if (!servicosSearch.trim()) return servicos;
@@ -355,6 +393,20 @@ export default function CatalogoLavanderiaPage() {
   const totalServicos = servicos.length;
   const totalServicosAtivos = servicos.filter(s => s.ativo).length;
   const totalPrecosCadastrados = precos.filter(p => p.preco > 0).length;
+
+  // Services for price matrix - filtered by status and ordered
+  const matrixServicos = useMemo(() => {
+    let filtered = servicos;
+    if (precosServicoStatus === 'ativo') filtered = filtered.filter(s => s.ativo);
+    else if (precosServicoStatus === 'inativo') filtered = filtered.filter(s => !s.ativo);
+    // Apply drag-drop order
+    const orderMap = new Map(servicoOrdem.map((id, idx) => [id, idx]));
+    return [...filtered].sort((a, b) => {
+      const aIdx = orderMap.get(a.id) ?? 999;
+      const bIdx = orderMap.get(b.id) ?? 999;
+      return aIdx - bIdx;
+    });
+  }, [servicos, precosServicoStatus, servicoOrdem]);
 
   // Active items and services for the price matrix
   const itensAtivos = useMemo(() => itens.filter(i => i.ativo), [itens]);
@@ -494,9 +546,9 @@ export default function CatalogoLavanderiaPage() {
       return;
     }
 
-    const precoNum = parseFloat(servicoPreco.replace(',', '.'));
+    const precoNum = servicoPreco.trim() === '' ? 0 : parseFloat(servicoPreco.replace(',', '.'));
     if (isNaN(precoNum) || precoNum < 0) {
-      toast({ variant: 'destructive', title: 'Valor inválido', description: 'Informe um preço válido.' });
+      toast({ variant: 'destructive', title: 'Valor inválido', description: 'Informe um preço válido (zero ou positivo).' });
       return;
     }
 
@@ -604,6 +656,61 @@ export default function CatalogoLavanderiaPage() {
     } finally {
       setPopulating(false);
     }
+  };
+
+  // ============================================================
+  // Drag & Drop handlers for matrix columns
+  // ============================================================
+  const handleDragStart = useCallback((e: React.DragEvent, servicoId: string) => {
+    setDraggedServicoId(servicoId);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', servicoId);
+    (e.target as HTMLElement).style.opacity = '0.5';
+  }, []);
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    (e.target as HTMLElement).style.opacity = '1';
+    setDraggedServicoId(null);
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetServicoId: string) => {
+    e.preventDefault();
+    const sourceId = draggedServicoId;
+    if (!sourceId || sourceId === targetServicoId) return;
+    setServicoOrdem(prev => {
+      const newOrdem = [...prev];
+      const fromIdx = newOrdem.indexOf(sourceId);
+      const toIdx = newOrdem.indexOf(targetServicoId);
+      if (fromIdx === -1 || toIdx === -1) return prev;
+      newOrdem.splice(fromIdx, 1);
+      newOrdem.splice(toIdx, 0, sourceId);
+      return newOrdem;
+    });
+    setDraggedServicoId(null);
+  }, [draggedServicoId]);
+
+  // Sort handler for items table
+  const handleItensSort = useCallback((field: 'descricao' | 'categoria' | 'criado_em') => {
+    setItensSortField(prev => {
+      if (prev === field) {
+        setItensSortDir(d => d === 'asc' ? 'desc' : 'asc');
+        return field;
+      }
+      setItensSortDir('asc');
+      return field;
+    });
+  }, []);
+
+  const getSortIcon = (field: string) => {
+    if (itensSortField !== field) return <ArrowUpDown className="h-3 w-3 ml-1 opacity-40" />;
+    return itensSortDir === 'asc'
+      ? <ArrowUp className="h-3 w-3 ml-1 text-sky-600" />
+      : <ArrowDown className="h-3 w-3 ml-1 text-sky-600" />;
   };
 
   // ============================================================
@@ -744,19 +851,41 @@ export default function CatalogoLavanderiaPage() {
             {/* TAB 1: Itens do Catálogo */}
             {/* ============================================================ */}
             <TabsContent value="itens" className="space-y-4">
-              {/* Search + Create */}
+              {/* Search + Filters + Create */}
               <Card>
                 <CardContent className="p-4">
                   <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
-                    <div className="relative flex-1 w-full md:max-w-[400px]">
+                    <div className="relative flex-1 w-full md:max-w-[300px]">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Buscar por descrição ou categoria..."
+                        placeholder="Buscar por descrição..."
                         value={itensSearch}
                         onChange={(e) => setItensSearch(e.target.value)}
                         className="pl-9"
                       />
                     </div>
+                    <Select value={itensCategoriaFilter} onValueChange={setItensCategoriaFilter}>
+                      <SelectTrigger className="w-full md:w-[160px]">
+                        <Filter className="h-4 w-4 mr-1 text-muted-foreground" />
+                        <SelectValue placeholder="Categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todas Categorias</SelectItem>
+                        {CATEGORIAS.map((cat) => (
+                          <SelectItem key={cat.value} value={cat.value}>{cat.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={itensStatusFilter} onValueChange={setItensStatusFilter}>
+                      <SelectTrigger className="w-full md:w-[130px]">
+                        <SelectValue placeholder="Status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos</SelectItem>
+                        <SelectItem value="ativo">Ativos</SelectItem>
+                        <SelectItem value="inativo">Inativos</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button onClick={openNewItemDialog} className="gap-2 bg-sky-600 hover:bg-sky-700">
                       <Plus className="h-4 w-4" />
                       Novo Item
@@ -797,10 +926,22 @@ export default function CatalogoLavanderiaPage() {
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Descrição</TableHead>
-                            <TableHead className="hidden sm:table-cell">Categoria</TableHead>
+                            <TableHead>
+                              <Button variant="ghost" size="sm" className="h-7 px-2 -ml-2 font-semibold text-xs" onClick={() => handleItensSort('descricao')}>
+                                Descrição {getSortIcon('descricao')}
+                              </Button>
+                            </TableHead>
+                            <TableHead className="hidden sm:table-cell">
+                              <Button variant="ghost" size="sm" className="h-7 px-2 -ml-2 font-semibold text-xs" onClick={() => handleItensSort('categoria')}>
+                                Categoria {getSortIcon('categoria')}
+                              </Button>
+                            </TableHead>
                             <TableHead className="text-center">Status</TableHead>
-                            <TableHead className="hidden md:table-cell">Criado em</TableHead>
+                            <TableHead className="hidden md:table-cell">
+                              <Button variant="ghost" size="sm" className="h-7 px-2 -ml-2 font-semibold text-xs" onClick={() => handleItensSort('criado_em')}>
+                                Criado em {getSortIcon('criado_em')}
+                              </Button>
+                            </TableHead>
                             <TableHead className="text-center">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -896,34 +1037,47 @@ export default function CatalogoLavanderiaPage() {
                     <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   </CardContent>
                 </Card>
-              ) : itensAtivos.length === 0 || servicosAtivos.length === 0 ? (
+              ) : itensAtivos.length === 0 || matrixServicos.length === 0 ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                     <PackageSearch className="h-12 w-12 mb-4 opacity-30" />
                     <p className="text-lg font-medium">Dados insuficientes para montar a tabela</p>
                     <p className="text-sm mt-1">
-                      {itensAtivos.length === 0 && servicosAtivos.length === 0
+                      {itensAtivos.length === 0 && matrixServicos.length === 0
                         ? 'Você precisa cadastrar itens e serviços antes de definir preços. Use as abas "Itens do Catálogo" e "Serviços e Preços" para criar.'
                         : itensAtivos.length === 0
                           ? 'Nenhum item ativo encontrado. Cadastre itens na aba "Itens do Catálogo" primeiro.'
-                          : 'Nenhum serviço ativo encontrado. Cadastre serviços na aba "Serviços e Preços" primeiro.'
+                          : 'Nenhum serviço encontrado com o filtro selecionado.'
                       }
                     </p>
                   </CardContent>
                 </Card>
               ) : (
                 <>
-                  {/* Search filter for items */}
+                  {/* Search filter + Status filter for items */}
                   <Card>
                     <CardContent className="p-4">
-                      <div className="relative flex-1 w-full md:max-w-[400px]">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Buscar item..."
-                          value={precosSearch}
-                          onChange={(e) => setPrecosSearch(e.target.value)}
-                          className="pl-9"
-                        />
+                      <div className="flex flex-col md:flex-row gap-3 items-start md:items-center">
+                        <div className="relative flex-1 w-full md:max-w-[300px]">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            placeholder="Buscar item..."
+                            value={precosSearch}
+                            onChange={(e) => setPrecosSearch(e.target.value)}
+                            className="pl-9"
+                          />
+                        </div>
+                        <Select value={precosServicoStatus} onValueChange={(v: any) => setPrecosServicoStatus(v)}>
+                          <SelectTrigger className="w-full md:w-[140px]">
+                            <Filter className="h-4 w-4 mr-1 text-muted-foreground" />
+                            <SelectValue placeholder="Serviços" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="ativo">Serviços Ativos</SelectItem>
+                            <SelectItem value="inativo">Serviços Inativos</SelectItem>
+                            <SelectItem value="todos">Todos Serviços</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </CardContent>
                   </Card>
@@ -936,7 +1090,7 @@ export default function CatalogoLavanderiaPage() {
                         Matriz de Preços
                       </CardTitle>
                       <CardDescription>
-                        {matrixItens.length} item(ns) × {servicosAtivos.length} serviço(s) — {totalPrecosCadastrados} preço(s) cadastrado(s)
+                        {matrixItens.length} item(ns) × {matrixServicos.length} serviço(s) — {totalPrecosCadastrados} preço(s) cadastrado(s)
                         {precosSearch && ` para "${precosSearch}"`}
                       </CardDescription>
                     </CardHeader>
@@ -948,12 +1102,27 @@ export default function CatalogoLavanderiaPage() {
                               <th className="sticky left-0 bg-muted/50 z-10 text-left px-4 py-3 font-semibold text-muted-foreground whitespace-nowrap">
                                 Item
                               </th>
-                              {servicosAtivos.map((servico) => (
+                              {matrixServicos.map((servico) => (
                                 <th
                                   key={servico.id}
-                                  className="text-center px-3 py-3 font-semibold text-muted-foreground whitespace-nowrap min-w-[120px]"
+                                  draggable
+                                  onDragStart={(e) => handleDragStart(e, servico.id)}
+                                  onDragEnd={handleDragEnd}
+                                  onDragOver={handleDragOver}
+                                  onDrop={(e) => handleDrop(e, servico.id)}
+                                  className={`text-center px-3 py-3 font-semibold whitespace-nowrap min-w-[120px] cursor-grab active:cursor-grabbing select-none transition-colors ${
+                                    draggedServicoId === servico.id
+                                      ? 'bg-violet-100 text-violet-700'
+                                      : servico.ativo
+                                        ? 'text-muted-foreground'
+                                        : 'text-red-400 bg-red-50/50'
+                                  } ${draggedServicoId && draggedServicoId !== servico.id ? 'border-l-2 border-dashed border-violet-300' : ''}`}
                                 >
-                                  <span className="block text-xs font-medium">{servico.nome}</span>
+                                  <span className="inline-flex items-center gap-1">
+                                    <GripVertical className="h-3 w-3 opacity-40" />
+                                    <span className="text-xs font-medium">{servico.nome}</span>
+                                    {!servico.ativo && <span className="text-[9px] text-red-400 ml-1">(inativo)</span>}
+                                  </span>
                                 </th>
                               ))}
                             </tr>
@@ -967,7 +1136,7 @@ export default function CatalogoLavanderiaPage() {
                                     {item.categoria}
                                   </Badge>
                                 </td>
-                                {servicosAtivos.map((servico) => {
+                                {matrixServicos.map((servico) => {
                                   const key = `${item.id}_${servico.id}`;
                                   const preco = getPreco(item.id, servico.id);
                                   const editVal = getEditingValue(item.id, servico.id);
@@ -1305,7 +1474,7 @@ export default function CatalogoLavanderiaPage() {
 
               {/* Preço */}
               <div className="space-y-2">
-                <Label htmlFor="servico-preco">Preço (R$) *</Label>
+                <Label htmlFor="servico-preco">Preço (R$)</Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
                     R$

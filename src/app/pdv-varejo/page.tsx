@@ -741,33 +741,8 @@ export default function PDVVarejoPage() {
 
             {/* Barra de filtros avançados */}
             <div className="px-3 py-2 bg-white border-b border-gray-100 space-y-2">
-              {/* Linha 1: Faixa de preço + Estoque + Ordenação + Visualização */}
+              {/* Linha 1: Estoque + Ordenação + Visualização */}
               <div className="flex flex-wrap items-center gap-2">
-                {/* Filtros de preço */}
-                <div className="flex items-center gap-1 flex-wrap">
-                  {[
-                    { key: 'todos', label: 'Todos' },
-                    { key: 'ate-10', label: 'Até R$10' },
-                    { key: '10-25', label: 'R$10-R$25' },
-                    { key: '25-50', label: 'R$25-R$50' },
-                    { key: 'acima-50', label: 'Acima R$50' },
-                  ].map(fp => (
-                    <button
-                      key={fp.key}
-                      onClick={() => setFaixaPreco(fp.key)}
-                      className={`px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors ${
-                        faixaPreco === fp.key
-                          ? 'bg-blue-600 text-white shadow-sm'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      {fp.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="h-4 w-px bg-gray-200 hidden sm:block" />
-
                 {/* Toggle estoque */}
                 <button
                   onClick={() => setSomenteComEstoque(prev => !prev)}

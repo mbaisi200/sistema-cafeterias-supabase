@@ -148,6 +148,38 @@ export default function ProdutosPage() {
   const [fotoError, setFotoError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Estado do segmento da empresa (para controlar abas visíveis)
+  const [segmentoNome, setSegmentoNome] = useState<string | null>(null);
+  const segmentosSemIfoodCombos = ['lavanderia', 'petshop', 'pet', 'academia', 'barbearia'];
+  const showIfoodTab = segmentoNome === null || !segmentosSemIfoodCombos.some(s => segmentoNome.toLowerCase().includes(s));
+  const showCombosTab = segmentoNome === null || !segmentosSemIfoodCombos.some(s => segmentoNome.toLowerCase().includes(s));
+
+  // Carregar segmento da empresa
+  useEffect(() => {
+    const loadSegmento = async () => {
+      if (!empresaId) return;
+      try {
+        const supabase = getSupabaseClient();
+        const { data: empresa } = await supabase
+          .from('empresas')
+          .select('segmento_id')
+          .eq('id', empresaId)
+          .single();
+        if (empresa?.segmento_id) {
+          const { data: segmento } = await supabase
+            .from('segmentos')
+            .select('nome')
+            .eq('id', empresa.segmento_id)
+          .single();
+          if (segmento?.nome) setSegmentoNome(segmento.nome);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar segmento:', err);
+      }
+    };
+    loadSegmento();
+  }, [empresaId]);
+
   // Carregar foto do produto ao abrir dialog de edição
   useEffect(() => {
     if (editandoProduto && dialogOpen) {
@@ -550,14 +582,18 @@ export default function ProdutosPage() {
               <FolderOpen className="h-4 w-4 mr-2" />
               Categorias ({categorias.length})
             </TabsTrigger>
-            <TabsTrigger value="ifood">
-              <ShoppingCart className="h-4 w-4 mr-2" />
-              iFood ({produtosIfood.length})
-            </TabsTrigger>
-            <TabsTrigger value="combos">
-              <Layers className="h-4 w-4 mr-2" />
-              Combos ({produtos.filter(p => p.isCombo).length})
-            </TabsTrigger>
+            {showIfoodTab && (
+              <TabsTrigger value="ifood">
+                <ShoppingCart className="h-4 w-4 mr-2" />
+                iFood ({produtosIfood.length})
+              </TabsTrigger>
+            )}
+            {showCombosTab && (
+              <TabsTrigger value="combos">
+                <Layers className="h-4 w-4 mr-2" />
+                Combos ({produtos.filter(p => p.isCombo).length})
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Tab Produtos */}
@@ -1272,6 +1308,7 @@ export default function ProdutosPage() {
           </TabsContent>
 
           {/* Tab iFood */}
+          {showIfoodTab && (
           <TabsContent value="ifood" className="space-y-6">
             {/* Header iFood */}
             <div className="flex items-center justify-between">
@@ -1377,8 +1414,10 @@ export default function ProdutosPage() {
               </Card>
             )}
           </TabsContent>
+          )}
 
           {/* Tab Combos */}
+          {showCombosTab && (
           <TabsContent value="combos" className="space-y-6">
             <div>
               <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -1493,6 +1532,7 @@ export default function ProdutosPage() {
               </Card>
             )}
           </TabsContent>
+          )}
         </Tabs>
 
         {/* Dialog: Configurar Itens do Combo */}
