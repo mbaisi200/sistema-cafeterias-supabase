@@ -106,13 +106,14 @@ export async function exportToPDF(options: PDFExportOptions): Promise<void> {
   // Logo or company name
   if (companyInfo) {
     let logoLoaded = false;
+    let logoDrawH = 0;
 
     // Try to load and render the logo image if a URL was provided
     if (logo) {
       const logoResult = await loadLogoAsBase64(logo);
       if (logoResult) {
-        const maxW = 25;
-        const maxH = 25;
+        const maxW = 18;
+        const maxH = 18;
         // Calculate aspect-ratio-preserving dimensions within max bounds
         const ratio = logoResult.width / logoResult.height;
         let drawW: number;
@@ -128,19 +129,23 @@ export async function exportToPDF(options: PDFExportOptions): Promise<void> {
         }
         // Detect image format from the data-URI (e.g. "data:image/png;…")
         const imgFormat = logoResult.dataUrl.match(/data:image\/(\w+);/)?.[1]?.toUpperCase() as 'JPEG' | 'PNG' | 'WEBP' | 'GIF' | undefined;
-        doc.addImage(logoResult.dataUrl, imgFormat ?? 'JPEG', 14, 10, drawW, drawH);
+        doc.addImage(logoResult.dataUrl, imgFormat ?? 'JPEG', 14, 12, drawW, drawH);
         logoLoaded = true;
+        logoDrawH = drawH;
       }
     }
 
     // When a logo is rendered, shift the text block to the right
-    const textX = logoLoaded ? 45 : 14;
+    const textX = logoLoaded ? 36 : 14;
+    // Vertically center the text with the logo
+    const textStartY = logoLoaded ? 12 + logoDrawH / 2 + 1 : y;
+    let textY = textStartY;
 
     if (companyInfo.name) {
       doc.setFontSize(14);
       doc.setFont('helvetica', 'bold');
-      doc.text(companyInfo.name, textX, y);
-      y += 5;
+      doc.text(companyInfo.name, textX, textY);
+      textY += 5;
     }
     if (companyInfo.cnpj || companyInfo.phone || companyInfo.email) {
       doc.setFontSize(8);
@@ -148,12 +153,13 @@ export async function exportToPDF(options: PDFExportOptions): Promise<void> {
       doc.setTextColor(100, 100, 100);
       const infoParts = [companyInfo.cnpj, companyInfo.phone, companyInfo.email].filter(Boolean);
       if (infoParts.length > 0) {
-        doc.text(infoParts.join('  |  '), textX, y);
-        y += 2;
+        doc.text(infoParts.join('  |  '), textX, textY);
+        textY += 2;
       }
       doc.setTextColor(0, 0, 0);
     }
-    y += 3;
+    // Set y to below the logo block, ensuring no overlap
+    y = logoLoaded ? Math.max(textY + 3, 12 + logoDrawH + 3) : textY + 3;
   }
 
   // Separator line
