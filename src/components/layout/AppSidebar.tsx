@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
@@ -61,6 +61,9 @@ import {
   ChevronRight,
   Shield,
   WashingMachine,
+  Image,
+  Upload,
+  Loader2,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -164,6 +167,9 @@ export function AppSidebar() {
   const [dynamicAtalhoItems, setDynamicAtalhoItems] = useState<MenuItem[]>([]);
   const [hasSegment, setHasSegment] = useState<boolean>(false);
   const [openSubmenus, setOpenSubmenus] = useState<string[]>(['pedidos-os']);
+  const [empresaLogo, setEmpresaLogo] = useState<string>('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
 
   // Carregar seções dinâmicas do Supabase para admin e funcionário (com cache)
   useEffect(() => {
@@ -349,17 +355,82 @@ export function AppSidebar() {
     return item.url;
   };
 
+  // Carregar logo da empresa
+  useEffect(() => {
+    if (!empresaId) return;
+    const supabase = getSupabaseClient();
+    supabase
+      .from('empresas')
+      .select('logo_url')
+      .eq('id', empresaId)
+      .single()
+      .then(({ data }) => {
+        if (data?.logo_url) setEmpresaLogo(data.logo_url);
+      })
+      .catch(() => {});
+  }, [empresaId]);
+
+  // Upload de logo
+  const handleLogoUpload = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !empresaId) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) return;
+    if (file.size > 2 * 1024 * 1024) return;
+
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('empresaId', empresaId);
+
+      const res = await fetch('/api/empresa-logo', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (res.ok && data.url) {
+        setEmpresaLogo(data.url);
+      }
+    } catch {
+      // silencioso no sidebar
+    } finally {
+      setUploadingLogo(false);
+      if (e.target) e.target.value = '';
+    }
+  }, [empresaId]);
+
   return (
     <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader className="border-b border-blue-100 bg-blue-50">
-        <div className="flex items-center gap-2 px-2 py-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
-            <Coffee className="h-5 w-5 text-white" />
+        <div
+          className="flex items-center gap-2 px-2 py-2 cursor-pointer hover:bg-blue-100 rounded-lg transition-colors"
+          onClick={() => logoInputRef.current?.click()}
+          title={empresaLogo ? 'Clique para alterar o logo' : 'Clique para enviar o logo da empresa'}
+        >
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 overflow-hidden shrink-0">
+            {empresaLogo ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={empresaLogo}
+                alt="Logo"
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <Coffee className="h-5 w-5 text-white" />
+            )}
           </div>
-          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-semibold">Gestão</span>
-            <span className="text-xs text-muted-foreground">{nomeMarca || 'Café & Restaurante'}</span>
+          <div className="flex flex-col flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
+            <span className="text-sm font-semibold truncate">{nomeMarca || 'Gestão'}</span>
+            <span className="text-xs text-muted-foreground truncate">
+              {uploadingLogo ? 'Enviando...' : empresaLogo ? 'Clique para trocar o logo' : 'Clique para enviar o logo'}
+            </span>
           </div>
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+            className="hidden"
+            onChange={handleLogoUpload}
+          />
         </div>
       </SidebarHeader>
 
