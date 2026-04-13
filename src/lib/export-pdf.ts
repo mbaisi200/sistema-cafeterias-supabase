@@ -43,22 +43,37 @@ export interface PDFExportOptions {
 }
 
 /**
- * Helper: fetches an image URL and returns a base64 data-URI string.
+ * Helper: fetches an image URL and returns a base64 data-URI string
+ * along with the natural width and height of the image (in pixels).
  * Returns `null` if the fetch fails or the response is not a valid image.
  */
-async function loadLogoAsBase64(url: string): Promise<string | null> {
+async function loadLogoAsBase64(url: string): Promise<{ dataUrl: string; width: number; height: number } | null> {
   try {
     const res = await fetch(url);
     if (!res.ok) return null;
     const contentType = res.headers.get('content-type')?.split(';')[0] ?? '';
     if (!contentType.startsWith('image/')) return null;
     const blob = await res.blob();
-    return new Promise<string | null>((resolve) => {
+
+    // Get base64 data-URI
+    const dataUrl = await new Promise<string | null>((resolve) => {
       const reader = new FileReader();
       reader.onloadend = () => resolve(reader.result as string | null);
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(blob);
     });
+    if (!dataUrl) return null;
+
+    // Get natural dimensions of the image
+    const dims = await new Promise<{ width: number; height: number } | null>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+    if (!dims) return null;
+
+    return { dataUrl, ...dims };
   } catch {
     return null;
   }
@@ -94,15 +109,26 @@ export async function exportToPDF(options: PDFExportOptions): Promise<void> {
 
     // Try to load and render the logo image if a URL was provided
     if (logo) {
-      const logoDataUrl = await loadLogoAsBase64(logo);
-      if (logoDataUrl) {
+      const logoResult = await loadLogoAsBase64(logo);
+      if (logoResult) {
         const maxW = 25;
         const maxH = 25;
+        // Calculate aspect-ratio-preserving dimensions within max bounds
+        const ratio = logoResult.width / logoResult.height;
+        let drawW: number;
+        let drawH: number;
+        if (ratio >= 1) {
+          // Landscape or square: fit to max width
+          drawW = maxW;
+          drawH = maxW / ratio;
+        } else {
+          // Portrait: fit to max height
+          drawH = maxH;
+          drawW = maxH * ratio;
+        }
         // Detect image format from the data-URI (e.g. "data:image/png;…")
-        const imgFormat = logoDataUrl.match(/data:image\/(\w+);/)?.[1]?.toUpperCase() as 'JPEG' | 'PNG' | 'WEBP' | 'GIF' | undefined;
-        // addImage dimensions are calculated internally by jsPDF;
-        // we pass max dimensions and let it scale proportionally.
-        doc.addImage(logoDataUrl, imgFormat ?? 'JPEG', 14, 10, maxW, maxH);
+        const imgFormat = logoResult.dataUrl.match(/data:image\/(\w+);/)?.[1]?.toUpperCase() as 'JPEG' | 'PNG' | 'WEBP' | 'GIF' | undefined;
+        doc.addImage(logoResult.dataUrl, imgFormat ?? 'JPEG', 14, 10, drawW, drawH);
         logoLoaded = true;
       }
     }
