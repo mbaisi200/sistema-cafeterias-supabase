@@ -352,6 +352,9 @@ export async function fetchEmpresaPDFData(empresaId: string): Promise<{
 
     if (!data) return {};
 
+    // Dynamic import of mask utilities
+    const { maskCNPJ, maskPhone } = await import('@/lib/masks');
+
     const empresaNome = data.nome_marca || data.nome || '';
     const empresaCNPJ = data.cnpj || '';
     const empresaTelefone = data.telefone || '';
@@ -365,8 +368,8 @@ export async function fetchEmpresaPDFData(empresaId: string): Promise<{
       logo: empresaLogo || undefined,
       companyInfo: empresaNome ? {
         name: empresaNome,
-        cnpj: empresaCNPJ ? `CNPJ: ${empresaCNPJ}` : undefined,
-        phone: empresaTelefone,
+        cnpj: empresaCNPJ ? `CNPJ: ${maskCNPJ(empresaCNPJ)}` : undefined,
+        phone: empresaTelefone ? maskPhone(empresaTelefone) : undefined,
         email: empresaEmail,
       } : undefined,
       footerText: empresaNome && empresaEndereco ? `${empresaNome} — ${empresaEndereco}` : undefined,
