@@ -862,7 +862,7 @@ export class NFeService {
   /**
    * Gera HTML do DANFE para impressão
    */
-  static gerarHTMLDANFE(nfe: NFe): string {
+  static gerarHTMLDANFE(nfe: NFe, empresaLogo?: string): string {
     const formato = {
       autorizada: { cor: '#16a34a', texto: 'NF-e AUTORIZADA' },
       cancelada: { cor: '#dc2626', texto: 'NF-e CANCELADA' },
@@ -888,9 +888,10 @@ export class NFeService {
     .page { width: 210mm; min-height: 297mm; padding: 5mm; page-break-after: always; }
     .header { border: 1px solid #333; padding: 4px; margin-bottom: 4px; }
     .header-top { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; padding-bottom: 4px; margin-bottom: 4px; }
-    .emitente { font-size: 9pt; }
+    .emitente { font-size: 9pt; flex: 1; }
     .emitente .razao { font-size: 11pt; font-weight: bold; }
     .emitente .cnpj { font-size: 8pt; }
+    .emitente-logo { width: 80px; height: 50px; object-fit: contain; margin-right: 8px; }
     .destinatario { border: 1px solid #333; padding: 4px; margin: 4px 0; }
     .destinatario .titulo { font-weight: bold; font-size: 7pt; background: #eee; padding: 2px; }
     .section { border: 1px solid #333; margin: 4px 0; }
@@ -916,9 +917,13 @@ export class NFeService {
   <div class="page">
     <div class="header">
       <div class="header-top">
-        <div>
-          <div style="font-size: 14pt; font-weight: bold;">DANFE</div>
-          <div style="font-size: 7pt;">Documento Auxiliar da Nota Fiscal Eletrônica</div>
+        ${empresaLogo ? `<img src="${empresaLogo}" class="emitente-logo" alt="Logo" />` : ''}
+        <div class="emitente">
+          <div class="razao">${emit.razao_social || ''}</div>
+          <div class="cnpj">${emit.cnpj ? `CNPJ: ${emit.cnpj}` : ''}</div>
+          <div class="small">${emit.nome_fantasia ? `Fantasia: ${emit.nome_fantasia}` : ''}</div>
+          <div class="small">${emit.logradouro || ''}${emit.numero ? `, ${emit.numero}` : ''}${emit.bairro ? ` - ${emit.bairro}` : ''}${emit.municipio ? ` - ${emit.municipio}/${emit.uf}` : ''}${emit.cep ? ` - CEP: ${emit.cep}` : ''}</div>
+          <div class="small">${emit.telefone ? `Tel: ${emit.telefone}` : ''}${emit.ie ? ` | IE: ${emit.ie}` : ''}</div>
         </div>
         <div style="text-align: right;">
           <div style="font-size: 7pt;">NF-e Modelo 55 | Layout 4.00</div>

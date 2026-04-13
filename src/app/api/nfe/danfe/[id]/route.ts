@@ -30,6 +30,17 @@ export async function GET(
       return NextResponse.json({ sucesso: false, erro: { codigo: '404', mensagem: 'NF-e não encontrada' } }, { status: 404 });
     }
 
+    // Buscar logo da empresa
+    let empresaLogo = '';
+    if (nfe.empresa_id) {
+      const { data: empresa } = await supabase
+        .from('empresas')
+        .select('logo_url')
+        .eq('id', nfe.empresa_id)
+        .single();
+      if (empresa?.logo_url) empresaLogo = empresa.logo_url;
+    }
+
     const danfeHTML = NFeService.gerarHTMLDANFE({
       id: nfe.id,
       empresa_id: nfe.empresa_id,
@@ -77,7 +88,7 @@ export async function GET(
       em_contingencia: nfe.em_contingencia,
       criado_em: new Date(nfe.criado_em),
       atualizado_em: new Date(nfe.atualizado_em),
-    } as any);
+    } as any, empresaLogo);
 
     return new NextResponse(danfeHTML, {
       headers: {

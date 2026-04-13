@@ -1,15 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useAuth } from '@/contexts/AuthContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getSupabaseClient } from '@/lib/supabase';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -58,6 +60,10 @@ import {
   DollarSign,
   Settings,
   Trash2,
+  Image,
+  Upload,
+  CheckCircle,
+  AlertCircle,
 } from 'lucide-react';
 import { exportToPDF, formatCurrencyPDF, formatDatePDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 import { useToast } from '@/hooks/use-toast';
@@ -95,6 +101,138 @@ interface NFeSaida {
 }
 
 // =====================================================
+// Logo Upload Card Component
+// =====================================================
+
+function LogoUploadCard({ empresaId, logoUrl, setLogoUrl }: {
+  empresaId: string;
+  logoUrl: string;
+  setLogoUrl: (url: string) => void;
+}) {
+  const { toast } = useToast();
+  const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleUpload = useCallback(async (file: File) => {
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ variant: 'destructive', title: 'Tipo inválido', description: 'Use JPEG, PNG, WebP, GIF ou SVG.' });
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ variant: 'destructive', title: 'Arquivo muito grande', description: 'Tamanho máximo: 2MB.' });
+      return;
+    }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('empresaId', empresaId);
+      const res = await fetch('/api/empresa-logo', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro no upload');
+      setLogoUrl(data.url);
+      toast({ title: 'Logo enviado!', description: 'O logo será usado nos DANFEs e relatórios.' });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast({ variant: 'destructive', title: 'Erro no upload', description: msg });
+    } finally {
+      setUploading(false);
+    }
+  }, [empresaId, setLogoUrl, toast]);
+
+  const handleRemove = useCallback(async () => {
+    try {
+      const res = await fetch('/api/empresa-logo', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao remover');
+      setLogoUrl('');
+      toast({ title: 'Logo removido' });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast({ variant: 'destructive', title: 'Erro ao remover', description: msg });
+    }
+  }, [empresaId, setLogoUrl, toast]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Image className="h-5 w-5" />
+          Logo da Empresa
+        </CardTitle>
+        <CardDescription>
+          Faça upload do logo que será impresso nos DANFEs e relatórios fiscais
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div
+          className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+            dragOver ? 'border-primary bg-primary/5' : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50'
+          }`}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleUpload(f); }}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onClick={() => fileRef.current?.click()}
+        >
+          <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleUpload(f); if (e.target) e.target.value = ''; }} />
+          {uploading ? (
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 className="h-8 w-8 text-primary animate-spin" />
+              <p className="text-sm text-muted-foreground">Enviando logo...</p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-2">
+              <Upload className="h-8 w-8 text-muted-foreground" />
+              <p className="text-sm font-medium">
+                Arraste o logo aqui ou <span className="text-primary">clique para selecionar</span>
+              </p>
+              <p className="text-xs text-muted-foreground">PNG, JPG, WebP, GIF ou SVG — Máximo 2MB</p>
+            </div>
+          )}
+        </div>
+
+        {logoUrl && (
+          <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg border">
+            <div className="w-20 h-20 rounded-lg bg-white border flex items-center justify-center overflow-hidden shrink-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={logoUrl} alt="Logo da empresa" className="max-w-full max-h-full object-contain" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium">Logo configurado</p>
+              <p className="text-xs text-muted-foreground truncate">{logoUrl}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <Badge variant="secondary"><CheckCircle className="h-3 w-3 mr-1" />Ativo nos DANFEs</Badge>
+                <Button variant="ghost" size="sm" className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10" onClick={handleRemove}>
+                  <Trash2 className="h-3 w-3 mr-1" />Remover
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {!logoUrl && (
+          <div className="flex items-center gap-4 p-4 bg-muted/30 rounded-lg border border-dashed">
+            <div className="w-20 h-20 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <Image className="h-8 w-8 text-muted-foreground/50" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-muted-foreground">Nenhum logo configurado</p>
+              <Badge variant="outline" className="mt-1"><AlertCircle className="h-3 w-3 mr-1" />Sem logo</Badge>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// =====================================================
 // Page Component
 // =====================================================
 
@@ -102,6 +240,20 @@ export default function NFePage() {
   const { empresaId } = useAuth();
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState('entrada');
+
+  // Logo state
+  const [empresaLogo, setEmpresaLogo] = useState<string>('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // Load logo
+  useEffect(() => {
+    if (!empresaId) return;
+    const supabase = getSupabaseClient();
+    supabase.from('empresas').select('logo_url').eq('id', empresaId).single()
+      .then(({ data }) => { if (data?.logo_url) setEmpresaLogo(data.logo_url); })
+      .catch(() => {});
+  }, [empresaId]);
 
   // Delete NFe state
   const [excluindoNFe, setExcluindoNFe] = useState(false);
@@ -457,7 +609,7 @@ export default function NFePage() {
           {/* TABS                                          */}
           {/* ============================================= */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-2">
+            <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-3">
               <TabsTrigger value="entrada" className="gap-2">
                 <ArrowDownToLine className="h-4 w-4 text-blue-500" />
                 <span className="font-semibold">NF-e Entrada</span>
@@ -465,6 +617,10 @@ export default function NFePage() {
               <TabsTrigger value="saida" className="gap-2">
                 <ArrowUpFromLine className="h-4 w-4 text-orange-500" />
                 <span className="font-semibold">NF-e Saída</span>
+              </TabsTrigger>
+              <TabsTrigger value="logo" className="gap-2">
+                <Image className="h-4 w-4 text-purple-500" />
+                <span className="font-semibold">Logo</span>
               </TabsTrigger>
             </TabsList>
 
@@ -956,6 +1112,21 @@ export default function NFePage() {
                   )}
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            {/* ============================================= */}
+            {/* TAB: LOGO DA EMPRESA                           */}
+            {/* ============================================= */}
+            <TabsContent value="logo" className="space-y-6">
+              <p className="text-sm text-muted-foreground ml-1">
+                Gerencie o logo da empresa utilizado nos DANFEs e relatórios fiscais.
+              </p>
+
+              <LogoUploadCard
+                empresaId={empresaId}
+                logoUrl={empresaLogo}
+                setLogoUrl={setEmpresaLogo}
+              />
             </TabsContent>
           </Tabs>
 
