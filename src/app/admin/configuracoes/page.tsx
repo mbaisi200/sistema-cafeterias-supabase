@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,8 @@ import {
   Hash,
   CheckCircle,
   AlertCircle,
+  Trash2,
+  X,
 } from 'lucide-react';
 
 // Interface para os dados da empresa no Supabase (flat, sem aninhamento)
@@ -167,6 +169,9 @@ export default function ConfiguracoesEmpresaPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [empresaOriginal, setEmpresaOriginal] = useState<EmpresaData | null>(null);
   const [formData, setFormData] = useState(empresaVazia);
 
@@ -296,6 +301,96 @@ export default function ConfiguracoesEmpresaPage() {
       setSaving(false);
     }
   };
+
+  // Upload de logo
+  const handleLogoUpload = useCallback(async (file: File) => {
+    if (!empresaId) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        variant: 'destructive',
+        title: 'Tipo inválido',
+        description: 'Use JPEG, PNG, WebP, GIF ou SVG.',
+      });
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      toast({
+        variant: 'destructive',
+        title: 'Arquivo muito grande',
+        description: 'Tamanho máximo: 2MB.',
+      });
+      return;
+    }
+
+    setUploadingLogo(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('empresaId', empresaId);
+
+      const res = await fetch('/api/empresa-logo', { method: 'POST', body: formData });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Erro no upload');
+
+      setFormData(prev => ({ ...prev, logo_url: data.url }));
+      toast({ title: 'Logo enviado!', description: 'O logo da empresa foi atualizado.' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast({ variant: 'destructive', title: 'Erro no upload', description: message });
+    } finally {
+      setUploadingLogo(false);
+    }
+  }, [empresaId, toast]);
+
+  // Remover logo
+  const handleLogoRemove = useCallback(async () => {
+    if (!empresaId) return;
+
+    try {
+      const res = await fetch('/api/empresa-logo', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.error || 'Erro ao remover');
+
+      setFormData(prev => ({ ...prev, logo_url: '' }));
+      toast({ title: 'Logo removido', description: 'O logo da empresa foi removido.' });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast({ variant: 'destructive', title: 'Erro ao remover', description: message });
+    }
+  }, [empresaId, toast]);
+
+  // Drag & Drop handlers
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) handleLogoUpload(file);
+  }, [handleLogoUpload]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOver(false);
+  }, []);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleLogoUpload(file);
+    // Reset input so the same file can be selected again
+    if (e.target) e.target.value = '';
+  }, [handleLogoUpload]);
 
   if (loading) {
     return (
@@ -445,27 +540,45 @@ export default function ConfiguracoesEmpresaPage() {
                 Logo da Empresa
               </CardTitle>
               <CardDescription>
-                Adicione a URL da imagem do logo utilizado no cardápio e cupom fiscal
+                Faça upload do logo utilizado no cardápio digital e relatórios PDF
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex flex-col sm:flex-row gap-4">
-                <div className="flex-1 space-y-2">
-                  <Label htmlFor="logo_url">URL do Logo</Label>
-                  <div className="relative">
-                    <Upload className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="logo_url"
-                      placeholder="https://exemplo.com/logo.png ou URL do Supabase Storage"
-                      value={formData.logo_url}
-                      onChange={(e) => updateField('logo_url', e.target.value)}
-                      className="pl-10"
-                    />
+              {/* Upload Area - Drag & Drop */}
+              <div
+                className={`relative border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+                  dragOver
+                    ? 'border-primary bg-primary/5'
+                    : 'border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50'
+                }`}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                />
+                {uploadingLogo ? (
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                    <p className="text-sm text-muted-foreground">Enviando logo...</p>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Cole a URL de uma imagem (PNG, JPG, SVG). Pode ser uma URL pública ou do Supabase Storage.
-                  </p>
-                </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <Upload className="h-8 w-8 text-muted-foreground" />
+                    <p className="text-sm font-medium">
+                      Arraste o logo aqui ou <span className="text-primary">clique para selecionar</span>
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      PNG, JPG, WebP, GIF ou SVG — Máximo 2MB
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Preview do Logo */}
@@ -489,10 +602,24 @@ export default function ConfiguracoesEmpresaPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{formData.nome_marca || formData.nome || 'Logo da empresa'}</p>
                       <p className="text-xs text-muted-foreground truncate">{formData.logo_url}</p>
-                      <Badge variant="secondary" className="mt-1">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Logo configurado
-                      </Badge>
+                      <div className="flex items-center gap-2 mt-2">
+                        <Badge variant="secondary">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Logo configurado
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleLogoRemove();
+                          }}
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Remover
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </div>

@@ -68,7 +68,7 @@ import {
   Upload,
 } from 'lucide-react';
 import Link from 'next/link';
-import { exportToPDF, formatCurrencyPDF } from '@/lib/export-pdf';
+import { exportToPDF, formatCurrencyPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 
 const colorOptions = [
   '#f97316', '#3b82f6', '#22c55e', '#ec4899', '#eab308', '#ef4444',
@@ -378,7 +378,8 @@ export default function ProdutosPage() {
     setDialogOpen(true);
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
+    const empresaInfo = await fetchEmpresaPDFData(empresaId);
     exportToPDF({
       title: 'Relatório de Produtos',
       subtitle: `Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
@@ -400,6 +401,7 @@ export default function ProdutosPage() {
         { label: 'Produtos Ativos', value: filteredProdutos.filter((p: any) => p.ativo).length },
         { label: 'Produtos Inativos', value: filteredProdutos.filter((p: any) => !p.ativo).length },
       ],
+      ...empresaInfo,
     });
   };
 
@@ -1721,7 +1723,6 @@ export default function ProdutosPage() {
                     setSavingCombo(false);
                   }
                 }}
-                className="bg-blue-600 hover:bg-blue-700"
               >
                 {savingCombo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Salvar Itens

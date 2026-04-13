@@ -50,7 +50,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getSupabaseClient } from '@/lib/supabase';
-import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
+import { exportToPDF, formatCurrencyPDF, formatDatePDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 import {
   Plus,
   ChevronLeft,
@@ -645,7 +645,8 @@ export default function PedidosPage() {
   // ============================================================
   // Export PDF
   // ============================================================
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
+    const empresaInfo = await fetchEmpresaPDFData(empresaId);
     const totalValor = pedidosFiltrados.reduce((acc, p) => acc + (p.total || 0), 0);
     const statusLabel = (status: string) => {
       const opt = STATUS_OPTIONS.find(s => s.value === status);
@@ -675,6 +676,7 @@ export default function PedidosPage() {
         { label: 'Pendentes', value: pedidosPendentes.length },
         { label: 'Aprovados', value: pedidosAprovados.length },
       ],
+      ...empresaInfo,
     });
   };
 

@@ -73,7 +73,8 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { exportToPDF } from '@/lib/export-pdf';
+import { useAuth } from '@/contexts/AuthContext';
+import { exportToPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 
 interface Fornecedor {
   id: string;
@@ -140,6 +141,7 @@ function formatarCEP(cep?: string) {
 }
 
 export default function FornecedoresPage() {
+  const { empresaId } = useAuth();
   const { fornecedores, loading, adicionarFornecedor, atualizarFornecedor, excluirFornecedor } = useFornecedores();
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -285,7 +287,8 @@ export default function FornecedoresPage() {
     }
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
+    const empresaInfo = await fetchEmpresaPDFData(empresaId);
     exportToPDF({
       title: 'Relatório de Fornecedores',
       subtitle: `Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
@@ -308,6 +311,7 @@ export default function FornecedoresPage() {
         { label: 'Ativos', value: filteredFornecedores.filter((f: any) => f.ativo).length },
         { label: 'Com CNPJ', value: filteredFornecedores.filter((f: any) => f.cnpj).length },
       ],
+      ...empresaInfo,
     });
   };
 

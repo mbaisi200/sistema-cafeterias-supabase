@@ -59,7 +59,7 @@ import {
   Settings,
   Trash2,
 } from 'lucide-react';
-import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
+import { exportToPDF, formatCurrencyPDF, formatDatePDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 import { useToast } from '@/hooks/use-toast';
 
 // =====================================================
@@ -379,7 +379,8 @@ export default function NFePage() {
               <Button
                 variant="outline"
                 className="gap-2"
-                onClick={() => {
+                onClick={async () => {
+                  const empresaInfo = await fetchEmpresaPDFData(empresaId);
                   if (activeTab === 'entrada') {
                     exportToPDF({
                       title: 'Notas Fiscais de Entrada',
@@ -406,6 +407,7 @@ export default function NFePage() {
                         { label: 'Total de Produtos', value: statsEntrada.totalProdutos },
                         { label: 'Valor Total', value: formatCurrencyPDF(statsEntrada.valorTotal) },
                       ],
+                    ...empresaInfo,
                     });
                   } else {
                     exportToPDF({
@@ -434,6 +436,7 @@ export default function NFePage() {
                         { label: 'Sem NF-e', value: statsSaida.semNFe },
                         { label: 'Valor Total', value: formatCurrencyPDF(statsSaida.valorTotal) },
                       ],
+                    ...empresaInfo,
                     });
                   }
                 }}

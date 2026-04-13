@@ -38,9 +38,11 @@ import {
   Download,
   ChevronLeft,
 } from 'lucide-react';
-import { exportToPDF, formatDatePDF } from '@/lib/export-pdf';
+import { useAuth } from '@/contexts/AuthContext';
+import { exportToPDF, formatDatePDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 
 export default function LogsPage() {
+  const { empresaId } = useAuth();
   const { logs, loading } = useLogs();
   const [search, setSearch] = useState('');
   const [tipoFilter, setTipoFilter] = useState<string>('todos');
@@ -120,7 +122,8 @@ export default function LogsPage() {
             </div>
             <Button
               variant="outline"
-              onClick={() =>
+              onClick={async () => {
+                const empresaInfo = await fetchEmpresaPDFData(empresaId);
                 exportToPDF({
                   title: 'Histórico de Atividades',
                   subtitle: 'Logs do sistema',
@@ -133,8 +136,9 @@ export default function LogsPage() {
                   ],
                   data: filteredLogs,
                   filename: `logs-${new Date().toISOString().split('T')[0]}`,
-                })
-              }
+                  ...empresaInfo,
+                });
+              }}
             >
               <Download className="mr-2 h-4 w-4" />
               Exportar PDF

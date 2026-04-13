@@ -294,3 +294,52 @@ export function formatDatePDF(date: string | Date): string {
     return '-';
   }
 }
+
+/**
+ * Fetches empresa data from Supabase and returns PDF-ready info.
+ * Use this to inject logo, companyInfo and footerText into exportToPDF calls.
+ *
+ * @param empresaId - The UUID of the empresa
+ * @returns Object with logo, companyInfo and footerText to spread into exportToPDF options
+ */
+export async function fetchEmpresaPDFData(empresaId: string): Promise<{
+  logo?: string;
+  companyInfo?: PDFExportOptions['companyInfo'];
+  footerText?: string;
+}> {
+  try {
+    // Dynamic import to avoid issues in non-client contexts
+    const { getSupabaseClient } = await import('@/lib/supabase');
+    const supabase = getSupabaseClient();
+
+    const { data } = await supabase
+      .from('empresas')
+      .select('nome, nome_marca, cnpj, telefone, email, logradouro, numero, complemento, bairro, cidade, estado, cep, logo_url')
+      .eq('id', empresaId)
+      .single();
+
+    if (!data) return {};
+
+    const empresaNome = data.nome_marca || data.nome || '';
+    const empresaCNPJ = data.cnpj || '';
+    const empresaTelefone = data.telefone || '';
+    const empresaEmail = data.email || '';
+    const empresaLogo = data.logo_url || '';
+
+    const enderecoPartes = [data.logradouro, data.numero, data.complemento, data.bairro, data.cidade, data.estado].filter(Boolean);
+    const empresaEndereco = enderecoPartes.join(', ');
+
+    return {
+      logo: empresaLogo || undefined,
+      companyInfo: empresaNome ? {
+        name: empresaNome,
+        cnpj: empresaCNPJ ? `CNPJ: ${empresaCNPJ}` : undefined,
+        phone: empresaTelefone,
+        email: empresaEmail,
+      } : undefined,
+      footerText: empresaNome && empresaEndereco ? `${empresaNome} — ${empresaEndereco}` : undefined,
+    };
+  } catch {
+    return {};
+  }
+}

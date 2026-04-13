@@ -49,7 +49,7 @@ import {
   Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { exportToPDF } from '@/lib/export-pdf';
+import { exportToPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 
 interface Cliente {
   id: string;
@@ -322,7 +322,8 @@ export default function ClientesPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" className="gap-2" onClick={() => {
+              <Button variant="outline" className="gap-2" onClick={async () => {
+                const empresaInfo = await fetchEmpresaPDFData(empresaId);
                 if (clientes.length === 0) {
                   toast.error('Nenhum cliente para exportar');
                   return;
@@ -352,6 +353,7 @@ export default function ClientesPage() {
                     { label: 'Ativos', value: clientes.filter(c => c.ativo).length },
                     { label: 'Inativos', value: clientes.filter(c => !c.ativo).length },
                   ],
+                  ...empresaInfo,
                 });
               }}>
                 <Download className="h-4 w-4" /> Exportar PDF

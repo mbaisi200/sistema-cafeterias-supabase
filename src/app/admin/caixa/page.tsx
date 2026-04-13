@@ -47,9 +47,11 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { exportToPDF, formatCurrencyPDF } from '@/lib/export-pdf';
+import { useAuth } from '@/contexts/AuthContext';
+import { exportToPDF, formatCurrencyPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 
 export default function CaixaPage() {
+  const { empresaId } = useAuth();
   const { caixaAberto, movimentacoes, historico, loading, loadingDetalhes, abrirCaixa, fecharCaixa, adicionarReforco, adicionarSangria, resumo, detalhesCaixa, carregarDetalhesCaixa, limparDetalhesCaixa } = useCaixa();
   const { toast } = useToast();
 
@@ -283,7 +285,8 @@ export default function CaixaPage() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => {
+                  onClick={async () => {
+                    const empresaInfo = await fetchEmpresaPDFData(empresaId);
                     const totalVendas = movimentacoes
                       .filter((m: any) => m.tipo === 'venda')
                       .reduce((sum: number, m: any) => sum + (m.valor || 0), 0);
@@ -312,6 +315,7 @@ export default function CaixaPage() {
                         { label: 'Total em Vendas', value: formatCurrencyPDF(totalVendas) },
                         { label: 'Valor Atual', value: formatCurrencyPDF(resumo.valorAtual || 0) },
                       ],
+                      ...empresaInfo,
                     });
                   }}
                 >

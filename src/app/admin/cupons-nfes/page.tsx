@@ -57,7 +57,7 @@ import {
   DollarSign,
   Receipt,
 } from 'lucide-react';
-import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
+import { exportToPDF, formatCurrencyPDF, formatDatePDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 
 export default function CuponsNFEsPage() {
   const { empresaId } = useAuth();
@@ -172,7 +172,8 @@ export default function CuponsNFEsPage() {
           <Button
             variant="outline"
             className="gap-2"
-            onClick={() => {
+            onClick={async () => {
+              const empresaInfo = await fetchEmpresaPDFData(empresaId);
               exportToPDF({
                 title: 'Notas Fiscais Eletrônicas (NF-e)',
                 subtitle: `${nfes.length} nota(s) encontrada(s)`,
@@ -210,6 +211,7 @@ export default function CuponsNFEsPage() {
                   { label: 'Pendentes', value: stats.pendentes },
                   { label: 'Valor Autorizado', value: formatCurrencyPDF(stats.totalValor) },
                 ],
+                ...empresaInfo,
               });
             }}
           >

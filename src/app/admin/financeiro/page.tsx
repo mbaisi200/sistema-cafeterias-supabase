@@ -59,7 +59,7 @@ import {
   ChevronLeft,
   Clock,
 } from 'lucide-react';
-import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
+import { exportToPDF, formatCurrencyPDF, formatDatePDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 import { useToast } from '@/hooks/use-toast';
 
 type SortField = 'descricao' | 'categoria' | 'vencimento' | 'valor' | 'status' | 'dataPagamento';
@@ -486,7 +486,8 @@ export default function FinanceiroPage() {
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                onClick={() => {
+                onClick={async () => {
+                  const empresaInfo = await fetchEmpresaPDFData(empresaId);
                   exportToPDF({
                     title: 'Contas a Pagar',
                     subtitle: `Total pendente: ${formatCurrencyPDF(totalPagarPendente)}`,
@@ -511,6 +512,7 @@ export default function FinanceiroPage() {
                         4: formatCurrencyPDF(contasPagarFiltered.reduce((acc: number, c: any) => acc + (c.valor || 0), 0)),
                       },
                     },
+                    ...empresaInfo,
                   });
                 }}
               >
@@ -519,7 +521,8 @@ export default function FinanceiroPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => {
+                onClick={async () => {
+                  const empresaInfo = await fetchEmpresaPDFData(empresaId);
                   exportToPDF({
                     title: 'Contas a Receber',
                     subtitle: `Total pendente: ${formatCurrencyPDF(totalReceberPendente)}`,
@@ -544,6 +547,7 @@ export default function FinanceiroPage() {
                         4: formatCurrencyPDF(contasReceberFiltered.reduce((acc: number, c: any) => acc + (c.valor || 0), 0)),
                       },
                     },
+                    ...empresaInfo,
                   });
                 }}
               >

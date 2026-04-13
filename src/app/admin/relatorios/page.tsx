@@ -20,7 +20,7 @@ import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis, Area, 
 import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign, PiggyBank, Download, ChevronLeft, WashingMachine } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { exportToPDF, formatCurrencyPDF } from '@/lib/export-pdf';
+import { exportToPDF, formatCurrencyPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -229,7 +229,8 @@ export default function RelatoriosPage() {
             <Button
               variant="outline"
               className="gap-2"
-              onClick={() => {
+              onClick={async () => {
+                const empresaInfo = await fetchEmpresaPDFData(empresaId);
                 exportToPDF({
                   title: 'Relatório BI - Produtos Mais Vendidos',
                   subtitle: bi.periodoFormatado,
@@ -252,6 +253,7 @@ export default function RelatoriosPage() {
                     { label: 'Receita Total', value: formatCurrencyPDF(bi.produtosMaisVendidos.reduce((acc: number, p: any) => acc + (p.valorTotal || 0), 0)) },
                     { label: 'Unidades Vendidas', value: bi.produtosMaisVendidos.reduce((acc: number, p: any) => acc + (p.quantidadeTotal || 0), 0) },
                   ],
+                  ...empresaInfo,
                 });
               }}
             >

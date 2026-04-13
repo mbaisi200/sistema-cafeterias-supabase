@@ -55,7 +55,7 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { maskPhone, unmask } from '@/lib/masks';
 import { useAuth } from '@/contexts/AuthContext';
-import { exportToPDF } from '@/lib/export-pdf';
+import { exportToPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 
 interface Funcionario {
   id: string;
@@ -288,8 +288,10 @@ export default function FuncionariosPage() {
     return permissoes.length > 0 ? permissoes.join(', ') : 'Nenhuma';
   };
 
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
+    const empresaInfo = await fetchEmpresaPDFData(empresaId);
     exportToPDF({
+
       title: 'Relatório de Funcionários',
       columns: [
         { header: 'Funcionário', accessor: (row) => row.nome, width: 40 },
@@ -306,6 +308,7 @@ export default function FuncionariosPage() {
         { label: 'Ativos', value: filteredFuncionarios.filter(f => f.ativo).length },
         { label: 'Inativos', value: filteredFuncionarios.filter(f => !f.ativo).length },
       ],
+      ...empresaInfo,
     });
   };
 

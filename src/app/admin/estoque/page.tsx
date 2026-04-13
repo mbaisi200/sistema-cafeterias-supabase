@@ -57,7 +57,7 @@ import {
   ChevronLeft,
   ArrowUpDown,
 } from 'lucide-react';
-import { exportToPDF } from '@/lib/export-pdf';
+import { exportToPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 
 interface MovimentacaoEstoque {
   id: string;
@@ -531,7 +531,8 @@ export default function EstoquePage() {
     .reduce((acc, m) => acc + m.quantidade, 0);
 
   // Exportar PDF
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
+    const empresaInfo = await fetchEmpresaPDFData(empresaId);
     const totalItens = produtosFiltrados.length;
     const itensAbaixoMinimo = produtosFiltrados.filter(
       (p) => (p.estoqueAtual || 0) <= (p.estoqueMinimo || 0)
@@ -565,6 +566,7 @@ export default function EstoquePage() {
         { label: 'Total de Produtos', value: totalItens },
         { label: 'Itens Abaixo do Mínimo', value: itensAbaixoMinimo },
       ],
+      ...empresaInfo,
     });
   };
 
@@ -1493,7 +1495,8 @@ export default function EstoquePage() {
               />
               <Button
                 variant="outline"
-                onClick={() => {
+                onClick={async () => {
+                  const empresaInfo = await fetchEmpresaPDFData(empresaId);
                   exportToPDF({
                     title: 'Relatório de Movimentação de Estoque',
                     subtitle: `Total entradas: ${totalEntradas} | Total saídas: ${totalSaidas}`,
@@ -1509,6 +1512,7 @@ export default function EstoquePage() {
                     filename: `relatorio-movimentacao-estoque-${new Date().toISOString().slice(0, 10)}`,
                     orientation: 'landscape',
                     totals: { label: 'TOTAL' },
+                    ...empresaInfo,
                   });
                 }}
                 className="gap-2"
