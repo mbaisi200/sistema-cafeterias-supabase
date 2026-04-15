@@ -69,6 +69,7 @@ import {
   ArrowDown,
   GripVertical,
   Filter,
+  FolderOpen,
 } from 'lucide-react';
 
 // ============================================================
@@ -98,23 +99,38 @@ interface PrecoCatalogo {
   preco: number;
 }
 
-const CATEGORIAS = [
-  { value: 'Roupas', label: 'Roupas' },
-  { value: 'Cama/Banho', label: 'Cama/Banho' },
-  { value: 'Tapetes', label: 'Tapetes' },
-  { value: 'Cortinas', label: 'Cortinas' },
-  { value: 'Couro', label: 'Couro' },
-  { value: 'Outros', label: 'Outros' },
+interface CategoriaCatalogo {
+  id: string;
+  nome: string;
+  cor_bg: string;
+  cor_text: string;
+  ativo: boolean;
+  ordem: number;
+  criado_em: string;
+}
+
+const CATEGORIAS_DEFAULT = [
+  { nome: 'Roupas', cor_bg: 'bg-sky-100', cor_text: 'text-sky-700' },
+  { nome: 'Cama/Banho', cor_bg: 'bg-violet-100', cor_text: 'text-violet-700' },
+  { nome: 'Tapetes', cor_bg: 'bg-amber-100', cor_text: 'text-amber-700' },
+  { nome: 'Cortinas', cor_bg: 'bg-emerald-100', cor_text: 'text-emerald-700' },
+  { nome: 'Couro', cor_bg: 'bg-orange-100', cor_text: 'text-orange-700' },
+  { nome: 'Outros', cor_bg: 'bg-gray-100', cor_text: 'text-gray-700' },
 ];
 
-const CATEGORIA_ICONS: Record<string, string> = {
-  'Roupas': 'bg-sky-100 text-sky-700',
-  'Cama/Banho': 'bg-violet-100 text-violet-700',
-  'Tapetes': 'bg-amber-100 text-amber-700',
-  'Cortinas': 'bg-emerald-100 text-emerald-700',
-  'Couro': 'bg-orange-100 text-orange-700',
-  'Outros': 'bg-gray-100 text-gray-700',
-};
+const COR_OPTIONS = [
+  { value: 'bg-sky-100 text-sky-700', label: 'Azul', preview: 'bg-sky-100 text-sky-700' },
+  { value: 'bg-violet-100 text-violet-700', label: 'Violeta', preview: 'bg-violet-100 text-violet-700' },
+  { value: 'bg-amber-100 text-amber-700', label: 'Amarelo', preview: 'bg-amber-100 text-amber-700' },
+  { value: 'bg-emerald-100 text-emerald-700', label: 'Verde', preview: 'bg-emerald-100 text-emerald-700' },
+  { value: 'bg-orange-100 text-orange-700', label: 'Laranja', preview: 'bg-orange-100 text-orange-700' },
+  { value: 'bg-red-100 text-red-700', label: 'Vermelho', preview: 'bg-red-100 text-red-700' },
+  { value: 'bg-pink-100 text-pink-700', label: 'Rosa', preview: 'bg-pink-100 text-pink-700' },
+  { value: 'bg-cyan-100 text-cyan-700', label: 'Ciano', preview: 'bg-cyan-100 text-cyan-700' },
+  { value: 'bg-lime-100 text-lime-700', label: 'Lima', preview: 'bg-lime-100 text-lime-700' },
+  { value: 'bg-teal-100 text-teal-700', label: 'Teal', preview: 'bg-teal-100 text-teal-700' },
+  { value: 'bg-gray-100 text-gray-700', label: 'Cinza', preview: 'bg-gray-100 text-gray-700' },
+];
 
 // ============================================================
 // Component
@@ -171,10 +187,19 @@ export default function CatalogoLavanderiaPage() {
   const [servicoOrdem, setServicoOrdem] = useState<string[]>([]);
   const [draggedServicoId, setDraggedServicoId] = useState<string | null>(null);
 
+  // --- Categorias ---
+  const [categorias, setCategorias] = useState<CategoriaCatalogo[]>([]);
+  const [categoriasLoading, setCategoriasLoading] = useState(false);
+  const [categoriaDialogOpen, setCategoriaDialogOpen] = useState(false);
+  const [editingCategoria, setEditingCategoria] = useState<CategoriaCatalogo | null>(null);
+  const [categoriaSaving, setCategoriaSaving] = useState(false);
+  const [categoriaNome, setCategoriaNome] = useState('');
+  const [categoriaCor, setCategoriaCor] = useState('bg-gray-100 text-gray-700');
+
   // Delete confirmation
   const [deleteDialog, setDeleteDialog] = useState<{
     open: boolean;
-    type: 'item' | 'servico';
+    type: 'item' | 'servico' | 'categoria';
     id: string;
     nome: string;
   }>({ open: false, type: 'item', id: '', nome: '' });
@@ -188,6 +213,7 @@ export default function CatalogoLavanderiaPage() {
     if (empresaId) {
       loadItens();
       loadServicos();
+      loadCategorias();
     }
   }, [empresaId]);
 
@@ -253,6 +279,120 @@ export default function CatalogoLavanderiaPage() {
       setServicosLoading(false);
     }
   };
+
+  const loadCategorias = async () => {
+    setCategoriasLoading(true);
+    try {
+      const supabase = getSupabase();
+      const { data, error } = await supabase
+        .from('lavanderia_categorias')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .order('ordem', { ascending: true });
+
+      if (error) {
+ // Se a tabela ainda não existe (migration não executada), usa categorias padrão
+        if (error.message?.includes('does not exist') || error.code === '42P01') {
+          const defaults = CATEGORIAS_DEFAULT.map((c, i) => ({
+            id: `default-${c.nome}-${i}`,
+            nome: c.nome,
+            cor_bg: c.cor_bg,
+            cor_text: c.cor_text,
+            ativo: true,
+            ordem: i,
+            criado_em: '',
+          }));
+          setCategorias(defaults);
+          return;
+        }
+        throw error;
+      }
+
+      const loaded = (data || []).map((row: any) => ({
+        id: row.id,
+        nome: row.nome || '',
+        cor_bg: row.cor_bg || 'bg-gray-100',
+        cor_text: row.cor_text || 'text-gray-700',
+        ativo: row.ativo ?? true,
+        ordem: row.ordem ?? 0,
+        criado_em: row.criado_em || '',
+      }));
+
+      // Auto-seed categorias padrão se a tabela estiver vazia
+      if (loaded.length === 0) {
+        const seeded = await seedCategoriasPadrao();
+        setCategorias(seeded);
+      } else {
+        setCategorias(loaded);
+      }
+    } catch (err: any) {
+      console.error('Erro ao carregar categorias:', err);
+      const defaults = CATEGORIAS_DEFAULT.map((c, i) => ({
+        id: `default-${c.nome}-${i}`,
+        nome: c.nome,
+        cor_bg: c.cor_bg,
+        cor_text: c.cor_text,
+        ativo: true,
+        ordem: i,
+        criado_em: '',
+      }));
+      setCategorias(defaults);
+    } finally {
+      setCategoriasLoading(false);
+    }
+  };
+
+  const seedCategoriasPadrao = async (): Promise<CategoriaCatalogo[]> => {
+    try {
+      const supabase = getSupabase();
+      const rows = CATEGORIAS_DEFAULT.map((c, i) => ({
+        empresa_id: empresaId,
+        nome: c.nome,
+        cor_bg: c.cor_bg,
+        cor_text: c.cor_text,
+        ativo: true,
+        ordem: i,
+      }));
+      const { error } = await supabase.from('lavanderia_categorias').insert(rows);
+      if (error) throw error;
+      return rows.map((c, i) => ({
+        id: `seed-${i}`,
+        nome: c.nome,
+        cor_bg: c.cor_bg,
+        cor_text: c.cor_text,
+        ativo: true,
+        ordem: i,
+        criado_em: new Date().toISOString(),
+      }));
+    } catch (err) {
+      console.error('Erro ao seed categorias padrão:', err);
+      return CATEGORIAS_DEFAULT.map((c, i) => ({
+        id: `default-${c.nome}-${i}`,
+        nome: c.nome,
+        cor_bg: c.cor_bg,
+        cor_text: c.cor_text,
+        ativo: true,
+        ordem: i,
+        criado_em: '',
+      }));
+    }
+  };
+
+  // Derivar CATEGORIAS e CATEGORIA_ICONS do estado dinâmico
+  const CATEGORIAS = useMemo(() =>
+    categorias.filter(c => c.ativo).map(c => ({ value: c.nome, label: c.nome })),
+    [categorias]
+  );
+
+  const CATEGORIA_ICONS = useMemo(() => {
+    const map: Record<string, string> = {};
+    categorias.forEach(c => {
+      map[c.nome] = `${c.cor_bg} ${c.cor_text}`;
+    });
+    // Fallback
+    map[''] = 'bg-gray-100 text-gray-700';
+    return map;
+  }, [categorias]);
 
   const loadPrecos = async () => {
     setPrecosLoading(true);
@@ -732,6 +872,126 @@ export default function CatalogoLavanderiaPage() {
   };
 
   // ============================================================
+  // Categorias CRUD
+  // ============================================================
+  const openNewCategoriaDialog = () => {
+    setEditingCategoria(null);
+    setCategoriaNome('');
+    setCategoriaCor('bg-gray-100 text-gray-700');
+    setCategoriaDialogOpen(true);
+  };
+
+  const openEditCategoriaDialog = (cat: CategoriaCatalogo) => {
+    setEditingCategoria(cat);
+    setCategoriaNome(cat.nome);
+    setCategoriaCor(`${cat.cor_bg} ${cat.cor_text}`);
+    setCategoriaDialogOpen(true);
+  };
+
+  const handleSaveCategoria = async () => {
+    if (!categoriaNome.trim()) {
+      toast({ variant: 'destructive', title: 'Campo obrigatório', description: 'Informe o nome da categoria.' });
+      return;
+    }
+    // Validar duplicidade
+    const nomeTrim = categoriaNome.trim();
+    const duplicata = categorias.find(c =>
+      c.nome.toLowerCase() === nomeTrim.toLowerCase() && c.id !== editingCategoria?.id
+    );
+    if (duplicata) {
+      toast({ variant: 'destructive', title: 'Categoria duplicada', description: `Já existe uma categoria com o nome "${nomeTrim}".` });
+      return;
+    }
+
+    setCategoriaSaving(true);
+    try {
+      const supabase = getSupabase();
+      const [corBg, corText] = categoriaCor.split(' ');
+
+      // Se o id começa com 'default-', a tabela ainda não existe
+      if (editingCategoria?.id?.startsWith('default-') || editingCategoria?.id?.startsWith('seed-')) {
+        toast({ title: 'Atenção', description: 'Execute a migration SQL para habilitar o cadastro completo de categorias.' });
+        setCategoriaSaving(false);
+        return;
+      }
+
+      if (editingCategoria) {
+        const { error } = await supabase
+          .from('lavanderia_categorias')
+          .update({
+            nome: nomeTrim,
+            cor_bg: corBg,
+            cor_text: corText,
+          })
+          .eq('id', editingCategoria.id);
+        if (error) throw error;
+        toast({ title: 'Categoria atualizada!', description: `"${nomeTrim}" foi atualizada com sucesso.` });
+      } else {
+        const { error } = await supabase
+          .from('lavanderia_categorias')
+          .insert({
+            empresa_id: empresaId,
+            nome: nomeTrim,
+            cor_bg: corBg,
+            cor_text: corText,
+            ativo: true,
+            ordem: categorias.length,
+          });
+        if (error) throw error;
+        toast({ title: 'Categoria criada!', description: `"${nomeTrim}" foi adicionada ao catálogo.` });
+      }
+
+      setCategoriaDialogOpen(false);
+      loadCategorias();
+    } catch (err: any) {
+      if (err.message?.includes('does not exist') || err.code === '42P01') {
+        toast({ variant: 'destructive', title: 'Tabela não encontrada', description: 'Execute a migration SQL "add_lavanderia_categorias" no Supabase para habilitar esta funcionalidade.' });
+      } else {
+        console.error('Erro ao salvar categoria:', err);
+        toast({ variant: 'destructive', title: 'Erro ao salvar categoria', description: err.message });
+      }
+    } finally {
+      setCategoriaSaving(false);
+    }
+  };
+
+  const handleDeleteCategoria = async () => {
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase
+        .from('lavanderia_categorias')
+        .delete()
+        .eq('id', deleteDialog.id);
+      if (error) throw error;
+      toast({ title: 'Categoria excluída!', description: `"${deleteDialog.nome}" foi removida.` });
+      setDeleteDialog({ open: false, type: 'item', id: '', nome: '' });
+      loadCategorias();
+    } catch (err: any) {
+      console.error('Erro ao excluir categoria:', err);
+      toast({ variant: 'destructive', title: 'Erro ao excluir categoria', description: err.message });
+    }
+  };
+
+  const handleToggleCategoriaAtivo = async (cat: CategoriaCatalogo) => {
+    if (cat.id?.startsWith('default-') || cat.id?.startsWith('seed-')) {
+      toast({ title: 'Atenção', description: 'Execute a migration SQL para habilitar esta funcionalidade.' });
+      return;
+    }
+    try {
+      const supabase = getSupabase();
+      const { error } = await supabase
+        .from('lavanderia_categorias')
+        .update({ ativo: !cat.ativo })
+        .eq('id', cat.id);
+      if (error) throw error;
+      loadCategorias();
+    } catch (err: any) {
+      console.error('Erro ao alterar categoria:', err);
+      toast({ variant: 'destructive', title: 'Erro', description: err.message });
+    }
+  };
+
+  // ============================================================
   // Helpers
   // ============================================================
   const formatCurrency = (v: number) =>
@@ -850,20 +1110,31 @@ export default function CatalogoLavanderiaPage() {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 max-w-2xl">
-              <TabsTrigger value="itens" className="gap-2">
-                <Shirt className="h-4 w-4" />
-                Itens do Catálogo
-              </TabsTrigger>
-              <TabsTrigger value="precos" className="gap-2">
-                <DollarSign className="h-4 w-4" />
-                Tabela de Preços
-              </TabsTrigger>
-              <TabsTrigger value="servicos" className="gap-2">
-                <Sparkles className="h-4 w-4" />
-                Serviços e Preços
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center gap-3">
+              <TabsList className="grid w-full grid-cols-3 max-w-2xl">
+                <TabsTrigger value="itens" className="gap-2">
+                  <Shirt className="h-4 w-4" />
+                  Itens do Catálogo
+                </TabsTrigger>
+                <TabsTrigger value="precos" className="gap-2">
+                  <DollarSign className="h-4 w-4" />
+                  Tabela de Preços
+                </TabsTrigger>
+                <TabsTrigger value="servicos" className="gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Serviços e Preços
+                </TabsTrigger>
+              </TabsList>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2 flex-shrink-0"
+                onClick={openNewCategoriaDialog}
+              >
+                <FolderOpen className="h-4 w-4" />
+                <span className="hidden sm:inline">Categorias</span>
+              </Button>
+            </div>
 
             {/* ============================================================ */}
             {/* TAB 1: Itens do Catálogo */}
@@ -1346,6 +1617,154 @@ export default function CatalogoLavanderiaPage() {
         </div>
 
         {/* ============================================================ */}
+        {/* CATEGORIAS MANAGE DIALOG */}
+        {/* ============================================================ */}
+        <Dialog
+          open={categoriaDialogOpen}
+          onOpenChange={(open) => {
+            setCategoriaDialogOpen(open);
+            if (!open) setEditingCategoria(null);
+          }}
+        >
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <FolderOpen className="h-5 w-5 text-sky-600" />
+                {editingCategoria ? 'Editar Categoria' : 'Gerenciar Categorias'}
+              </DialogTitle>
+              <DialogDescription>
+                {editingCategoria
+                  ? 'Altere os dados da categoria abaixo.'
+                  : 'Adicione novas categorias ou edite as existentes. As categorias são usadas para classificar os itens do catálogo de lavanderia.'}
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Form: create/edit */}
+            <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label htmlFor="categoria-nome">Nome da Categoria *</Label>
+                <Input
+                  id="categoria-nome"
+                  placeholder="Ex: Roupas, Cama/Banho, Tapetes..."
+                  value={categoriaNome}
+                  onChange={(e) => setCategoriaNome(e.target.value)}
+                  maxLength={100}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Cor da Categoria</Label>
+                <div className="flex flex-wrap gap-2">
+                  {COR_OPTIONS.map((cor) => (
+                    <button
+                      key={cor.value}
+                      type="button"
+                      onClick={() => setCategoriaCor(cor.value)}
+                      className={`h-8 px-3 rounded-full text-xs font-medium transition-all border-2 ${cor.preview} ${
+                        categoriaCor === cor.value
+                          ? 'border-sky-500 ring-2 ring-sky-200 scale-110'
+                          : 'border-transparent hover:scale-105'
+                      }`}
+                    >
+                      {cor.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Existing categories list */}
+            {!editingCategoria && categorias.length > 0 && (
+              <div className="border rounded-lg divide-y max-h-[300px] overflow-y-auto">
+                {categorias
+                  .sort((a, b) => a.ordem - b.ordem)
+                  .map((cat) => {
+                    const fullColor = `${cat.cor_bg} ${cat.cor_text}`;
+                    const isDefault = cat.id?.startsWith('default-') || cat.id?.startsWith('seed-');
+                    return (
+                      <div key={cat.id} className="flex items-center justify-between px-4 py-3 hover:bg-muted/50 transition-colors">
+                        <div className="flex items-center gap-3">
+                          <Badge variant="secondary" className={`text-xs font-medium ${fullColor}`}>
+                            {cat.nome}
+                          </Badge>
+                          {!cat.ativo && (
+                            <span className="text-xs text-muted-foreground">Inativa</span>
+                          )}
+                          {isDefault && (
+                            <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">padrão</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Switch
+                            checked={cat.ativo}
+                            onCheckedChange={() => handleToggleCategoriaAtivo(cat)}
+                            className="scale-75"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7"
+                            onClick={() => openEditCategoriaDialog(cat)}
+                            title="Editar"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() =>
+                              setDeleteDialog({
+                                open: true,
+                                type: 'categoria',
+                                id: cat.id,
+                                nome: cat.nome,
+                              })
+                            }
+                            title="Excluir"
+                            disabled={isDefault}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setCategoriaDialogOpen(false);
+                  setEditingCategoria(null);
+                }}
+                disabled={categoriaSaving}
+              >
+                Fechar
+              </Button>
+              <Button
+                onClick={handleSaveCategoria}
+                disabled={categoriaSaving || !categoriaNome.trim()}
+                className="bg-sky-600 hover:bg-sky-700"
+              >
+                {categoriaSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : editingCategoria ? (
+                  'Atualizar Categoria'
+                ) : (
+                  'Criar Categoria'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ============================================================ */}
         {/* ITEM CREATE/EDIT DIALOG */}
         {/* ============================================================ */}
         <Dialog
@@ -1577,6 +1996,8 @@ export default function CatalogoLavanderiaPage() {
                 onClick={() => {
                   if (deleteDialog.type === 'item') {
                     handleDeleteItem();
+                  } else if (deleteDialog.type === 'categoria') {
+                    handleDeleteCategoria();
                   } else {
                     handleDeleteServico();
                   }
