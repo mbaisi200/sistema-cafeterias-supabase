@@ -154,6 +154,70 @@ export default function AdminDashboardPage() {
   const [backupLoading, setBackupLoading] = useState(false);
   const [backupDialogOpen, setBackupDialogOpen] = useState(false);
   const [backupProgress, setBackupProgress] = useState('');
+  const [pdvUrl, setPdvUrl] = useState('/pdv');
+
+  useEffect(() => {
+    const loadPdvUrl = async () => {
+      if (!empresaId) return;
+      try {
+        const supabase = getSupabaseClient();
+        
+        // Buscar empresa para pegar segmento
+        const { data: empresa } = await supabase
+          .from('empresas')
+          .select('segmento_id')
+          .eq('id', empresaId)
+          .single();
+        
+        let secoesIds: string[] = [];
+        
+        if (empresa?.segmento_id) {
+          // Se tem segmento, buscar seções do segmento
+          const { data: segSecoes } = await supabase
+            .from('segmento_secoes')
+            .select('secao_id, ativo')
+            .eq('segmento_id', empresa.segmento_id)
+            .eq('ativo', true);
+          
+          secoesIds = segSecoes?.map((s: any) => s.secao_id) || [];
+        } else {
+          // Se não tem segmento, buscar seções da empresa
+          const { data: empSecoes } = await supabase
+            .from('empresa_secoes')
+            .select('secao_id')
+            .eq('empresa_id', empresaId)
+            .eq('ativo', true);
+          
+          secoesIds = empSecoes?.map((s: any) => s.secao_id) || [];
+        }
+        
+        if (secoesIds.length > 0) {
+          // Buscar URLs das seções
+          const { data: secoes } = await supabase
+            .from('secoes_menu')
+            .select('chave, url')
+            .in('id', secoesIds);
+          
+          // Prioridade: pdv-varejo > pdv-garcom > pdv
+          const pdvChaves = ['pdv-varejo', 'pdv-garcom', 'pdv'];
+          for (const chave of pdvChaves) {
+            const secao = secoes?.find((s: any) => s.chave === chave);
+            if (secao) {
+              setPdvUrl(secao.url);
+              return;
+            }
+          }
+        }
+        
+        setPdvUrl('/pdv');
+      } catch (err) {
+        console.error('Erro ao buscar PDV:', err);
+        setPdvUrl('/pdv');
+      }
+    };
+    
+    loadPdvUrl();
+  }, [empresaId]);
 
   useEffect(() => {
     if (!empresaId) return;
@@ -558,9 +622,10 @@ export default function AdminDashboardPage() {
     return meses;
   }, [vendas]);
 
-  // ── Product Ranking (top 10) ──
+  // ── Product Ranking (top 10) - incluindo OS Lavanderia faturadas ──
   const rankingProdutos = useMemo(() => {
     const porProduto: Record<string, { nome: string; valor: number; quantidade: number }> = {};
+    
     vendasMesAtual.forEach(v => {
       v.itens?.forEach((item: any) => {
         const pid = item.produtoId;
@@ -571,6 +636,19 @@ export default function AdminDashboardPage() {
         porProduto[pid].quantidade += item.quantidade || 0;
       });
     });
+
+    osLavanderia
+      .filter(os => os.status === 'entregue' && os.criadoEm)
+      .forEach(os => {
+        const osMesAtual = new Date(os.criadoEm) >= currentMonthStart && new Date(os.criadoEm) <= currentMonthEnd;
+        if (osMesAtual) {
+          const pid = `os_${os.id}`;
+          if (!porProduto[pid]) porProduto[pid] = { nome: `OS #${os.id.substring(0, 8)}`, valor: 0, quantidade: 0 };
+          porProduto[pid].valor += os.valorTotal || 0;
+          porProduto[pid].quantidade += os.totalPecas || 1;
+        }
+      });
+
     return Object.values(porProduto)
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 10)
@@ -579,7 +657,7 @@ export default function AdminDashboardPage() {
         valor: p.valor,
         quantidade: p.quantidade,
       }));
-  }, [vendasMesAtual]);
+  }, [vendasMesAtual, osLavanderia, currentMonthStart, currentMonthEnd]);
 
   // ── Day of Week Analysis ──
   const vendasPorDiaSemana = useMemo(() => {
@@ -985,7 +1063,7 @@ export default function AdminDashboardPage() {
           <section>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
               <Button asChild variant="outline" className="h-12 justify-start gap-2 border-gray-200 hover:bg-gray-50">
-                <a href="/pdv">
+                <a href={pdvUrl}>
                   <CartIcon className="h-4 w-4" />
                   <span className="text-sm">Abrir PDV</span>
                 </a>

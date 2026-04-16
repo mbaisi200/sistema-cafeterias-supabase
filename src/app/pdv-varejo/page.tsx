@@ -18,6 +18,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { Card, CardContent } from '@/components/ui/card';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -29,26 +30,29 @@ import {
   ShoppingCart,
   CreditCard,
   Banknote,
-  Smartphone,
   QrCode,
   Tag,
   Percent,
   User,
   Loader2,
-  Printer,
   CheckCircle,
   Barcode,
   Store,
-  ChevronDown,
   X,
   Package,
   ArrowLeft,
   LayoutGrid,
   List,
-  SlidersHorizontal,
-  ArrowUpDown,
+  PackageCheck,
+  Clock,
+  Receipt,
+  Sparkles,
+  TrendingUp,
+  CircleDollarSign,
+  ShieldCheck,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface ItemCarrinho {
   id: string;
@@ -60,6 +64,7 @@ interface ItemCarrinho {
   codigoBarras: string;
   unidade: string;
   descontoPercentual: number;
+  imagem?: string;
 }
 
 interface PagamentoItem {
@@ -68,10 +73,10 @@ interface PagamentoItem {
 }
 
 const FORMAS_PAGAMENTO = [
-  { id: 'dinheiro', label: 'Dinheiro', icon: Banknote },
-  { id: 'debito', label: 'Débito', icon: CreditCard },
-  { id: 'credito', label: 'Crédito', icon: CreditCard },
-  { id: 'pix', label: 'PIX', icon: QrCode },
+  { id: 'dinheiro', label: 'Dinheiro', icon: Banknote, cor: 'from-green-500 to-green-600' },
+  { id: 'debito', label: 'Débito', icon: CreditCard, cor: 'from-blue-500 to-blue-600' },
+  { id: 'credito', label: 'Crédito', icon: CreditCard, cor: 'from-purple-500 to-purple-600' },
+  { id: 'pix', label: 'PIX', icon: QrCode, cor: 'from-pink-500 to-pink-600' },
 ];
 
 const CORES_CATEGORIAS = [
@@ -79,7 +84,6 @@ const CORES_CATEGORIAS = [
   '#EC4899', '#06B6D4', '#84CC16', '#F97316', '#6366F1',
 ];
 
-// Função segura para formatar valores monetários
 const fmt = (val: number | undefined | null) => (val || 0).toFixed(2);
 
 export default function PDVVarejoPage() {
@@ -90,33 +94,26 @@ export default function PDVVarejoPage() {
   const { categorias, loading: loadingCategorias } = useCategorias();
   const { caixaAberto, abrirCaixa, fecharCaixa } = useCaixa();
 
-  // Estados do carrinho
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>('todos');
   const [search, setSearch] = useState('');
   const [itensCarrinho, setItensCarrinho] = useState<ItemCarrinho[]>([]);
   const [clienteSelecionado, setClienteSelecionado] = useState<ClienteEncontrado | null>(null);
 
-  // Diálogos
   const [dialogPagamento, setDialogPagamento] = useState(false);
   const [dialogCupomFiscal, setDialogCupomFiscal] = useState(false);
-  const [dialogDesconto, setDialogDesconto] = useState<string | null>(null); // itemId or 'total'
+  const [dialogDesconto, setDialogDesconto] = useState<string | null>(null);
   const [dialogAberturaCaixa, setDialogAberturaCaixa] = useState(false);
   const [processando, setProcessando] = useState(false);
 
-  // Pagamento
   const [formaPagamentoSelecionada, setFormaPagamentoSelecionada] = useState<string>('');
   const [pagamentos, setPagamentos] = useState<PagamentoItem[]>([]);
   const [valorPagamentoAtual, setValorPagamentoAtual] = useState('');
 
-  // Desconto
   const [valorDescontoInput, setValorDescontoInput] = useState('');
   const [descontoTotalPercentual, setDescontoTotalPercentual] = useState(0);
-
-  // Caixa
   const [valorAberturaCaixa, setValorAberturaCaixa] = useState('');
   const [abrindoCaixa, setAbrindoCaixa] = useState(false);
 
-  // Empresa para cupom
   const [empresa, setEmpresa] = useState<{
     nome: string;
     cnpj: string;
@@ -127,23 +124,18 @@ export default function PDVVarejoPage() {
     telefone: string;
   } | null>(null);
 
-  // Troco
   const [valorRecebido, setValorRecebido] = useState('');
 
-  // Mobile
   const [isMobile, setIsMobile] = useState(false);
   const [showCartMobile, setShowCartMobile] = useState(false);
 
-  // Filtros avançados
   const [faixaPreco, setFaixaPreco] = useState<string>('todos');
   const [somenteComEstoque, setSomenteComEstoque] = useState(false);
   const [ordenacao, setOrdenacao] = useState<string>('nome-az');
   const [modoExibicao, setModoExibicao] = useState<'grid' | 'lista'>('grid');
 
-  // Ref para foco automático no input de busca
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  // Carregar dados da empresa
   useEffect(() => {
     const carregarEmpresa = async () => {
       if (!empresaId) return;
@@ -174,7 +166,6 @@ export default function PDVVarejoPage() {
     carregarEmpresa();
   }, [empresaId]);
 
-  // Mobile detection
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
     checkMobile();
@@ -184,7 +175,6 @@ export default function PDVVarejoPage() {
 
   const loading = loadingProdutos || loadingCategorias;
 
-  // Produtos filtrados
   const produtosFiltrados = useMemo(() => {
     let lista = produtos || [];
     if (categoriaAtiva !== 'todos') {
@@ -198,7 +188,6 @@ export default function PDVVarejoPage() {
         (p.codigo && p.codigo.toLowerCase().includes(searchLower))
       );
     }
-    // Filtro de faixa de preço
     if (faixaPreco !== 'todos') {
       lista = lista.filter(p => {
         const preco = parseFloat(p.preco) || 0;
@@ -211,14 +200,12 @@ export default function PDVVarejoPage() {
         }
       });
     }
-    // Filtro de estoque
     if (somenteComEstoque) {
       lista = lista.filter(p => {
         if (!p.controlar_estoque) return true;
         return (parseFloat(p.estoque_atual) || 0) > 0;
       });
     }
-    // Ordenação
     lista = [...lista].sort((a, b) => {
       switch (ordenacao) {
         case 'nome-az': return (a.nome || '').localeCompare(b.nome || '');
@@ -231,7 +218,6 @@ export default function PDVVarejoPage() {
     return lista;
   }, [produtos, categoriaAtiva, search, faixaPreco, somenteComEstoque, ordenacao]);
 
-  // Busca por código de barras — adiciona automaticamente
   useEffect(() => {
     if (!search || search.length < 8) return;
     const isCodigoBarras = /^[0-9]{8,}$/.test(search);
@@ -243,35 +229,27 @@ export default function PDVVarejoPage() {
         searchInputRef.current?.focus();
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [search, produtos]);
 
-  // Cor da categoria
   const getCorCategoria = (categoriaId: string) => {
     const idx = (categorias || []).findIndex(c => c.id === categoriaId);
     return CORES_CATEGORIAS[idx % CORES_CATEGORIAS.length];
   };
 
-  // Subtotal sem desconto
-  const subtotal = itensCarrinho.reduce((acc, item) => acc + ((item.preco || 0) * (item.quantidade || 0)), 0);
+  const getNomeCategoria = (categoriaId: string) => {
+    const cat = (categorias || []).find(c => c.id === categoriaId);
+    return cat?.nome || 'Sem categoria';
+  };
 
-  // Total do desconto por item
+  const subtotal = itensCarrinho.reduce((acc, item) => acc + ((item.preco || 0) * (item.quantidade || 0)), 0);
   const totalDescontoItens = itensCarrinho.reduce((acc, item) => {
     const descontoItem = ((item.preco || 0) * (item.quantidade || 0)) * ((item.descontoPercentual || 0) / 100);
     return acc + descontoItem;
   }, 0);
-
-  // Total com desconto total + descontos por item
   const totalDescontoGeral = subtotal * (descontoTotalPercentual / 100);
   const totalFinal = subtotal - totalDescontoItens - totalDescontoGeral;
-
-  // Total pago
   const totalPago = pagamentos.reduce((acc, pg) => acc + (pg.valor || 0), 0);
-
-  // Troco (para pagamento em dinheiro)
   const troco = Math.max(0, totalPago - totalFinal);
-
-  // === Funções do carrinho ===
 
   const adicionarProduto = (produto: any) => {
     if (!produto.preco || produto.preco <= 0) {
@@ -297,9 +275,13 @@ export default function PDVVarejoPage() {
         codigoBarras: produto.codigoBarras || '',
         unidade: produto.unidade || 'UN',
         descontoPercentual: 0,
+        imagem: produto.imagem || '',
       }]);
     }
-    toast({ title: `${produto.nome} adicionado` });
+    toast({ 
+      title: `${produto.nome} adicionado ao carrinho`,
+      className: "bg-green-500 text-white border-green-600"
+    });
   };
 
   const alterarQtd = (itemId: string, delta: number) => {
@@ -326,16 +308,22 @@ export default function PDVVarejoPage() {
   };
 
   const removerItem = (itemId: string) => {
+    const item = itensCarrinho.find(i => i.id === itemId);
     setItensCarrinho(prev => prev.filter(item => item.id !== itemId));
+    if (item) {
+      toast({ 
+        title: `${item.nome} removido`,
+        className: "bg-red-500 text-white border-red-600"
+      });
+    }
   };
 
   const limparCarrinho = () => {
     setItensCarrinho([]);
     setClienteSelecionado(null);
     setDescontoTotalPercentual(0);
+    toast({ title: 'Carrinho limpo' });
   };
-
-  // === Desconto ===
 
   const aplicarDescontoItem = (itemId: string) => {
     const valor = parseFloat(valorDescontoInput) || 0;
@@ -362,8 +350,6 @@ export default function PDVVarejoPage() {
     setDialogDesconto(null);
     setValorDescontoInput('');
   };
-
-  // === Pagamento ===
 
   const adicionarPagamento = (forma: string) => {
     const valor = parseFloat(valorPagamentoAtual) || 0;
@@ -410,8 +396,6 @@ export default function PDVVarejoPage() {
     setDialogCupomFiscal(true);
   };
 
-  // === Finalizar venda ===
-
   const finalizarVenda = async (dadosCupom: DadosCupomFiscal, formaPagamento: string) => {
     if (itensCarrinho.length === 0) {
       toast({ variant: 'destructive', title: 'Adicione itens ao carrinho' });
@@ -423,7 +407,6 @@ export default function PDVVarejoPage() {
       const supabase = getSupabaseClient();
       if (!supabase) throw new Error('Supabase não inicializado');
 
-      // Criar venda
       const { data: vendaData, error: vendaError } = await supabase
         .from('vendas')
         .insert({
@@ -449,7 +432,6 @@ export default function PDVVarejoPage() {
       if (vendaError) throw vendaError;
       const vendaId = vendaData.id;
 
-      // Criar itens de venda
       const itensVenda = itensCarrinho.map(item => ({
         empresa_id: empresaId,
         venda_id: vendaId,
@@ -467,7 +449,6 @@ export default function PDVVarejoPage() {
 
       if (itensError) console.error('Erro ao criar itens:', itensError);
 
-      // Baixar estoque
       for (const item of itensCarrinho) {
         try {
           await supabase.rpc('decrementar_estoque_produto', {
@@ -491,7 +472,6 @@ export default function PDVVarejoPage() {
         }
       }
 
-      // Criar pagamentos
       const pagamentosParaSalvar = pagamentos.length > 0 ? pagamentos : [{ forma: formaPagamento, valor: totalFinal }];
       const pagamentosInsert = pagamentosParaSalvar.map(pg => ({
         empresa_id: empresaId,
@@ -506,7 +486,6 @@ export default function PDVVarejoPage() {
 
       if (pagError) console.error('Erro ao criar pagamentos:', pagError);
 
-      // Registrar no caixa
       if (caixaAberto) {
         const { error: movError } = await supabase
           .from('movimentacoes_caixa')
@@ -525,7 +504,7 @@ export default function PDVVarejoPage() {
 
         if (movError) console.error('Erro ao registrar movimentação:', movError);
 
-        const { error: caixaError } = await supabase
+        await supabase
           .from('caixas')
           .update({
             valor_atual: (caixaAberto.valor_atual || 0) + totalFinal,
@@ -533,11 +512,8 @@ export default function PDVVarejoPage() {
             total_entradas: (caixaAberto.total_entradas || 0) + totalFinal,
           })
           .eq('id', caixaAberto.id);
-
-        if (caixaError) console.error('Erro ao atualizar caixa:', caixaError);
       }
 
-      // Log
       await registrarLog({
         empresaId: empresaId || '',
         usuarioId: user?.id || '',
@@ -547,7 +523,6 @@ export default function PDVVarejoPage() {
         tipo: 'venda',
       });
 
-      // Imprimir cupom fiscal
       if (dadosCupom.imprimirCupom) {
         imprimirCupomFiscal({
           nomeEmpresa: empresa?.nome || 'PDV Varejo',
@@ -575,7 +550,11 @@ export default function PDVVarejoPage() {
         });
       }
 
-      toast({ title: 'Venda finalizada com sucesso!' });
+      toast({ 
+        title: '🎉 Venda finalizada com sucesso!',
+        description: `R$ ${fmt(totalFinal)} - ${itensCarrinho.length} itens`,
+        className: "bg-green-500 text-white border-green-600"
+      });
       setDialogCupomFiscal(false);
       setDialogPagamento(false);
       setItensCarrinho([]);
@@ -590,7 +569,6 @@ export default function PDVVarejoPage() {
     }
   };
 
-  // Caixa
   const handleAbrirCaixa = async () => {
     const valor = parseFloat(valorAberturaCaixa) || 0;
     if (valor < 0) {
@@ -619,8 +597,27 @@ export default function PDVVarejoPage() {
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['admin', 'funcionario']}>
-        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-indigo-50">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
+          <motion.div 
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="text-center"
+          >
+            <div className="relative">
+              <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-2xl shadow-blue-500/30">
+                <Store className="h-10 w-10 text-white" />
+              </div>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                className="absolute -bottom-1 left-1/2 -translate-x-1/2"
+              >
+                <Loader2 className="h-6 w-6 text-blue-400" />
+              </motion.div>
+            </div>
+            <h2 className="text-xl font-bold text-white mt-6">Carregando PDV Varejo</h2>
+            <p className="text-blue-300 text-sm mt-1">Preparando sua experiência...</p>
+          </motion.div>
         </div>
       </ProtectedRoute>
     );
@@ -628,105 +625,144 @@ export default function PDVVarejoPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'funcionario']}>
-      <div className="h-screen flex flex-col bg-gray-50">
-
+      <div className="h-screen flex flex-col bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50">
+        
         {/* HEADER */}
-        <header className="bg-white border-b border-blue-100 px-3 py-2 flex items-center justify-between shrink-0 shadow-sm">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="hidden lg:inline-flex h-8 w-8 p-0 text-gray-500 hover:text-gray-800 hover:bg-gray-100"
-              onClick={() => router.push('/admin/dashboard')}
-              title="Voltar ao painel"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div className="h-9 w-9 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
-              <Store className="h-5 w-5" />
-            </div>
-            <div>
-              <p className="font-bold text-gray-800 text-sm leading-tight">PDV Varejo</p>
-              <p className="text-[10px] text-gray-500 leading-tight">Ponto de Venda — Varejo</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${caixaAberto ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'} shadow-sm`}>
-              <CheckCircle className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{caixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'}</span>
-            </div>
-
-            {!caixaAberto ? (
+        <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 px-4 py-3 shrink-0 shadow-xl border-b border-blue-800/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
               <Button
+                variant="ghost"
                 size="sm"
-                className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white font-bold shadow-sm"
-                onClick={() => setDialogAberturaCaixa(true)}
+                className="hidden lg:inline-flex h-10 w-10 p-0 text-blue-200 hover:text-white hover:bg-white/10 rounded-xl"
+                onClick={() => router.push('/admin/dashboard')}
               >
-                Abrir Caixa
+                <ArrowLeft className="h-5 w-5" />
               </Button>
-            ) : (
-              <Button
-                size="sm"
-                className="h-7 text-xs bg-red-600 hover:bg-red-700 text-white font-bold shadow-sm"
-                onClick={() => fecharCaixa(caixaAberto.valor_atual || 0)}
-              >
-                Fechar Caixa
-              </Button>
-            )}
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/30">
+                    <Store className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-green-500 border-2 border-slate-900 flex items-center justify-center">
+                    <PackageCheck className="h-3 w-3 text-white" />
+                  </div>
+                </div>
+                <div>
+                  <p className="font-bold text-white text-lg leading-tight">PDV Varejo</p>
+                  <p className="text-blue-300 text-xs leading-tight">{empresa?.nome || 'Carregando...'}</p>
+                </div>
+              </div>
+            </div>
 
-            {/* Botão carrinho mobile */}
-            {isMobile && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="relative h-7"
-                onClick={() => setShowCartMobile(true)}
-              >
-                <ShoppingCart className="h-4 w-4" />
-                {itensCarrinho.length > 0 && (
-                  <Badge className="absolute -top-1.5 -right-1.5 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-blue-600 text-white">
-                    {itensCarrinho.length}
-                  </Badge>
+            <div className="flex items-center gap-3">
+              {/* Info do Caixa */}
+              <div className={`hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl ${
+                caixaAberto 
+                  ? 'bg-green-500/20 border border-green-500/30' 
+                  : 'bg-red-500/20 border border-red-500/30'
+              }`}>
+                <div className={`h-2.5 w-2.5 rounded-full ${caixaAberto ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
+                <span className={`text-xs font-semibold ${caixaAberto ? 'text-green-300' : 'text-red-300'}`}>
+                  {caixaAberto ? 'Caixa Aberto' : 'Caixa Fechado'}
+                </span>
+                {caixaAberto && (
+                  <span className="text-green-200 text-xs font-bold ml-1">
+                    R$ {fmt(caixaAberto.valor_atual)}
+                  </span>
                 )}
-              </Button>
-            )}
+              </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 text-xs text-gray-500 hover:text-red-600"
-              onClick={handleLogout}
-            >
-              Sair
-            </Button>
+              {/* Info do Usuário */}
+              <div className="hidden md:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/10 border border-white/10">
+                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center">
+                  <User className="h-4 w-4 text-white" />
+                </div>
+                <div>
+                  <p className="text-white text-xs font-medium">{user?.nome || 'Usuário'}</p>
+                  <p className="text-blue-300 text-[10px]">Operador</p>
+                </div>
+              </div>
+
+              {/* Botões */}
+              {!caixaAberto ? (
+                <Button
+                  size="sm"
+                  className="h-10 px-4 bg-green-500 hover:bg-green-600 text-white font-bold shadow-lg shadow-green-500/30 rounded-xl"
+                  onClick={() => setDialogAberturaCaixa(true)}
+                >
+                  <CircleDollarSign className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Abrir Caixa</span>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  className="h-10 px-4 bg-red-500 hover:bg-red-600 text-white font-bold shadow-lg rounded-xl"
+                  onClick={() => fecharCaixa(caixaAberto.valor_atual || 0)}
+                >
+                  <span className="hidden sm:inline">Fechar</span>
+                </Button>
+              )}
+
+              {/* Carrinho Mobile */}
+              {isMobile && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="relative h-10 w-10 p-0 bg-white/10 border-white/20 text-white hover:bg-white/20"
+                  onClick={() => setShowCartMobile(true)}
+                >
+                  <ShoppingCart className="h-5 w-5" />
+                  {itensCarrinho.length > 0 && (
+                    <motion.div 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-gradient-to-r from-pink-500 to-rose-500 flex items-center justify-center text-white text-xs font-bold shadow-lg"
+                    >
+                      {itensCarrinho.length}
+                    </motion.div>
+                  )}
+                </Button>
+              )}
+
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-10 w-10 p-0 text-blue-200 hover:text-white hover:bg-white/10 rounded-xl"
+                onClick={handleLogout}
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
         </header>
 
         {/* MAIN CONTENT */}
         <div className="flex-1 flex overflow-hidden">
-
+          
           {/* LEFT: Produtos */}
           <div className={`${isMobile && showCartMobile ? 'hidden' : 'flex'} flex-1 flex-col min-w-0`}>
-
+            
             {/* Busca + Cliente */}
-            <div className="p-3 bg-white border-b border-gray-100 space-y-2">
+            <div className="p-4 bg-white/80 backdrop-blur-sm border-b border-blue-100 shadow-sm space-y-3 overflow-visible">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
+                  <Search className="h-5 w-5 text-white" />
+                </div>
                 <Input
                   ref={searchInputRef}
                   placeholder="Buscar produto por nome, código ou código de barras..."
-                  className="pl-9 pr-10 h-10 text-sm bg-gray-50 border-gray-200"
+                  className="pl-14 pr-12 h-12 text-sm bg-white border-2 border-blue-100 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   autoFocus
                 />
                 {search && (
                   <button
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                    className="absolute right-4 top-1/2 -translate-y-1/2 h-8 w-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
                     onClick={() => { setSearch(''); searchInputRef.current?.focus(); }}
                   >
-                    <X className="h-4 w-4 text-gray-400" />
+                    <X className="h-4 w-4 text-gray-500" />
                   </button>
                 )}
               </div>
@@ -739,199 +775,247 @@ export default function PDVVarejoPage() {
               />
             </div>
 
-            {/* Barra de filtros avançados */}
-            <div className="px-3 py-2 bg-white border-b border-gray-100 space-y-2">
-              {/* Linha 1: Estoque + Ordenação + Visualização */}
-              <div className="flex flex-wrap items-center gap-2">
-                {/* Toggle estoque */}
-                <button
-                  onClick={() => setSomenteComEstoque(prev => !prev)}
-                  className={`flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium whitespace-nowrap transition-colors ${
-                    somenteComEstoque
-                      ? 'bg-green-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <Package className="h-3 w-3" />
-                  <span className="hidden sm:inline">Com estoque</span>
-                </button>
+            {/* Barra de Status e Filtros */}
+            <div className="px-4 py-3 bg-white/60 backdrop-blur-sm border-b border-blue-100">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">
+                    <span className="font-semibold text-blue-600">{produtosFiltrados.length}</span> produtos
+                  </span>
+                  {search && (
+                    <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                      Busca: "{search}"
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Toggle estoque */}
+                  <Button
+                    variant={somenteComEstoque ? "default" : "outline"}
+                    size="sm"
+                    className={`h-8 text-xs ${somenteComEstoque ? 'bg-green-500 hover:bg-green-600' : ''} rounded-lg`}
+                    onClick={() => setSomenteComEstoque(prev => !prev)}
+                  >
+                    <PackageCheck className="h-3.5 w-3.5 mr-1" />
+                    <span className="hidden sm:inline">Com estoque</span>
+                  </Button>
 
-                <div className="h-4 w-px bg-gray-200 hidden sm:block" />
-
-                {/* Ordenação */}
-                <div className="relative">
-                  <button
-                    className="flex items-center gap-1 px-2 py-1 rounded-md text-[11px] font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors whitespace-nowrap"
-                    onClick={(e) => {
+                  {/* Ordenação */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs rounded-lg"
+                    onClick={() => {
                       const next = ordenacao === 'nome-az' ? 'nome-za' : ordenacao === 'nome-za' ? 'menor-preco' : ordenacao === 'menor-preco' ? 'maior-preco' : 'nome-az';
                       setOrdenacao(next);
                     }}
                   >
-                    <ArrowUpDown className="h-3 w-3" />
+                    <TrendingUp className="h-3.5 w-3.5 mr-1" />
                     <span className="hidden sm:inline">
                       {ordenacao === 'nome-az' ? 'A-Z' : ordenacao === 'nome-za' ? 'Z-A' : ordenacao === 'menor-preco' ? 'Menor' : 'Maior'}
                     </span>
-                  </button>
-                </div>
+                  </Button>
 
-                {/* Spacer */}
-                <div className="flex-1" />
-
-                {/* Toggle visualização */}
-                <div className="flex items-center gap-0.5 bg-gray-100 rounded-md p-0.5">
-                  <button
-                    onClick={() => setModoExibicao('grid')}
-                    className={`p-1.5 rounded-md transition-colors ${modoExibicao === 'grid' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                    title="Visualização em grade"
-                  >
-                    <LayoutGrid className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => setModoExibicao('lista')}
-                    className={`p-1.5 rounded-md transition-colors ${modoExibicao === 'lista' ? 'bg-white shadow-sm text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-                    title="Visualização em lista"
-                  >
-                    <List className="h-3.5 w-3.5" />
-                  </button>
+                  {/* Visualização */}
+                  <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
+                    <Button
+                      variant={modoExibicao === 'grid' ? "default" : "ghost"}
+                      size="sm"
+                      className={`h-7 w-7 p-0 rounded-md ${modoExibicao === 'grid' ? 'bg-blue-500 text-white' : 'text-gray-500'}`}
+                      onClick={() => setModoExibicao('grid')}
+                    >
+                      <LayoutGrid className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant={modoExibicao === 'lista' ? "default" : "ghost"}
+                      size="sm"
+                      className={`h-7 w-7 p-0 rounded-md ${modoExibicao === 'lista' ? 'bg-blue-500 text-white' : 'text-gray-500'}`}
+                      onClick={() => setModoExibicao('lista')}
+                    >
+                      <List className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* Categorias */}
-            <div className="px-3 py-2 bg-white border-b border-gray-100">
-              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
-                <button
+            <div className="px-4 py-3 bg-white/40 backdrop-blur-sm border-b border-blue-100">
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setCategoriaAtiva('todos')}
-                  className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all shrink-0 ${
                     categoriaAtiva === 'todos'
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg shadow-blue-500/30'
+                      : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
                   }`}
                 >
-                  Todos
-                </button>
-                {(categorias || []).map((cat: any) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setCategoriaAtiva(cat.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors shrink-0 ${
-                      categoriaAtiva === cat.id
-                        ? 'text-white shadow-sm'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                    style={categoriaAtiva === cat.id ? { backgroundColor: getCorCategoria(cat.id) } : {}}
-                  >
-                    {cat.nome}
-                  </button>
-                ))}
+                  Todos ({produtos?.length || 0})
+                </motion.button>
+                {(categorias || []).map((cat: any, idx: number) => {
+                  const cor = CORES_CATEGORIAS[idx % CORES_CATEGORIAS.length];
+                  const count = (produtos || []).filter(p => p.categoriaId === cat.id).length;
+                  return (
+                    <motion.button
+                      key={cat.id}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => setCategoriaAtiva(cat.id)}
+                      className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap transition-all shrink-0 ${
+                        categoriaAtiva === cat.id
+                          ? 'text-white shadow-lg'
+                          : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
+                      }`}
+                      style={categoriaAtiva === cat.id ? { 
+                        background: `linear-gradient(to right, ${cor}, ${cor}dd)`,
+                        boxShadow: `0 4px 12px ${cor}40`
+                      } : {}}
+                    >
+                      {cat.nome} ({count})
+                    </motion.button>
+                  );
+                })}
               </div>
             </div>
 
             {/* Grid/Lista de Produtos */}
             <ScrollArea className="flex-1">
               {modoExibicao === 'grid' ? (
-                <div className="p-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 xl:grid-cols-4 gap-2">
-                  {produtosFiltrados.map((produto: any) => {
+                <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                  {produtosFiltrados.map((produto: any, idx: number) => {
                     const estoque = parseFloat(produto.estoque_atual) || 0;
                     const semEstoque = produto.controlar_estoque && estoque <= 0;
+                    const cor = getCorCategoria(produto.categoriaId);
                     return (
-                      <button
+                      <motion.button
                         key={produto.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.02 }}
+                        whileHover={{ y: -4, scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         disabled={semEstoque}
                         onClick={() => adicionarProduto(produto)}
-                        className={`relative flex flex-col items-start p-3 rounded-xl border-2 text-left transition-all hover:shadow-md active:scale-[0.97] ${
+                        className={`relative flex flex-col p-4 rounded-2xl border-2 text-left transition-all ${
                           semEstoque
-                            ? 'bg-gray-50 border-gray-200 opacity-50 cursor-not-allowed'
-                            : 'bg-white border-gray-100 hover:border-blue-300 cursor-pointer'
+                            ? 'bg-gray-100 border-gray-200 opacity-60 cursor-not-allowed'
+                            : 'bg-white border-transparent hover:border-blue-300 cursor-pointer shadow-md hover:shadow-xl'
                         }`}
+                        style={!semEstoque ? { 
+                          boxShadow: '0 4px 15px rgba(0,0,0,0.08)'
+                        } : {}}
                       >
                         {semEstoque && (
-                          <Badge className="absolute top-1.5 right-1.5 text-[9px] bg-red-100 text-red-600 px-1.5 py-0">
-                            Esgotado
-                          </Badge>
+                          <div className="absolute top-2 right-2">
+                            <Badge className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full border border-red-200">
+                              Esgotado
+                            </Badge>
+                          </div>
                         )}
-                        {produto.categoriaId && (
-                          <div
-                            className="w-full h-1 rounded-full mb-2"
-                            style={{ backgroundColor: getCorCategoria(produto.categoriaId) }}
-                          />
-                        )}
-                        <span className="text-xs font-medium text-gray-700 line-clamp-2 leading-tight min-h-[2rem]">
-                          {produto.nome}
-                        </span>
-                        <div className="flex items-center gap-1 mt-1">
+                        <div 
+                          className="w-full h-2 rounded-full mb-3"
+                          style={{ backgroundColor: cor }}
+                        />
+                        <div className="flex-1 min-h-[60px]">
+                          <span className="text-sm font-semibold text-gray-800 line-clamp-2 leading-tight">
+                            {produto.nome}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
                           <Barcode className="h-3 w-3 text-gray-400" />
-                          <span className="text-[10px] text-gray-400 truncate max-w-[100px]">
+                          <span className="text-[10px] text-gray-400 truncate max-w-[80px]">
                             {produto.codigoBarras || produto.codigo || '—'}
                           </span>
                         </div>
-                        <span className="text-sm font-bold text-blue-600 mt-auto pt-1">
-                          R$ {fmt(produto.preco)}
-                        </span>
-                      </button>
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+                          <span className="text-lg font-bold text-blue-600">
+                            R$ {fmt(produto.preco)}
+                          </span>
+                          {!semEstoque && (
+                            <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                              <Plus className="h-4 w-4 text-white" />
+                            </div>
+                          )}
+                        </div>
+                      </motion.button>
                     );
                   })}
                   {produtosFiltrados.length === 0 && (
-                    <div className="col-span-full flex flex-col items-center justify-center py-12 text-gray-400">
-                      <Package className="h-12 w-12 mb-2" />
-                      <p className="text-sm">Nenhum produto encontrado</p>
-                    </div>
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="col-span-full flex flex-col items-center justify-center py-16 text-gray-400"
+                    >
+                      <div className="h-24 w-24 rounded-2xl bg-gray-100 flex items-center justify-center mb-4">
+                        <Package className="h-12 w-12" />
+                      </div>
+                      <p className="text-lg font-medium text-gray-500">Nenhum produto encontrado</p>
+                      <p className="text-sm mt-1">Tente buscar por outro termo</p>
+                    </motion.div>
                   )}
                 </div>
               ) : (
                 <div className="divide-y divide-gray-100">
-                  {produtosFiltrados.map((produto: any) => {
+                  {produtosFiltrados.map((produto: any, idx: number) => {
                     const estoque = parseFloat(produto.estoque_atual) || 0;
                     const semEstoque = produto.controlar_estoque && estoque <= 0;
+                    const cor = getCorCategoria(produto.categoriaId);
                     return (
-                      <button
+                      <motion.button
                         key={produto.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: idx * 0.02 }}
                         disabled={semEstoque}
                         onClick={() => adicionarProduto(produto)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
+                        className={`w-full flex items-center gap-4 px-5 py-4 text-left transition-all ${
                           semEstoque
-                            ? 'opacity-50 cursor-not-allowed'
+                            ? 'opacity-50 cursor-not-allowed bg-gray-50'
                             : 'hover:bg-blue-50 cursor-pointer active:bg-blue-100'
                         }`}
                       >
-                        {produto.categoriaId && (
-                          <div
-                            className="w-1 h-10 rounded-full shrink-0"
-                            style={{ backgroundColor: getCorCategoria(produto.categoriaId) }}
-                          />
-                        )}
+                        <div 
+                          className="w-1.5 h-12 rounded-full shrink-0"
+                          style={{ backgroundColor: cor }}
+                        />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-gray-800 truncate">{produto.nome}</span>
+                            <span className="text-sm font-semibold text-gray-800 truncate">{produto.nome}</span>
                             {semEstoque && (
-                              <Badge className="text-[9px] bg-red-100 text-red-600 px-1.5 py-0 shrink-0">Esgotado</Badge>
+                              <Badge className="text-[10px] bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Esgotado</Badge>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 mt-0.5">
+                          <div className="flex items-center gap-3 mt-1">
                             <span className="text-[11px] text-gray-400">{produto.codigo || produto.codigoBarras || '—'}</span>
                             {produto.controlar_estoque && (
-                              <span className={`text-[11px] ${estoque > 0 ? 'text-green-600' : 'text-red-500'}`}>
-                                Estoque: {Math.floor(estoque)}
+                              <span className={`text-[11px] font-medium ${estoque > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                Estoque: {Math.floor(estoque)} {produto.unidade || 'UN'}
                               </span>
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-sm font-bold text-blue-600">R$ {fmt(produto.preco)}</span>
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span className="text-lg font-bold text-blue-600">R$ {fmt(produto.preco)}</span>
                           {!semEstoque && (
-                            <div className="h-7 w-7 rounded-lg bg-blue-100 flex items-center justify-center">
-                              <Plus className="h-4 w-4 text-blue-600" />
+                            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                              <Plus className="h-5 w-5 text-white" />
                             </div>
                           )}
                         </div>
-                      </button>
+                      </motion.button>
                     );
                   })}
                   {produtosFiltrados.length === 0 && (
-                    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
-                      <Package className="h-12 w-12 mb-2" />
-                      <p className="text-sm">Nenhum produto encontrado</p>
-                    </div>
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex flex-col items-center justify-center py-16 text-gray-400"
+                    >
+                      <Package className="h-16 w-16 mb-3" />
+                      <p className="text-lg font-medium text-gray-500">Nenhum produto encontrado</p>
+                    </motion.div>
                   )}
                 </div>
               )}
@@ -939,147 +1023,190 @@ export default function PDVVarejoPage() {
           </div>
 
           {/* RIGHT: Carrinho */}
-          <div className={`${isMobile ? (showCartMobile ? 'flex' : 'hidden') : 'flex'} w-full lg:w-[400px] xl:w-[420px] flex-col bg-white border-l border-gray-200 shrink-0`}>
+          <div className={`${isMobile ? (showCartMobile ? 'flex' : 'hidden') : 'flex'} w-full lg:w-[420px] xl:w-[480px] flex-col bg-white border-l border-gray-200 shrink-0 shadow-2xl`}>
+            
             {/* Header do carrinho */}
-            <div className="px-4 py-3 border-b border-gray-100 flex items-center justify-between bg-blue-50">
-              <div className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5 text-blue-600" />
-                <h2 className="font-bold text-gray-800 text-sm">Carrinho</h2>
-                <Badge variant="secondary" className="text-xs">
-                  {itensCarrinho.length} {itensCarrinho.length === 1 ? 'item' : 'itens'}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-1">
-                {itensCarrinho.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
-                    onClick={limparCarrinho}
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-1" />
-                    Limpar
-                  </Button>
-                )}
-                {isMobile && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7"
-                    onClick={() => setShowCartMobile(false)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                )}
+            <div className="px-5 py-4 border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
+                    <ShoppingCart className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-gray-800 text-lg">Carrinho</h2>
+                    <p className="text-xs text-gray-500">
+                      {itensCarrinho.length} {itensCarrinho.length === 1 ? 'item' : 'itens'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {itensCarrinho.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9 text-xs text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 rounded-lg"
+                      onClick={limparCarrinho}
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" />
+                      Limpar
+                    </Button>
+                  )}
+                  {isMobile && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 w-9 p-0"
+                      onClick={() => setShowCartMobile(false)}
+                    >
+                      <X className="h-5 w-5" />
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 
             {/* Lista de itens */}
             <ScrollArea className="flex-1">
               {itensCarrinho.length === 0 ? (
-                <div className="flex flex-col items-center justify-center h-full py-16 text-gray-400">
-                  <ShoppingCart className="h-16 w-16 mb-3 opacity-30" />
-                  <p className="text-sm font-medium">Carrinho vazio</p>
-                  <p className="text-xs mt-1">Escanee ou busque um produto</p>
+                <div className="flex flex-col items-center justify-center h-full py-16">
+                  <motion.div
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="h-28 w-28 rounded-full bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center mb-4"
+                  >
+                    <ShoppingCart className="h-14 w-14 text-gray-300" />
+                  </motion.div>
+                  <p className="text-lg font-semibold text-gray-500">Carrinho vazio</p>
+                  <p className="text-sm text-gray-400 mt-1">Adicione produtos para começar</p>
+                  <div className="flex items-center gap-2 mt-4 text-blue-500">
+                    <Barcode className="h-4 w-4" />
+                    <span className="text-xs">Escaneie ou busque um produto</span>
+                  </div>
                 </div>
               ) : (
                 <div className="divide-y divide-gray-50">
-                  {itensCarrinho.map(item => {
-                    const itemTotal = ((item.preco || 0) * (item.quantidade || 0)) * (1 - (item.descontoPercentual || 0) / 100);
-                    return (
-                      <div key={item.id} className="px-4 py-2.5 group">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 truncate">{item.nome}</p>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-xs text-gray-500">
-                                R$ {fmt(item.preco)} x {item.unidade}
-                              </span>
+                  <AnimatePresence>
+                    {itensCarrinho.map((item, idx) => {
+                      const itemTotal = ((item.preco || 0) * (item.quantidade || 0)) * (1 - (item.descontoPercentual || 0) / 100);
+                      return (
+                        <motion.div 
+                          key={item.id}
+                          initial={{ opacity: 0, x: 20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          transition={{ delay: idx * 0.05 }}
+                          className="px-5 py-4 group hover:bg-blue-50/50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-800 truncate">{item.nome}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-xs text-gray-500">
+                                  R$ {fmt(item.preco)} x {item.quantidade} {item.unidade}
+                                </span>
+                                {item.descontoPercentual > 0 && (
+                                  <Badge className="text-[10px] bg-orange-100 text-orange-700 px-1.5 py-0 rounded-full">
+                                    -{item.descontoPercentual}%
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0">
+                              <p className="text-sm font-bold text-blue-600">
+                                R$ {fmt(itemTotal)}
+                              </p>
                               {item.descontoPercentual > 0 && (
-                                <Badge className="text-[9px] bg-orange-100 text-orange-700 px-1.5 py-0">
-                                  -{item.descontoPercentual}%
-                                </Badge>
+                                <p className="text-[10px] text-gray-400 line-through">
+                                  R$ {fmt((item.preco || 0) * (item.quantidade || 0))}
+                                </p>
                               )}
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-sm font-bold text-gray-800">
-                              R$ {fmt(itemTotal)}
-                            </p>
-                            {item.descontoPercentual > 0 && (
-                              <p className="text-[10px] text-gray-400 line-through">
-                                R$ {fmt((item.preco || 0) * (item.quantidade || 0))}
-                              </p>
-                            )}
+                          <div className="flex items-center justify-between mt-3">
+                            <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-0.5">
+                              <button
+                                className="h-8 w-8 rounded-lg bg-white hover:bg-gray-50 flex items-center justify-center transition-colors shadow-sm"
+                                onClick={() => alterarQtd(item.id, -1)}
+                              >
+                                <Minus className="h-4 w-4 text-gray-600" />
+                              </button>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={item.quantidade}
+                                onChange={(e) => setQtd(item.id, parseInt(e.target.value) || 1)}
+                                className="h-8 w-14 text-center text-sm font-bold bg-white border-0"
+                              />
+                              <button
+                                className="h-8 w-8 rounded-lg bg-blue-500 hover:bg-blue-600 flex items-center justify-center transition-colors shadow-sm"
+                                onClick={() => alterarQtd(item.id, 1)}
+                              >
+                                <Plus className="h-4 w-4 text-white" />
+                              </button>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <button
+                                className="h-8 w-8 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                                onClick={() => { setDialogDesconto(item.id); setValorDescontoInput(item.descontoPercentual.toString()); }}
+                              >
+                                <Percent className="h-4 w-4 text-orange-500" />
+                              </button>
+                              <button
+                                className="h-8 w-8 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                                onClick={() => removerItem(item.id)}
+                              >
+                                <Trash2 className="h-4 w-4 text-red-500" />
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center justify-between mt-1.5">
-                          <div className="flex items-center gap-1">
-                            <button
-                              className="h-7 w-7 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-                              onClick={() => alterarQtd(item.id, -1)}
-                            >
-                              <Minus className="h-3.5 w-3.5 text-gray-600" />
-                            </button>
-                            <Input
-                              type="number"
-                              min="1"
-                              value={item.quantidade}
-                              onChange={(e) => setQtd(item.id, parseInt(e.target.value) || 1)}
-                              className="h-7 w-14 text-center text-sm font-semibold"
-                            />
-                            <button
-                              className="h-7 w-7 rounded-lg bg-blue-100 hover:bg-blue-200 flex items-center justify-center transition-colors"
-                              onClick={() => alterarQtd(item.id, 1)}
-                            >
-                              <Plus className="h-3.5 w-3.5 text-blue-600" />
-                            </button>
-                          </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              className="h-7 w-7 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center justify-center transition-colors"
-                              onClick={() => { setDialogDesconto(item.id); setValorDescontoInput(item.descontoPercentual.toString()); }}
-                              title="Desconto"
-                            >
-                              <Percent className="h-3.5 w-3.5 text-orange-500" />
-                            </button>
-                            <button
-                              className="h-7 w-7 rounded-lg bg-red-50 hover:bg-red-100 flex items-center justify-center transition-colors"
-                              onClick={() => removerItem(item.id)}
-                              title="Remover"
-                            >
-                              <Trash2 className="h-3.5 w-3.5 text-red-500" />
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                        </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
                 </div>
               )}
             </ScrollArea>
 
-            {/* Rodapé do carrinho: Resumo + Botão finalizar */}
+            {/* Rodapé do carrinho */}
             {itensCarrinho.length > 0 && (
-              <div className="border-t border-gray-200 bg-gray-50 p-4 space-y-2">
+              <div className="border-t-2 border-gray-100 bg-gradient-to-b from-gray-50 to-white p-5 space-y-4">
+                
+                {/* Cliente */}
+                {clienteSelecionado && (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="flex items-center gap-3 text-sm bg-blue-50 rounded-xl p-3 border border-blue-100"
+                  >
+                    <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-400 to-blue-500 flex items-center justify-center">
+                      <User className="h-4 w-4 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-800 truncate">{clienteSelecionado.nome_razao_social}</p>
+                      <p className="text-xs text-gray-500">{clienteSelecionado.cnpj_cpf || 'CPF não informado'}</p>
+                    </div>
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">Cliente</Badge>
+                  </motion.div>
+                )}
+
                 {/* Desconto total */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Tag className="h-4 w-4 text-gray-500" />
-                    <span className="text-xs text-gray-600">Desconto no total</span>
+                    <span className="text-sm text-gray-600">Desconto no total</span>
                   </div>
                   <div className="flex items-center gap-2">
                     {descontoTotalPercentual > 0 && (
-                      <span className="text-xs font-semibold text-orange-600">
+                      <span className="text-sm font-semibold text-orange-600">
                         -R$ {fmt(totalDescontoGeral)}
                       </span>
                     )}
                     <button
-                      className="h-7 px-2.5 rounded-lg bg-orange-50 hover:bg-orange-100 flex items-center gap-1 transition-colors"
+                      className="h-9 px-3 rounded-xl bg-orange-50 hover:bg-orange-100 flex items-center gap-1 transition-colors border border-orange-200"
                       onClick={() => { setDialogDesconto('total'); setValorDescontoInput(descontoTotalPercentual.toString()); }}
                     >
-                      <Percent className="h-3.5 w-3.5 text-orange-500" />
-                      <span className="text-xs font-medium text-orange-600">
+                      <Percent className="h-4 w-4 text-orange-500" />
+                      <span className="text-sm font-medium text-orange-600">
                         {descontoTotalPercentual > 0 ? `${descontoTotalPercentual}%` : 'Aplicar'}
                       </span>
                     </button>
@@ -1087,78 +1214,103 @@ export default function PDVVarejoPage() {
                 </div>
 
                 {/* Resumo de valores */}
-                <div className="space-y-1 pt-2 border-t border-gray-200">
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>Subtotal</span>
+                <div className="bg-white rounded-2xl p-4 border border-gray-200 space-y-2">
+                  <div className="flex justify-between text-sm text-gray-500">
+                    <span>Subtotal ({itensCarrinho.reduce((acc, i) => acc + i.quantidade, 0)} itens)</span>
                     <span>R$ {fmt(subtotal)}</span>
                   </div>
                   {(totalDescontoItens + totalDescontoGeral) > 0 && (
-                    <div className="flex justify-between text-xs text-orange-600">
+                    <div className="flex justify-between text-sm text-orange-600">
                       <span>Descontos</span>
                       <span>- R$ {fmt(totalDescontoItens + totalDescontoGeral)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-lg font-bold text-gray-800 pt-1">
-                    <span>Total</span>
+                  <div className="flex justify-between text-xl font-bold pt-2 border-t border-gray-200">
+                    <span className="text-gray-800">Total</span>
                     <span className="text-blue-600">R$ {fmt(totalFinal)}</span>
                   </div>
                 </div>
 
-                {/* Cliente */}
-                {clienteSelecionado && (
-                  <div className="flex items-center gap-2 text-xs text-gray-600 bg-white rounded-lg p-2">
-                    <User className="h-3.5 w-3.5 text-blue-500" />
-                    <span className="truncate">{clienteSelecionado.nome_razao_social}</span>
-                    <span className="text-gray-400 shrink-0">{clienteSelecionado.cnpj_cpf}</span>
-                  </div>
-                )}
-
                 {/* Botão finalizar */}
-                <Button
-                  className="w-full h-12 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md rounded-xl"
-                  onClick={() => setDialogPagamento(true)}
-                  disabled={!caixaAberto}
+                <motion.div
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
                 >
-                  {caixaAberto ? (
-                    <>
-                      <CreditCard className="h-5 w-5 mr-2" />
-                      Finalizar Venda — R$ {fmt(totalFinal)}
-                    </>
-                  ) : (
-                    'Abra o caixa para vender'
-                  )}
-                </Button>
+                  <Button
+                    className={`w-full h-14 text-base font-bold rounded-2xl shadow-lg transition-all ${
+                      caixaAberto 
+                        ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-green-500/30' 
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                    onClick={() => setDialogPagamento(true)}
+                    disabled={!caixaAberto}
+                  >
+                    {caixaAberto ? (
+                      <>
+                        <CreditCard className="h-5 w-5 mr-2" />
+                        Finalizar Venda — R$ {fmt(totalFinal)}
+                      </>
+                    ) : (
+                      <>
+                        <ShieldCheck className="h-5 w-5 mr-2" />
+                        Abra o caixa para vender
+                      </>
+                    )}
+                  </Button>
+                </motion.div>
               </div>
             )}
           </div>
         </div>
 
-        {/* ========== DIÁLOGOS ========== */}
+        {/* DIÁLOGOS */}
 
-        {/* Diálogo: Abertura de Caixa */}
+        {/* Abertura de Caixa */}
         <Dialog open={dialogAberturaCaixa} onOpenChange={setDialogAberturaCaixa}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="sm:max-w-md rounded-2xl">
             <DialogHeader>
-              <DialogTitle>Abrir Caixa</DialogTitle>
-              <DialogDescription>Informe o valor inicial do caixa (opcional)</DialogDescription>
+              <div className="flex items-center gap-3 mb-2">
+                <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+                  <CircleDollarSign className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <DialogTitle className="text-xl">Abrir Caixa</DialogTitle>
+                  <DialogDescription>Informe o valor inicial do caixa</DialogDescription>
+                </div>
+              </div>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 pt-2">
               <div className="space-y-2">
-                <Label>Valor Inicial (R$)</Label>
+                <Label className="text-sm font-medium">Valor Inicial (R$)</Label>
                 <Input
                   type="number"
                   step="0.01"
                   placeholder="0,00"
                   value={valorAberturaCaixa}
                   onChange={(e) => setValorAberturaCaixa(e.target.value)}
+                  className="h-12 text-lg rounded-xl"
                   autoFocus
                 />
               </div>
+              <div className="flex gap-2">
+                {[0, 10, 50, 100].map(val => (
+                  <Button
+                    key={val}
+                    variant="outline"
+                    className="flex-1 h-10 rounded-xl"
+                    onClick={() => setValorAberturaCaixa(val.toString())}
+                  >
+                    R$ {val}
+                  </Button>
+                ))}
+              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogAberturaCaixa(false)}>Cancelar</Button>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" className="rounded-xl" onClick={() => setDialogAberturaCaixa(false)}>
+                Cancelar
+              </Button>
               <Button
-                className="bg-blue-600 hover:bg-blue-700"
+                className="bg-green-500 hover:bg-green-600 rounded-xl"
                 onClick={handleAbrirCaixa}
                 disabled={abrindoCaixa}
               >
@@ -1169,18 +1321,19 @@ export default function PDVVarejoPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Diálogo: Desconto */}
+        {/* Desconto */}
         <Dialog open={dialogDesconto !== null} onOpenChange={() => setDialogDesconto(null)}>
-          <DialogContent className="sm:max-w-sm">
+          <DialogContent className="sm:max-w-sm rounded-2xl">
             <DialogHeader>
-              <DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <Tag className="h-5 w-5 text-orange-500" />
                 {dialogDesconto === 'total' ? 'Desconto no Total' : 'Desconto no Item'}
               </DialogTitle>
               <DialogDescription>Informe o percentual de desconto (0 a 100%)</DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 pt-2">
               <div className="space-y-2">
-                <Label>Desconto (%)</Label>
+                <Label className="text-sm font-medium">Desconto (%)</Label>
                 <Input
                   type="number"
                   min="0"
@@ -1189,19 +1342,34 @@ export default function PDVVarejoPage() {
                   placeholder="0"
                   value={valorDescontoInput}
                   onChange={(e) => setValorDescontoInput(e.target.value)}
+                  className="h-12 text-lg text-center rounded-xl"
                   autoFocus
-                  onKeyDown={(e) => e.key === 'Enter' && (
+                  onKeyDown={(e) => e.key === 'Enter' && dialogDesconto && (
                     dialogDesconto === 'total'
                       ? aplicarDescontoTotal()
                       : aplicarDescontoItem(dialogDesconto)
                   )}
                 />
               </div>
+              <div className="flex gap-2">
+                {[5, 10, 15, 20].map(val => (
+                  <Button
+                    key={val}
+                    variant="outline"
+                    className="flex-1 h-10 rounded-xl"
+                    onClick={() => setValorDescontoInput(val.toString())}
+                  >
+                    {val}%
+                  </Button>
+                ))}
+              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogDesconto(null)}>Cancelar</Button>
+            <DialogFooter className="gap-2">
+              <Button variant="outline" className="rounded-xl" onClick={() => setDialogDesconto(null)}>
+                Cancelar
+              </Button>
               <Button
-                className="bg-orange-500 hover:bg-orange-600"
+                className="bg-orange-500 hover:bg-orange-600 rounded-xl"
                 onClick={() => {
                   if (dialogDesconto === 'total') {
                     aplicarDescontoTotal();
@@ -1216,70 +1384,74 @@ export default function PDVVarejoPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Diálogo: Pagamento */}
+        {/* Pagamento */}
         <Dialog open={dialogPagamento} onOpenChange={setDialogPagamento}>
-          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto rounded-2xl">
             <DialogHeader>
-              <DialogTitle>Pagamento</DialogTitle>
-              <DialogDescription>
-                Total: <span className="font-bold text-blue-600">R$ {fmt(totalFinal)}</span>
-                {' — '}Restante: <span className="font-bold text-orange-600">R$ {fmt(Math.max(0, totalFinal - totalPago))}</span>
+              <DialogTitle className="flex items-center gap-2 text-xl">
+                <CreditCard className="h-5 w-5 text-blue-500" />
+                Pagamento
+              </DialogTitle>
+              <DialogDescription className="flex items-center gap-4 pt-2">
+                <span className="text-lg font-bold text-blue-600">Total: R$ {fmt(totalFinal)}</span>
+                <span className="text-orange-600 font-medium">Restante: R$ {fmt(Math.max(0, totalFinal - totalPago))}</span>
               </DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-4">
-              {/* Seletor de forma de pagamento rápida (sem múltiplos) */}
+            <div className="space-y-4 pt-2">
               {pagamentos.length === 0 && (
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold">Forma de Pagamento</Label>
-                  <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Selecione a forma de pagamento</Label>
+                  <div className="grid grid-cols-2 gap-3">
                     {FORMAS_PAGAMENTO.map(fp => (
-                      <button
+                      <motion.button
                         key={fp.id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                         onClick={() => abrirCupomFiscal(fp.id)}
-                        className="flex items-center gap-3 p-3 rounded-xl border-2 border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-all"
+                        className={`flex items-center gap-3 p-4 rounded-2xl border-2 border-gray-200 hover:border-blue-400 bg-gradient-to-br from-white to-gray-50 hover:shadow-lg transition-all`}
                       >
-                        <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                          <fp.icon className="h-5 w-5 text-blue-600" />
+                        <div className={`h-12 w-12 rounded-xl bg-gradient-to-br ${fp.cor} flex items-center justify-center shadow-md`}>
+                          <fp.icon className="h-6 w-6 text-white" />
                         </div>
                         <span className="text-sm font-semibold text-gray-700">{fp.label}</span>
-                      </button>
+                      </motion.button>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Pagamentos múltiplos */}
-              <div className="space-y-2">
-                <Label className="text-sm font-semibold">Pagamentos</Label>
-                {pagamentos.map((pg, idx) => {
-                  const forma = FORMAS_PAGAMENTO.find(f => f.id === pg.forma);
-                  return (
-                    <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-lg bg-blue-100 flex items-center justify-center">
-                          {forma && <forma.icon className="h-4 w-4 text-blue-600" />}
+              {pagamentos.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-sm font-semibold">Pagamentos</Label>
+                  {pagamentos.map((pg, idx) => {
+                    const forma = FORMAS_PAGAMENTO.find(f => f.id === pg.forma);
+                    return (
+                      <div key={idx} className="flex items-center justify-between bg-gradient-to-r from-gray-50 to-white rounded-xl px-4 py-3 border border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <div className={`h-9 w-9 rounded-lg bg-gradient-to-br ${forma?.cor || 'from-gray-400 to-gray-500'} flex items-center justify-center`}>
+                            {forma && <forma.icon className="h-4 w-4 text-white" />}
+                          </div>
+                          <span className="text-sm font-medium">{forma?.label || pg.forma}</span>
                         </div>
-                        <span className="text-sm font-medium">{forma?.label || pg.forma}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold">R$ {fmt(pg.valor)}</span>
+                          <button
+                            className="h-7 w-7 rounded-lg bg-red-100 hover:bg-red-200 flex items-center justify-center transition-colors"
+                            onClick={() => removerPagamento(idx)}
+                          >
+                            <X className="h-3.5 w-3.5 text-red-500" />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-bold">R$ {fmt(pg.valor)}</span>
-                        <button
-                          className="h-6 w-6 rounded bg-red-100 hover:bg-red-200 flex items-center justify-center"
-                          onClick={() => removerPagamento(idx)}
-                        >
-                          <X className="h-3 w-3 text-red-500" />
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
 
-              {/* Adicionar pagamento */}
               {totalPago < totalFinal && pagamentos.length > 0 && (
-                <div className="space-y-2 pt-2 border-t border-gray-200">
-                  <Label className="text-sm font-semibold">Adicionar Pagamento</Label>
+                <div className="space-y-2 pt-3 border-t border-gray-200">
+                  <Label className="text-sm font-semibold">Adicionar pagamento</Label>
                   <div className="flex gap-2">
                     <Input
                       type="number"
@@ -1287,42 +1459,47 @@ export default function PDVVarejoPage() {
                       placeholder="Valor"
                       value={valorPagamentoAtual}
                       onChange={(e) => setValorPagamentoAtual(e.target.value)}
-                      className="flex-1"
+                      className="flex-1 h-11 rounded-xl"
                     />
                     <div className="flex gap-1">
                       {FORMAS_PAGAMENTO.map(fp => (
-                        <button
+                        <Button
                           key={fp.id}
+                          size="sm"
+                          className={`h-11 px-3 rounded-xl bg-gradient-to-br ${fp.cor} hover:opacity-90 text-white`}
                           onClick={() => adicionarPagamento(fp.id)}
-                          className="h-10 px-3 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-1 transition-colors"
-                          title={fp.label}
                         >
                           <fp.icon className="h-4 w-4" />
-                          <span className="hidden sm:inline text-xs">{fp.label}</span>
-                        </button>
+                        </Button>
                       ))}
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Troco para dinheiro */}
               {pagamentos.some(p => p.forma === 'dinheiro') && totalPago > totalFinal && (
-                <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
-                  <p className="text-xs text-green-600">Troco</p>
-                  <p className="text-xl font-bold text-green-700">R$ {fmt(troco)}</p>
-                </div>
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.9 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-200 rounded-2xl p-4 text-center"
+                >
+                  <p className="text-sm text-green-600 font-medium">Troco para o cliente</p>
+                  <p className="text-3xl font-bold text-green-700">R$ {fmt(troco)}</p>
+                </motion.div>
               )}
             </div>
 
-            <DialogFooter className="flex gap-2 sm:gap-2">
-              <Button variant="outline" onClick={() => setDialogPagamento(false)}>Cancelar</Button>
+            <DialogFooter className="flex gap-2 pt-4">
+              <Button variant="outline" className="rounded-xl" onClick={() => setDialogPagamento(false)}>
+                Cancelar
+              </Button>
               {pagamentos.length > 0 && (
                 <Button
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-500 hover:bg-green-600 rounded-xl"
                   onClick={handleFinalizarComPagamentos}
                   disabled={totalPago < totalFinal}
                 >
+                  <Receipt className="h-4 w-4 mr-2" />
                   Confirmar Pagamento
                 </Button>
               )}
@@ -1330,7 +1507,7 @@ export default function PDVVarejoPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Diálogo: Cupom Fiscal */}
+        {/* Cupom Fiscal */}
         <CupomFiscalModal
           open={dialogCupomFiscal}
           onOpenChange={setDialogCupomFiscal}
@@ -1350,7 +1527,6 @@ export default function PDVVarejoPage() {
           processando={processando}
           pagamentosMultiplos={pagamentos.length > 1 ? pagamentos : undefined}
         />
-
       </div>
     </ProtectedRoute>
   );

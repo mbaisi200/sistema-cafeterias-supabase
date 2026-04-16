@@ -102,7 +102,7 @@ export function ProductRankingChart({ dados }: ProductRankingChartProps) {
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
       <Card className="border border-gray-200">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base font-semibold text-gray-700">Ranking de Produtos</CardTitle>
+          <CardTitle className="text-base font-semibold text-gray-700">Ranking de Produtos e Serviços</CardTitle>
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfigTeal} className="h-[280px] w-full">

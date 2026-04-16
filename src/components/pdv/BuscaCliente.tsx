@@ -225,10 +225,11 @@ export function BuscaCliente({
 
         {/* Dropdown com resultados */}
         {showDropdown && resultados.length > 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 z-[100] mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl max-h-60 overflow-y-auto">
             {resultados.map((cliente) => (
               <button
                 key={cliente.id}
+                type="button"
                 className="w-full px-3 py-2.5 hover:bg-blue-50 border-b border-gray-50 last:border-b-0 text-left transition-colors"
                 onClick={() => handleSelect(cliente)}
               >
@@ -262,7 +263,7 @@ export function BuscaCliente({
                       )}
                     </div>
                   </div>
-                  <CheckCircle className="h-4 w-4 text-blue-300 opacity-0 group-hover:opacity-100 shrink-0" />
+                  <CheckCircle className="h-4 w-4 text-blue-300 shrink-0" />
                 </div>
               </button>
             ))}
@@ -271,11 +272,11 @@ export function BuscaCliente({
 
         {/* Sem resultados */}
         {showDropdown && !loading && busca.length >= 2 && resultados.length === 0 && (
-          <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg p-4">
+          <div className="absolute top-full left-0 right-0 z-[100] mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl p-4">
             <div className="text-center text-gray-400">
               <User className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p className="text-sm font-medium">Nenhum cliente encontrado</p>
-              <p className="text-xs mt-1">Digite o CPF/CNPJ para cadastrar manualmente</p>
+              <p className="text-xs mt-1">Cadastre o cliente diretamente na venda</p>
             </div>
           </div>
         )}
