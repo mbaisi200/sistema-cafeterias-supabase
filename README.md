@@ -1,141 +1,171 @@
-# 🚀 Welcome to Z.ai Code Scaffold
+# Sistema de Gestão - Cafeterias e Restaurantes
 
-A modern, production-ready web application scaffold powered by cutting-edge technologies, designed to accelerate your development with [Z.ai](https://chat.z.ai)'s AI-powered coding assistance.
+Sistema SaaS completo para gestão de cafeterias e restaurantes com PDV touch, controle de estoque, financeiro e muito mais.
 
-## ✨ Technology Stack
+## 🛠️ Tecnologias
 
-This scaffold provides a robust foundation built with:
+- **Next.js 16** - Framework React com App Router
+- **TypeScript** - Tipagem estática
+- **Tailwind CSS 4** - Estilização com classes utilitárias
+- **Supabase** - Backend as a Service (Auth + Database)
+- **shadcn/ui** - Componentes UI baseados em Radix UI
+- **Framer Motion** - Animações
+- **next-themes** - Suporte a tema claro/escuro
 
-### 🎯 Core Framework
-- **⚡ Next.js 16** - The React framework for production with App Router
-- **📘 TypeScript 5** - Type-safe JavaScript for better developer experience
-- **🎨 Tailwind CSS 4** - Utility-first CSS framework for rapid UI development
-
-### 🧩 UI Components & Styling
-- **🧩 shadcn/ui** - High-quality, accessible components built on Radix UI
-- **🎯 Lucide React** - Beautiful & consistent icon library
-- **🌈 Framer Motion** - Production-ready motion library for React
-- **🎨 Next Themes** - Perfect dark mode in 2 lines of code
-
-### 📋 Forms & Validation
-- **🎣 React Hook Form** - Performant forms with easy validation
-- **✅ Zod** - TypeScript-first schema validation
-
-### 🔄 State Management & Data Fetching
-- **🐻 Zustand** - Simple, scalable state management
-- **🔄 TanStack Query** - Powerful data synchronization for React
-- **🌐 Fetch** - Promise-based HTTP request
-
-### 🗄️ Database & Backend
-- **🗄️ Prisma** - Next-generation TypeScript ORM
-- **🔐 NextAuth.js** - Complete open-source authentication solution
-
-### 🎨 Advanced UI Features
-- **📊 TanStack Table** - Headless UI for building tables and datagrids
-- **🖱️ DND Kit** - Modern drag and drop toolkit for React
-- **📊 Recharts** - Redefined chart library built with React and D3
-- **🖼️ Sharp** - High performance image processing
-
-### 🌍 Internationalization & Utilities
-- **🌍 Next Intl** - Internationalization library for Next.js
-- **📅 Date-fns** - Modern JavaScript date utility library
-- **🪝 ReactUse** - Collection of essential React hooks for modern development
-
-## 🎯 Why This Scaffold?
-
-- **🏎️ Fast Development** - Pre-configured tooling and best practices
-- **🎨 Beautiful UI** - Complete shadcn/ui component library with advanced interactions
-- **🔒 Type Safety** - Full TypeScript configuration with Zod validation
-- **📱 Responsive** - Mobile-first design principles with smooth animations
-- **🗄️ Database Ready** - Prisma ORM configured for rapid backend development
-- **🔐 Auth Included** - NextAuth.js for secure authentication flows
-- **📊 Data Visualization** - Charts, tables, and drag-and-drop functionality
-- **🌍 i18n Ready** - Multi-language support with Next Intl
-- **🚀 Production Ready** - Optimized build and deployment settings
-- **🤖 AI-Friendly** - Structured codebase perfect for AI assistance
-
-## 🚀 Quick Start
-
-```bash
-# Install dependencies
-bun install
-
-# Start development server
-bun run dev
-
-# Build for production
-bun run build
-
-# Start production server
-bun start
-```
-
-Open [http://localhost:3000](http://localhost:3000) to see your application running.
-
-## 🤖 Powered by Z.ai
-
-This scaffold is optimized for use with [Z.ai](https://chat.z.ai) - your AI assistant for:
-
-- **💻 Code Generation** - Generate components, pages, and features instantly
-- **🎨 UI Development** - Create beautiful interfaces with AI assistance  
-- **🔧 Bug Fixing** - Identify and resolve issues with intelligent suggestions
-- **📝 Documentation** - Auto-generate comprehensive documentation
-- **🚀 Optimization** - Performance improvements and best practices
-
-Ready to build something amazing? Start chatting with Z.ai at [chat.z.ai](https://chat.z.ai) and experience the future of AI-powered development!
-
-## 📁 Project Structure
+## 📁 Estrutura do Projeto
 
 ```
 src/
-├── app/                 # Next.js App Router pages
-├── components/          # Reusable React components
-│   └── ui/             # shadcn/ui components
-├── hooks/              # Custom React hooks
-└── lib/                # Utility functions and configurations
+├── app/                      # Rotas (App Router)
+│   ├── admin/               # Páginas administrativas
+│   │   ├── dashboard/       # Dashboard principal
+│   │   ├── caixa/          # Gestão de caixa
+│   │   ├── produtos/        # Cadastro de produtos
+│   │   ├── estoque/         # Controle de estoque
+│   │   ├── financeiro/      # Módulo financeiro
+│   │   ├── cadastros/       # Cadastros gerais
+│   │   ├── nfe/            # Emissão de NF-e
+│   │   ├── os-lavanderia/   # Ordem de serviço lavanderia
+│   │   └── configuracoes/   # Configurações
+│   ├── pdv/                 # Ponto de Venda
+│   │   └── page.tsx         # PDV Restaurante
+│   ├── pdv-varejo/         # PDV Varejo
+│   ├── api/                 # API Routes
+│   │   ├── clientes/       # CRUD de clientes
+│   │   ├── produtos/        # CRUD de produtos
+│   │   ├── vendas/         # Operações de venda
+│   │   ├── caixa/          # Gestão de caixa
+│   │   ├── fetch-user/     # Busca dados do usuário
+│   │   └── os-lavanderia/  # API específica OS
+│   ├── login/              # Página de login
+│   ├── globals.css         # Estilos globais + tema
+│   └── layout.tsx          # Layout raiz
+├── components/
+│   ├── layout/
+│   │   ├── AppLayout.tsx   # Layout com sidebar (novo)
+│   │   ├── AppSidebar.tsx  # Sidebar com navegação
+│   │   └── MainLayout.tsx  # Wrapper do layout
+│   ├── pdv/               # Componentes do PDV
+│   │   ├── BuscaCliente.tsx  # Busca de clientes
+│   │   ├── SelecionarProdutos.tsx
+│   │   └── CupomFiscal.tsx
+│   └── ui/                # Componentes shadcn/ui
+├── contexts/
+│   └── AuthContext.tsx     # Context de autenticação
+├── hooks/                  # Custom hooks
+├── lib/
+│   └── supabase/           # Cliente Supabase
+│       ├── client.ts       # Cliente browser
+│       └── server.ts       # Cliente server
+└── types/                  # Definições de tipos
 ```
 
-## 🎨 Available Features & Components
+## 🎨 Tema Visual
 
-This scaffold includes a comprehensive set of modern web development tools:
+### Tema Claro
+- **Cores principais:** Purple (#8A2BE2), Cyan (#00F2FE)
+- **Background:** Gradiente suave de branco para cinza
 
-### 🧩 UI Components (shadcn/ui)
-- **Layout**: Card, Separator, Aspect Ratio, Resizable Panels
-- **Forms**: Input, Textarea, Select, Checkbox, Radio Group, Switch
-- **Feedback**: Alert, Toast (Sonner), Progress, Skeleton
-- **Navigation**: Breadcrumb, Menubar, Navigation Menu, Pagination
-- **Overlay**: Dialog, Sheet, Popover, Tooltip, Hover Card
-- **Data Display**: Badge, Avatar, Calendar
+### Tema Escuro (Futurista)
+- **Background:** Gradiente escuro (#121212 → #1a1a2e → #16213e)
+- **Sidebar:** Glassmorphism com blur
+- **Glow effects:** Cyan e Purple para bordas e sombras
 
-### 📊 Advanced Data Features
-- **Tables**: Powerful data tables with sorting, filtering, pagination (TanStack Table)
-- **Charts**: Beautiful visualizations with Recharts
-- **Forms**: Type-safe forms with React Hook Form + Zod validation
+### Classes CSS Disponíveis
+```css
+.glass           /* Efeito glass para cards */
+.glass-light     /* Glass para modo claro */
+.glass-dark      /* Glass para modo escuro */
+.glass-sidebar   /* Glass para sidebar */
+.btn-gradient    /* Botão com gradiente cyan→purple */
+.glow-cyan       /* Brilho cyan */
+.glow-purple     /* Brilho purple */
+```
 
-### 🎨 Interactive Features
-- **Animations**: Smooth micro-interactions with Framer Motion
-- **Drag & Drop**: Modern drag-and-drop functionality with DND Kit
-- **Theme Switching**: Built-in dark/light mode support
+## 🔐 Autenticação
 
-### 🔐 Backend Integration
-- **Authentication**: Ready-to-use auth flows with NextAuth.js
-- **Database**: Type-safe database operations with Prisma
-- **API Client**: HTTP requests with Fetch + TanStack Query
-- **State Management**: Simple and scalable with Zustand
+- **Provedor:** Supabase Auth
+- **Roles:** master, admin, funcionario
+- **Context:** `useAuth()` hook em `src/contexts/AuthContext.tsx`
+- **Cache:** Dados do usuário são cacheados para evitar chamadas duplicadas
 
-### 🌍 Production Features
-- **Internationalization**: Multi-language support with Next Intl
-- **Image Optimization**: Automatic image processing with Sharp
-- **Type Safety**: End-to-end TypeScript with Zod validation
-- **Essential Hooks**: 100+ useful React hooks with ReactUse for common patterns
+```typescript
+const { user, empresaId, role, nomeMarca, logout } = useAuth();
+```
 
-## 🤝 Get Started with Z.ai
+## 📊 Banco de Dados (Supabase)
 
-1. **Clone this scaffold** to jumpstart your project
-2. **Visit [chat.z.ai](https://chat.z.ai)** to access your AI coding assistant
-3. **Start building** with intelligent code generation and assistance
-4. **Deploy with confidence** using the production-ready setup
+### Tabelas Principais
+- `usuarios` - Usuários do sistema
+- `empresas` - Empresas/negócios
+- `produtos` - Catálogo de produtos
+- `categorias` - Categorias de produtos
+- `clientes` - Cadastro de clientes
+- `vendas` - Vendas realizadas
+- `itens_venda` - Itens das vendas
+- `caixas` - Registros de caixa
+- `ordens_servico` - OS (ex: lavanderia)
+- `nfe` - Notas fiscais eletrônicas
 
----
+## 🚀 Scripts
 
-Built with ❤️ for the developer community. Supercharged by [Z.ai](https://chat.z.ai) 🚀
+```bash
+# Instalar dependências
+npm install
+
+# Desenvolvimento
+bun run dev
+
+# Build produção
+bun run build
+
+# Iniciar produção
+bun start
+```
+
+## 📝 Convenções de Código
+
+### Nomenclatura
+- Componentes: PascalCase (ex: `BuscaCliente.tsx`)
+- Funções/Variáveis: camelCase
+- Arquivos de API: kebab-case (ex: `fetch-user/route.ts`)
+
+### API Routes
+- GET para listar/buscar
+- POST para criar
+- PUT para atualizar
+- DELETE para deletar (soft delete quando possível)
+
+### Resposta de API
+```typescript
+// Sucesso
+return NextResponse.json({ sucesso: true, data: ... });
+
+// Erro
+return NextResponse.json({
+  sucesso: false,
+  erro: { codigo: 'ERRO_001', mensagem: 'Descrição' }
+}, { status: 400 });
+```
+
+## 🔧 Configuração
+
+### Variáveis de Ambiente (.env)
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+## 📱 Módulos do Sistema
+
+1. **Dashboard** - Visão geral com métricas
+2. **PDV** - Ponto de venda touch
+3. **Caixa** - Gestão de caixa
+4. **Produtos** - Catálogo e preços
+5. **Estoque** - Controle de inventário
+6. **Financeiro** - Fluxo de caixa e relatórios
+7. **Cadastros** - Clientes, fornecedores, etc
+8. **NF-e** - Emissão de notas fiscais
+9. **OS Lavanderia** - Ordem de serviço específica
+10. **Configurações** - Ajustes do sistema
