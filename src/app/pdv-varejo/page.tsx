@@ -744,7 +744,7 @@ export default function PDVVarejoPage() {
           <div className={`${isMobile && showCartMobile ? 'hidden' : 'flex'} flex-1 flex-col min-w-0`}>
             
             {/* Busca + Cliente */}
-            <div className="p-4 bg-white/80 backdrop-blur-sm border-b border-blue-100 shadow-sm space-y-3 overflow-visible">
+            <div className="p-4 bg-white/80 backdrop-blur-sm border-b border-blue-100 shadow-sm space-y-3 overflow-visible relative z-[9997]">
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                   <Search className="h-5 w-5 text-white" />

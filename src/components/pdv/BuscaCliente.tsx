@@ -187,14 +187,14 @@ export function BuscaCliente({
   }
 
   return (
-    <div className="space-y-2" ref={wrapperRef}>
+    <div className="space-y-2 relative z-50" ref={wrapperRef}>
       <Label className="font-bold flex items-center gap-2">
         <User className="h-4 w-4 text-gray-600" />
         {label}
         <span className="text-xs text-gray-400 font-normal">(opcional)</span>
       </Label>
 
-      <div className="relative">
+      <div className="relative z-[9998]">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -225,7 +225,7 @@ export function BuscaCliente({
 
         {/* Dropdown com resultados */}
         {showDropdown && resultados.length > 0 && (
-          <div className="absolute top-full left-0 right-0 z-[100] mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl max-h-60 overflow-y-auto">
+          <div className="absolute top-full left-0 right-0 z-[9999] mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl max-h-60 overflow-y-auto transform translate-y-0">
             {resultados.map((cliente) => (
               <button
                 key={cliente.id}
