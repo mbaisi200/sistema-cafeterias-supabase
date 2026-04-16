@@ -5,7 +5,16 @@ import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import {
   Table,
   TableBody,
@@ -15,42 +24,30 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import Link from 'next/link';
-import {
   Shield,
   ShieldCheck,
   ShieldX,
   ShieldAlert,
   Monitor,
-  MoreHorizontal,
+  Smartphone,
+  Tablet,
+  Laptop,
+  Tv,
   Loader2,
   CheckCircle2,
   XCircle,
-  Trash2,
-  UserCheck,
-  UserX,
   RefreshCw,
   ChevronLeft,
+  Search,
+  User,
+  Trash2,
+  Copy,
+  Check,
+  AlertTriangle,
+  Plus,
 } from 'lucide-react';
+import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSupabaseClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect } from 'react';
 
@@ -67,26 +64,49 @@ interface Dispositivo {
   ultimo_acesso: string;
   criado_em: string;
   atualizado_em: string;
+  tipo?: 'funcionario' | 'admin';
 }
 
-// Verifica se um dispositivo pertence a um funcionário (não está na tabela usuarios)
-function isFuncionarioDevice(usuarioId: string | null): boolean {
-  if (!usuarioId) return false;
-  // Funcionários têm UUID na tabela funcionarios, não na usuarios
-  // IDs de funcionários geralmente não correspondem a auth.users
-  return true; // Se chegou aqui via login de funcionário, é funcionário
+function getDeviceIcon(userAgent: string | null): React.ReactNode {
+  if (!userAgent) return <Monitor className="h-5 w-5" />;
+  const ua = userAgent.toLowerCase();
+  if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) {
+    return <Smartphone className="h-5 w-5" />;
+  }
+  if (ua.includes('tablet') || ua.includes('ipad')) {
+    return <Tablet className="h-5 w-5" />;
+  }
+  if (ua.includes('mac') || ua.includes('windows') || ua.includes('linux')) {
+    return <Laptop className="h-5 w-5" />;
+  }
+  return <Monitor className="h-5 w-5" />;
+}
+
+function getDeviceType(userAgent: string | null): string {
+  if (!userAgent) return 'Desktop';
+  const ua = userAgent.toLowerCase();
+  if (ua.includes('mobile') || ua.includes('android')) return 'Celular Android';
+  if (ua.includes('iphone') || ua.includes('ios')) return 'iPhone';
+  if (ua.includes('tablet') || ua.includes('ipad')) return 'Tablet';
+  if (ua.includes('mac')) return 'Mac';
+  if (ua.includes('windows')) return 'Windows';
+  if (ua.includes('linux')) return 'Linux';
+  return 'Desktop';
 }
 
 export default function DispositivosPage() {
   const { empresaId, role } = useAuth();
   const { toast } = useToast();
-  const supabase = getSupabaseClient();
 
   const [devices, setDevices] = useState<Dispositivo[]>([]);
+  const [funcionarios, setFuncionarios] = useState<{ id: string; nome: string; cargo: string }[]>([]);
   const [restringir, setRestringir] = useState(false);
   const [loading, setLoading] = useState(true);
   const [savingConfig, setSavingConfig] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'todos' | 'ativos' | 'pendentes' | 'revogados'>('todos');
+  const [confirmDialog, setConfirmDialog] = useState<{ open: boolean; deviceId: string; action: 'aprovar' | 'revogar' | 'excluir'; deviceName: string } | null>(null);
 
   const fetchDevices = async () => {
     if (!empresaId) return;
@@ -109,8 +129,19 @@ export default function DispositivosPage() {
     }
   };
 
+  const fetchFuncionarios = async () => {
+    if (!empresaId) return;
+    try {
+      const { data } = await fetch(`/api/funcionarios?empresa=${empresaId}`).then(r => r.json()).catch(() => ({ data: null }));
+      if (data) setFuncionarios(data);
+    } catch {
+      console.error('Erro ao buscar funcionários');
+    }
+  };
+
   useEffect(() => {
     fetchDevices();
+    fetchFuncionarios();
   }, [empresaId]);
 
   const handleToggleRestringir = async (value: boolean) => {
@@ -134,102 +165,50 @@ export default function DispositivosPage() {
     } catch (error: unknown) {
       console.error('Erro ao atualizar restrição:', error);
       const msg = error instanceof Error ? error.message : 'Erro ao atualizar';
-      toast({
-        variant: 'destructive',
-        title: 'Erro',
-        description: msg,
-      });
+      toast({ variant: 'destructive', title: 'Erro', description: msg });
     } finally {
       setSavingConfig(false);
     }
   };
 
-  const handleAprovar = async (id: string) => {
-    setActionLoading(id);
+  const handleAction = async () => {
+    if (!confirmDialog) return;
+    const { deviceId, action } = confirmDialog;
+    setActionLoading(deviceId);
+    
     try {
-      const response = await fetch(`/api/dispositivos/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ acao: 'aprovar' }),
-      });
+      let response;
+      if (action === 'excluir') {
+        response = await fetch(`/api/dispositivos/${deviceId}`, { method: 'DELETE' });
+      } else {
+        response = await fetch(`/api/dispositivos/${deviceId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ acao: action }),
+        });
+      }
+      
       const data = await response.json();
       if (response.ok) {
         toast({
-          title: 'Dispositivo aprovado',
-          description: 'O dispositivo agora pode acessar o sistema.',
+          title: action === 'aprovar' ? 'Dispositivo aprovado' : 
+                 action === 'revogar' ? 'Acesso revogado' : 'Dispositivo removido',
+          description: data.message,
         });
         fetchDevices();
       } else {
-        throw new Error(data.error || 'Erro ao aprovar');
+        throw new Error(data.error || 'Erro ao executar ação');
       }
     } catch (error: unknown) {
-      console.error('Erro ao aprovar:', error);
-      const msg = error instanceof Error ? error.message : 'Erro ao aprovar';
+      console.error('Erro ao executar ação:', error);
+      const msg = error instanceof Error ? error.message : 'Erro ao executar ação';
       toast({ variant: 'destructive', title: 'Erro', description: msg });
     } finally {
       setActionLoading(null);
+      setConfirmDialog(null);
     }
   };
 
-  const handleRevogar = async (id: string) => {
-    setActionLoading(id);
-    try {
-      const response = await fetch(`/api/dispositivos/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ acao: 'revogar' }),
-      });
-      const data = await response.json();
-      if (response.ok) {
-        toast({
-          title: 'Dispositivo revogado',
-          description: 'O dispositivo não poderá mais acessar o sistema.',
-        });
-        fetchDevices();
-      } else {
-        throw new Error(data.error || 'Erro ao revogar');
-      }
-    } catch (error: unknown) {
-      console.error('Erro ao revogar:', error);
-      const msg = error instanceof Error ? error.message : 'Erro ao revogar';
-      toast({ variant: 'destructive', title: 'Erro', description: msg });
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  const handleExcluir = async (id: string) => {
-    setActionLoading(id);
-    try {
-      const response = await fetch(`/api/dispositivos/${id}`, {
-        method: 'DELETE',
-      });
-      const data = await response.json();
-      if (response.ok) {
-        toast({
-          title: 'Dispositivo removido',
-          description: 'O registro foi excluído permanentemente.',
-        });
-        fetchDevices();
-      } else {
-        throw new Error(data.error || 'Erro ao excluir');
-      }
-    } catch (error: unknown) {
-      console.error('Erro ao excluir:', error);
-      const msg = error instanceof Error ? error.message : 'Erro ao excluir';
-      toast({ variant: 'destructive', title: 'Erro', description: msg });
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Stats - diferenciar pendentes (nunca aprovados) de revogados (já foram ativos)
-  const totalDevices = devices.length;
-  const ativosDevices = devices.filter(d => d.ativo).length;
-  const pendentesDevices = devices.filter(d => !d.ativo && new Date(d.criado_em).getTime() === new Date(d.atualizado_em).getTime()).length;
-  const revogadosDevices = devices.filter(d => !d.ativo && new Date(d.criado_em).getTime() !== new Date(d.atualizado_em).getTime()).length;
-
-  // Format date
   const formatDate = (dateStr: string) => {
     if (!dateStr) return '-';
     try {
@@ -246,36 +225,68 @@ export default function DispositivosPage() {
     }
   };
 
-  // Get status badge - diferenciar Pendente de Revogado
   const getStatusBadge = (ativo: boolean, criadoEm: string, atualizadoEm: string) => {
+    const criado = new Date(criadoEm).getTime();
+    const atualizado = new Date(atualizadoEm).getTime();
+    const isRevogado = !ativo && criado !== atualizado;
+
     if (ativo) {
       return (
-        <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
-          <ShieldCheck className="h-3 w-3 mr-1" />
-          Ativo
+        <Badge className="bg-green-500 hover:bg-green-600 gap-1">
+          <CheckCircle2 className="h-3 w-3" />
+          Autorizado
         </Badge>
       );
     }
-    // Se criado_em === atualizado_em, nunca foi modificado = Pendente (nunca aprovado)
-    // Se criado_em !== atualizado_em, foi modificado = Revogado (já foi aprovado e depois revogado)
-    const criado = new Date(criadoEm).getTime();
-    const atualizado = new Date(atualizadoEm).getTime();
-    const isRevogado = criado !== atualizado;
-
     if (isRevogado) {
       return (
-        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300">
-          <ShieldX className="h-3 w-3 mr-1" />
+        <Badge variant="outline" className="bg-red-100 text-red-700 border-red-300 gap-1">
+          <XCircle className="h-3 w-3" />
           Revogado
         </Badge>
       );
     }
     return (
-      <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
-        <ShieldAlert className="h-3 w-3 mr-1" />
+      <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300 gap-1">
+        <ShieldAlert className="h-3 w-3" />
         Pendente
       </Badge>
     );
+  };
+
+  const getStatusDescription = (ativo: boolean, criadoEm: string, atualizadoEm: string) => {
+    const criado = new Date(criadoEm).getTime();
+    const atualizado = new Date(atualizadoEm).getTime();
+    const isRevogado = !ativo && criado !== atualizado;
+
+    if (ativo) return 'Dispositivo autorizado a acessar o sistema';
+    if (isRevogado) return 'Acesso foi revogado pelo administrador';
+    return 'Aguardando aprovação para acessar o sistema';
+  };
+
+  const filteredDevices = devices.filter(device => {
+    const matchesSearch = 
+      (device.usuario_nome?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      (device.device_name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false) ||
+      device.device_id.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    const created = new Date(device.criado_em).getTime();
+    const updated = new Date(device.atualizado_em).getTime();
+    const isRevogado = !device.ativo && created !== updated;
+    
+    let matchesStatus = true;
+    if (statusFilter === 'ativos') matchesStatus = device.ativo;
+    else if (statusFilter === 'pendentes') matchesStatus = !device.ativo && created === updated;
+    else if (statusFilter === 'revogados') matchesStatus = isRevogado;
+    
+    return matchesSearch && matchesStatus;
+  });
+
+  const stats = {
+    total: devices.length,
+    ativos: devices.filter(d => d.ativo).length,
+    pendentes: devices.filter(d => !d.ativo && new Date(d.criado_em).getTime() === new Date(d.atualizado_em).getTime()).length,
+    revogados: devices.filter(d => !d.ativo && new Date(d.criado_em).getTime() !== new Date(d.atualizado_em).getTime()).length,
   };
 
   if (loading) {
@@ -295,11 +306,10 @@ export default function DispositivosPage() {
       <MainLayout
         breadcrumbs={[
           { title: 'Admin' },
-          { title: 'Dispositivos e Segurança' },
+          { title: 'Dispositivos' },
         ]}
       >
         <div className="space-y-6">
-          {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
               <Link href="/admin/dashboard">
@@ -311,95 +321,113 @@ export default function DispositivosPage() {
                 <Shield className="h-6 w-6 text-white" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold">Dispositivos e Segurança</h1>
+                <h1 className="text-3xl font-bold">Controle de Dispositivos</h1>
                 <p className="text-muted-foreground">
-                  Controle de acesso por dispositivo
+                  Autorize dispositivos para acesso de funcionários
                 </p>
               </div>
             </div>
-            <Button variant="outline" onClick={fetchDevices} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-              Atualizar
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={fetchDevices} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                Atualizar
+              </Button>
+            </div>
           </div>
 
-          {/* Restriction Toggle */}
-          <Card className={restringir ? 'bg-orange-50 border-orange-200' : 'bg-blue-50 border-blue-200'}>
+          <Card className={restringir ? 'bg-orange-50 border-orange-200' : 'bg-green-50 border-green-200'}>
             <CardContent className="p-6">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="flex items-start gap-3">
-                  <ShieldAlert className={`h-6 w-6 mt-0.5 ${restringir ? 'text-orange-600' : 'text-blue-600'}`} />
+                  {restringir ? (
+                    <ShieldAlert className="h-6 w-6 text-orange-600 mt-0.5" />
+                  ) : (
+                    <ShieldCheck className="h-6 w-6 text-green-600 mt-0.5" />
+                  )}
                   <div>
-                    <p className="font-semibold text-sm">
-                      Restringir acesso a dispositivos conhecidos
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-semibold text-sm">
+                        {restringir ? 'Modo Restrito Ativado' : 'Modo Permissivo'}
+                      </p>
+                      <Badge variant={restringir ? 'destructive' : 'default'} className="text-xs">
+                        {restringir ? 'Requer autorização' : 'Livre acesso'}
+                      </Badge>
+                    </div>
                     <p className="text-xs text-muted-foreground mt-1">
                       {restringir
-                        ? 'Novos dispositivos serão bloqueados até que um administrador os aprove manualmente. Funcionários não poderão acessar de dispositivos não registrados.'
-                        : 'Dispositivos de funcionários sempre precisam de aprovação do administrador. Dispositivos de admin são registrados automaticamente.'
+                        ? 'Novos dispositivos precisarão de sua aprovação para acessar o sistema. Recomendado para controle de presença.'
+                        : 'Todos os dispositivos são autorizados automaticamente. Altere para o modo restrito para maior controle.'
                       }
                     </p>
                   </div>
                 </div>
-                <Switch
-                  checked={restringir}
-                  onCheckedChange={handleToggleRestringir}
+                <Button
+                  variant={restringir ? 'outline' : 'default'}
+                  size="sm"
+                  onClick={() => handleToggleRestringir(!restringir)}
                   disabled={savingConfig}
-                  className="data-[state=checked]:bg-orange-500"
-                />
+                  className={restringir ? 'border-orange-300 hover:bg-orange-100' : 'bg-green-600 hover:bg-green-700'}
+                >
+                  {savingConfig ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : restringir ? (
+                    'Desativar Restrição'
+                  ) : (
+                    'Ativar Restrição'
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('todos')}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg bg-blue-100 flex items-center justify-center">
                     <Monitor className="h-5 w-5 text-blue-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{totalDevices}</p>
-                    <p className="text-xs text-muted-foreground">Total de dispositivos</p>
+                    <p className="text-2xl font-bold">{stats.total}</p>
+                    <p className="text-xs text-muted-foreground">Total</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('ativos')}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg bg-green-100 flex items-center justify-center">
                     <CheckCircle2 className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{ativosDevices}</p>
-                    <p className="text-xs text-muted-foreground">Ativos</p>
+                    <p className="text-2xl font-bold">{stats.ativos}</p>
+                    <p className="text-xs text-muted-foreground">Autorizados</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('pendentes')}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg bg-orange-100 flex items-center justify-center">
                     <ShieldAlert className="h-5 w-5 text-orange-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{pendentesDevices}</p>
-                    <p className="text-xs text-muted-foreground">Pendentes de aprovação</p>
+                    <p className="text-2xl font-bold">{stats.pendentes}</p>
+                    <p className="text-xs text-muted-foreground">Pendentes</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="cursor-pointer hover:shadow-md transition-shadow" onClick={() => setStatusFilter('revogados')}>
               <CardContent className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-lg bg-red-100 flex items-center justify-center">
                     <XCircle className="h-5 w-5 text-red-600" />
                   </div>
                   <div>
-                    <p className="text-2xl font-bold">{revogadosDevices}</p>
+                    <p className="text-2xl font-bold">{stats.revogados}</p>
                     <p className="text-xs text-muted-foreground">Revogados</p>
                   </div>
                 </div>
@@ -407,14 +435,70 @@ export default function DispositivosPage() {
             </Card>
           </div>
 
-          {/* Devices Table */}
-          {devices.length === 0 ? (
+          <Card>
+            <CardContent className="p-4">
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Buscar por usuário ou dispositivo..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="pl-10"
+                  />
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button
+                    variant={statusFilter === 'todos' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setStatusFilter('todos')}
+                  >
+                    Todos
+                  </Button>
+                  <Button
+                    variant={statusFilter === 'ativos' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setStatusFilter('ativos')}
+                    className={statusFilter === 'ativos' ? 'bg-green-500 hover:bg-green-600' : ''}
+                  >
+                    Autorizados
+                  </Button>
+                  <Button
+                    variant={statusFilter === 'pendentes' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setStatusFilter('pendentes')}
+                    className={statusFilter === 'pendentes' ? 'bg-orange-500 hover:bg-orange-600' : ''}
+                  >
+                    Pendentes
+                  </Button>
+                  <Button
+                    variant={statusFilter === 'revogados' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setStatusFilter('revogados')}
+                    className={statusFilter === 'revogados' ? 'bg-red-500 hover:bg-red-600' : ''}
+                  >
+                    Revogados
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {filteredDevices.length === 0 ? (
             <Card>
               <CardContent className="flex flex-col items-center justify-center h-64">
-                <Monitor className="h-16 w-16 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium">Nenhum dispositivo registrado</p>
+                <Shield className="h-16 w-16 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">
+                  {searchTerm || statusFilter !== 'todos' 
+                    ? 'Nenhum dispositivo encontrado' 
+                    : 'Nenhum dispositivo registrado'
+                  }
+                </p>
                 <p className="text-sm text-muted-foreground">
-                  Os dispositivos serão registrados quando os usuários fizerem login
+                  {searchTerm || statusFilter !== 'todos'
+                    ? 'Tente ajustar sua busca ou filtro'
+                    : 'Dispositivos serão registrados quando os funcionários acessarem o sistema'
+                  }
                 </p>
               </CardContent>
             </Card>
@@ -423,132 +507,193 @@ export default function DispositivosPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Monitor className="h-5 w-5" />
-                  Dispositivos Registrados ({devices.length})
+                  Dispositivos ({filteredDevices.length})
                 </CardTitle>
                 <CardDescription>
                   {restringir
-                    ? 'Dispositivos pendentes precisam ser aprovados para que possam acessar o sistema.'
-                    : 'Todos os dispositivos são registrados automaticamente. Revogue individualmente se necessário.'
+                    ? 'Aprovar dispositivos pendentes para permitir o acesso dos funcionários'
+                    : 'Gerencie os dispositivos que acessam o sistema'
                   }
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Dispositivo</TableHead>
-                        <TableHead>Usuário</TableHead>
-                        <TableHead className="hidden md:table-cell">IP</TableHead>
-                        <TableHead className="hidden lg:table-cell">Último Acesso</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {devices.map((device) => (
-                        <TableRow key={device.id} className={!device.ativo ? 'opacity-70' : ''}>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <div className="h-9 w-9 rounded-lg bg-gray-100 flex items-center justify-center">
-                                <Monitor className="h-4 w-4 text-gray-500" />
-                              </div>
-                              <div>
-                                <p className="font-medium text-sm">
-                                  {device.device_name || 'Dispositivo desconhecido'}
-                                </p>
-                                <p className="text-xs text-muted-foreground font-mono">
-                                  {device.device_id.substring(0, 8)}...
-                                </p>
-                              </div>
+                <div className="space-y-4">
+                  {filteredDevices.map((device) => (
+                    <div
+                      key={device.id}
+                      className={`p-4 rounded-lg border ${
+                        device.ativo 
+                          ? 'bg-green-50 border-green-200' 
+                          : new Date(device.criado_em).getTime() !== new Date(device.atualizado_em).getTime()
+                            ? 'bg-red-50 border-red-200'
+                            : 'bg-orange-50 border-orange-200'
+                      }`}
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                          <div className={`h-12 w-12 rounded-lg flex items-center justify-center ${
+                            device.ativo 
+                              ? 'bg-green-100' 
+                              : new Date(device.criado_em).getTime() !== new Date(device.atualizado_em).getTime()
+                                ? 'bg-red-100'
+                                : 'bg-orange-100'
+                          }`}>
+                            {getDeviceIcon(device.user_agent)}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium">
+                                {device.device_name || getDeviceType(device.user_agent)}
+                              </p>
+                              {getStatusBadge(device.ativo, device.criado_em, device.atualizado_em)}
                             </div>
-                          </TableCell>
-                          <TableCell>
-                            <p className="text-sm">
-                              {device.usuario_nome || '-'}
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {device.usuario_nome || 'Usuário desconhecido'}
                             </p>
-                          </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            <code className="text-xs bg-gray-100 px-2 py-1 rounded">
-                              {device.ip_address || '-'}
-                            </code>
-                          </TableCell>
-                          <TableCell className="hidden lg:table-cell">
-                            <span className="text-sm text-muted-foreground">
-                              {formatDate(device.ultimo_acesso)}
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            {getStatusBadge(device.ativo, device.criado_em, device.atualizado_em)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" disabled={actionLoading === device.id}>
-                                  {actionLoading === device.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <MoreHorizontal className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                {!device.ativo && (
-                                  <DropdownMenuItem onClick={() => handleAprovar(device.id)}>
-                                    <UserCheck className="mr-2 h-4 w-4 text-green-600" />
-                                    <span className="text-green-600">Aprovar</span>
-                                  </DropdownMenuItem>
-                                )}
-                                {device.ativo && (
-                                  <DropdownMenuItem onClick={() => handleRevogar(device.id)}>
-                                    <UserX className="mr-2 h-4 w-4 text-orange-600" />
-                                    <span className="text-orange-600">Revogar</span>
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuSeparator />
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <DropdownMenuItem
-                                      className="text-red-600 focus:text-red-600"
-                                      onSelect={(e) => e.preventDefault()}
-                                    >
-                                      <Trash2 className="mr-2 h-4 w-4" />
-                                      Excluir
-                                    </DropdownMenuItem>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Excluir dispositivo?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Tem certeza que deseja excluir o registro do dispositivo{' '}
-                                        <strong>{device.device_name || device.device_id.substring(0, 8)}</strong>?
-                                        Se a restrição estiver ativada, o usuário precisará de uma nova aprovação
-                                        para acessar novamente.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleExcluir(device.id)}
-                                        className="bg-red-600 hover:bg-red-700"
-                                      >
-                                        Excluir
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                            <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Smartphone className="h-3 w-3" />
+                                {getDeviceType(device.user_agent)}
+                              </span>
+                              <span>
+                                Último acesso: {formatDate(device.ultimo_acesso)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {getStatusDescription(device.ativo, device.criado_em, device.atualizado_em)}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {!device.ativo && new Date(device.criado_em).getTime() === new Date(device.atualizado_em).getTime() && (
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => setConfirmDialog({
+                                open: true,
+                                deviceId: device.id,
+                                action: 'aprovar',
+                                deviceName: device.device_name || getDeviceType(device.user_agent),
+                              })}
+                              disabled={actionLoading === device.id}
+                            >
+                              {actionLoading === device.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="h-4 w-4 mr-1" />
+                                  Aprovar
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          {device.ativo && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="border-orange-300 text-orange-600 hover:bg-orange-100"
+                              onClick={() => setConfirmDialog({
+                                open: true,
+                                deviceId: device.id,
+                                action: 'revogar',
+                                deviceName: device.device_name || getDeviceType(device.user_agent),
+                              })}
+                              disabled={actionLoading === device.id}
+                            >
+                              {actionLoading === device.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Revogar
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                            onClick={() => setConfirmDialog({
+                              open: true,
+                              deviceId: device.id,
+                              action: 'excluir',
+                              deviceName: device.device_name || getDeviceType(device.user_agent),
+                            })}
+                            disabled={actionLoading === device.id}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
           )}
+
+          <Card className="bg-blue-50 border-blue-200">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-blue-600 mt-0.5" />
+                <div>
+                  <p className="font-medium text-sm text-blue-800">Como funciona o controle de dispositivos?</p>
+                  <ul className="text-xs text-blue-600 mt-2 space-y-1">
+                    <li>• Quando um funcionário acessa o sistema de um novo dispositivo, ele fica pendente de aprovação</li>
+                    <li>• Você pode autorizar ou revogar o acesso a qualquer momento</li>
+                    <li>• Dispositivos revogados precisarão de nova aprovação para acessar novamente</li>
+                    <li>• O modo restrito exige aprovação para todos os novos dispositivos</li>
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
+
+        <Dialog open={!!confirmDialog?.open} onOpenChange={(open) => !open && setConfirmDialog(null)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {confirmDialog?.action === 'aprovar' && 'Aprovar dispositivo'}
+                {confirmDialog?.action === 'revogar' && 'Revogar acesso'}
+                {confirmDialog?.action === 'excluir' && 'Excluir dispositivo'}
+              </DialogTitle>
+              <DialogDescription>
+                {confirmDialog?.action === 'aprovar' && (
+                  <>Tem certeza que deseja autorizar o dispositivo <strong>{confirmDialog?.deviceName}</strong> a acessar o sistema?</>
+                )}
+                {confirmDialog?.action === 'revogar' && (
+                  <>Tem certeza que deseja revogar o acesso do dispositivo <strong>{confirmDialog?.deviceName}</strong>? O funcionário precisará de uma nova autorização.</>
+                )}
+                {confirmDialog?.action === 'excluir' && (
+                  <>Tem certeza que deseja excluir o dispositivo <strong>{confirmDialog?.deviceName}</strong>? Esta ação não pode ser desfeita.</>
+                )}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setConfirmDialog(null)}>
+                Cancelar
+              </Button>
+              <Button
+                variant={confirmDialog?.action === 'excluir' ? 'destructive' : 'default'}
+                className={confirmDialog?.action === 'aprovar' ? 'bg-green-600 hover:bg-green-700' : ''}
+                onClick={handleAction}
+                disabled={actionLoading !== null}
+              >
+                {actionLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : confirmDialog?.action === 'aprovar' ? (
+                  'Aprovar'
+                ) : confirmDialog?.action === 'revogar' ? (
+                  'Revogar'
+                ) : (
+                  'Excluir'
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </MainLayout>
     </ProtectedRoute>
   );

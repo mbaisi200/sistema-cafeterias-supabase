@@ -252,7 +252,14 @@ export function ClientesTab() {
   };
 
   const mascaraCEP = (valor: string) => valor.replace(/\D/g, '').replace(/(\d{5})(\d{0,3})/, '$1-$2');
-  const mascaraFone = (valor: string) => valor.replace(/\D/g, '').replace(/(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/(-\s*)$/, '');
+  const mascaraFone = (valor: string) => {
+    const numbers = valor.replace(/\D/g, '');
+    if (numbers.length <= 10) {
+      return numbers.replace(/^(\d{2})(\d{4})(\d{0,4})/, '($1) $2-$3').replace(/(-\s*)$/, '');
+    }
+    return numbers.replace(/^(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/(-\s*)$/, '');
+  };
+  const mascaraCelular = (valor: string) => valor.replace(/\D/g, '').replace(/^(\d{2})(\d{5})(\d{0,4})/, '($1) $2-$3').replace(/(-\s*)$/, '');
 
   const buscarCEP = useCallback(async (cepLimpo: string) => {
     if (cepLimpo.length !== 8) return;
@@ -510,11 +517,11 @@ export function ClientesTab() {
               </div>
               <div>
                 <Label>Telefone</Label>
-                <Input value={telefone} onChange={(e) => setTelefone(mascaraFone(e.target.value))} placeholder="(00) 00000-0000" />
+                <Input value={telefone} onChange={(e) => setTelefone(mascaraFone(e.target.value))} placeholder="(00) xxxx-xxxx" />
               </div>
               <div>
                 <Label>Celular</Label>
-                <Input value={celular} onChange={(e) => setCelular(mascaraFone(e.target.value))} placeholder="(00) 00000-0000" />
+                <Input value={celular} onChange={(e) => setCelular(mascaraCelular(e.target.value))} placeholder="(00) xxxxx-xxxx" />
               </div>
             </div>
 

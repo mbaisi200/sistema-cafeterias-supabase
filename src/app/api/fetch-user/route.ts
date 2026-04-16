@@ -14,7 +14,6 @@ export async function POST(request: NextRequest) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-    // Usar service role para evitar problemas de RLS
     const supabase = createClient(supabaseUrl, serviceKey, {
       auth: {
         autoRefreshToken: false,
@@ -22,6 +21,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Buscar usuário
     const { data, error } = await supabase
       .from('usuarios')
       .select('*')
@@ -38,15 +38,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
+    const userData = data;
+
     // Verificar se a empresa está ativa e não vencida
-    if (data.empresa_id && data.role !== 'master') {
-      const { data: empresa, error: empresaError } = await supabase
+    if (userData.empresa_id && userData.role !== 'master') {
+      const { data: empresa } = await supabase
         .from('empresas')
         .select('id, status, validade')
-        .eq('id', data.empresa_id)
+        .eq('id', userData.empresa_id)
         .single();
 
-      if (!empresaError && empresa) {
+      if (empresa) {
         if (empresa.status === 'bloqueado') {
           return NextResponse.json({ 
             error: 'Sua assinatura está bloqueada. Entre em contato com o administrador.',
@@ -70,23 +72,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Fetch section permissions via SEGMENTO (not per-company anymore)
+    // Fetch section permissions via SEGMENTO
     let secoesPermitidas: string[] = [];
     let nomeMarca: string | null = null;
 
-    if (data.empresa_id && data.role !== 'master') {
-      // Get empresa data (segmento_id, nome_marca)
-      const { data: empresaRes, error: empresaError } = await supabase
+    if (userData.empresa_id && userData.role !== 'master') {
+      const { data: empresaRes } = await supabase
         .from('empresas')
         .select('id, nome_marca, segmento_id')
-        .eq('id', data.empresa_id)
+        .eq('id', userData.empresa_id)
         .single();
 
-      // Determine segmento_id
       const segId = empresaRes?.segmento_id;
 
       if (segId) {
-        // Query segmento_secoes for this segment
         const { data: segSecoes } = await supabase
           .from('segmento_secoes')
           .select('secao_id, ativo')
@@ -105,13 +104,12 @@ export async function POST(request: NextRequest) {
           
           if (secoesData) {
             secoesPermitidas = secoesData
-              .filter((s: any) => s.visivel_para && s.visivel_para.includes(data.role))
+              .filter((s: any) => s.visivel_para && s.visivel_para.includes(userData.role))
               .map((s: any) => s.url);
           }
         }
       }
 
-      // Fallback: if no segmento or no segmento_secoes, load ALL active sections
       if (secoesPermitidas.length === 0) {
         const { data: allSecoes } = await supabase
           .from('secoes_menu')
@@ -120,12 +118,11 @@ export async function POST(request: NextRequest) {
         
         if (allSecoes) {
           secoesPermitidas = allSecoes
-            .filter((s: any) => s.visivel_para && s.visivel_para.includes(data.role))
+            .filter((s: any) => s.visivel_para && s.visivel_para.includes(userData.role))
             .map((s: any) => s.url);
         }
       }
 
-      // Get brand name: empresa.nome_marca first, then segmento.nome_marca
       if (empresaRes) {
         if (empresaRes.nome_marca) {
           nomeMarca = empresaRes.nome_marca;
@@ -140,20 +137,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ✅ NOVO: Atualizar os custom claims do usuário no Supabase Auth
+    // Atualizar custom claims do usuário
     try {
       const adminAuthClient = createClient(supabaseUrl, serviceKey, {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
+        auth: { autoRefreshToken: false, persistSession: false }
       });
 
       await adminAuthClient.auth.admin.updateUserById(authUserId, {
         user_metadata: {
-          role: data.role,
-          empresa_id: data.empresa_id,
-          nome: data.nome,
+          role: userData.role,
+          empresa_id: userData.empresa_id,
+          nome: userData.nome,
         }
       });
 
@@ -164,14 +158,14 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ 
       user: {
-        id: data.id,
-        email: data.email,
-        nome: data.nome,
-        role: data.role,
-        empresaId: data.empresa_id,
-        ativo: data.ativo,
-        criadoEm: data.criado_em,
-        atualizadoEm: data.atualizado_em,
+        id: userData.id,
+        email: userData.email,
+        nome: userData.nome,
+        role: userData.role,
+        empresaId: userData.empresa_id,
+        ativo: userData.ativo,
+        criadoEm: userData.criado_em,
+        atualizadoEm: userData.atualizado_em,
         secoesPermitidas,
         nomeMarca,
       }
@@ -179,6 +173,6 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Erro na API fetch-user:', error);
-    return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

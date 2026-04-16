@@ -210,6 +210,11 @@ export default function MasterDashboardPage() {
                           <p className="text-sm text-muted-foreground">
                             {empresa.cidade || 'Cidade não definida'}
                           </p>
+                          {empresa.cnpj && (
+                            <p className="text-xs text-muted-foreground font-mono">
+                              CNPJ: {empresa.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-3">

@@ -42,6 +42,8 @@ import {
   Edit,
   Trash2,
   Shield,
+  ShieldCheck,
+  ShieldAlert,
   Loader2,
   UserCheck,
   UserX,
@@ -50,6 +52,10 @@ import {
   Check,
   Download,
   ChevronLeft,
+  Monitor,
+  Smartphone,
+  AlertTriangle,
+  ExternalLink,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
@@ -74,6 +80,15 @@ interface Funcionario {
   ativo: boolean;
 }
 
+interface Dispositivo {
+  id: string;
+  usuario_id: string | null;
+  device_name: string | null;
+  ativo: boolean;
+  criado_em: string;
+  atualizado_em: string;
+}
+
 export default function FuncionariosPage() {
   const { funcionarios, loading, adicionarFuncionario, atualizarFuncionario, excluirFuncionario } = useFuncionarios();
   const { user: currentUser, empresaId } = useAuth();
@@ -85,16 +100,33 @@ export default function FuncionariosPage() {
   const [editandoFuncionario, setEditandoFuncionario] = useState<Funcionario | null>(null);
   const [codigoEmpresa, setCodigoEmpresa] = useState('');
   const [copied, setCopied] = useState(false);
+  const [devices, setDevices] = useState<Dispositivo[]>([]);
   const { toast } = useToast();
 
-  // Código da empresa (primeiros 8 caracteres do empresaId)
   useEffect(() => {
     if (empresaId) {
       setCodigoEmpresa(empresaId.substring(0, 8).toUpperCase());
     }
   }, [empresaId]);
 
-  // Filtrar funcionários
+  useEffect(() => {
+    const fetchDevices = async () => {
+      if (!empresaId) return;
+      try {
+        const response = await fetch('/api/dispositivos');
+        const data = await response.json();
+        if (data.devices) setDevices(data.devices);
+      } catch (error) {
+        console.error('Erro ao buscar dispositivos:', error);
+      }
+    };
+    fetchDevices();
+  }, [empresaId]);
+
+  const getDispositivosFuncionario = (funcionarioId: string) => {
+    return devices.filter(d => d.usuario_id === funcionarioId);
+  };
+
   const filteredFuncionarios = funcionarios.filter(func => {
     const matchSearch = func.nome.toLowerCase().includes(search.toLowerCase()) ||
       (func.email?.toLowerCase().includes(search.toLowerCase()) ?? false) ||
@@ -677,7 +709,7 @@ export default function FuncionariosPage() {
                         <TableHead>Funcionário</TableHead>
                         <TableHead>Cargo</TableHead>
                         <TableHead className="hidden md:table-cell">Contato</TableHead>
-                        <TableHead>PIN</TableHead>
+                        <TableHead>Dispositivos</TableHead>
                         <TableHead className="hidden lg:table-cell">Permissões</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
@@ -704,9 +736,38 @@ export default function FuncionariosPage() {
                           </TableCell>
                           <TableCell className="hidden md:table-cell">{formatPhone(func.telefone || '')}</TableCell>
                           <TableCell>
-                            <code className="bg-gray-100 px-2 py-1 rounded text-sm">
-                              {maskPin(func.pin || '----')}
-                            </code>
+                            {(() => {
+                              const funcDevices = getDispositivosFuncionario(func.id);
+                              const ativosCount = funcDevices.filter(d => d.ativo).length;
+                              const pendentesCount = funcDevices.filter(d => !d.ativo && d.criado_em === d.atualizado_em).length;
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <Link href="/admin/dispositivos">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" title="Gerenciar dispositivos">
+                                      <Monitor className="h-4 w-4" />
+                                    </Button>
+                                  </Link>
+                                  {funcDevices.length > 0 ? (
+                                    <div className="flex items-center gap-1">
+                                      {ativosCount > 0 && (
+                                        <Badge className="bg-green-500 text-xs gap-1">
+                                          <Check className="h-3 w-3" />
+                                          {ativosCount}
+                                        </Badge>
+                                      )}
+                                      {pendentesCount > 0 && (
+                                        <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300 text-xs gap-1">
+                                          <AlertTriangle className="h-3 w-3" />
+                                          {pendentesCount}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-muted-foreground">Sem acesso</span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
                             <div className="flex flex-wrap gap-1">
@@ -748,6 +809,13 @@ export default function FuncionariosPage() {
                                       Ativar
                                     </>
                                   )}
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                  <Link href="/admin/dispositivos">
+                                    <Monitor className="mr-2 h-4 w-4" />
+                                    Dispositivos
+                                    <ExternalLink className="ml-2 h-3 w-3" />
+                                  </Link>
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 

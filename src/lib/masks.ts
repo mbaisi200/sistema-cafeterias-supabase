@@ -14,26 +14,34 @@ export function maskCNPJ(value: string): string {
     .slice(0, 18);
 }
 
-// Máscara para Telefone: (00) 00000-0000
+// Máscara para Telefone Fixo: (00) 0000-0000
+export function maskPhoneFixed(value: string): string {
+  if (!value) return '';
+  const numbers = value.replace(/\D/g, '');
+  return numbers
+    .replace(/^(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{4})(\d)/, '$1-$2')
+    .slice(0, 14);
+}
+
+// Máscara para Telefone Celular: (00) 00000-0000
+export function maskPhoneMobile(value: string): string {
+  if (!value) return '';
+  const numbers = value.replace(/\D/g, '');
+  return numbers
+    .replace(/^(\d{2})(\d)/, '($1) $2')
+    .replace(/(\d{5})(\d)/, '$1-$2')
+    .slice(0, 15);
+}
+
+// Máscara para Telefone: Detecta automaticamente (fixo ou celular)
 export function maskPhone(value: string): string {
   if (!value) return '';
-  
-  // Remove tudo que não é dígito
   const numbers = value.replace(/\D/g, '');
-  
-  // Aplica a máscara
   if (numbers.length <= 10) {
-    // Formato fixo: (00) 0000-0000
-    return numbers
-      .replace(/^(\d{2})(\d)/, '($1) $2')
-      .replace(/(\d{4})(\d)/, '$1-$2')
-      .slice(0, 14);
+    return maskPhoneFixed(numbers);
   } else {
-    // Formato celular: (00) 00000-0000
-    return numbers
-      .replace(/^(\d{2})(\d)/, '($1) $2')
-      .replace(/(\d{5})(\d)/, '$1-$2')
-      .slice(0, 15);
+    return maskPhoneMobile(numbers);
   }
 }
 

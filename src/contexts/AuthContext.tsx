@@ -109,7 +109,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return userData;
     } catch (error) {
-      console.error('Error fetching user data:', error);
+      console.error('❌ Error fetching user data:', error);
+      // Tentar novamente uma vez após breve delay
+      try {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const retryResponse = await fetch('/api/fetch-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ authUserId }),
+        });
+        if (retryResponse.ok) {
+          const retryResult = await retryResponse.json();
+          if (retryResult.user) {
+            console.log('✅ Retry bem-sucedido');
+            return retryResult.user;
+          }
+        }
+      } catch (retryError) {
+        console.error('❌ Retry também falhou:', retryError);
+      }
       return null;
     } finally {
       fetchingRef.current.delete(authUserId);
