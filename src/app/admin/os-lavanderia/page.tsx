@@ -558,15 +558,26 @@ export default function OSLavanderiaPage() {
   };
 
   const handleDeleteOS = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta OS de lavanderia?')) return;
+    if (!confirm('Tem certeza que deseja excluir esta OS de lavanderia?\n\n⚠️ Se esta OS estiver faturada, a venda e todos os registros relacionados também serão excluídos.')) return;
+    
     try {
-      const supabase = getSupabase();
-      const { error } = await supabase
-        .from('ordens_servico')
-        .update({ ativo: false })
-        .eq('id', id);
-      if (error) throw error;
-      toast({ title: 'OS excluída!', description: 'Ordem de serviço removida.' });
+      const response = await fetch(`/api/os-lavanderia?id=${id}`, {
+        method: 'DELETE',
+      });
+      
+      const result = await response.json();
+      
+      if (!result.sucesso) {
+        throw new Error(result.erro?.mensagem || 'Erro ao excluir OS');
+      }
+
+      const foiFaturada = result.vendaId;
+      toast({ 
+        title: 'OS excluída!', 
+        description: foiFaturada 
+          ? `OS e venda #${result.vendaId.substring(0, 8)} removidas.`
+          : 'Ordem de serviço removida.'
+      });
       loadOrdens();
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erro ao excluir', description: err.message });

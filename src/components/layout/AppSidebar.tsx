@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
 import {
@@ -16,6 +17,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubItem,
+  SidebarMenuSubButton,
   SidebarRail,
   SidebarSeparator,
 } from '@/components/ui/sidebar';
@@ -62,6 +66,8 @@ import {
   Shield,
   WashingMachine,
   Image,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -160,6 +166,8 @@ const roleColors: Record<string, string> = {
 export function AppSidebar() {
   const { user, logout, empresaId, role, nomeMarca } = useAuth();
   const pathname = usePathname();
+  const { resolvedTheme, setTheme } = useTheme();
+  const darkMode = resolvedTheme === 'dark';
 
   const [dynamicMenuItems, setDynamicMenuItems] = useState<MenuItem[]>([]);
   const [dynamicAtalhoItems, setDynamicAtalhoItems] = useState<MenuItem[]>([]);
@@ -353,15 +361,21 @@ export function AppSidebar() {
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
-      <SidebarHeader className="border-b border-blue-100 bg-blue-50">
+      <SidebarHeader className={`border-b ${darkMode ? 'border-white/10 bg-transparent' : 'border-slate-200 bg-gradient-to-r from-purple-500/10 to-cyan-500/10'}`}>
         <div className="flex items-center gap-2 px-2 py-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600">
-            <Coffee className="h-5 w-5 text-white" />
+          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${darkMode ? 'bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30' : 'bg-gradient-to-br from-purple-500 to-cyan-500'}`}>
+            <Coffee className={`h-5 w-5 ${darkMode ? 'text-cyan-400' : 'text-white'}`} />
           </div>
-          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
-            <span className="text-sm font-semibold">Gestão</span>
-            <span className="text-xs text-muted-foreground">{nomeMarca || 'Café & Restaurante'}</span>
+          <div className="flex flex-col group-data-[collapsible=icon]:hidden flex-1">
+            <span className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-slate-800'}`}>Gestão</span>
+            <span className={`text-xs ${darkMode ? 'text-cyan-400/70' : 'text-slate-500'}`}>{nomeMarca || 'Café & Restaurante'}</span>
           </div>
+          <button
+            onClick={() => setTheme(darkMode ? 'light' : 'dark')}
+            className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-white/5 hover:bg-white/10 text-cyan-400' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+          >
+            {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
         </div>
       </SidebarHeader>
 
@@ -400,21 +414,20 @@ export function AppSidebar() {
                         </SidebarMenuButton>
                       </CollapsibleTrigger>
                       <CollapsibleContent>
-                        <SidebarMenu sub>
+                        <SidebarMenuSub>
                           {item.submenu.map((sub) => (
-                            <SidebarMenuItem key={sub.url}>
-                              <SidebarMenuButton
+                            <SidebarMenuSubItem key={sub.url}>
+                              <SidebarMenuSubButton
                                 asChild
                                 isActive={pathname === sub.url}
-                                tooltip={sub.title}
                               >
                                 <Link href={sub.url}>
                                   <span>{sub.title}</span>
                                 </Link>
-                              </SidebarMenuButton>
-                            </SidebarMenuItem>
+                              </SidebarMenuSubButton>
+                            </SidebarMenuSubItem>
                           ))}
-                        </SidebarMenu>
+                        </SidebarMenuSub>
                       </CollapsibleContent>
                     </SidebarMenuItem>
                   </Collapsible>
@@ -477,25 +490,25 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-blue-100 bg-blue-50">
+      <SidebarFooter className={`border-t ${darkMode ? 'border-white/10 bg-transparent' : 'border-slate-200'}`}>
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:justify-center">
+            <div className={`flex items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:justify-center ${darkMode ? 'bg-white/5 rounded-lg mx-1' : ''}`}>
               <Avatar className="h-8 w-8">
-                <AvatarFallback className={roleColors[role || 'funcionario']}>
+                <AvatarFallback className={`${roleColors[role || 'funcionario']} ${darkMode ? 'border border-cyan-500/30' : ''}`}>
                   {user?.nome?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col flex-1 group-data-[collapsible=icon]:hidden">
-                <span className="text-sm font-medium truncate">{user?.nome}</span>
-                <Badge variant="secondary" className="text-xs w-fit">
+                <span className={`text-sm font-medium truncate ${darkMode ? 'text-white' : 'text-slate-800'}`}>{user?.nome}</span>
+                <Badge variant="secondary" className={`text-xs w-fit ${darkMode ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : ''}`}>
                   {roleLabels[role || 'funcionario']}
                 </Badge>
               </div>
             </div>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={handleLogout} tooltip="Sair">
+            <SidebarMenuButton onClick={handleLogout} tooltip="Sair" className={darkMode ? 'text-gray-400 hover:text-red-400 hover:bg-red-500/10' : ''}>
               <LogOut className="h-4 w-4" />
               <span>Sair</span>
             </SidebarMenuButton>

@@ -67,21 +67,39 @@ export function BuscaCliente({
       return;
     }
 
+    // Normalizar termo removendo pontuação (permitir busca com ou sem máscara)
+    const termoNormalizado = termo.replace(/[.\-\/\(\)]/g, '');
+
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      params.append('busca', termo);
+      params.append('busca', termoNormalizado);
       params.append('limite', '10');
 
-      const res = await fetch(`/api/clientes?${params.toString()}`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+      const res = await fetch(`/api/clientes?${params.toString()}`, {
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!res.ok) {
+        throw new Error(`HTTP error: ${res.status}`);
+      }
+
       const data = await res.json();
 
       if (data.sucesso) {
         setResultados(data.clientes || []);
         setShowDropdown(true);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao buscar clientes:', error);
+      if (error.name === 'AbortError') {
+        console.log('Busca cancelada por timeout');
+      }
     } finally {
       setLoading(false);
     }

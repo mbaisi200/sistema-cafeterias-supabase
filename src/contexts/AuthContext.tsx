@@ -36,6 +36,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const mounted = useRef(true);
   const hasInitialized = useRef(false);
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
+  const userCache = useRef<Map<string, User>>(new Map());
+  const fetchingRef = useRef<Set<string>>(new Set());
 
   // Inicializar cliente Supabase apenas uma vez
   const getSupabase = () => {
@@ -47,7 +49,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Buscar dados do usuário na tabela usuarios via API route
   const fetchUserData = async (authUserId: string): Promise<User | null> => {
+    // Verificar cache
+    const cached = userCache.current.get(authUserId);
+    if (cached) {
+      return cached;
+    }
+
+    // Evitar chamadas duplicadas simultâneas
+    if (fetchingRef.current.has(authUserId)) {
+      return null;
+    }
+
     try {
+      fetchingRef.current.add(authUserId);
       console.log('🔄 Buscando usuário via API com auth_user_id:', authUserId);
 
       const response = await fetch('/api/fetch-user', {
@@ -79,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSecoesPermitidas(result.user.secoesPermitidas || []);
       setNomeMarca(result.user.nomeMarca || null);
 
-      return {
+      const userData: User = {
         id: result.user.id,
         email: result.user.email,
         nome: result.user.nome,
@@ -89,9 +103,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         criadoEm: new Date(result.user.criadoEm),
         atualizadoEm: new Date(result.user.atualizadoEm),
       };
+
+      // Salvar no cache
+      userCache.current.set(authUserId, userData);
+
+      return userData;
     } catch (error) {
       console.error('Error fetching user data:', error);
       return null;
+    } finally {
+      fetchingRef.current.delete(authUserId);
     }
   };
 
