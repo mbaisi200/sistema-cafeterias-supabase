@@ -187,6 +187,10 @@ export default function CatalogoLavanderiaPage() {
   const [servicoOrdem, setServicoOrdem] = useState<string[]>([]);
   const [draggedServicoId, setDraggedServicoId] = useState<string | null>(null);
 
+  // Sort state for price matrix
+  const [matrixSortField, setMatrixSortField] = useState<'descricao' | 'categoria' | 'criado_em'>('descricao');
+  const [matrixSortDirection, setMatrixSortDirection] = useState<'asc' | 'desc'>('asc');
+
   // --- Categorias ---
   const [categorias, setCategorias] = useState<CategoriaCatalogo[]>([]);
   const [categoriasLoading, setCategoriasLoading] = useState(false);
@@ -555,15 +559,36 @@ export default function CatalogoLavanderiaPage() {
   const itensAtivos = useMemo(() => itens.filter(i => i.ativo), [itens]);
   const servicosAtivos = useMemo(() => servicos.filter(s => s.ativo), [servicos]);
 
-  // Filter items for the matrix based on search
+  // Filter and sort items for the matrix based on search and sort state
   const matrixItens = useMemo(() => {
-    if (!precosSearch.trim()) return itensAtivos;
-    const term = precosSearch.toLowerCase();
-    return itensAtivos.filter(item =>
-      item.descricao.toLowerCase().includes(term) ||
-      item.categoria.toLowerCase().includes(term)
-    );
-  }, [itensAtivos, precosSearch]);
+    let items = itensAtivos;
+
+    // Apply search filter
+    if (precosSearch.trim()) {
+      const term = precosSearch.toLowerCase();
+      items = items.filter(item =>
+        item.descricao.toLowerCase().includes(term) ||
+        item.categoria.toLowerCase().includes(term)
+      );
+    }
+
+    // Apply sorting
+    return [...items].sort((a, b) => {
+      let comparison = 0;
+      switch (matrixSortField) {
+        case 'descricao':
+          comparison = a.descricao.localeCompare(b.descricao, 'pt-BR');
+          break;
+        case 'categoria':
+          comparison = a.categoria.localeCompare(b.categoria, 'pt-BR');
+          break;
+        case 'criado_em':
+          comparison = new Date(a.criado_em).getTime() - new Date(b.criado_em).getTime();
+          break;
+      }
+      return matrixSortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [itensAtivos, precosSearch, matrixSortField, matrixSortDirection]);
 
   // Helper to get price for a given item_id + servico_id
   const getPreco = useCallback((itemId: string, servicoId: string): number => {
@@ -1386,10 +1411,57 @@ export default function CatalogoLavanderiaPage() {
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
                         <table className="w-full text-sm">
-                          <thead>
+                            <thead>
                             <tr className="border-b bg-muted/50">
-                              <th className="sticky left-0 bg-muted/50 z-10 text-left px-4 py-3 font-semibold text-muted-foreground whitespace-nowrap">
-                                Item
+                              <th className="sticky left-0 bg-muted/50 z-10 text-left px-4 py-3 font-semibold whitespace-nowrap">
+                                <button
+                                  onClick={() => {
+                                    if (matrixSortField === 'descricao') {
+                                      setMatrixSortDirection(matrixSortDirection === 'asc' ? 'desc' : 'asc');
+                                    } else {
+                                      setMatrixSortField('descricao');
+                                      setMatrixSortDirection('asc');
+                                    }
+                                  }}
+                                  className={`flex items-center gap-1.5 hover:text-violet-600 transition-colors ${
+                                    matrixSortField === 'descricao' ? 'text-violet-600' : 'text-muted-foreground'
+                                  }`}
+                                >
+                                  Item
+                                  {matrixSortField === 'descricao' ? (
+                                    matrixSortDirection === 'asc' ? (
+                                      <ArrowUp className="h-3.5 w-3.5" />
+                                    ) : (
+                                      <ArrowDown className="h-3.5 w-3.5" />
+                                    )
+                                  ) : (
+                                    <ArrowUpDown className="h-3.5 w-3.5 opacity-40" />
+                                  )}
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (matrixSortField === 'categoria') {
+                                      setMatrixSortDirection(matrixSortDirection === 'asc' ? 'desc' : 'asc');
+                                    } else {
+                                      setMatrixSortField('categoria');
+                                      setMatrixSortDirection('asc');
+                                    }
+                                  }}
+                                  className={`flex items-center gap-1 mt-0.5 text-[10px] hover:text-violet-600 transition-colors ${
+                                    matrixSortField === 'categoria' ? 'text-violet-600' : 'text-muted-foreground/60'
+                                  }`}
+                                >
+                                  {matrixSortField === 'categoria' ? (
+                                    matrixSortDirection === 'asc' ? (
+                                      <ArrowUp className="h-2.5 w-2.5" />
+                                    ) : (
+                                      <ArrowDown className="h-2.5 w-2.5" />
+                                    )
+                                  ) : (
+                                    <ArrowUpDown className="h-2.5 w-2.5 opacity-40" />
+                                  )}
+                                  Categoria
+                                </button>
                               </th>
                               {matrixServicos.map((servico) => (
                                 <th
