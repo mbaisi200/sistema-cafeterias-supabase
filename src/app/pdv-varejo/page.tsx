@@ -202,8 +202,8 @@ export default function PDVVarejoPage() {
     }
     if (somenteComEstoque) {
       lista = lista.filter(p => {
-        if (!p.controlar_estoque) return true;
-        return (parseFloat(p.estoque_atual) || 0) > 0;
+        if (!p.controlarEstoque) return true;
+        return (parseFloat(p.estoqueAtual) || 0) > 0;
       });
     }
     lista = [...lista].sort((a, b) => {
@@ -885,8 +885,8 @@ export default function PDVVarejoPage() {
               {modoExibicao === 'grid' ? (
                 <div className="p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3">
                   {produtosFiltrados.map((produto: any, idx: number) => {
-                    const estoque = parseFloat(produto.estoque_atual) || 0;
-                    const semEstoque = produto.controlar_estoque && estoque <= 0;
+                    const estoque = parseFloat(produto.estoqueAtual) || 0;
+                    const semEstoque = produto.controlarEstoque && estoque <= 0;
                     const cor = getCorCategoria(produto.categoriaId);
                     return (
                       <motion.button
@@ -959,8 +959,8 @@ export default function PDVVarejoPage() {
               ) : (
                 <div className="divide-y divide-gray-100">
                   {produtosFiltrados.map((produto: any, idx: number) => {
-                    const estoque = parseFloat(produto.estoque_atual) || 0;
-                    const semEstoque = produto.controlar_estoque && estoque <= 0;
+                    const estoque = parseFloat(produto.estoqueAtual) || 0;
+                    const semEstoque = produto.controlarEstoque && estoque <= 0;
                     const cor = getCorCategoria(produto.categoriaId);
                     return (
                       <motion.button
@@ -989,7 +989,7 @@ export default function PDVVarejoPage() {
                           </div>
                           <div className="flex items-center gap-3 mt-1">
                             <span className="text-[11px] text-gray-400">{produto.codigo || produto.codigoBarras || '—'}</span>
-                            {produto.controlar_estoque && (
+                            {produto.controlarEstoque && (
                               <span className={`text-[11px] font-medium ${estoque > 0 ? 'text-green-600' : 'text-red-500'}`}>
                                 Estoque: {Math.floor(estoque)} {produto.unidade || 'UN'}
                               </span>

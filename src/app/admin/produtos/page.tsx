@@ -66,6 +66,7 @@ import {
   Camera,
   ImageIcon,
   Upload,
+  Ruler,
 } from 'lucide-react';
 import Link from 'next/link';
 import { exportToPDF, formatCurrencyPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
@@ -89,6 +90,7 @@ interface Produto {
   precoUnidade?: number;
   estoqueMinimo?: number;
   estoqueAtual?: number;
+  controlarEstoque?: boolean;
   destaque?: boolean;
   ativo?: boolean;
   disponivelIfood?: boolean;
@@ -127,6 +129,15 @@ export default function ProdutosPage() {
   // Estados de Categorias
   const [dialogCategoriaOpen, setDialogCategoriaOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#f97316');
+
+  // Estados de Unidades
+  const [unidades, setUnidades] = useState<{id: string; nome: string; descricao: string}[]>([
+    { id: '1', nome: 'un', descricao: 'Unidade' },
+    { id: '2', nome: 'cx', descricao: 'Caixa' },
+    { id: '3', nome: 'kg', descricao: 'Quilograma' },
+    { id: '4', nome: 'lt', descricao: 'Litro' },
+    { id: '5', nome: 'ml', descricao: 'Mililitro' },
+  ]);
 
   // Estados de Sincronização iFood
   const [syncing, setSyncing] = useState(false);
@@ -179,6 +190,8 @@ export default function ProdutosPage() {
     };
     loadSegmento();
   }, [empresaId]);
+
+  
 
   // Carregar foto do produto ao abrir dialog de edição
   useEffect(() => {
@@ -321,6 +334,7 @@ export default function ProdutosPage() {
         unidadesPorCaixa: parseInt(formData.get('unidadesPorCaixa') as string) || 0,
         precoUnidade: parseFloat(formData.get('precoUnidade') as string) || 0,
         estoqueMinimo: parseInt(formData.get('estoqueMinimo') as string) || 0,
+        controlarEstoque: formData.get('controlarEstoque') === 'on',
         destaque: formData.get('destaque') === 'on',
         disponivelIfood: formData.get('disponivelIfood') === 'on',
         isCombo: formData.get('isCombo') === 'on',
@@ -584,6 +598,10 @@ export default function ProdutosPage() {
               <FolderOpen className="h-4 w-4 mr-2" />
               Categorias ({categorias.length})
             </TabsTrigger>
+            <TabsTrigger value="unidades">
+              <Ruler className="h-4 w-4 mr-2" />
+              Unidades ({unidades.length})
+            </TabsTrigger>
             {showIfoodTab && (
               <TabsTrigger value="ifood">
                 <ShoppingCart className="h-4 w-4 mr-2" />
@@ -750,11 +768,11 @@ export default function ProdutosPage() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="un">Unidade</SelectItem>
-                                <SelectItem value="cx">Caixa</SelectItem>
-                                <SelectItem value="kg">Quilograma</SelectItem>
-                                <SelectItem value="lt">Litro</SelectItem>
-                                <SelectItem value="ml">Mililitro</SelectItem>
+                                {unidades.map(u => (
+                                  <SelectItem key={u.id} value={u.nome}>
+                                    {u.descricao || u.nome.toUpperCase()}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
@@ -797,6 +815,16 @@ export default function ProdutosPage() {
                                 É Combo?
                               </Label>
                               <p className="text-xs text-muted-foreground">Produto virtual com itens agregados</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch id="controlarEstoque" name="controlarEstoque" defaultChecked={editandoProduto?.controlarEstoque !== false} />
+                            <div>
+                              <Label htmlFor="controlarEstoque" className="flex items-center gap-1">
+                                <Package className="h-4 w-4 text-green-500" />
+                                Controlar Estoque
+                              </Label>
+                              <p className="text-xs text-muted-foreground">Baixar do estoque ao vender</p>
                             </div>
                           </div>
                         </div>
@@ -1307,6 +1335,55 @@ export default function ProdutosPage() {
                 </CardContent>
               </Card>
             )}
+          </TabsContent>
+
+          {/* Tab Unidades */}
+          <TabsContent value="unidades" className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <Ruler className="h-5 w-5" />
+                  Unidades de Medida
+                </h2>
+                <p className="text-sm text-muted-foreground">
+                  Gerencie as unidades disponíveis nos produtos
+                </p>
+              </div>
+            </div>
+
+            <Card>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Sigla</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {[...unidades].sort((a: any, b: any) => a.nome.localeCompare(b.nome)).map((unidade: any) => (
+                    <TableRow key={unidade.id}>
+                      <TableCell className="font-medium">{unidade.nome.toUpperCase()}</TableCell>
+                      <TableCell>{unidade.descricao || '-'}</TableCell>
+                      <TableCell>
+                        <Badge variant={unidade.ativo ? 'default' : 'secondary'}>
+                          {unidade.ativo ? 'Ativo' : 'Inativo'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </Card>
           </TabsContent>
 
           {/* Tab iFood */}

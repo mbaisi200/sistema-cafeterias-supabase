@@ -10,9 +10,11 @@ export async function POST(request: NextRequest) {
     }
 
     console.log('🔍 API: Buscando usuário com auth_user_id:', authUserId);
+    console.log('🔍 API: SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    console.log('🔍 API: Service key prefix:', serviceKey?.slice(0, 20));
 
     const supabase = createClient(supabaseUrl, serviceKey, {
       auth: {

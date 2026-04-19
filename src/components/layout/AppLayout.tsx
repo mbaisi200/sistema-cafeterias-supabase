@@ -23,6 +23,7 @@ import {
   BarChart3,
   Settings,
   ChevronDown,
+  Ruler,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -302,6 +303,19 @@ export function AppLayout({ children }: AppLayoutProps) {
           >
             <Settings className="w-5 h-5" />
             <span className="font-medium">Configurações</span>
+          </motion.button>
+          <motion.button
+            onClick={() => navigateTo('/admin/configuracoes/unidades')}
+            className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl transition-all ${
+              darkMode
+                ? 'text-gray-400 hover:bg-blue-500/10 hover:text-blue-400'
+                : 'text-slate-600 hover:bg-blue-50 hover:text-blue-600'
+            }`}
+            whileHover={{ x: 4 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Ruler className="w-5 h-5" />
+            <span className="font-medium">Unidades</span>
           </motion.button>
 
           {/* Logout */}

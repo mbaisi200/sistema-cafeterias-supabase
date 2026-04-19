@@ -18,7 +18,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
   const pathname = usePathname();
 
   // Rotas obrigatórias: sempre acessíveis independentemente das seções permitidas
-  const mandatoryRoutes = ['/pdv', '/pdv-varejo', '/pdv-garcom', '/admin/caixa'];
+  const mandatoryRoutes = ['/pdv', '/pdv-varejo', '/pdv-garcom', '/admin/caixa', '/admin/configuracoes/unidades'];
 
   // Rotas internas/sub-páginas que não possuem entrada própria no menu,
   // mas são acessadas a partir de outras seções ou são sempre necessárias
@@ -26,6 +26,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     '/admin/alterar-senha',      // Troca de senha (sempre disponível)
     '/admin/categorias',         // Sub-página de Produtos / Cadastros
     '/admin/configuracoes-cupom', // Sub-página de Cupons e NFEs
+    '/admin/configuracoes/unidades', // Sub-página de Unidades
     '/admin/logs',               // Logs do sistema
     '/admin/seed',               // Seed de dados (master/admin)
   ];

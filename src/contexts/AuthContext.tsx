@@ -35,9 +35,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const mounted = useRef(true);
   const hasInitialized = useRef(false);
+  const initialSessionProcessed = useRef(false);
   const supabaseRef = useRef<ReturnType<typeof createClient> | null>(null);
   const userCache = useRef<Map<string, User>>(new Map());
   const fetchingRef = useRef<Set<string>>(new Set());
+  const lastFetchedUserId = useRef<string | null>(null);
 
   // Inicializar cliente Supabase apenas uma vez
   const getSupabase = () => {
@@ -70,8 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ authUserId }),
       });
 
+      console.log('📥 Response status:', response.status, response.ok);
+
       const result = await response.json();
-      console.log('📊 Resultado da API:', result);
+      console.log('📊 Resultado da API:', JSON.stringify(result).slice(0, 300));
 
       if (!response.ok) {
         if (result.blocked || result.expired) {
@@ -106,6 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Salvar no cache
       userCache.current.set(authUserId, userData);
+      lastFetchedUserId.current = authUserId;
 
       return userData;
     } catch (error) {
@@ -266,6 +271,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             if (mounted.current) {
               setUser(userData);
+              console.log('✅ setUser chamado com:', userData.email, userData.role);
             }
           } else if (mounted.current) {
             setUser(null);
@@ -279,78 +285,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (mounted.current) {
           setLoading(false);
-          console.log('✅ Sessão inicializada');
+          console.log('✅ setLoading(false) chamado! Valor atual:', loading);
         }
       } catch (error) {
         console.error('❌ Erro ao inicializar sessão:', error);
         if (mounted.current) {
           setLoading(false);
+          console.log('✅ setLoading(false) chamado no catch!');
         }
       }
     };
 
     initSession();
 
-    // Escutar mudanças de autenticação
-    const { data: { subscription } } = getSupabase().auth.onAuthStateChange(async (event, newSession) => {
-      console.log('🔄 Auth state change:', event);
-      if (!mounted.current) return;
+    let subscription: { unsubscribe: () => void } | null = null;
 
-      // TOKEN_REFRESH: apenas atualizar a sessão, não buscar usuário novamente
-      if (event === 'TOKEN_REFRESH') {
-        console.log('✅ Token refreshed com sucesso');
-        setSession(newSession);
-        setSupabaseUser(newSession?.user ?? null);
-        return;
-      }
+    // Log de debug para verificar estado
+    console.log('📊 Estado atual - loading:', loading, 'user:', !!user);
 
-      // Ignorar INITIAL_SESSION se já tem usuário
-      if (event === 'INITIAL_SESSION' && user) {
-        console.log('⏭️ Initial session ignorado');
-        setSession(newSession);
-        setSupabaseUser(newSession?.user ?? null);
-        setLoading(false);
-        return;
-      }
-
-      setSession(newSession);
-      setSupabaseUser(newSession?.user ?? null);
-
-      if (newSession?.user && !newSession.user.is_anonymous) {
-        const userData = await fetchUserData(newSession.user.id);
-        if (userData && mounted.current) {
-          // Device check only on SIGNED_IN, not on TOKEN_REFRESH
-          if (userData.empresaId && event !== 'TOKEN_REFRESH') {
-            try {
-              await verifyDevice(userData.empresaId, userData.id, userData.nome);
-            } catch (deviceError) {
-              console.error('🔒 Dispositivo não autorizado:', deviceError);
-              await getSupabase().auth.signOut();
-              if (mounted.current) {
-                setUser(null);
-                setLoading(false);
-              }
-              return;
-            }
-          }
-          if (mounted.current) {
-            setUser(userData);
-          }
-        } else if (mounted.current) {
-          setUser(null);
-        }
-        clearFuncionarioSession();
-      } else if (!newSession) {
-        const funcionarioUser = loadFuncionarioSession();
-        if (mounted.current) {
-          setUser(funcionarioUser);
-        }
-      }
-
-      if (mounted.current) {
-        setLoading(false);
-      }
-    });
+    console.log('✅ AuthProvider mounted, sessão inicializada (sem onAuthStateChange)');
 
     // Heartbeat para manter sessão viva - verifica a cada 2 minutos
     const heartbeatInterval = setInterval(async () => {

@@ -68,6 +68,7 @@ import {
   Image,
   Sun,
   Moon,
+  Ruler,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -111,6 +112,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'PDV Garçon', url: '/pdv-garcom', icon: UtensilsCrossed },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
   { title: 'Cadastros', url: '/admin/cadastros', icon: Users },
+  { title: 'Unidades', url: '/admin/configuracoes/unidades', icon: Ruler },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
   {
     title: 'Pedidos e OS',

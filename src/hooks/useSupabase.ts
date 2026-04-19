@@ -43,6 +43,7 @@ export function useProdutos() {
         categoriaId: p.categoria_id,
         estoqueAtual: p.estoque_atual,
         estoqueMinimo: p.estoque_minimo,
+        controlarEstoque: p.controlar_estoque ?? true,
         destaque: p.destaque,
         ativo: p.ativo,
         foto: p.foto,
@@ -112,6 +113,7 @@ export function useProdutos() {
       categoria_id: dados.categoriaId || null,
       estoque_atual: dados.estoqueAtual || 0,
       estoque_minimo: dados.estoqueMinimo || 0,
+      controlar_estoque: dados.controlarEstoque ?? true,
       destaque: dados.destaque || false,
       disponivel_ifood: dados.disponivelIfood || false,
       ifood_external_code: dados.ifoodExternalCode || null,
@@ -163,6 +165,7 @@ export function useProdutos() {
     if (dados.unidade !== undefined) updateData.unidade = dados.unidade;
     if (dados.categoriaId !== undefined) updateData.categoria_id = dados.categoriaId;
     if (dados.estoqueMinimo !== undefined) updateData.estoque_minimo = dados.estoqueMinimo;
+    if (dados.controlarEstoque !== undefined) updateData.controlar_estoque = dados.controlarEstoque;
     if (dados.destaque !== undefined) updateData.destaque = dados.destaque;
 
     // Campos de iFood

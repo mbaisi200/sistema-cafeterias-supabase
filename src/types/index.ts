@@ -71,6 +71,7 @@ export interface Produto {
   foto?: string;
   estoqueAtual: number;
   estoqueMinimo: number;
+  controlarEstoque: boolean;
   destaque: boolean;
   ativo: boolean;
   criadoEm: Date;
