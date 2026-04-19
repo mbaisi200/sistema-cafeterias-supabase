@@ -231,7 +231,10 @@ export default function AdminDashboardPage() {
           .eq('ativo', true)
           .order('criado_em', { ascending: false });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Erro ao carregar OS Lavanderia:', error.message);
+          return;
+        }
 
         const parsed = (data || [])
           .filter((o: any) => (o.observacoes || '').startsWith('[LAVANDERIA]'))

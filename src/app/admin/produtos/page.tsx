@@ -131,13 +131,51 @@ export default function ProdutosPage() {
   const [selectedColor, setSelectedColor] = useState('#f97316');
 
   // Estados de Unidades
-  const [unidades, setUnidades] = useState<{id: string; nome: string; descricao: string}[]>([
-    { id: '1', nome: 'un', descricao: 'Unidade' },
-    { id: '2', nome: 'cx', descricao: 'Caixa' },
-    { id: '3', nome: 'kg', descricao: 'Quilograma' },
-    { id: '4', nome: 'lt', descricao: 'Litro' },
-    { id: '5', nome: 'ml', descricao: 'Mililitro' },
-  ]);
+  const [unidades, setUnidades] = useState<{id: string; nome: string; descricao: string; ativo: boolean}[]>([]);
+  const [loadingUnidades, setLoadingUnidades] = useState(true);
+  const [dialogUnidadeOpen, setDialogUnidadeOpen] = useState(false);
+  const [editandoUnidade, setEditandoUnidade] = useState<{id: string; nome: string; descricao: string} | null>(null);
+  const [novaUnidade, setNovaUnidade] = useState({ nome: '', descricao: '' });
+
+  // Carregar unidades do banco
+  useEffect(() => {
+    if (!empresaId) { setLoadingUnidades(false); return; }
+    const supabase = getSupabaseClient();
+    console.log('Carregando unidades para:', empresaId);
+    supabase.from('unidades').select('*').eq('empresa_id', empresaId).order('nome')
+      .then(({ data, error }) => { 
+        console.log('Unidades carregadas:', data, error); 
+        if (data) setUnidades(data); 
+        setLoadingUnidades(false); 
+      })
+      .catch((err) => { console.error('Erro:', err); setLoadingUnidades(false); });
+  }, [empresaId]);
+
+  const handleSalvarUnidade = async () => {
+    if (!empresaId || !novaUnidade.nome.trim()) return;
+    const supabase = getSupabaseClient();
+    if (editandoUnidade) {
+      await supabase.from('unidades').update({ nome: novaUnidade.nome, descricao: novaUnidade.descricao }).eq('id', editandoUnidade.id);
+      toast({ title: 'Unidade atualizada!' });
+    } else {
+      await supabase.from('unidades').insert({ empresa_id: empresaId, nome: novaUnidade.nome, descricao: novaUnidade.descricao, ativo: true });
+      toast({ title: 'Unidade cadastrada!' });
+    }
+    setDialogUnidadeOpen(false);
+    setEditandoUnidade(null);
+    setNovaUnidade({ nome: '', descricao: '' });
+    const { data } = await supabase.from('unidades').select('*').eq('empresa_id', empresaId).order('nome');
+    if (data) setUnidades(data);
+  };
+
+  const handleExcluirUnidade = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir?')) return;
+    const supabase = getSupabaseClient();
+    await supabase.from('unidades').delete().eq('id', id);
+    toast({ title: 'Unidade excluída!' });
+    const { data } = await supabase.from('unidades').select('*').eq('empresa_id', empresaId).order('nome');
+    if (data) setUnidades(data);
+  };
 
   // Estados de Sincronização iFood
   const [syncing, setSyncing] = useState(false);
@@ -1190,155 +1228,18 @@ export default function ProdutosPage() {
                     ))}
                   </TableBody>
                 </Table>
-              </Card>
+</Card>
             )}
-          </TabsContent>
-
-          {/* Tab Categorias */}
-          <TabsContent value="categorias" className="space-y-6">
-            <Dialog open={dialogCategoriaOpen} onOpenChange={setDialogCategoriaOpen}>
-              <div className="flex justify-end">
-                <Button onClick={() => setDialogCategoriaOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Nova Categoria
-                </Button>
-              </div>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Cadastrar Categoria</DialogTitle>
-                  <DialogDescription>
-                    Crie uma nova categoria para organizar seus produtos
-                  </DialogDescription>
-                </DialogHeader>
-                <form onSubmit={handleSalvarCategoria}>
-                  <div className="space-y-4 py-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="nome">Nome da Categoria</Label>
-                      <Input id="nome" name="nome" placeholder="Ex: Bebidas Quentes" required />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Cor</Label>
-                      <div className="flex flex-wrap gap-2">
-                        {colorOptions.map((color) => (
-                          <button
-                            key={color}
-                            type="button"
-                            onClick={() => setSelectedColor(color)}
-                            className={`h-8 w-8 rounded-full transition-all ${
-                              selectedColor === color
-                                ? 'ring-2 ring-offset-2 ring-gray-400 scale-110'
-                                : 'hover:scale-105'
-                            }`}
-                            style={{ backgroundColor: color }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" type="button" onClick={() => setDialogCategoriaOpen(false)}>
-                      Cancelar
-                    </Button>
-                    <Button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700">
-                      {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      Salvar Categoria
-                    </Button>
-                  </DialogFooter>
-                </form>
-              </DialogContent>
-            </Dialog>
-
-            {/* Info Card */}
-            <Card className="bg-muted/50">
-              <CardContent className="pt-6">
-                <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                    <FolderOpen className="h-5 w-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Dica</p>
-                    <p className="text-sm text-muted-foreground">
-                      As categorias são exibidas no PDV na ordem de criação.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Lista de Categorias */}
-            {categorias.length === 0 ? (
-              <Card>
-                <CardContent className="flex flex-col items-center justify-center h-64">
-                  <FolderOpen className="h-16 w-16 text-muted-foreground mb-4" />
-                  <p className="text-lg font-medium">Nenhuma categoria cadastrada</p>
-                  <p className="text-sm text-muted-foreground">Clique em "Nova Categoria" para começar</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Categorias ({categorias.length})</CardTitle>
-                  <CardDescription>
-                    Lista de todas as categorias cadastradas
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {categorias.map((categoria, index) => (
-                      <div
-                        key={categoria.id}
-                        className="flex items-center justify-between p-4 rounded-lg border bg-card hover:bg-accent/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
-                          <GripVertical className="h-5 w-5 text-muted-foreground cursor-grab" />
-                          <div
-                            className="h-10 w-10 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: categoria.cor }}
-                          >
-                            <FolderOpen className="h-5 w-5 text-white" />
-                          </div>
-                          <div>
-                            <p className="font-medium">{categoria.nome}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {getProdutosPorCategoria(categoria.id)} produtos ativos
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Badge variant="outline">Ordem: {index + 1}</Badge>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem>
-                                <Edit className="mr-2 h-4 w-4" />
-                                Editar
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                className="text-red-600"
-                                onClick={() => handleExcluirCategoria(categoria.id)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Excluir
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
+            </TabsContent>
 
           {/* Tab Unidades */}
           <TabsContent value="unidades" className="space-y-6">
+            {loadingUnidades ? (
+              <div className="flex items-center justify-center h-32">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              </div>
+            ) : (
+            <>
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-xl font-semibold flex items-center gap-2">
@@ -1349,6 +1250,10 @@ export default function ProdutosPage() {
                   Gerencie as unidades disponíveis nos produtos
                 </p>
               </div>
+              <Button onClick={() => { setEditandoUnidade(null); setNovaUnidade({ nome: '', descricao: '' }); setDialogUnidadeOpen(true); }} className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Nova Unidade
+              </Button>
             </div>
 
             <Card>
@@ -1372,18 +1277,22 @@ export default function ProdutosPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                        <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditandoUnidade(unidade); setNovaUnidade({ nome: unidade.nome, descricao: unidade.descricao || '' }); setDialogUnidadeOpen(true); }}>
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => handleExcluirUnidade(unidade.id)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </Card>
+            </>
+            )}
           </TabsContent>
 
           {/* Tab iFood */}
@@ -1804,6 +1713,28 @@ export default function ProdutosPage() {
                 {savingCombo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Salvar Itens
               </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={dialogUnidadeOpen} onOpenChange={setDialogUnidadeOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>{editandoUnidade ? 'Editar Unidade' : 'Nova Unidade'}</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Sigla</Label>
+                <Input value={novaUnidade.nome} onChange={(e) => setNovaUnidade({ ...novaUnidade, nome: e.target.value.toLowerCase() })} placeholder="Ex: pct" />
+              </div>
+              <div className="space-y-2">
+                <Label>Descrição</Label>
+                <Input value={novaUnidade.descricao} onChange={(e) => setNovaUnidade({ ...novaUnidade, descricao: e.target.value })} placeholder="Ex: Pacote" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setDialogUnidadeOpen(false)}>Cancelar</Button>
+              <Button onClick={handleSalvarUnidade} className="bg-blue-600 hover:bg-blue-700">Salvar</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
