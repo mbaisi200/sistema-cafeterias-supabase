@@ -1233,65 +1233,32 @@ export default function ProdutosPage() {
             </TabsContent>
 
           {/* Tab Unidades */}
-          <TabsContent value="unidades" className="space-y-6">
+          <TabsContent value="unidades" className="space-y-4">
             {loadingUnidades ? (
-              <div className="flex items-center justify-center h-32">
-                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+              <div className="flex items-center justify-center h-20">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
               </div>
             ) : (
-            <>
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-xl font-semibold flex items-center gap-2">
-                  <Ruler className="h-5 w-5" />
-                  Unidades de Medida
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Gerencie as unidades disponíveis nos produtos
-                </p>
-              </div>
-              <Button onClick={() => { setEditandoUnidade(null); setNovaUnidade({ nome: '', descricao: '' }); setDialogUnidadeOpen(true); }} className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Unidade
+            <div className="flex flex-wrap gap-2">
+              {[...unidades].sort((a: any, b: any) => a.nome.localeCompare(b.nome)).map((unidade: any) => (
+                <div key={unidade.id} className="flex items-center gap-2 bg-muted/30 px-3 py-2 rounded-lg">
+                  <Badge variant={unidade.ativo ? 'default' : 'secondary'} className="text-xs">
+                    {unidade.nome.toUpperCase()}
+                  </Badge>
+                  <span className="text-xs text-muted-foreground">{unidade.descricao || '-'}</span>
+                  <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => { setEditandoUnidade(unidade); setNovaUnidade({ nome: unidade.nome, descricao: unidade.descricao || '' }); setDialogUnidadeOpen(true); }}>
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 text-red-500" onClick={() => handleExcluirUnidade(unidade.id)}>
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+              ))}
+              <Button variant="outline" size="sm" onClick={() => { setEditandoUnidade(null); setNovaUnidade({ nome: '', descricao: '' }); setDialogUnidadeOpen(true); }}>
+                <Plus className="h-3 w-3 mr-1" />
+                Nova
               </Button>
             </div>
-
-            <Card>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Sigla</TableHead>
-                    <TableHead>Descrição</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {[...unidades].sort((a: any, b: any) => a.nome.localeCompare(b.nome)).map((unidade: any) => (
-                    <TableRow key={unidade.id}>
-                      <TableCell className="font-medium">{unidade.nome.toUpperCase()}</TableCell>
-                      <TableCell>{unidade.descricao || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={unidade.ativo ? 'default' : 'secondary'}>
-                          {unidade.ativo ? 'Ativo' : 'Inativo'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setEditandoUnidade(unidade); setNovaUnidade({ nome: unidade.nome, descricao: unidade.descricao || '' }); setDialogUnidadeOpen(true); }}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500" onClick={() => handleExcluirUnidade(unidade.id)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </Card>
-            </>
             )}
           </TabsContent>
 
