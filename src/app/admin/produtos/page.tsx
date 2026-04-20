@@ -1234,6 +1234,95 @@ export default function ProdutosPage() {
             )}
             </TabsContent>
 
+          {/* Tab Categorias */}
+          <TabsContent value="categorias" className="space-y-4">
+            {loadingCategorias ? (
+              <div className="flex items-center justify-center h-20">
+                <Loader2 className="h-6 w-6 animate-spin text-blue-500" />
+              </div>
+            ) : (
+            <>
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-medium">Categorias ({categorias.length})</h3>
+                <Button 
+                  size="sm" 
+                  className="bg-blue-600 hover:bg-blue-700"
+                  onClick={() => {
+                    const nome = prompt('Nome da nova categoria:');
+                    if (nome) {
+                      const cor = prompt('Cor (ex: #f97316):') || '#f97316';
+                      adicionarCategoria({ nome, cor });
+                    }
+                  }}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Nova Categoria
+                </Button>
+              </div>
+              {categorias.length === 0 ? (
+                <Card>
+                  <CardContent className="flex flex-col items-center justify-center h-32">
+                    <FolderOpen className="h-10 w-10 text-muted-foreground mb-2" />
+                    <p className="text-sm text-muted-foreground">Nenhuma categoria cadastrada</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {categorias.map((cat: any) => (
+                    <Card key={cat.id} className="hover:shadow-md transition-shadow">
+                      <CardContent className="p-3 flex items-center gap-3">
+                        <div 
+                          className="h-8 w-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                          style={{ backgroundColor: cat.cor }}
+                        >
+                          <FolderOpen className="h-4 w-4 text-white" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm truncate">{cat.nome}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {produtos.filter((p: any) => p.categoriaId === cat.id).length} produtos
+                          </p>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => {
+                              const novoNome = prompt('Novo nome:', cat.nome);
+                              if (novoNome && novoNome !== cat.nome) {
+                                // Implementar edição
+                              }
+                            }}>
+                              <Edit className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem 
+                              className="text-red-600"
+                              onClick={() => {
+                                if (confirm('Excluir categoria?')) {
+                                  excluirCategoria(cat.id);
+                                }
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </>
+            )}
+          </TabsContent>
+
           {/* Tab Unidades */}
           <TabsContent value="unidades" className="space-y-4">
             {loadingUnidades ? (
