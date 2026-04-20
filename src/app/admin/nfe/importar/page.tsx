@@ -104,6 +104,8 @@ export default function NFeImportarPage() {
   const [dialogPreview, setDialogPreview] = useState(false);
   const [dialogSucesso, setDialogSucesso] = useState(false);
   const [dialogDetalhes, setDialogDetalhes] = useState<number | null>(null);
+  const [dialogUnidadesCaixa, setDialogUnidadesCaixa] = useState(false);
+  const [produtosSemConversao, setProdutosSemConversao] = useState<number[]>([]);
   const [importando, setImportando] = useState(false);
   const [fileName, setFileName] = useState('');
   const [parseError, setParseError] = useState('');
@@ -207,15 +209,25 @@ export default function NFeImportarPage() {
 
       setProdutosImportacao(produtosMapeados);
 
-      // Verificar se NFe já foi importada
-      if (dados.chaveAcesso && empresaId) {
-        verificarNFeDuplicada(dados.chaveAcesso);
+      // Verificar produtos sem conversão automática (precisam deinput manual)
+      const semConversao = produtosMapeados
+        .map((p, idx) => (p.unidadesPorCaixa === 0 ? idx : -1))
+        .filter((idx) => idx >= 0);
+      
+      if (semConversao.length > 0) {
+        setProdutosSemConversao(semConversao);
+        // Não abre preview - abre dialog de conversão primeiro
       } else {
-        setNfeDuplicada(null);
+        setProdutosSemConversao([]);
+        // Verificar se NFe já foi importada
+        if (dados.chaveAcesso && empresaId) {
+          verificarNFeDuplicada(dados.chaveAcesso);
+        } else {
+          setNfeDuplicada(null);
+        }
+        // Abrir dialog de preview
+        setDialogPreview(true);
       }
-
-      // Abrir dialog de preview
-      setDialogPreview(true);
     } catch (error: any) {
       setParseError(error.message || 'Erro ao processar o arquivo XML');
     }
@@ -1359,6 +1371,86 @@ export default function NFeImportarPage() {
                     ? 'Importando...'
                     : 'Confirmar Importação'
                 }
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* ============================================= */}
+        {/* DIALOG UNIDADES POR CAIXA                    */}
+        {/* ============================================= */}
+        <Dialog open={produtosSemConversao.length > 0 && !dialogPreview} onOpenChange={(open) => {
+          if (!open) {
+            // Se fechar sem informar, seta 1 como padrão
+            setProdutosImportacao((prev) =>
+              prev.map((p, i) =>
+                produtosSemConversao.includes(i) && p.unidadesPorCaixa === 0
+                  ? { ...p, unidadesPorCaixa: 1 }
+                  : p
+              )
+            );
+            setProdutosSemConversao([]);
+            setDialogPreview(true);
+          }
+        }}>
+          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-600">
+                <Package className="h-5 w-5" />
+                Quantidade por Caixa
+              </DialogTitle>
+              <DialogDescription>
+                Os produtos abaixo não tienen conversão automática detectada. Informe a quantidade por caixa para calcular o custo unitário.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex-1 overflow-y-auto space-y-3 py-2">
+              {produtosSemConversao.map((idx) => {
+                const item = produtosImportacao[idx];
+                if (!item) return null;
+                return (
+                  <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border bg-amber-50">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{item.nfeProduto.descricao}</p>
+                      <p className="text-xs text-muted-foreground">
+                        NF: {item.nfeProduto.quantidade} {item.nfeProduto.unidade} • 
+                        Custo total: R$ {item.nfeProduto.valorTotal.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm">CX:</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.unidadesPorCaixa || ''}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value) || 1;
+                          setProdutosImportacao((prev) =>
+                            prev.map((p, i) =>
+                              i === idx ? { ...p, unidadesPorCaixa: val } : p
+                            )
+                          );
+                        }}
+                        className="w-20 h-9 text-center font-mono"
+                        placeholder="1"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <DialogFooter>
+              <Button
+                onClick={() => {
+                  // Prosseguir para o preview
+                  setProdutosSemConversao([]);
+                  setDialogPreview(true);
+                }}
+                className="gap-2"
+              >
+                <ChevronRight className="h-4 w-4" />
+                Prosseguir
               </Button>
             </DialogFooter>
           </DialogContent>

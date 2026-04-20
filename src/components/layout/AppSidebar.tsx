@@ -128,7 +128,6 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
   { title: 'Delivery', url: '/admin/delivery', icon: Bike },
   { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
-  { title: 'Funcionários', url: '/admin/funcionarios', icon: UserCog },
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
   { title: 'Dispositivos', url: '/admin/dispositivos', icon: Shield },
   { title: 'Integrações', url: '/admin/integracoes', icon: Plug },

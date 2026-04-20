@@ -779,11 +779,13 @@ export default function ProdutosPage() {
                           <div className="space-y-2">
                             <Label htmlFor="categoria">Categoria</Label>
                             <Select name="categoria" required defaultValue={editandoProduto?.categoriaId || ''}>
-                              <SelectTrigger>
+                              <SelectTrigger className="w-full">
                                 <SelectValue placeholder="Selecione" />
                               </SelectTrigger>
-                              <SelectContent>
-                                {categorias.map(cat => (
+                              <SelectContent className="w-full">
+                                {categorias.length === 0 ? (
+                                  <SelectItem value="sem-categoria">Nenhuma categoria</SelectItem>
+                                ) : categorias.map(cat => (
                                   <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
                                 ))}
                               </SelectContent>
