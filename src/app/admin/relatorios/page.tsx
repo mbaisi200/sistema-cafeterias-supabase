@@ -11,13 +11,14 @@ import { KPICards } from '@/components/bi/KPICards';
 import { FiltrosBI } from '@/components/bi/FiltrosBI';
 import { VendasPorDiaChart, VendasPorFormaChart, VendasPorTipoChart, VendasPorCategoriaChart, AnaliseHorarioChart, AnaliseDiaSemanaChart } from '@/components/bi/Charts';
 import { ProdutosMaisVendidos, VendasPorOperador, FluxoCaixaResumo, LucroBrutoPorProduto } from '@/components/bi/Tabelas';
+import { VendasItensDia } from '@/components/bi/VendasItensDia';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis, Area, AreaChart } from 'recharts';
-import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign, PiggyBank, Download, ChevronLeft, WashingMachine } from 'lucide-react';
+import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign, PiggyBank, Download, ChevronLeft, WashingMachine, Package } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { exportToPDF, formatCurrencyPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
@@ -281,7 +282,7 @@ export default function RelatoriosPage() {
           {/* Tabs de navegação */}
           <Tabs defaultValue="visao-geral" className="space-y-6">
             <div className="overflow-x-auto -mx-1 px-1">
-              <TabsList className="grid w-min md:w-auto md:inline-grid grid-cols-6 min-w-full md:min-w-0">
+              <TabsList className="grid w-min md:w-auto md:inline-grid grid-cols-7 min-w-full md:min-w-0">
               <TabsTrigger value="visao-geral" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Visão Geral</span>
@@ -289,6 +290,10 @@ export default function RelatoriosPage() {
               <TabsTrigger value="vendas" className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
                 <span className="hidden sm:inline">Vendas</span>
+              </TabsTrigger>
+              <TabsTrigger value="itens" className="flex items-center gap-2">
+                <Package className="h-4 w-4" />
+                <span className="hidden sm:inline">Itens</span>
               </TabsTrigger>
               <TabsTrigger value="produtos" className="flex items-center gap-2">
                 <PieChartIcon className="h-4 w-4" />
@@ -333,6 +338,11 @@ export default function RelatoriosPage() {
                 <AnaliseDiaSemanaChart dados={bi.analisePorDiaSemana} />
               </div>
               <VendasPorOperador dados={bi.vendasPorOperador} />
+            </TabsContent>
+
+            {/* Tab: Itens */}
+            <TabsContent value="itens" className="space-y-6">
+              <VendasItensDia />
             </TabsContent>
 
             {/* Tab: Produtos */}
