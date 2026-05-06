@@ -66,8 +66,8 @@ function formatNumber(value: number): string {
 function LavanderiaSectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 mb-3">
-      <div className="w-1 h-5 rounded-full bg-sky-600" />
-      <h2 className="text-sm font-semibold text-sky-700 uppercase tracking-wide">{children}</h2>
+      <div className="w-1 h-5 rounded-full bg-sky-600 dark:bg-sky-500" />
+      <h2 className="text-sm font-semibold text-sky-700 dark:text-sky-400 uppercase tracking-wide">{children}</h2>
     </div>
   );
 }
@@ -88,23 +88,43 @@ interface KPICardData {
 function KPICard({ data, index }: { data: KPICardData; index: number }) {
   const Icon = data.icone;
 
+  const darkBgMap: Record<string, string> = {
+    'bg-amber-50': 'dark:bg-amber-500/15',
+    'bg-blue-50': 'dark:bg-blue-500/15',
+    'bg-green-50': 'dark:bg-green-500/15',
+    'bg-emerald-50': 'dark:bg-emerald-500/15',
+    'bg-cyan-50': 'dark:bg-cyan-500/15',
+    'bg-violet-50': 'dark:bg-violet-500/15',
+    'bg-rose-50': 'dark:bg-rose-500/15',
+  };
+
+  const darkIconMap: Record<string, string> = {
+    'text-amber-600': 'dark:text-amber-400',
+    'text-blue-600': 'dark:text-blue-400',
+    'text-green-600': 'dark:text-green-400',
+    'text-emerald-600': 'dark:text-emerald-400',
+    'text-cyan-600': 'dark:text-cyan-400',
+    'text-violet-600': 'dark:text-violet-400',
+    'text-rose-600': 'dark:text-rose-400',
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.3 }}
     >
-      <div className="rounded-lg border border-gray-200 bg-white p-4 hover:shadow-sm transition-shadow">
+      <div className="rounded-lg border border-border/50 bg-white/90 dark:bg-[#1e1e32]/80 p-4 hover:shadow-sm transition-shadow backdrop-blur-sm">
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-gray-500 font-medium uppercase tracking-wide truncate">{data.titulo}</p>
-            <p className="text-2xl font-bold text-gray-800 mt-1 truncate">{data.valor}</p>
+            <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide truncate">{data.titulo}</p>
+            <p className="text-2xl font-bold text-foreground mt-1 truncate">{data.valor}</p>
             {data.subtitulo && (
-              <p className="text-xs text-gray-400 mt-1 truncate">{data.subtitulo}</p>
+              <p className="text-xs text-muted-foreground mt-1 truncate">{data.subtitulo}</p>
             )}
           </div>
-          <div className={`flex-shrink-0 p-2 rounded-lg ${data.corBg}`}>
-            <Icon className={`h-4 w-4 ${data.corIcone}`} />
+          <div className={`flex-shrink-0 p-2 rounded-lg ${data.corBg} ${darkBgMap[data.corBg] || ''}`}>
+            <Icon className={`h-4 w-4 ${data.corIcone} ${darkIconMap[data.corIcone] || ''}`} />
           </div>
         </div>
         {data.variacao !== undefined && data.variacao !== null && (
@@ -112,13 +132,13 @@ function KPICard({ data, index }: { data: KPICardData; index: number }) {
             <span
               className={`inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs font-semibold ${
                 data.variacao >= 0
-                  ? 'bg-green-50 text-green-700'
-                  : 'bg-red-50 text-red-700'
+                  ? 'bg-green-50 text-green-700 dark:bg-green-500/15 dark:text-green-400'
+                  : 'bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-400'
               }`}
             >
               <span>{data.variacao >= 0 ? '▲' : '▼'}</span>
               <span>{Math.abs(data.variacao).toFixed(2)}%</span>
-              <span className="text-gray-400 font-normal ml-0.5">em relação ao mês anterior</span>
+              <span className="text-muted-foreground font-normal ml-0.5 dark:text-white/40">em relação ao mês anterior</span>
             </span>
           </div>
         )}
@@ -133,8 +153,8 @@ function KPICard({ data, index }: { data: KPICardData; index: number }) {
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center gap-2 mb-3">
-      <div className="w-1 h-5 rounded-full bg-green-600" />
-      <h2 className="text-sm font-semibold text-green-700 uppercase tracking-wide">{children}</h2>
+      <div className="w-1 h-5 rounded-full bg-green-600 dark:bg-green-500" />
+      <h2 className="text-sm font-semibold text-green-700 dark:text-green-400 uppercase tracking-wide">{children}</h2>
     </div>
   );
 }
@@ -872,7 +892,7 @@ export default function AdminDashboardPage() {
       <ProtectedRoute allowedRoles={['admin']}>
         <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Dashboard' }]}>
           <div className="flex items-center justify-center h-96">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
         </MainLayout>
       </ProtectedRoute>
@@ -893,8 +913,8 @@ export default function AdminDashboardPage() {
         <div className="space-y-6 max-w-[1600px] mx-auto">
           {/* ── Header ── */}
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Dashboard</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+            <p className="text-sm text-muted-foreground mt-1">
               Bem-vindo, {user?.nome || 'Admin'}! &middot;{' '}
               {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </p>
@@ -913,11 +933,11 @@ export default function AdminDashboardPage() {
                     checked={excluirDelivery}
                     onCheckedChange={(checked) => setExcluirDelivery(checked === true)}
                   />
-                  <Label htmlFor="excluir-delivery" className="text-xs text-gray-500 cursor-pointer">
+                  <Label htmlFor="excluir-delivery" className="text-xs text-muted-foreground cursor-pointer">
                     Excluindo Delivery
                   </Label>
                 </div>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <CalendarDays className="h-3.5 w-3.5" />
                   <span className="font-medium">
                     {format(selectedDate, "dd/MM/yyyy")}
@@ -950,13 +970,13 @@ export default function AdminDashboardPage() {
           {/* ═══════════════════════════════════ */}
           <section>
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-              <Card className="border border-gray-200">
+              <Card className="border border-border/50">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-base font-semibold text-gray-700">
+                    <CardTitle className="text-base font-semibold text-foreground">
                       Formas de Pagamento
                     </CardTitle>
-                    <Badge variant="secondary" className="text-xs text-gray-500">
+                    <Badge variant="secondary" className="text-xs text-muted-foreground">
                       {format(currentMonthStart, 'MMM/yyyy', { locale: ptBR })}
                     </Badge>
                   </div>
@@ -965,14 +985,14 @@ export default function AdminDashboardPage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-gray-100">
-                          <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                        <tr className="border-b border-border/50">
+                          <th className="text-left py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             Forma de Pagamento
                           </th>
-                          <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                          <th className="text-right py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             Quantidade
                           </th>
-                          <th className="text-right py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+                          <th className="text-right py-2 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                             Valor
                           </th>
                         </tr>
@@ -980,7 +1000,7 @@ export default function AdminDashboardPage() {
                       <tbody>
                         {vendasPorForma.length === 0 ? (
                           <tr>
-                            <td colSpan={3} className="text-center py-6 text-gray-400">
+                            <td colSpan={3} className="text-center py-6 text-muted-foreground">
                               Nenhuma venda registrada este mês
                             </td>
                           </tr>
@@ -989,22 +1009,22 @@ export default function AdminDashboardPage() {
                             {vendasPorForma.map((row, idx) => (
                               <tr
                                 key={row.forma}
-                                className={idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}
+                                className={idx % 2 === 0 ? 'bg-card' : 'bg-muted/30'}
                               >
-                                <td className="py-2.5 px-3 font-medium text-gray-700">{row.forma}</td>
-                                <td className="py-2.5 px-3 text-right text-gray-600">{row.quantidade}</td>
-                                <td className="py-2.5 px-3 text-right font-medium text-gray-700">
+                                <td className="py-2.5 px-3 font-medium text-foreground">{row.forma}</td>
+                                <td className="py-2.5 px-3 text-right text-muted-foreground">{row.quantidade}</td>
+                                <td className="py-2.5 px-3 text-right font-medium text-foreground">
                                   {formatBRL(row.valor)}
                                 </td>
                               </tr>
                             ))}
                             {/* Total row */}
-                            <tr className="border-t-2 border-gray-200 bg-gray-50">
-                              <td className="py-2.5 px-3 font-bold text-gray-800">Total</td>
-                              <td className="py-2.5 px-3 text-right font-bold text-gray-800">
+                            <tr className="border-t-2 border-border bg-muted/50">
+                              <td className="py-2.5 px-3 font-bold text-foreground">Total</td>
+                              <td className="py-2.5 px-3 text-right font-bold text-foreground">
                                 {vendasPorForma.reduce((acc, f) => acc + f.quantidade, 0)}
                               </td>
-                              <td className="py-2.5 px-3 text-right font-bold text-gray-800">
+                              <td className="py-2.5 px-3 text-right font-bold text-foreground">
                                 {formatBRL(totalFormaPagamento)}
                               </td>
                             </tr>
@@ -1065,25 +1085,25 @@ export default function AdminDashboardPage() {
           {/* ── Quick Actions ── */}
           <section>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-              <Button asChild variant="outline" className="h-12 justify-start gap-2 border-gray-200 hover:bg-gray-50">
+              <Button asChild variant="outline" className="h-12 justify-start gap-2">
                 <a href={pdvUrl}>
                   <CartIcon className="h-4 w-4" />
                   <span className="text-sm">Abrir PDV</span>
                 </a>
               </Button>
-              <Button asChild variant="outline" className="h-12 justify-start gap-2 border-gray-200 hover:bg-gray-50">
+              <Button asChild variant="outline" className="h-12 justify-start gap-2">
                 <a href="/admin/caixa">
                   <DollarSign className="h-4 w-4" />
                   <span className="text-sm">Caixa</span>
                 </a>
               </Button>
-              <Button asChild variant="outline" className="h-12 justify-start gap-2 border-gray-200 hover:bg-gray-50">
+              <Button asChild variant="outline" className="h-12 justify-start gap-2">
                 <a href="/admin/relatorios">
                   <TrendingUp className="h-4 w-4" />
                   <span className="text-sm">Relatórios</span>
                 </a>
               </Button>
-              <Button asChild variant="outline" className="h-12 justify-start gap-2 border-gray-200 hover:bg-gray-50">
+              <Button asChild variant="outline" className="h-12 justify-start gap-2">
                 <a href="/admin/produtos">
                   <Package className="h-4 w-4" />
                   <span className="text-sm">Produtos</span>
@@ -1091,7 +1111,7 @@ export default function AdminDashboardPage() {
               </Button>
               <Button
                 variant="outline"
-                className="h-12 justify-start gap-2 border-gray-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200"
+                className="h-12 justify-start gap-2 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
                 onClick={handleBackupCSV}
                 disabled={backupLoading}
               >
@@ -1121,15 +1141,15 @@ export default function AdminDashboardPage() {
                 {backupLoading ? (
                   <div className="flex flex-col items-center gap-4">
                     <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-                    <p className="text-sm text-center text-gray-600">{backupProgress}</p>
+                    <p className="text-sm text-center text-muted-foreground">{backupProgress}</p>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center gap-3">
                     <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
                       <CheckCircle className="h-6 w-6 text-green-600" />
                     </div>
-                    <p className="text-sm text-center text-gray-700 font-medium">{backupProgress}</p>
-                    <p className="text-xs text-gray-500 text-center">
+                    <p className="text-sm text-center text-foreground font-medium">{backupProgress}</p>
+                    <p className="text-xs text-muted-foreground text-center">
                       Os dados exportados são exclusivos da sua conta ({empresaId?.substring(0, 8)}...)
                     </p>
                   </div>

@@ -104,7 +104,6 @@ export default function NFeImportarPage() {
   const [dialogPreview, setDialogPreview] = useState(false);
   const [dialogSucesso, setDialogSucesso] = useState(false);
   const [dialogDetalhes, setDialogDetalhes] = useState<number | null>(null);
-  const [dialogUnidadesCaixa, setDialogUnidadesCaixa] = useState(false);
   const [produtosSemConversao, setProdutosSemConversao] = useState<number[]>([]);
   const [importando, setImportando] = useState(false);
   const [fileName, setFileName] = useState('');
@@ -116,7 +115,7 @@ export default function NFeImportarPage() {
   const [atualizarEstoque, setAtualizarEstoque] = useState(true);
   const [atualizarDadosFiscais, setAtualizarDadosFiscais] = useState(true);
   const [gerarContaPagar, setGerarContaPagar] = useState(true);
-  const [markupDefault, setMarkupDefault] = useState('30');
+  const [markupDefault, setMarkupDefault] = useState('40');
 
   // Data de vencimento padrão: 30 dias a partir de hoje
   const defaultVencimento = useMemo(() => {
@@ -193,7 +192,9 @@ export default function NFeImportarPage() {
         }
         if (unidadesPorCaixa < 1) unidadesPorCaixa = 0;
 
-        const markup = parseFloat(markupDefault) || 30;
+        const markup = parseFloat(markupDefault) || 40;
+        // Calcular custo unitário real (se conversão detectada, divide pelo fator)
+        const custoUnitario = unidadesPorCaixa > 1 ? p.valorUnitario / unidadesPorCaixa : p.valorUnitario;
         return {
           nfeProduto: p,
           status: existente ? 'cadastrado' : 'novo',
@@ -203,7 +204,7 @@ export default function NFeImportarPage() {
           irParaEstoque: true,
           unidadesPorCaixa,
           markupPercentual: markup,
-          precoVenda: arredondarPreco(p.valorUnitario * (1 + markup / 100)),
+          precoVenda: arredondarPreco(custoUnitario * (1 + markup / 100)),
         };
       });
 
@@ -216,18 +217,17 @@ export default function NFeImportarPage() {
       
       if (semConversao.length > 0) {
         setProdutosSemConversao(semConversao);
-        // Não abre preview - abre dialog de conversão primeiro
       } else {
         setProdutosSemConversao([]);
-        // Verificar se NFe já foi importada
-        if (dados.chaveAcesso && empresaId) {
-          verificarNFeDuplicada(dados.chaveAcesso);
-        } else {
-          setNfeDuplicada(null);
-        }
-        // Abrir dialog de preview
-        setDialogPreview(true);
       }
+      // Verificar se NFe já foi importada
+      if (dados.chaveAcesso && empresaId) {
+        verificarNFeDuplicada(dados.chaveAcesso);
+      } else {
+        setNfeDuplicada(null);
+      }
+      // Abrir dialog de preview direto (campos de conversão já estão na tabela)
+      setDialogPreview(true);
     } catch (error: any) {
       setParseError(error.message || 'Erro ao processar o arquivo XML');
     }
@@ -318,47 +318,70 @@ export default function NFeImportarPage() {
     );
   };
 
+  // Helper: custo unitário real (se tem conversão, divide o valor da caixa pelas unidades)
+  const getCustoUnitario = (item: ProdutoImportacao): number => {
+    if (item.unidadesPorCaixa > 1) {
+      return item.nfeProduto.valorUnitario / item.unidadesPorCaixa;
+    }
+    return item.nfeProduto.valorUnitario;
+  };
+
+  // Helper: round price to nearest R$ 0.05 (arredondamento comercial)
+  const arredondarPreco = (v: number): number => {
+    if (v <= 0) return 0;
+    // Arredonda para o múltiplo de 0.05 mais próximo, sempre para cima se >= 0.025
+    return Math.ceil(v / 0.05) * 0.05;
+  };
+
+  // Calcular preço de venda a partir do custo unitário e markup
+  const calcularPrecoVenda = (custoUnitario: number, markup: number): number => {
+    return arredondarPreco(custoUnitario * (1 + markup / 100));
+  };
+
   const updateUnidadesPorCaixa = (index: number, value: string) => {
     const num = parseInt(value) || 0;
     setProdutosImportacao((prev) =>
-      prev.map((p, i) =>
-        i === index ? { ...p, unidadesPorCaixa: num } : p
-      )
+      prev.map((p, i) => {
+        if (i === index) {
+          const custoUnitario = num > 1 ? p.nfeProduto.valorUnitario / num : p.nfeProduto.valorUnitario;
+          const novoPreco = calcularPrecoVenda(custoUnitario, p.markupPercentual);
+          return { ...p, unidadesPorCaixa: num, precoVenda: novoPreco };
+        }
+        return p;
+      })
     );
   };
 
   const updatePrecoVenda = (index: number, value: string) => {
     const num = parseFloat(value) || 0;
     setProdutosImportacao((prev) =>
-      prev.map((p, i) =>
-        i === index
-          ? (() => {
-              const custo = p.nfeProduto.valorUnitario;
-              const markupCalc = custo > 0 ? ((num / custo) - 1) * 100 : 0;
-              return { ...p, precoVenda: num, markupPercentual: Math.round(markupCalc * 10) / 10 };
-            })()
-          : p
-      )
+      prev.map((p, i) => {
+        if (i === index) {
+          const custoUnitario = getCustoUnitario(p);
+          const markupCalc = custoUnitario > 0 ? ((num / custoUnitario) - 1) * 100 : 0;
+          return { ...p, precoVenda: num, markupPercentual: Math.round(markupCalc * 10) / 10 };
+        }
+        return p;
+      })
     );
   };
 
   const updateMarkupProduto = (index: number, value: string) => {
     const markup = parseFloat(value) || 0;
     setProdutosImportacao((prev) =>
-      prev.map((p, i) =>
-        i === index
-          ? {
-              ...p,
-              markupPercentual: markup,
-              precoVenda: arredondarPreco(p.nfeProduto.valorUnitario * (1 + markup / 100)),
-            }
-          : p
-      )
+      prev.map((p, i) => {
+        if (i === index) {
+          const custoUnitario = getCustoUnitario(p);
+          return {
+            ...p,
+            markupPercentual: markup,
+            precoVenda: calcularPrecoVenda(custoUnitario, markup),
+          };
+        }
+        return p;
+      })
     );
   };
-
-  // Helper: round price to nearest R$ 0.05
-  const arredondarPreco = (v: number): number => Math.round(v / 0.05) * 0.05;
 
   // Toggle irParaEstoque for a single item
   const updateIrParaEstoque = (index: number, value: boolean) => {
@@ -378,13 +401,16 @@ export default function NFeImportarPage() {
 
   // Apply default markup to all products
   const applyMarkupAll = () => {
-    const markup = parseFloat(markupDefault) || 30;
+    const markup = parseFloat(markupDefault) || 40;
     setProdutosImportacao((prev) =>
-      prev.map((p) => ({
-        ...p,
-        markupPercentual: markup,
-        precoVenda: arredondarPreco(p.nfeProduto.valorUnitario * (1 + markup / 100)),
-      }))
+      prev.map((p) => {
+        const custoUnitario = getCustoUnitario(p);
+        return {
+          ...p,
+          markupPercentual: markup,
+          precoVenda: calcularPrecoVenda(custoUnitario, markup),
+        };
+      })
     );
   };
 
@@ -430,6 +456,19 @@ export default function NFeImportarPage() {
       return;
     }
 
+    // Verificar se há produtos selecionados sem conversão (unidadesPorCaixa = 0)
+    const semConversaoSelecionados = produtosSelecionados.filter(
+      (p) => p.unidadesPorCaixa === 0
+    );
+    if (semConversaoSelecionados.length > 0) {
+      toast({
+        variant: 'destructive',
+        title: `${semConversaoSelecionados.length} produto(s) sem quantidade por caixa`,
+        description: 'Informe a quantidade por caixa (coluna "Unid/Cx") para todos os produtos selecionados.',
+      });
+      return;
+    }
+
     setImportando(true);
 
     try {
@@ -447,7 +486,7 @@ export default function NFeImportarPage() {
             atualizarDadosFiscais,
             gerarContaPagar,
             vencimentoConta,
-            markupPercentual: parseFloat(markupDefault) || 30,
+            markupPercentual: parseFloat(markupDefault) || 40,
           },
           produtosImportar: produtosSelecionados.map((p) => ({
             codigo: p.nfeProduto.codigo,
@@ -567,11 +606,11 @@ export default function NFeImportarPage() {
   return (
     <ProtectedRoute allowedRoles={['admin']}>
       <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'NFe' }, { title: 'Importar XML' }]}>
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Header */}
           <div>
-            <h1 className="text-3xl font-bold flex items-center gap-3">
-              <FileUp className="h-8 w-8 text-orange-500" />
+            <h1 className="text-2xl font-bold flex items-center gap-2">
+              <FileUp className="h-6 w-6 text-orange-500" />
               Importar Nota Fiscal de Entrada
             </h1>
             <p className="text-muted-foreground mt-1">
@@ -581,9 +620,9 @@ export default function NFeImportarPage() {
 
           {/* Upload Area */}
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4">
               <div
-                className={`relative border-2 border-dashed rounded-xl p-12 text-center transition-all cursor-pointer ${
+                className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
                   isDragging
                     ? 'border-orange-500 bg-orange-50'
                     : fileName
@@ -721,38 +760,49 @@ export default function NFeImportarPage() {
         {/* DIALOG PREVIEW DA IMPORTAÇÃO                 */}
         {/* ============================================= */}
         <Dialog open={dialogPreview} onOpenChange={setDialogPreview}>
-          <DialogContent className="max-w-[95vw] max-h-[95vh] overflow-hidden flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
+          <DialogContent className="max-w-[98vw] max-h-[92vh] w-[98vw] overflow-hidden flex flex-col p-0">
+            <DialogHeader className="px-6 pt-6 pb-3">
+              <DialogTitle className="flex items-center gap-2 text-lg">
                 <FileText className="h-5 w-5 text-orange-500" />
                 Revisar Importação - NFe {nfeData?.numero}/{nfeData?.serie}
               </DialogTitle>
-              <DialogDescription>
+              <DialogDescription className="text-sm">
                 Verifique os dados da nota fiscal antes de confirmar a importação
               </DialogDescription>
             </DialogHeader>
 
             {nfeData && (
-              <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              <div className="flex-1 overflow-x-hidden overflow-y-auto px-6 space-y-3">
+                {/* Alerta: Produtos sem conversão automática */}
+                {produtosSemConversao.length > 0 && (
+                  <Alert className="bg-amber-50 border-amber-200">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertTitle className="text-amber-700">Atenção: {produtosSemConversao.length} produto(s) sem conversão automática</AlertTitle>
+                    <AlertDescription className="text-amber-600">
+                      Informe a quantidade por caixa (coluna "Unid/Cx") para calcular o custo unitário corretamente. Os campos estão destacados na tabela abaixo.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 {/* Dados da NFe */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="bg-muted rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">Número</p>
-                    <p className="font-bold text-lg">{nfeData.numero}</p>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <div className="bg-muted rounded-lg p-2">
+                    <p className="text-[10px] text-muted-foreground">Número</p>
+                    <p className="font-bold text-base">{nfeData.numero}</p>
                   </div>
-                  <div className="bg-muted rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">Série</p>
-                    <p className="font-bold text-lg">{nfeData.serie}</p>
+                  <div className="bg-muted rounded-lg p-2">
+                    <p className="text-[10px] text-muted-foreground">Série</p>
+                    <p className="font-bold text-base">{nfeData.serie}</p>
                   </div>
-                  <div className="bg-muted rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">Emissão</p>
-                    <p className="font-bold text-lg">
+                  <div className="bg-muted rounded-lg p-2">
+                    <p className="text-[10px] text-muted-foreground">Emissão</p>
+                    <p className="font-bold text-base">
                       {nfeData.dataEmissao.toLocaleDateString('pt-BR')}
                     </p>
                   </div>
-                  <div className="bg-muted rounded-lg p-3">
-                    <p className="text-xs text-muted-foreground">Valor Total</p>
-                    <p className="font-bold text-lg text-green-600">
+                  <div className="bg-muted rounded-lg p-2">
+                    <p className="text-[10px] text-muted-foreground">Valor Total</p>
+                    <p className="font-bold text-base text-green-600">
                       R$ {nfeData.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                     </p>
                   </div>
@@ -808,8 +858,8 @@ export default function NFeImportarPage() {
                 {/* FORNECEDOR                                    */}
                 {/* ============================================= */}
                 <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base flex items-center gap-2">
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
                       <Truck className="h-4 w-4" />
                       Emitente / Fornecedor
                     </CardTitle>
@@ -890,10 +940,10 @@ export default function NFeImportarPage() {
                 {/* TABELA DE PRODUTOS                            */}
                 {/* ============================================= */}
                 <Card>
-                  <CardHeader className="pb-3">
+                  <CardHeader className="pb-2 pt-3">
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-base flex items-center gap-2">
-                        <Package className="h-4 w-4" />
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Package className="h-3.5 w-3.5" />
                         Produtos ({produtosImportacao.length})
                       </CardTitle>
                       <div className="flex items-center gap-2">
@@ -925,11 +975,12 @@ export default function NFeImportarPage() {
                     </div>
                   </CardHeader>
                   <CardContent className="p-0">
-                    <div className="max-h-[500px] overflow-y-auto">
+                    <div className="max-h-[400px] overflow-auto">
+                      <div className="min-w-[900px]">
                       <Table>
                         <TableHeader>
                           <TableRow>
-                            <TableHead className="w-10">
+                            <TableHead className="w-8 h-7 px-1">
                               <Checkbox
                                 checked={
                                   totalSelecionados === produtosImportacao.length &&
@@ -942,175 +993,150 @@ export default function NFeImportarPage() {
                                 }
                               />
                             </TableHead>
-                            <TableHead className="text-center" title="Ir para Estoque">
-                              <div className="flex items-center justify-center gap-1">
-                                <Package className="h-3 w-3" />
-                                <span className="text-xs">Estoque</span>
-                              </div>
-                              <div className="flex justify-center mt-1">
-                                <Checkbox
-                                  checked={
-                                    estoqueCount === totalSelecionados &&
-                                    totalSelecionados > 0
-                                  }
-                                  onCheckedChange={(checked) => toggleIrParaEstoqueTodos(!!checked)}
-                                  className="h-4 w-4"
-                                />
+                            <TableHead className="w-8 h-7 px-1 text-center" title="Ir para Estoque">
+                              <div className="flex items-center justify-center gap-0.5">
+                                <Package className="h-2.5 w-2.5" />
+                                <span className="text-[10px]">Est</span>
                               </div>
                             </TableHead>
-                            <TableHead>Código</TableHead>
-                            <TableHead>Produto</TableHead>
-                            <TableHead className="text-center">Qtd</TableHead>
-                            <TableHead className="text-center">Unid/Cx</TableHead>
-                            <TableHead className="text-right">Custo</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                            <TableHead className="text-center">Markup %</TableHead>
-                            <TableHead className="text-right">P. Venda</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-center">Categoria</TableHead>
-                            <TableHead className="w-10"></TableHead>
+                            <TableHead className="w-16 h-7 px-1 text-[10px]">Cód</TableHead>
+                            <TableHead className="min-w-[160px] h-7 px-1 text-[10px]">Produto</TableHead>
+                            <TableHead className="w-16 h-7 px-1 text-center text-[10px]">Qtd</TableHead>
+                            <TableHead className="w-14 h-7 px-1 text-center text-[10px]">Cx</TableHead>
+                            <TableHead className="w-24 h-7 px-1 text-right text-[10px]">Custo</TableHead>
+                            <TableHead className="w-20 h-7 px-1 text-right text-[10px]">Total</TableHead>
+                            <TableHead className="w-20 h-7 px-1 text-center text-[10px]">Mkp%</TableHead>
+                            <TableHead className="w-28 h-7 px-1 text-right text-[10px]">P.Venda</TableHead>
+                            <TableHead className="w-16 h-7 px-1 text-[10px]">Status</TableHead>
+                            <TableHead className="w-24 h-7 px-1 text-center text-[10px]">Categoria</TableHead>
+                            <TableHead className="w-6 h-7 px-0.5"></TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
                           {produtosImportacao.map((item, index) => (
                             <TableRow
                               key={index}
-                              className={!item.selecionado ? 'opacity-50' : ''}
+                              className={`h-8 ${!item.selecionado ? 'opacity-50' : ''}`}
                             >
-                              <TableCell>
+                              <TableCell className="px-1 py-0.5">
                                 <Checkbox
                                   checked={item.selecionado}
                                   onCheckedChange={() => toggleProduto(index)}
+                                  className="h-3.5 w-3.5"
                                 />
                               </TableCell>
-                              <TableCell className="text-center">
+                              <TableCell className="px-1 py-0.5 text-center">
                                 <Checkbox
                                   checked={item.irParaEstoque}
                                   onCheckedChange={(checked) => updateIrParaEstoque(index, !!checked)}
                                   disabled={!item.selecionado}
-                                  className="h-4 w-4"
+                                  className="h-3.5 w-3.5"
                                 />
                               </TableCell>
-                              <TableCell className="font-mono text-xs">
+                              <TableCell className="px-1 py-0.5 font-mono text-[10px]">
                                 {item.nfeProduto.codigo || '-'}
                               </TableCell>
-                              <TableCell>
-                                <div className="max-w-[280px]">
-                                  <p className="font-medium text-sm truncate">
+                              <TableCell className="px-1 py-0.5">
+                                <div className="max-w-[180px]">
+                                  <p className="font-medium text-[11px] truncate leading-tight">
                                     {item.nfeProduto.descricao}
                                   </p>
-                                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                                  <div className="flex flex-wrap gap-x-2 gap-y-0">
                                     {item.nfeProduto.ncm && item.nfeProduto.ncm !== '00000000' && (
-                                      <span className="text-xs text-muted-foreground">
-                                        NCM: {item.nfeProduto.ncm}
-                                      </span>
+                                      <span className="text-[9px] text-muted-foreground">NCM:{item.nfeProduto.ncm}</span>
                                     )}
                                     {item.nfeProduto.cest && (
-                                      <span className="text-xs text-muted-foreground">
-                                        CEST: {item.nfeProduto.cest}
-                                      </span>
+                                      <span className="text-[9px] text-muted-foreground">CEST:{item.nfeProduto.cest}</span>
                                     )}
                                     {item.nfeProduto.cfop && (
-                                      <span className="text-xs text-muted-foreground">
-                                        CFOP: {item.nfeProduto.cfop}
-                                      </span>
-                                    )}
-                                    {item.nfeProduto.cst && (
-                                      <span className="text-xs text-muted-foreground">
-                                        CST: {item.nfeProduto.cst}
-                                      </span>
-                                    )}
-                                    {item.nfeProduto.csosn && (
-                                      <span className="text-xs text-muted-foreground">
-                                        CSOSN: {item.nfeProduto.csosn}
-                                      </span>
+                                      <span className="text-[9px] text-muted-foreground">CFOP:{item.nfeProduto.cfop}</span>
                                     )}
                                   </div>
-                                  {item.nfeProduto.ean && item.nfeProduto.ean !== 'SEM GTIN' && (
-                                    <p className="text-xs text-muted-foreground">
-                                      EAN: {item.nfeProduto.ean}
-                                    </p>
-                                  )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-center font-mono text-sm">
-                                <div>
-                                  <span>{item.nfeProduto.quantidade} {item.nfeProduto.unidade}</span>
-                                  {item.nfeProduto.unidadeTributavel && item.nfeProduto.unidadeTributavel.toUpperCase() !== item.nfeProduto.unidade.toUpperCase() && (
-                                    <span className="block text-xs text-muted-foreground">
-                                      ({item.nfeProduto.quantidadeTributavel} {item.nfeProduto.unidadeTributavel} trib.)
-                                    </span>
-                                  )}
-                                </div>
+                              <TableCell className="px-1 py-0.5 text-center font-mono text-[10px]">
+                                {item.nfeProduto.quantidade} {item.nfeProduto.unidade}
                               </TableCell>
-                              <TableCell className="text-center">
-                                <Input
+                              <TableCell className="px-1 py-0.5 text-center">
+                                <input
                                   type="number"
                                   min="0"
                                   max="9999"
-                                  value={item.unidadesPorCaixa || ''}
+                                  value={item.unidadesPorCaixa === 0 ? '' : item.unidadesPorCaixa}
                                   onChange={(e) => updateUnidadesPorCaixa(index, e.target.value)}
                                   placeholder="0"
-                                  className="w-16 h-7 text-center text-xs"
+                                  className={`w-16 h-7 text-center text-xs border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                    produtosSemConversao.includes(index) && item.unidadesPorCaixa === 0
+                                      ? 'border-2 border-amber-400 bg-amber-50 text-amber-700 font-bold ring-1 ring-amber-200'
+                                      : 'border-gray-200 bg-white'
+                                  }`}
                                   title="Unidades por caixa (fator de conversão)"
                                 />
                               </TableCell>
-                              <TableCell className="text-right font-mono text-sm">
+                              <TableCell className="px-1 py-0.5 text-right font-mono text-[10px]">
                                 R$ {item.nfeProduto.valorUnitario.toFixed(2)}
+                                {item.unidadesPorCaixa > 1 && (
+                                  <span className="block text-[8px] text-muted-foreground leading-tight">
+                                    R$ {(item.nfeProduto.valorUnitario / item.unidadesPorCaixa).toFixed(2)}/un
+                                  </span>
+                                )}
                               </TableCell>
-                              <TableCell className="text-right font-mono text-sm font-semibold">
+                              <TableCell className="px-1 py-0.5 text-right font-mono text-[10px] font-semibold">
                                 R$ {item.nfeProduto.valorTotal.toFixed(2)}
                               </TableCell>
-                              <TableCell className="text-center">
+                              <TableCell className="px-1 py-0.5 text-center">
                                 <Input
                                   type="number"
                                   min="0"
                                   step="0.1"
                                   value={item.markupPercentual || ''}
                                   onChange={(e) => updateMarkupProduto(index, e.target.value)}
-                                  className="w-18 h-7 text-center text-xs font-semibold text-blue-600"
+                                  className="w-20 h-7 text-center text-xs font-semibold text-blue-600"
                                   placeholder="%"
-                                  title="Margem de lucro (%). Altere para recalcular o preço de venda automaticamente."
+                                  title="Margem de lucro (%)"
                                 />
+                                {item.unidadesPorCaixa > 1 && (
+                                  <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">
+                                    Custo un: R$ {(item.nfeProduto.valorUnitario / item.unidadesPorCaixa).toFixed(2)}
+                                  </p>
+                                )}
                               </TableCell>
-                              <TableCell className="text-right">
+                              <TableCell className="px-1 py-0.5 text-right">
                                 <Input
                                   type="number"
                                   min="0"
                                   step="0.01"
-                                  value={item.precoVenda || ''}
+                                  value={item.precoVenda > 0 ? item.precoVenda.toFixed(2) : ''}
                                   onChange={(e) => updatePrecoVenda(index, e.target.value)}
-                                  className="w-24 h-7 text-right text-xs font-semibold text-green-600"
+                                  className="w-28 h-8 text-right text-sm font-semibold text-green-600"
                                   placeholder="0.00"
-                                  title="Preço de venda (editável para arredondamento)"
+                                  title="Preço de venda por unidade individual"
                                 />
-                                {item.unidadesPorCaixa > 0 && item.precoVenda > 0 && (
-                                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                                    → R$ {(item.precoVenda / item.unidadesPorCaixa).toFixed(2)} un
+                                {item.unidadesPorCaixa > 1 && (
+                                  <p className="text-[9px] text-muted-foreground mt-0.5 leading-tight">
+                                    Por un (R$ {(item.precoVenda).toFixed(2)}) • Cx: R$ {(item.precoVenda * item.unidadesPorCaixa).toFixed(2)}
                                   </p>
                                 )}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="px-1 py-0.5">
                                 {item.status === 'cadastrado' ? (
-                                  <Badge className="bg-green-500 text-xs">
-                                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                                  <Badge className="bg-green-500 text-[9px] px-1 py-0 h-4">
                                     Cadastrado
                                   </Badge>
                                 ) : (
-                                  <Badge variant="outline" className="border-orange-400 text-orange-600 text-xs">
-                                    <FilePlus2 className="h-3 w-3 mr-1" />
+                                  <Badge variant="outline" className="border-orange-400 text-orange-600 text-[9px] px-1 py-0 h-4">
                                     Novo
                                   </Badge>
                                 )}
                               </TableCell>
-                              <TableCell className="text-center">
+                              <TableCell className="px-1 py-0.5 text-center">
                                 {item.status === 'novo' ? (
                                   <Select
                                     value={item.categoriaId || ''}
                                     onValueChange={(v) => updateCategoria(index, v)}
                                   >
-                                    <SelectTrigger className="w-32 h-8 text-xs">
-                                      <SelectValue placeholder="Categoria *" />
+                                    <SelectTrigger className="w-24 h-6 text-[10px] px-1">
+                                      <SelectValue placeholder="Cat." />
                                     </SelectTrigger>
                                     <SelectContent>
                                       {categorias.map((cat: any) => (
@@ -1127,26 +1153,27 @@ export default function NFeImportarPage() {
                                     </SelectContent>
                                   </Select>
                                 ) : (
-                                  <span className="text-xs text-muted-foreground">
+                                  <span className="text-[10px] text-muted-foreground truncate block max-w-[80px]">
                                     {item.produtoNome || '-'}
                                   </span>
                                 )}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="px-0.5 py-0.5">
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  className="h-7 w-7 p-0"
+                                  className="h-5 w-5 p-0"
                                   onClick={() => setDialogDetalhes(index)}
                                   title="Ver dados fiscais"
                                 >
-                                  <Eye className="h-3.5 w-3.5" />
+                                  <Eye className="h-3 w-3" />
                                 </Button>
                               </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
+                      </div>
                     </div>
 
                     {produtosImportacao.length === 0 && (
@@ -1162,8 +1189,8 @@ export default function NFeImportarPage() {
                 {/* OPÇÕES DE IMPORTAÇÃO                         */}
                 {/* ============================================= */}
                 <Card>
-                  <CardHeader className="pb-3">
-                    <CardTitle className="text-base">Opções de Importação</CardTitle>
+                  <CardHeader className="pb-2 pt-3">
+                    <CardTitle className="text-sm">Opções de Importação</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1266,14 +1293,14 @@ export default function NFeImportarPage() {
                       </div>
 
                       {/* Markup padrão */}
-                      <div className="flex items-start gap-3 p-3 rounded-lg border">
+                      <div className="flex items-start gap-3 p-3 rounded-lg border bg-blue-50/50 dark:bg-blue-950/20 border-blue-200">
                         <div className="flex-1">
                           <Label className="font-semibold flex items-center gap-1.5">
                             <Percent className="h-3.5 w-3.5" />
                             Markup Padrão
                           </Label>
                           <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                            Defina uma margem padrão e aplique a todos os produtos, ou ajuste individualmente na tabela de produtos acima.
+                            Margem padrão aplicada ao custo unitário de cada produto (dividido pela quantidade por caixa, quando aplicável). O preço é arredondado automaticamente para múltiplos de R$ 0,05.
                           </p>
                           <div className="flex items-center gap-2">
                             <Input
@@ -1282,9 +1309,9 @@ export default function NFeImportarPage() {
                               max="999"
                               value={markupDefault}
                               onChange={(e) => setMarkupDefault(e.target.value)}
-                              className="h-8 w-24 text-sm"
+                              className="h-9 w-28 text-base font-bold text-blue-600"
                             />
-                            <span className="text-sm text-muted-foreground">%</span>
+                            <span className="text-sm font-semibold text-muted-foreground">%</span>
                             <Button
                               type="button"
                               variant="outline"
@@ -1351,14 +1378,14 @@ export default function NFeImportarPage() {
               </div>
             )}
 
-            <DialogFooter className="gap-2 pt-2 border-t">
-              <Button variant="outline" onClick={() => setDialogPreview(false)}>
+            <DialogFooter className="gap-2 pt-2 border-t px-6 pb-4">
+              <Button variant="outline" onClick={() => setDialogPreview(false)} className="h-8">
                 Voltar
               </Button>
               <Button
                 onClick={confirmarImportacao}
                 disabled={importando || totalSelecionados === 0 || !!nfeDuplicada}
-                className="gap-2 min-w-[200px] bg-blue-600 hover:bg-blue-700"
+                className="gap-2 min-w-[180px] bg-blue-600 hover:bg-blue-700 h-8"
               >
                 {importando ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -1371,86 +1398,6 @@ export default function NFeImportarPage() {
                     ? 'Importando...'
                     : 'Confirmar Importação'
                 }
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
-        {/* ============================================= */}
-        {/* DIALOG UNIDADES POR CAIXA                    */}
-        {/* ============================================= */}
-        <Dialog open={produtosSemConversao.length > 0 && !dialogPreview} onOpenChange={(open) => {
-          if (!open) {
-            // Se fechar sem informar, seta 1 como padrão
-            setProdutosImportacao((prev) =>
-              prev.map((p, i) =>
-                produtosSemConversao.includes(i) && p.unidadesPorCaixa === 0
-                  ? { ...p, unidadesPorCaixa: 1 }
-                  : p
-              )
-            );
-            setProdutosSemConversao([]);
-            setDialogPreview(true);
-          }
-        }}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-amber-600">
-                <Package className="h-5 w-5" />
-                Quantidade por Caixa
-              </DialogTitle>
-              <DialogDescription>
-                Os produtos abaixo não tienen conversão automática detectada. Informe a quantidade por caixa para calcular o custo unitário.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="flex-1 overflow-y-auto space-y-3 py-2">
-              {produtosSemConversao.map((idx) => {
-                const item = produtosImportacao[idx];
-                if (!item) return null;
-                return (
-                  <div key={idx} className="flex items-center gap-3 p-3 rounded-lg border bg-amber-50">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{item.nfeProduto.descricao}</p>
-                      <p className="text-xs text-muted-foreground">
-                        NF: {item.nfeProduto.quantidade} {item.nfeProduto.unidade} • 
-                        Custo total: R$ {item.nfeProduto.valorTotal.toFixed(2)}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm">CX:</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.unidadesPorCaixa || ''}
-                        onChange={(e) => {
-                          const val = parseInt(e.target.value) || 1;
-                          setProdutosImportacao((prev) =>
-                            prev.map((p, i) =>
-                              i === idx ? { ...p, unidadesPorCaixa: val } : p
-                            )
-                          );
-                        }}
-                        className="w-20 h-9 text-center font-mono"
-                        placeholder="1"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <DialogFooter>
-              <Button
-                onClick={() => {
-                  // Prosseguir para o preview
-                  setProdutosSemConversao([]);
-                  setDialogPreview(true);
-                }}
-                className="gap-2"
-              >
-                <ChevronRight className="h-4 w-4" />
-                Prosseguir
               </Button>
             </DialogFooter>
           </DialogContent>

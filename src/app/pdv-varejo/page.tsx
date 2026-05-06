@@ -21,6 +21,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { getSupabaseClient } from '@/lib/supabase';
 import {
   Search,
@@ -90,6 +91,8 @@ export default function PDVVarejoPage() {
   const { user, empresaId, logout } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const { resolvedTheme } = useTheme();
+  const darkMode = resolvedTheme === 'dark';
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
   const { caixaAberto, abrirCaixa, fecharCaixa } = useCaixa();
@@ -625,10 +628,10 @@ export default function PDVVarejoPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'funcionario']}>
-      <div className="h-screen flex flex-col bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50">
+      <div className={`h-screen flex flex-col ${darkMode ? 'bg-[#1a1a2e]' : 'bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50'}`}>
         
         {/* HEADER */}
-        <header className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 px-4 py-3 shrink-0 shadow-xl border-b border-blue-800/30">
+        <header className={`${darkMode ? 'bg-gradient-to-r from-[#0f172a] via-blue-950 to-slate-900 border-white/10' : 'bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 border-blue-800/30'} px-4 py-3 shrink-0 shadow-xl border-b`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <Button
@@ -744,7 +747,7 @@ export default function PDVVarejoPage() {
           <div className={`${isMobile && showCartMobile ? 'hidden' : 'flex'} flex-1 flex-col min-w-0`}>
             
             {/* Busca + Cliente */}
-            <div className="p-4 bg-white/80 backdrop-blur-sm border-b border-blue-100 shadow-sm space-y-3 overflow-visible relative z-[9997]">
+            <div className={`p-4 ${darkMode ? 'bg-[#1e1e32]/80 border-white/10' : 'bg-white/80 border-blue-100'} backdrop-blur-sm border-b shadow-sm space-y-3 overflow-visible relative z-[9997]`}>
               <div className="relative">
                 <div className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center">
                   <Search className="h-5 w-5 text-white" />
@@ -752,7 +755,7 @@ export default function PDVVarejoPage() {
                 <Input
                   ref={searchInputRef}
                   placeholder="Buscar produto por nome, código ou código de barras..."
-                  className="pl-14 pr-12 h-12 text-sm bg-white border-2 border-blue-100 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all"
+                  className={`pl-14 pr-12 h-12 text-sm ${darkMode ? 'bg-[#1e1e32] border-white/20 focus:border-teal-400 focus:ring-teal-400/10' : 'bg-white border-2 border-blue-100 focus:border-blue-500 focus:ring-blue-500/10'} rounded-xl transition-all`}
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   autoFocus
@@ -1023,10 +1026,10 @@ export default function PDVVarejoPage() {
           </div>
 
           {/* RIGHT: Carrinho */}
-          <div className={`${isMobile ? (showCartMobile ? 'flex' : 'hidden') : 'flex'} w-full lg:w-[420px] xl:w-[480px] flex-col bg-white border-l border-gray-200 shrink-0 shadow-2xl`}>
+          <div className={`${isMobile ? (showCartMobile ? 'flex' : 'hidden') : 'flex'} w-full lg:w-[420px] xl:w-[480px] flex-col ${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-gray-200'} border-l shrink-0 shadow-2xl`}>
             
             {/* Header do carrinho */}
-            <div className="px-5 py-4 border-b-2 border-gray-100 bg-gradient-to-r from-gray-50 to-white">
+            <div className={`px-5 py-4 border-b-2 ${darkMode ? 'border-white/10 from-[#1a1a2e] to-[#1e1e32]' : 'border-gray-100 from-gray-50 to-white'} bg-gradient-to-r`}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-md">
@@ -1214,7 +1217,7 @@ export default function PDVVarejoPage() {
                 </div>
 
                 {/* Resumo de valores */}
-                <div className="bg-white rounded-2xl p-4 border border-gray-200 space-y-2">
+                <div className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-white border-gray-200'} rounded-2xl p-4 space-y-2`}>
                   <div className="flex justify-between text-sm text-gray-500">
                     <span>Subtotal ({itensCarrinho.reduce((acc, i) => acc + i.quantidade, 0)} itens)</span>
                     <span>R$ {fmt(subtotal)}</span>

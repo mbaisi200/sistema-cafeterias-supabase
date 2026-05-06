@@ -79,9 +79,9 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-50 via-amber-50/30 to-violet-50/20">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" />
           <p className="text-muted-foreground">Carregando...</p>
         </div>
       </div>
@@ -90,9 +90,9 @@ export default function Home() {
 
   if (user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-50 via-amber-50/30 to-violet-50/20">
         <div className="flex flex-col items-center gap-4">
-          <div className="h-12 w-12 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
+          <div className="h-12 w-12 animate-spin rounded-full border-4 border-violet-500 border-t-transparent" />
           <p className="text-muted-foreground">Redirecionando...</p>
         </div>
       </div>
@@ -100,7 +100,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-orange-50 to-amber-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-stone-50 via-amber-50/30 to-violet-50/20 p-4">
       <div className="w-full max-w-md space-y-4">
         <Suspense fallback={null}>
           <SessionExpiredAlert />

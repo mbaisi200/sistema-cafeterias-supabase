@@ -13,6 +13,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import { useTheme } from 'next-themes';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -21,12 +22,21 @@ interface MainLayoutProps {
 
 export function MainLayout({ children, breadcrumbs = [] }: MainLayoutProps) {
   const pathname = usePathname();
+  const { resolvedTheme } = useTheme();
+  const darkMode = resolvedTheme === 'dark';
 
   return (
     <SidebarProvider defaultOpen={true}>
       <AppSidebar />
-      <SidebarInset>
-        <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
+      <SidebarInset className={darkMode
+        ? 'bg-gradient-to-br from-[#1a1a2e] via-[#1e2235] to-[#16213e]'
+        : 'bg-gradient-to-br from-[#e8f0ed] via-[#eaeae6] to-[#f0eddd]'
+      }>
+        <header className={`flex h-14 shrink-0 items-center gap-2 border-b px-4 ${
+          darkMode
+            ? 'border-white/10 bg-white/5 backdrop-blur-sm'
+            : 'border-teal-100/60 bg-white/50 backdrop-blur-sm'
+        }`}>
           <SidebarTrigger className="-ml-1" />
           <Separator orientation="vertical" className="mr-2 h-4" />
           {breadcrumbs.length > 0 && (

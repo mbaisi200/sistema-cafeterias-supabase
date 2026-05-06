@@ -159,9 +159,9 @@ const roleLabels: Record<string, string> = {
 };
 
 const roleColors: Record<string, string> = {
-  master: 'bg-blue-600',
-  admin: 'bg-blue-600',
-  funcionario: 'bg-green-600',
+  master: 'bg-teal-600',
+  admin: 'bg-teal-600',
+  funcionario: 'bg-cyan-600',
 };
 
 export function AppSidebar() {
@@ -362,18 +362,18 @@ export function AppSidebar() {
 
   return (
     <Sidebar variant="sidebar" collapsible="icon">
-      <SidebarHeader className={`border-b ${darkMode ? 'border-white/10 bg-transparent' : 'border-slate-200 bg-gradient-to-r from-purple-500/10 to-cyan-500/10'}`}>
+      <SidebarHeader className={`border-b ${darkMode ? 'border-white/10 bg-white/5' : 'border-teal-400/15 bg-white/5'}`}>
         <div className="flex items-center gap-2 px-2 py-2">
-          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${darkMode ? 'bg-gradient-to-br from-cyan-500/20 to-purple-500/20 border border-cyan-500/30' : 'bg-gradient-to-br from-purple-500 to-cyan-500'}`}>
-            <Coffee className={`h-5 w-5 ${darkMode ? 'text-cyan-400' : 'text-white'}`} />
+          <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${darkMode ? 'bg-gradient-to-br from-cyan-400/20 to-teal-400/20 border border-cyan-400/20' : 'bg-gradient-to-br from-teal-500 to-cyan-500'}`}>
+            <Coffee className={`h-5 w-5 ${darkMode ? 'text-cyan-300' : 'text-white'}`} />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden flex-1">
-            <span className={`text-sm font-semibold ${darkMode ? 'text-white' : 'text-slate-800'}`}>Gestão</span>
-            <span className={`text-xs ${darkMode ? 'text-cyan-400/70' : 'text-slate-500'}`}>{nomeMarca || 'Café & Restaurante'}</span>
+            <span className={`text-sm font-semibold ${darkMode ? 'text-slate-100' : 'text-white'}`}>Gestão</span>
+            <span className={`text-xs ${darkMode ? 'text-teal-300/70' : 'text-teal-200/80'}`}>{nomeMarca || 'Café & Restaurante'}</span>
           </div>
           <button
             onClick={() => setTheme(darkMode ? 'light' : 'dark')}
-            className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-white/5 hover:bg-white/10 text-cyan-400' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'}`}
+            className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-white/5 hover:bg-white/10 text-teal-300' : 'bg-white/10 hover:bg-white/20 text-white'}`}
           >
             {darkMode ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </button>
@@ -491,25 +491,25 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter className={`border-t ${darkMode ? 'border-white/10 bg-transparent' : 'border-slate-200'}`}>
+      <SidebarFooter className={`border-t ${darkMode ? 'border-white/10 bg-transparent' : 'border-teal-400/20 bg-transparent'}`}>
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className={`flex items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:justify-center ${darkMode ? 'bg-white/5 rounded-lg mx-1' : ''}`}>
+            <div className={`flex items-center gap-2 px-2 py-2 group-data-[collapsible=icon]:justify-center ${darkMode ? 'bg-white/5 rounded-lg mx-1' : 'bg-white/10 rounded-lg mx-1'}`}>
               <Avatar className="h-8 w-8">
-                <AvatarFallback className={`${roleColors[role || 'funcionario']} ${darkMode ? 'border border-cyan-500/30' : ''}`}>
+                <AvatarFallback className={`bg-gradient-to-br from-teal-500 to-cyan-500 text-white ${darkMode ? 'border border-teal-400/30' : ''}`}>
                   {user?.nome?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col flex-1 group-data-[collapsible=icon]:hidden">
-                <span className={`text-sm font-medium truncate ${darkMode ? 'text-white' : 'text-slate-800'}`}>{user?.nome}</span>
-                <Badge variant="secondary" className={`text-xs w-fit ${darkMode ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30' : ''}`}>
+                <span className={`text-sm font-medium truncate ${darkMode ? 'text-slate-100' : 'text-white'}`}>{user?.nome}</span>
+                <Badge variant="secondary" className={`text-xs w-fit ${darkMode ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' : 'bg-white/15 text-white border-white/20'}`}>
                   {roleLabels[role || 'funcionario']}
                 </Badge>
               </div>
             </div>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={handleLogout} tooltip="Sair" className={darkMode ? 'text-gray-400 hover:text-red-400 hover:bg-red-500/10' : ''}>
+            <SidebarMenuButton onClick={handleLogout} tooltip="Sair" className={darkMode ? 'text-white/60 hover:text-rose-400 hover:bg-rose-500/10' : 'text-white/70 hover:text-red-200 hover:bg-red-400/15'}>
               <LogOut className="h-4 w-4" />
               <span>Sair</span>
             </SidebarMenuButton>

@@ -22,6 +22,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useVendasPDV } from '@/hooks/useVendasPDV';
 import {
@@ -49,6 +50,8 @@ import {
   UserPlus,
   X,
   FileText,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -86,6 +89,8 @@ export default function PDVPage() {
   const { user, empresaId, logout } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const { resolvedTheme, setTheme } = useTheme();
+  const darkMode = resolvedTheme === 'dark';
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
   const { mesas, loading: loadingMesas, atualizarMesa } = useMesas();
@@ -1072,8 +1077,8 @@ export default function PDVPage() {
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['admin', 'funcionario']}>
-        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-orange-50 to-amber-50">
-          <Loader2 className="h-12 w-12 animate-spin text-orange-500" />
+        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-orange-50 to-amber-50 dark:from-[#1a1a2e] dark:to-[#1e2235]">
+          <Loader2 className={`h-12 w-12 animate-spin ${darkMode ? 'text-teal-400' : 'text-orange-500'}`} />
         </div>
       </ProtectedRoute>
     );
@@ -1081,11 +1086,20 @@ export default function PDVPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'funcionario']}>
-      <div className="h-screen flex flex-col bg-white">
+      <div className={`h-screen flex flex-col ${darkMode ? 'bg-[#1a1a2e]' : 'bg-white'}`}>
         
         {/* HEADER */}
-        <header className="bg-white border-b border-blue-100 px-3 py-1.5 flex items-center justify-between shrink-0 shadow-sm">
+        <header className={`${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-blue-100'} px-3 py-1.5 flex items-center justify-between shrink-0 shadow-sm`}>
           <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`h-8 w-8 ${darkMode ? 'text-yellow-400 hover:text-yellow-300 hover:bg-white/10' : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'}`}
+              onClick={() => setTheme(darkMode ? 'light' : 'dark')}
+              title={darkMode ? 'Modo claro' : 'Modo escuro'}
+            >
+              {darkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -1161,8 +1175,8 @@ export default function PDVPage() {
         </header>
 
         {/* SELEÇÃO DE TIPO DE VENDA */}
-        <div className="bg-blue-50 border-b border-blue-100 px-3 py-1.5 flex gap-2 items-center shadow-sm overflow-x-auto">
-          <span className="text-xs font-bold text-gray-700 uppercase whitespace-nowrap">Tipo:</span>
+        <div className={`${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-blue-50 border-blue-100'} px-3 py-1.5 flex gap-2 items-center shadow-sm overflow-x-auto`}>
+          <span className={`text-xs font-bold uppercase whitespace-nowrap ${darkMode ? 'text-slate-300' : 'text-gray-700'}`}>Tipo:</span>
           <Button
             variant={tipoVenda === 'balcao' ? 'default' : 'outline'}
             size="sm"
@@ -1222,8 +1236,8 @@ export default function PDVPage() {
           
           {/* COLUNA ESQUERDA - MESAS (se selecionado) - DESKTOP ONLY */}
           {!isMobile && tipoVenda === 'mesa' && (
-            <div className="w-40 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden">
-              <div className="bg-blue-50 border-b border-blue-100 px-3 py-2 text-blue-700 font-bold text-xs">
+            <div className={`w-40 ${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-blue-100'} rounded-lg shadow-sm flex flex-col overflow-hidden`}>
+              <div className={`${darkMode ? 'bg-[#1a1a2e] border-white/10 text-teal-400' : 'bg-blue-50 border-blue-100 text-blue-700'} px-3 py-2 font-bold text-xs border-b`}>
                 MESAS
               </div>
               <ScrollArea className="flex-1 p-2">
@@ -1236,8 +1250,8 @@ export default function PDVPage() {
                         mesaSelecionada === mesa.id
                           ? 'bg-blue-600 text-white shadow-md'
                           : mesa.status === 'livre'
-                          ? 'bg-green-50 text-green-700 hover:shadow-sm'
-                          : 'bg-red-50 text-red-700 hover:shadow-sm'
+                          ? darkMode ? 'bg-green-900/30 text-green-400 hover:shadow-sm' : 'bg-green-50 text-green-700 hover:shadow-sm'
+                          : darkMode ? 'bg-red-900/30 text-red-400 hover:shadow-sm' : 'bg-red-50 text-red-700 hover:shadow-sm'
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -1255,9 +1269,9 @@ export default function PDVPage() {
 
           {/* COLUNA ESQUERDA - COMANDAS (se selecionado) - DESKTOP ONLY */}
           {!isMobile && tipoVenda === 'comanda' && (
-            <div className="w-48 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden">
-              <div className="bg-blue-50 border-b border-blue-100 px-4 py-3 flex items-center justify-between">
-                <span className="text-blue-700 font-bold">COMANDAS</span>
+            <div className={`w-48 ${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-blue-100'} rounded-lg shadow-sm flex flex-col overflow-hidden`}>
+              <div className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} px-4 py-3 flex items-center justify-between border-b`}>
+                <span className={`${darkMode ? 'text-teal-400' : 'text-blue-700'} font-bold`}>COMANDAS</span>
                 <Button 
                   size="sm" 
                   className="h-7 bg-blue-600 hover:bg-blue-700"
@@ -1290,7 +1304,7 @@ export default function PDVPage() {
                         className={`w-full p-3 rounded-lg font-bold transition-all transform hover:scale-105 text-left ${
                           comandaSelecionada?.id === comanda.id
                             ? 'bg-blue-600 text-white shadow-md'
-                            : 'bg-purple-50 text-purple-700 hover:shadow-sm'
+                            : darkMode ? 'bg-purple-900/30 text-purple-400 hover:shadow-sm' : 'bg-purple-50 text-purple-700 hover:shadow-sm'
                         }`}
                       >
                         <div className="flex items-center justify-between mb-1">
@@ -1312,14 +1326,14 @@ export default function PDVPage() {
           )}
 
           {/* COLUNA CENTRAL - PRODUTOS */}
-          <div className="flex-1 flex flex-col overflow-hidden bg-white rounded-lg shadow-sm border border-blue-100">
+          <div className={`flex-1 flex flex-col overflow-hidden ${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-white border-blue-100'} rounded-lg shadow-sm`}>
             
             {/* CATEGORIAS */}
-            <div className="bg-blue-50 px-3 py-1.5 flex gap-1.5 overflow-x-auto border-b border-blue-100">
+            <div className={`${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-blue-50 border-blue-100'} px-3 py-1.5 flex gap-1.5 overflow-x-auto border-b`}>
               <Button
                 size="sm"
                 variant={categoriaAtiva === 'todos' ? 'default' : 'outline'}
-                className={`h-7 text-xs font-bold whitespace-nowrap transition-all ${categoriaAtiva === 'todos' ? 'bg-blue-600 text-white shadow-sm' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'}`}
+                className={`h-7 text-xs font-bold whitespace-nowrap transition-all ${categoriaAtiva === 'todos' ? 'bg-blue-600 text-white shadow-sm' : darkMode ? 'bg-[#1a1a2e] text-teal-400 border-white/20 hover:bg-[#2a2a42]' : 'bg-white text-blue-600 border border-blue-200 hover:bg-blue-50'}`}
                 onClick={() => setCategoriaAtiva('todos')}
               >
                 Todos
@@ -1330,7 +1344,7 @@ export default function PDVPage() {
                   size="sm"
                   variant={categoriaAtiva === cat.id ? 'default' : 'outline'}
                   style={categoriaAtiva === cat.id ? { backgroundColor: cat.cor, color: 'white' } : { borderColor: cat.cor, color: cat.cor }}
-                  className={`h-7 text-xs font-bold whitespace-nowrap transition-all ${categoriaAtiva === cat.id ? 'shadow-md' : 'bg-white hover:shadow-md'}`}
+                  className={`h-7 text-xs font-bold whitespace-nowrap transition-all ${categoriaAtiva === cat.id ? 'shadow-md' : darkMode ? 'bg-[#1a1a2e] hover:shadow-md' : 'bg-white hover:shadow-md'}`}
                   onClick={() => setCategoriaAtiva(cat.id)}
                 >
                   {cat.nome}
@@ -1339,7 +1353,7 @@ export default function PDVPage() {
             </div>
 
             {/* BUSCA */}
-            <div className="px-3 py-2 border-b border-blue-100 bg-white">
+            <div className={`px-3 py-2 ${darkMode ? 'border-white/10 bg-[#1a1a2e]' : 'border-blue-100 bg-white'} border-b`}>
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <Input
@@ -1367,11 +1381,11 @@ export default function PDVPage() {
                     return (
                       <button
                         key={produto.id}
-                        className="group bg-white rounded-lg p-2.5 hover:shadow-md active:scale-95 transition-all border-2 hover:border-blue-300 overflow-hidden relative text-left"
+                        className={`group rounded-lg p-2.5 hover:shadow-md active:scale-95 transition-all border-2 ${darkMode ? 'bg-[#1e1e32] hover:border-teal-400' : 'bg-white hover:border-blue-300'} overflow-hidden relative text-left`}
                         style={{ borderLeftWidth: '5px', borderLeftColor: corCategoria }}
                         onClick={() => adicionarProduto(produto)}
                       >
-                        <p className="text-sm font-bold text-gray-800 group-hover:text-blue-600 leading-snug" style={{ lineHeight: '1.25' }}>{produto.nome}</p>
+                        <p className={`text-sm font-bold group-hover:text-blue-600 leading-snug ${darkMode ? 'text-slate-200' : 'text-gray-800'}`} style={{ lineHeight: '1.25' }}>{produto.nome}</p>
                         <p className="text-base font-extrabold text-green-600 mt-1 leading-tight">
                           R$ {(produto.preco || 0).toFixed(2)}
                         </p>
@@ -1385,12 +1399,12 @@ export default function PDVPage() {
 
           {/* COLUNA DIREITA - CARRINHO - DESKTOP ONLY */}
           {!isMobile && (
-          <div className="w-64 bg-white rounded-lg shadow-sm border border-blue-100 flex flex-col overflow-hidden h-full">
+          <div className={`w-64 ${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-blue-100'} rounded-lg shadow-sm flex flex-col overflow-hidden h-full`}>
             
             {/* HEADER CARRINHO */}
-            <div className="bg-blue-50 border-b border-blue-100 px-2 py-2 shrink-0">
+            <div className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} px-2 py-2 shrink-0 border-b`}>
               <div className="flex items-center justify-between mb-0.5">
-                <h2 className="text-sm font-bold flex items-center gap-1.5 text-gray-800">
+                <h2 className={`text-sm font-bold flex items-center gap-1.5 ${darkMode ? 'text-slate-200' : 'text-gray-800'}`}>
                   <ShoppingCart className="h-4 w-4 text-blue-600" />
                   PEDIDO
                 </h2>
@@ -1400,7 +1414,7 @@ export default function PDVPage() {
                   </Badge>
                 )}
               </div>
-              <p className="text-xs text-gray-600 font-semibold">
+              <p className={`text-xs font-semibold ${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>
                 {getTipoVendaLabel()}
                 {tipoVenda === 'comanda' && comandaSelecionada && (
                   <span className="ml-2 text-purple-600">
@@ -1444,7 +1458,7 @@ export default function PDVPage() {
               ) : (
                 <div className="space-y-2">
                   {(itensPedido || []).map((item, index) => (
-                    <div key={item.id} className="bg-blue-50 rounded-lg p-2 border border-blue-100 hover:border-blue-300 transition-all shadow-sm">
+                    <div key={item.id} className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} rounded-lg p-2 hover:border-blue-300 transition-all shadow-sm`}>
                       <div className="flex justify-between items-start mb-1">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
@@ -1486,7 +1500,7 @@ export default function PDVPage() {
             </ScrollArea>
 
             {/* TOTAL E FINALIZAR */}
-            <div className="p-2 border-t border-blue-100 space-y-1.5 bg-white shrink-0">
+            <div className={`p-2 ${darkMode ? 'border-white/10 bg-[#1e1e32]' : 'border-blue-100 bg-white'} space-y-1.5 shrink-0`}>
               <div className="flex justify-between items-center">
                 <span className="text-sm font-bold text-gray-700">TOTAL:</span>
                 <span className="text-xl font-extrabold text-green-600">
@@ -1547,8 +1561,8 @@ export default function PDVPage() {
         {/* MOBILE CART SHEET */}
         <Sheet open={showCartMobile && isMobile} onOpenChange={setShowCartMobile}>
           <SheetContent side="right" className="w-full sm:w-96 p-0 flex flex-col">
-            <SheetHeader className="bg-blue-50 border-b border-blue-100 px-4 py-3 shrink-0">
-              <SheetTitle className="flex items-center gap-2 text-sm font-bold text-gray-800">
+            <SheetHeader className={`${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-blue-50 border-blue-100'} px-4 py-3 shrink-0`}>
+              <SheetTitle className={`flex items-center gap-2 text-sm font-bold ${darkMode ? 'text-slate-200' : 'text-gray-800'}`}>
                 <ShoppingCart className="h-4 w-4 text-blue-600" />
                 PEDIDO
                 {itensPedido.length > 0 && (
@@ -1559,7 +1573,7 @@ export default function PDVPage() {
               </SheetTitle>
             </SheetHeader>
 
-            <div className="px-4 py-2 border-b border-blue-100 bg-white shrink-0">
+            <div className={`px-4 py-2 ${darkMode ? 'border-white/10 bg-[#1a1a2e]' : 'border-blue-100 bg-white'} shrink-0`}>
               <p className="text-xs text-gray-600 font-semibold">
                 {getTipoVendaLabel()}
                 {tipoVenda === 'comanda' && comandaSelecionada && (
@@ -1601,7 +1615,7 @@ export default function PDVPage() {
               ) : (
                 <div className="space-y-2">
                   {(itensPedido || []).map((item, index) => (
-                    <div key={item.id} className="bg-blue-50 rounded-lg p-2 border border-blue-100 hover:border-blue-300 transition-all shadow-sm">
+                    <div key={item.id} className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} rounded-lg p-2 hover:border-blue-300 transition-all shadow-sm`}>
                       <div className="flex justify-between items-start mb-1">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
@@ -1642,7 +1656,7 @@ export default function PDVPage() {
               )}
             </ScrollArea>
 
-            <div className="p-3 border-t border-blue-100 space-y-1.5 bg-white shrink-0">
+            <div className={`p-3 ${darkMode ? 'border-white/10 bg-[#1e1e32]' : 'border-blue-100 bg-white'} space-y-1.5 shrink-0`}>
               <div className="flex justify-between items-center">
                 <span className="text-sm font-bold text-gray-700">TOTAL:</span>
                 <span className="text-xl font-extrabold text-green-600">
@@ -1677,8 +1691,8 @@ export default function PDVPage() {
           <SheetContent side="left" className="w-72 p-0 flex flex-col">
             {tipoVenda === 'mesa' && (
               <>
-                <SheetHeader className="bg-blue-50 border-b border-blue-100 px-4 py-3 shrink-0">
-                  <SheetTitle className="text-blue-700 font-bold text-sm">MESAS</SheetTitle>
+                <SheetHeader className={`${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-blue-50 border-blue-100'} px-4 py-3 shrink-0`}>
+                  <SheetTitle className={`${darkMode ? 'text-teal-400' : 'text-blue-700'} font-bold text-sm`}>MESAS</SheetTitle>
                 </SheetHeader>
                 <ScrollArea className="flex-1 p-3">
                   <div className="space-y-1.5">
@@ -1690,8 +1704,8 @@ export default function PDVPage() {
                           mesaSelecionada === mesa.id
                             ? 'bg-blue-600 text-white shadow-md'
                             : mesa.status === 'livre'
-                            ? 'bg-green-50 text-green-700 hover:shadow-sm'
-                            : 'bg-red-50 text-red-700 hover:shadow-sm'
+                            ? darkMode ? 'bg-green-900/30 text-green-400 hover:shadow-sm' : 'bg-green-50 text-green-700 hover:shadow-sm'
+                            : darkMode ? 'bg-red-900/30 text-red-400 hover:shadow-sm' : 'bg-red-50 text-red-700 hover:shadow-sm'
                         }`}
                       >
                         <div className="flex items-center justify-between">
@@ -1708,9 +1722,9 @@ export default function PDVPage() {
             )}
             {tipoVenda === 'comanda' && (
               <>
-                <SheetHeader className="bg-blue-50 border-b border-blue-100 px-4 py-3 shrink-0">
+                <SheetHeader className={`${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-blue-50 border-blue-100'} px-4 py-3 shrink-0`}>
                   <div className="flex items-center justify-between w-full">
-                    <SheetTitle className="text-blue-700 font-bold text-sm">COMANDAS</SheetTitle>
+                    <SheetTitle className={`${darkMode ? 'text-teal-400' : 'text-blue-700'} font-bold text-sm`}>COMANDAS</SheetTitle>
                     <Button
                       size="sm"
                       className="h-7 bg-blue-600 hover:bg-blue-700"
@@ -1744,7 +1758,7 @@ export default function PDVPage() {
                           className={`w-full p-3 rounded-lg font-bold transition-all transform hover:scale-105 text-left ${
                             comandaSelecionada?.id === comanda.id
                               ? 'bg-blue-600 text-white shadow-md'
-                              : 'bg-purple-50 text-purple-700 hover:shadow-sm'
+                              : darkMode ? 'bg-purple-900/30 text-purple-400 hover:shadow-sm' : 'bg-purple-50 text-purple-700 hover:shadow-sm'
                           }`}
                         >
                           <div className="flex items-center justify-between mb-1">
@@ -1828,13 +1842,13 @@ export default function PDVPage() {
 
       {/* DIALOG DELIVERY */}
       <Dialog open={dialogDelivery} onOpenChange={(open) => { if (!open) setDeliveryCliente(null); setDialogDelivery(open); }}>
-        <DialogContent className="max-w-lg border border-blue-200">
+        <DialogContent className={`max-w-lg ${darkMode ? 'border-white/10 bg-[#1e1e32]' : 'border-blue-200 bg-white'}`}>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-blue-600">
+            <DialogTitle className={`flex items-center gap-2 ${darkMode ? 'text-teal-400' : 'text-blue-600'}`}>
               <Truck className="h-6 w-6" />
               Novo Delivery
             </DialogTitle>
-            <DialogDescription className="text-gray-600">Identifique o cliente e preencha o endereço de entrega</DialogDescription>
+            <DialogDescription className={`${darkMode ? 'text-slate-400' : 'text-gray-600'}`}>Identifique o cliente e preencha o endereço de entrega</DialogDescription>
           </DialogHeader>
           
           <div className="py-4 space-y-3 max-h-[60vh] overflow-y-auto">
@@ -1863,7 +1877,7 @@ export default function PDVPage() {
             />
 
             {deliveryCliente && (
-              <div className="flex items-center gap-2 text-xs text-green-600 bg-green-50 px-3 py-2 rounded-lg border border-green-200">
+              <div className={`flex items-center gap-2 text-xs ${darkMode ? 'text-green-400 bg-green-900/20 border-green-900/30' : 'text-green-600 bg-green-50 border-green-200'} px-3 py-2 rounded-lg border`}>
                 <CheckCircle className="h-3.5 w-3.5" />
                 Dados preenchidos automaticamente. Edite se necessário.
               </div>
@@ -1977,17 +1991,17 @@ export default function PDVPage() {
 
       {/* DIALOG PAGAMENTO */}
       <Dialog open={dialogPagamento} onOpenChange={setDialogPagamento}>
-        <DialogContent className="max-w-lg border border-blue-200 bg-white">
+        <DialogContent className={`max-w-lg border ${darkMode ? 'border-white/10 bg-[#1e1e32]' : 'border-blue-200 bg-white'}`}>
           <DialogHeader>
-            <DialogTitle className="text-2xl text-center font-bold text-gray-800">
+            <DialogTitle className={`text-2xl text-center font-bold ${darkMode ? 'text-slate-200' : 'text-gray-800'}`}>
               Forma de Pagamento
             </DialogTitle>
-            <DialogDescription className="text-center font-semibold text-gray-700">{getTipoVendaLabel()}</DialogDescription>
+            <DialogDescription className={`text-center font-semibold ${darkMode ? 'text-slate-400' : 'text-gray-700'}`}>{getTipoVendaLabel()}</DialogDescription>
           </DialogHeader>
           
           {/* Resumo do pagamento */}
           <div className="grid grid-cols-2 gap-3 text-center">
-            <div className="py-3 bg-blue-50 rounded-lg border border-blue-100">
+            <div className={`py-3 rounded-lg border ${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'}`}>
               <p className="text-xs text-gray-500 uppercase font-medium">Total</p>
               <p className="text-2xl font-extrabold text-blue-600">R$ {total.toFixed(2)}</p>
             </div>
@@ -2003,7 +2017,7 @@ export default function PDVPage() {
               <p className="text-sm font-medium text-gray-600">Pagamentos adicionados:</p>
               <div className="space-y-2">
                 {pagamentos.map((pg, index) => (
-                  <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-3 border">
+                  <div key={index} className={`flex items-center justify-between ${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-gray-50 border'} rounded-lg p-3`}>
                     <div className="flex items-center gap-2">
                       <Badge className={
                         pg.forma === 'dinheiro' ? 'bg-green-500' :
@@ -2014,7 +2028,7 @@ export default function PDVPage() {
                          pg.forma === 'credito' ? 'Crédito' :
                          pg.forma === 'debito' ? 'Débito' : 'PIX'}
                       </Badge>
-                      <span className="font-bold text-gray-700">R$ {pg.valor.toFixed(2)}</span>
+                      <span className={`font-bold ${darkMode ? 'text-slate-200' : 'text-gray-700'}`}>R$ {pg.valor.toFixed(2)}</span>
                     </div>
                     <Button
                       variant="ghost"

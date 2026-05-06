@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { getSupabaseClient } from '@/lib/supabase';
 import {
   Search,
@@ -99,6 +100,8 @@ export default function PDVGarcomPage() {
   const { user, empresaId, logout } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
+  const { resolvedTheme } = useTheme();
+  const darkMode = resolvedTheme === 'dark';
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
   const { mesas, loading: loadingMesas, atualizarMesa } = useMesas();
@@ -1072,9 +1075,9 @@ export default function PDVGarcomPage() {
   // ============================================================
   return (
     <ProtectedRoute allowedRoles={['admin', 'funcionario']}>
-      <div className="h-[100dvh] flex flex-col bg-gray-50 select-none overflow-hidden">
+      <div className={`h-[100dvh] flex flex-col ${darkMode ? 'bg-[#1a1a2e]' : 'bg-gray-50'} select-none overflow-hidden`}>
         {/* ── HEADER ── */}
-        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0 shadow-sm z-30">
+        <header className={`${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-gray-200'} px-4 py-3 flex items-center justify-between shrink-0 shadow-sm z-30`}>
           <div className="flex items-center gap-3">
             {tela === 'produtos' && (
               <button
@@ -1160,6 +1163,7 @@ export default function PDVGarcomPage() {
               comandas={comandas}
               loadingComandas={loadingComandas}
               onRefreshComandas={() => setLastComandaRefresh(Date.now())}
+              darkMode={darkMode}
             />
           ) : (
             // ── PRODUCT VIEW ──
@@ -1174,6 +1178,7 @@ export default function PDVGarcomPage() {
               onAddProduto={adicionarProduto}
               adicionandoIds={adicionandoIds}
               bounceProdutoId={bounceProdutoId}
+              darkMode={darkMode}
             />
           )}
         </div>
@@ -1224,6 +1229,7 @@ export default function PDVGarcomPage() {
                 description: 'Finalize o pagamento no PDV principal (caixa).',
               });
             }}
+            darkMode={darkMode}
           />
         )}
 
@@ -1243,6 +1249,7 @@ export default function PDVGarcomPage() {
               setDialogPagamento(false);
               setPagamentos([]);
             }}
+            darkMode={darkMode}
           />
         )}
 
@@ -1304,6 +1311,7 @@ export default function PDVGarcomPage() {
               }
             }}
             onClose={() => setDialogCaixa(false)}
+            darkMode={darkMode}
           />
         )}
       </div>
@@ -1322,6 +1330,7 @@ function MesaSelectionView({
   comandas,
   loadingComandas,
   onRefreshComandas,
+  darkMode,
 }: {
   mesas: any[];
   mesaSelecionada: string;
@@ -1330,6 +1339,7 @@ function MesaSelectionView({
   comandas: Comanda[];
   loadingComandas: boolean;
   onRefreshComandas: () => void;
+  darkMode?: boolean;
 }) {
   const livres = mesas.filter((m) => m.status === 'livre');
   const ocupadas = mesas.filter((m) => m.status === 'ocupada');
@@ -1501,6 +1511,7 @@ function ProdutoView({
   onAddProduto,
   adicionandoIds,
   bounceProdutoId,
+  darkMode,
 }: {
   categorias: any[];
   categoriaAtiva: string;
@@ -1512,11 +1523,12 @@ function ProdutoView({
   onAddProduto: (p: any) => void;
   adicionandoIds: Set<string>;
   bounceProdutoId: string | null;
+  darkMode?: boolean;
 }) {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
       {/* Search Bar */}
-      <div className="px-4 pt-3 pb-2 bg-white border-b border-gray-100">
+      <div className={`px-4 pt-3 pb-2 ${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-gray-100'} border-b`}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <input
@@ -1646,6 +1658,7 @@ function CartBottomSheet({
   onEnviarCozinha,
   onImprimirComanda,
   onPedirConta,
+  darkMode,
 }: {
   itensPedido: ItemPedido[];
   total: number;
@@ -1658,6 +1671,7 @@ function CartBottomSheet({
   onEnviarCozinha: () => void;
   onImprimirComanda: () => void;
   onPedirConta: () => void;
+  darkMode?: boolean;
 }) {
   const naoEntregues = itensPedido.filter((i) => !i.entregue).length;
   const [confirmarLimpar, setConfirmarLimpar] = useState(false);
@@ -1670,14 +1684,14 @@ function CartBottomSheet({
       <div className="fixed inset-0 bg-black/40 z-40" onClick={onClose} />
 
       {/* Sheet */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl flex flex-col animate-slide-up max-h-[85dvh] min-h-0 overflow-hidden">
+      <div className={`fixed bottom-0 left-0 right-0 z-50 ${darkMode ? 'bg-[#1e1e32]' : 'bg-white'} rounded-t-3xl shadow-2xl flex flex-col animate-slide-up max-h-[85dvh] min-h-0 overflow-hidden`}>
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-gray-300" />
+          <div className={`w-10 h-1 rounded-full ${darkMode ? 'bg-white/20' : 'bg-gray-300'}`} />
         </div>
 
         {/* Header */}
-        <div className="px-5 pb-3 flex items-center justify-between border-b border-gray-100">
+        <div className={`px-5 pb-3 flex items-center justify-between ${darkMode ? 'border-white/10' : 'border-gray-100'} border-b`}>
           <div>
             <h2 className="text-lg font-extrabold text-gray-800">Pedido - Mesa {mesaNumero}</h2>
             <p className="text-sm text-gray-500">
@@ -1896,6 +1910,7 @@ function PaymentDialog({
   onRemoverPagamento,
   onFinalizar,
   onClose,
+  darkMode,
 }: {
   total: number;
   totalPago: number;
@@ -1907,6 +1922,7 @@ function PaymentDialog({
   onRemoverPagamento: (index: number) => void;
   onFinalizar: () => void;
   onClose: () => void;
+  darkMode?: boolean;
 }) {
   const formasPagamento = [
     { id: 'dinheiro', label: 'Dinheiro', icon: Banknote, color: 'bg-green-100 text-green-700 hover:bg-green-200 active:bg-green-300', border: 'border-green-200' },
@@ -1921,10 +1937,10 @@ function PaymentDialog({
       <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
 
       {/* Bottom Sheet */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl flex flex-col animate-slide-up max-h-[90dvh]">
+      <div className={`fixed bottom-0 left-0 right-0 z-50 ${darkMode ? 'bg-[#1e1e32]' : 'bg-white'} rounded-t-3xl shadow-2xl flex flex-col animate-slide-up max-h-[90dvh]`}>
         {/* Handle */}
         <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-gray-300" />
+          <div className={`w-10 h-1 rounded-full ${darkMode ? 'bg-white/20' : 'bg-gray-300'}`} />
         </div>
 
         {/* Header */}
@@ -2066,6 +2082,7 @@ function CaixaDialog({
   setValorAbertura,
   onAbrirCaixa,
   onClose,
+  darkMode,
 }: {
   caixaAberto: boolean;
   caixaValor: number;
@@ -2073,13 +2090,14 @@ function CaixaDialog({
   setValorAbertura: (v: string) => void;
   onAbrirCaixa: () => void;
   onClose: () => void;
+  darkMode?: boolean;
 }) {
   return (
     <>
       <div className="fixed inset-0 bg-black/50 z-40" onClick={onClose} />
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-2xl flex flex-col animate-slide-up">
+      <div className={`fixed bottom-0 left-0 right-0 z-50 ${darkMode ? 'bg-[#1e1e32]' : 'bg-white'} rounded-t-3xl shadow-2xl flex flex-col animate-slide-up`}>
         <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 rounded-full bg-gray-300" />
+          <div className={`w-10 h-1 rounded-full ${darkMode ? 'bg-white/20' : 'bg-gray-300'}`} />
         </div>
         <div className="px-5 pb-3">
           <h2 className="text-xl font-extrabold text-gray-800">Caixa</h2>
