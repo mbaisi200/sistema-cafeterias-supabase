@@ -151,13 +151,9 @@ export default function PDVGarcomPage() {
         const result = await response.json();
         setCaixaStatus(result.caixa || null);
         setCaixaVerificado(true);
-        console.log('[PDV-Garçom] Caixa verificado via API:', result.caixa ? 'ABERTO id=' + result.caixa.id : 'FECHADO');
-        console.log('[PDV-Garçom] Debug API:', JSON.stringify(result.debug || {}));
       } else {
-        console.error('[PDV-Garçom] API caixa-aberto retornou status:', response.status);
       }
     } catch (e) {
-      console.warn('[PDV-Garçom] Erro ao verificar caixa:', e);
     }
   }, [empresaId]);
 
@@ -224,7 +220,6 @@ export default function PDVGarcomPage() {
           });
         }
       } catch (err) {
-        console.error('Erro ao carregar empresa:', err);
       }
     };
     carregarEmpresa();
@@ -281,7 +276,6 @@ export default function PDVGarcomPage() {
       }
       // Se data.length === 0, mantém o último estado (não limpa comandas)
     } catch (err) {
-      console.error('Erro ao carregar comandas:', err);
       // Em caso de erro de rede, mantém o último estado conhecido
     } finally {
       setLoadingComandas(false);
@@ -542,8 +536,7 @@ export default function PDVGarcomPage() {
 
       // Mark mesa as occupied in DB (for other components that use mesas.status)
       // Await this so the DB update happens as fast as possible
-      await atualizarMesa(mesaSelecionada, { status: 'ocupada' })
-        .catch(err => console.error('Erro ao ocupar mesa no DB:', err));
+      await atualizarMesa(mesaSelecionada, { status: 'ocupada' }).catch(() => {});
 
       // OPTIMISTIC: update comandas state immediately so mesa status reflects NOW
       setComandas((prev) => {
@@ -577,7 +570,6 @@ export default function PDVGarcomPage() {
       // Also trigger background refresh to sync real data
       setLastComandaRefresh(Date.now());
     } catch (error) {
-      console.error('Erro ao adicionar produto:', error);
       // Rollback: remove the optimistic item
       setItensPedido((prev) => prev.filter((item) => item.id !== tempId));
       toast({ variant: 'destructive', title: 'Erro ao adicionar produto' });
@@ -624,7 +616,6 @@ export default function PDVGarcomPage() {
 
       // Deletar no servidor em background
       supabase.from('pedidos_temp').delete().eq('id', itemId).catch((err) => {
-        console.error('Erro ao deletar item:', err);
         toast({ variant: 'destructive', title: 'Erro ao remover item' });
       });
     } else {
@@ -668,7 +659,6 @@ export default function PDVGarcomPage() {
 
     // Deletar no servidor em background
     supabase.from('pedidos_temp').delete().eq('id', itemId).catch((err) => {
-      console.error('Erro ao deletar item:', err);
       toast({ variant: 'destructive', title: 'Erro ao remover item' });
     });
   };
@@ -691,10 +681,7 @@ export default function PDVGarcomPage() {
       supabase
         .from('mesas')
         .update({ status: 'livre' })
-        .eq('id', mesaSelecionada)
-        .then(({ error }) => {
-          if (error) console.error('Erro ao liberar mesa no DB (limpar):', error);
-        });
+        .eq('id', mesaSelecionada);
 
       // OPTIMISTIC: remove comanda for this mesa immediately
       setComandas((prev) => prev.filter((c) => c.mesa_id !== mesaSelecionada));
@@ -710,7 +697,6 @@ export default function PDVGarcomPage() {
 
       toast({ title: '✓ Pedido limpo e mesa liberada' });
     } catch (error) {
-      console.error('Erro ao limpar pedido:', error);
       toast({ variant: 'destructive', title: 'Erro ao limpar pedido' });
     }
   };
@@ -735,7 +721,6 @@ export default function PDVGarcomPage() {
         const errorMsg = (error as any)?.message || String(error);
         if (errorMsg.includes('status_entrega') || errorMsg.includes('column') || errorMsg.includes('does not exist')) {
           // Keep optimistic state locally even if column doesn't exist
-          console.warn('Coluna status_entrega não encontrada. Controle de entrega funciona localmente.');
         } else {
           // Rollback on real error
           setItensPedido((prev) =>
@@ -772,7 +757,6 @@ export default function PDVGarcomPage() {
         // Handle the case where status_envio column might not exist
         const errorMsg = (error as any)?.message || String(error);
         if (errorMsg.includes('status_envio') || errorMsg.includes('column') || errorMsg.includes('does not exist')) {
-          console.warn('Coluna status_envio não encontrada na tabela pedidos_temp. Ação de enviar para cozinha foi logada.');
           toast({
             title: '⚠️ Coluna status_envio não encontrada',
             description: 'Adicione a coluna status_envio (text) à tabela pedidos_temp para habilitar o rastreamento.',
@@ -798,9 +782,8 @@ export default function PDVGarcomPage() {
         acao: 'PEDIDO_ENVIADO_Cozinha',
         detalhes: `Mesa ${numeroMesaSelecionada} - ${itensPedido.length} itens - R$ ${total.toFixed(2)}`,
         tipo: 'venda',
-      }).catch((err) => console.error('Erro ao registrar log:', err));
+      }).catch(() => {});
     } catch (error) {
-      console.error('Erro ao enviar para cozinha:', error);
       toast({ variant: 'destructive', title: 'Erro ao enviar para cozinha' });
     }
   };
@@ -888,7 +871,6 @@ export default function PDVGarcomPage() {
       }));
 
       const { error: itensError } = await supabase.from('itens_venda').insert(itensVenda);
-      if (itensError) console.error('Erro ao criar itens:', itensError);
 
       // Handle combo stock
       try {
@@ -933,7 +915,6 @@ export default function PDVGarcomPage() {
           }
         }
       } catch (err) {
-        console.error('Erro ao baixar estoque dos combos:', err);
       }
 
       // Create payments
@@ -946,7 +927,6 @@ export default function PDVGarcomPage() {
       }));
 
       const { error: pagError } = await supabase.from('pagamentos').insert(pagamentosInsert);
-      if (pagError) console.error('Erro ao criar pagamentos:', pagError);
 
       // Clear temp pedidos
       const deletePromises = itensPedido.map((item) => supabase.from('pedidos_temp').delete().eq('id', item.id));
@@ -957,10 +937,7 @@ export default function PDVGarcomPage() {
         supabase
           .from('mesas')
           .update({ status: 'livre' })
-          .eq('id', mesaSelecionada)
-          .then(({ error }) => {
-            if (error) console.error('Erro ao liberar mesa no DB (finalizar):', error);
-          });
+          .eq('id', mesaSelecionada);
       }
 
       // OPTIMISTIC: remove comanda for this mesa immediately
@@ -987,10 +964,8 @@ export default function PDVGarcomPage() {
             }),
           });
         } catch (e) {
-          console.warn('[PDV-Garçom] Não conseguiu registrar venda no caixa:', e);
         }
       } else {
-        console.warn('[PDV-Garçom] Nenhum caixa aberto encontrado para registrar venda');
       }
 
       // Log
@@ -1045,7 +1020,6 @@ export default function PDVGarcomPage() {
       setTela('mesas');
       setLastComandaRefresh(Date.now());
     } catch (error) {
-      console.error('Erro ao finalizar venda:', error);
       toast({ variant: 'destructive', title: 'Erro ao finalizar venda' });
     } finally {
       setProcessando(false);
@@ -1298,15 +1272,12 @@ export default function PDVGarcomPage() {
               }
               try {
                 const valor = parseFloat(valorAberturaCaixa) || 0;
-                console.log('[PDV-Garçom] Abrindo caixa com valor:', valor);
                 const caixaId = await abrirCaixa(valor);
-                console.log('[PDV-Garçom] Caixa aberto com sucesso, ID:', caixaId);
                 toast({ title: '✓ Caixa aberto com sucesso!' });
                 setDialogCaixa(false);
                 // Atualizar estado local
                 await verificarCaixaAberto();
               } catch (err: any) {
-                console.error('[PDV-Garçom] Erro ao abrir caixa:', err);
                 toast({ variant: 'destructive', title: err.message || 'Erro ao abrir caixa', description: 'Verifique o console para detalhes.' });
               }
             }}

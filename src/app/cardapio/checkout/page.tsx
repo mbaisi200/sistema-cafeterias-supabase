@@ -138,7 +138,6 @@ function CheckoutContent() {
         setEmpresa(JSON.parse(empresaSalva));
       }
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
     } finally {
       setLoading(false);
     }
@@ -335,7 +334,6 @@ function CheckoutContent() {
 
       router.push(`/cardapio/pedido/${pedido.id}?codigo=${codigo}`);
     } catch (error: any) {
-      console.error('Erro ao finalizar pedido:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao finalizar pedido',

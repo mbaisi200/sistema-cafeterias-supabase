@@ -373,7 +373,7 @@ export interface NFe {
   // Cobrança
   cobranca?: {
     fatura?: { numero: string; valor_original: number; valor_desconto: number; valor_liquido: number; vencimento: string };
-    duplicatas?: Array<{ numero duplicata: string; data_vencimento: string; valor: number }>;
+    duplicatas?: Array<{ numero_duplicata: string; data_vencimento: string; valor: number }>;
   };
 
   // Informações adicionais

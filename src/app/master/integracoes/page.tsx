@@ -156,7 +156,6 @@ function IntegracoesContent() {
           setEmpresaNome(empresasLista[0].nome);
         }
       } catch (error) {
-        console.error('Erro ao carregar empresas:', error);
       } finally {
         setLoadingEmpresas(false);
       }
@@ -207,7 +206,6 @@ function IntegracoesContent() {
 
       setIntegracoesStatus(status);
     } catch (error) {
-      console.error('Erro ao carregar status:', error);
     } finally {
       setLoadingStatus(false);
     }

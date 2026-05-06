@@ -135,7 +135,6 @@ export default function ClientesPage() {
       try {
         const supabase = getSupabaseClient();
         
-        console.log('🔄 Carregando admins das empresas...');
         
         const { data: usuarios, error } = await supabase
           .from('usuarios')
@@ -143,7 +142,6 @@ export default function ClientesPage() {
           .eq('role', 'admin');
         
         if (error) {
-          console.error('❌ Erro ao buscar admins:', error);
           throw error;
         }
 
@@ -157,8 +155,6 @@ export default function ClientesPage() {
           segmentosMap[seg.id] = { nome: seg.nome, nome_marca: seg.nome_marca };
         });
 
-        console.log('📊 Admins encontrados:', usuarios?.length || 0);
-        console.log('📊 Empresas para matching:', empresas.length);
         
         const adminsMap: Record<string, { nome: string; email: string; id: string }> = {};
         usuarios?.forEach((usuario) => {
@@ -168,7 +164,6 @@ export default function ClientesPage() {
               email: usuario.email || '',
               id: usuario.id,
             };
-            console.log(`✅ Admin mapeado: empresa_id=${usuario.empresa_id}, nome=${usuario.nome}`);
           }
         });
 
@@ -184,11 +179,9 @@ export default function ClientesPage() {
           segmentoNome: empresa.segmento_id ? segmentosMap[empresa.segmento_id]?.nome || null : null,
         }));
 
-        console.log('📊 Empresas com admin:', empresasComAdmin.map(e => ({ nome: e.nome, adminNome: e.adminNome })));
 
         setClienteComAdmin(empresasComAdmin);
       } catch (error) {
-        console.error('Erro ao carregar admins:', error);
         setClienteComAdmin(empresas);
       }
     };
@@ -328,7 +321,6 @@ export default function ClientesPage() {
       setNomeMarca('');
       
     } catch (error: unknown) {
-      console.error('Erro ao salvar cliente:', error);
       let mensagem = 'Erro ao cadastrar cliente';
       if (error instanceof Error) {
         if (error.message.includes('already registered') || error.message.includes('already been registered')) {
@@ -409,7 +401,6 @@ export default function ClientesPage() {
       setEditDialogOpen(false);
       
     } catch (error: unknown) {
-      console.error('Erro ao editar cliente:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao editar',
@@ -516,7 +507,6 @@ export default function ClientesPage() {
       setConfirmPassword('');
 
     } catch (error: unknown) {
-      console.error('Erro ao redefinir senha:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao redefinir senha',
@@ -601,7 +591,6 @@ export default function ClientesPage() {
       setSyncAdminDialogOpen(false);
       setSyncSenha('');
     } catch (error: unknown) {
-      console.error('Erro ao sincronizar admin:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao sincronizar',
@@ -1612,7 +1601,6 @@ export default function ClientesPage() {
                     setDeleteDialogOpen(false);
                     setSelectedCliente(null);
                   } catch (error) {
-                    console.error('Erro ao excluir:', error);
                     toast({
                       variant: 'destructive',
                       title: 'Erro ao excluir',

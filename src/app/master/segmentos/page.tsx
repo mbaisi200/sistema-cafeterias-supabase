@@ -168,7 +168,6 @@ export default function SegmentosPage() {
 
       setSegmentos(enrichedData);
     } catch (error: unknown) {
-      console.error('Erro ao buscar segmentos:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao carregar segmentos',
@@ -250,7 +249,6 @@ export default function SegmentosPage() {
         setSecoesSelecionadas(new Set(secoesDisponiveis.map((s: any) => s.id)));
       }
     } catch (error) {
-      console.error('Erro ao carregar seções do segmento:', error);
       setSecoesSelecionadas(new Set(secoesDisponiveis.map((s: any) => s.id)));
     } finally {
       setLoadingSecoes(false);
@@ -334,7 +332,6 @@ export default function SegmentosPage() {
       setSecoesSelecionadas(new Set());
       fetchSegmentos();
     } catch (error: unknown) {
-      console.error('Erro ao salvar segmento:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao salvar',
@@ -366,7 +363,6 @@ export default function SegmentosPage() {
 
       fetchSegmentos();
     } catch (error: unknown) {
-      console.error('Erro ao alterar status:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao alterar status',
@@ -398,7 +394,6 @@ export default function SegmentosPage() {
       setSelectedSegmento(null);
       fetchSegmentos();
     } catch (error: unknown) {
-      console.error('Erro ao excluir segmento:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao excluir',

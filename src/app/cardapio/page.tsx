@@ -516,7 +516,6 @@ function CardapioContent() {
       const { data: opcoesData } = await supabase.from('produto_opcoes').select('id, nome, tipo, minimo_selecao, maximo_selecao').eq('empresa_id', empresaId).eq('ativo', true);
       setOpcoes(opcoesData || []);
     } catch (error) {
-      console.error('Erro ao carregar dados:', error);
       toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar o cardápio.' });
     } finally {
       setLoading(false);

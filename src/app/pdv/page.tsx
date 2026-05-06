@@ -24,7 +24,6 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { getSupabaseClient } from '@/lib/supabase';
-import { useVendasPDV } from '@/hooks/useVendasPDV';
 import {
   Search,
   Plus,

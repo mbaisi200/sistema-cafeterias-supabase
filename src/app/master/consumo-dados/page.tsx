@@ -188,7 +188,6 @@ export default function ConsumoDadosPage() {
           setEmpresas(data.empresas);
         }
       } catch (error) {
-        console.error('Erro ao carregar empresas:', error);
       } finally {
         setLoading(false);
       }
@@ -217,7 +216,6 @@ export default function ConsumoDadosPage() {
           setDadosTodos(null);
         }
       } catch (error) {
-        console.error('Erro ao carregar detalhes:', error);
       } finally {
         setLoadingDetalhes(false);
       }

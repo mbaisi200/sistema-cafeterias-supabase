@@ -126,7 +126,6 @@ function PedidoContent() {
         .eq('pedido_id', pedidoId);
       setItens(itensData || []);
     } catch (error) {
-      console.error('Erro ao carregar pedido:', error);
       toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar o pedido.' });
     } finally {
       setLoading(false);

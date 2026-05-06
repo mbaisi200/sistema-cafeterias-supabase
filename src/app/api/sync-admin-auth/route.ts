@@ -9,7 +9,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Email e senha são obrigatórios' }, { status: 400 });
     }
 
-    console.log('🔄 Sincronizando admin:', email);
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -33,7 +32,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Usuário não encontrado na tabela usuarios' }, { status: 404 });
     }
 
-    console.log('📊 Usuário encontrado:', usuarioExistente);
 
     // Verificar se já tem auth_user_id válido
     if (usuarioExistente.auth_user_id && 
@@ -57,7 +55,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (authError) {
-      console.error('❌ Erro ao criar usuário no Auth:', authError);
       
       // Se o usuário já existe no Auth, tentar buscar
       if (authError.message.includes('already been registered') || 
@@ -80,7 +77,6 @@ export async function POST(request: NextRequest) {
               .eq('id', usuarioExistente.id);
 
             if (updateError) {
-              console.error('❌ Erro ao atualizar auth_user_id:', updateError);
               return NextResponse.json({ error: 'Erro ao atualizar auth_user_id' }, { status: 500 });
             }
 
@@ -98,7 +94,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: authError.message }, { status: 500 });
     }
 
-    console.log('✅ Usuário criado no Auth:', authData.user?.id);
 
     // Atualizar o auth_user_id na tabela usuarios
     const { error: updateError } = await supabase
@@ -110,11 +105,9 @@ export async function POST(request: NextRequest) {
       .eq('id', usuarioExistente.id);
 
     if (updateError) {
-      console.error('❌ Erro ao atualizar auth_user_id:', updateError);
       return NextResponse.json({ error: 'Erro ao atualizar auth_user_id' }, { status: 500 });
     }
 
-    console.log('✅ auth_user_id atualizado com sucesso');
 
     return NextResponse.json({ 
       message: 'Admin sincronizado com sucesso! Agora pode fazer login.',
@@ -123,7 +116,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Erro na sincronização:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }

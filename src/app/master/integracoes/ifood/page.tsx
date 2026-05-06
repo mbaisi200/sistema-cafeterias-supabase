@@ -123,7 +123,6 @@ function IFoodIntegracaoContent() {
           }
         }
       } catch (error) {
-        console.error('Erro ao carregar empresas:', error);
       }
     };
 
@@ -184,7 +183,6 @@ function IFoodIntegracaoContent() {
         });
       }
     } catch (error) {
-      console.error('Erro ao carregar configuração:', error);
     } finally {
       setLoading(false);
     }
@@ -220,7 +218,6 @@ function IFoodIntegracaoContent() {
 
       setStats({ pedidosHoje, vendasHoje, pedidosMes, vendasMes });
     } catch (error) {
-      console.error('Erro ao carregar estatísticas:', error);
     }
   };
 
@@ -279,7 +276,6 @@ function IFoodIntegracaoContent() {
 
       alert('Configuração salva com sucesso!');
     } catch (error) {
-      console.error('Erro ao salvar:', error);
       alert('Erro ao salvar configuração');
     } finally {
       setSaving(false);
