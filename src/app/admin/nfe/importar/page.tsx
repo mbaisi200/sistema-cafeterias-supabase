@@ -90,6 +90,18 @@ interface ProdutoImportacao {
 
 // =====================================================
 // Page Component
+
+const OPCOES_CONVERSAO = [
+  { value: 1, label: 'Un (unidade)' },
+  { value: 6, label: 'CX/6' },
+  { value: 12, label: 'CX/12' },
+  { value: 18, label: 'CX/18' },
+  { value: 24, label: 'CX/24' },
+  { value: 30, label: 'CX/30' },
+  { value: 48, label: 'CX/48' },
+  { value: 60, label: 'CX/60' },
+  { value: 100, label: 'CX/100' },
+];
 // =====================================================
 
 export default function NFeImportarPage() {
@@ -104,7 +116,6 @@ export default function NFeImportarPage() {
   const [dialogPreview, setDialogPreview] = useState(false);
   const [dialogSucesso, setDialogSucesso] = useState(false);
   const [dialogDetalhes, setDialogDetalhes] = useState<number | null>(null);
-  const [produtosSemConversao, setProdutosSemConversao] = useState<number[]>([]);
   const [importando, setImportando] = useState(false);
   const [fileName, setFileName] = useState('');
   const [parseError, setParseError] = useState('');
@@ -193,8 +204,8 @@ export default function NFeImportarPage() {
         if (unidadesPorCaixa < 1) unidadesPorCaixa = 0;
 
         const markup = parseFloat(markupDefault) || 40;
-        // Calcular custo unitário real (se conversão detectada, divide pelo fator)
-        const custoUnitario = unidadesPorCaixa > 1 ? p.valorUnitario / unidadesPorCaixa : p.valorUnitario;
+        const factor = unidadesPorCaixa > 0 ? unidadesPorCaixa : 1;
+        const custoUnitario = p.valorUnitario / factor;
         return {
           nfeProduto: p,
           status: existente ? 'cadastrado' : 'novo',
@@ -210,16 +221,6 @@ export default function NFeImportarPage() {
 
       setProdutosImportacao(produtosMapeados);
 
-      // Verificar produtos sem conversão automática (precisam deinput manual)
-      const semConversao = produtosMapeados
-        .map((p, idx) => (p.unidadesPorCaixa === 0 ? idx : -1))
-        .filter((idx) => idx >= 0);
-      
-      if (semConversao.length > 0) {
-        setProdutosSemConversao(semConversao);
-      } else {
-        setProdutosSemConversao([]);
-      }
       // Verificar se NFe já foi importada
       if (dados.chaveAcesso && empresaId) {
         verificarNFeDuplicada(dados.chaveAcesso);
@@ -320,10 +321,8 @@ export default function NFeImportarPage() {
 
   // Helper: custo unitário real (se tem conversão, divide o valor da caixa pelas unidades)
   const getCustoUnitario = (item: ProdutoImportacao): number => {
-    if (item.unidadesPorCaixa > 1) {
-      return item.nfeProduto.valorUnitario / item.unidadesPorCaixa;
-    }
-    return item.nfeProduto.valorUnitario;
+    const factor = item.unidadesPorCaixa > 0 ? item.unidadesPorCaixa : 1;
+    return item.nfeProduto.valorUnitario / factor;
   };
 
   // Helper: round price to nearest R$ 0.05 (arredondamento comercial)
@@ -343,7 +342,8 @@ export default function NFeImportarPage() {
     setProdutosImportacao((prev) =>
       prev.map((p, i) => {
         if (i === index) {
-          const custoUnitario = num > 1 ? p.nfeProduto.valorUnitario / num : p.nfeProduto.valorUnitario;
+          const factor = num > 0 ? num : 1;
+          const custoUnitario = p.nfeProduto.valorUnitario / factor;
           const novoPreco = calcularPrecoVenda(custoUnitario, p.markupPercentual);
           return { ...p, unidadesPorCaixa: num, precoVenda: novoPreco };
         }
@@ -452,19 +452,6 @@ export default function NFeImportarPage() {
         variant: 'destructive',
         title: `${novosSemCategoria.length} produto(s) novo(s) sem categoria`,
         description: 'Selecione uma categoria para todos os novos produtos.',
-      });
-      return;
-    }
-
-    // Verificar se há produtos selecionados sem conversão (unidadesPorCaixa = 0)
-    const semConversaoSelecionados = produtosSelecionados.filter(
-      (p) => p.unidadesPorCaixa === 0
-    );
-    if (semConversaoSelecionados.length > 0) {
-      toast({
-        variant: 'destructive',
-        title: `${semConversaoSelecionados.length} produto(s) sem quantidade por caixa`,
-        description: 'Informe a quantidade por caixa (coluna "Unid/Cx") para todos os produtos selecionados.',
       });
       return;
     }
@@ -773,17 +760,6 @@ export default function NFeImportarPage() {
 
             {nfeData && (
               <div className="flex-1 overflow-x-hidden overflow-y-auto px-6 space-y-3">
-                {/* Alerta: Produtos sem conversão automática */}
-                {produtosSemConversao.length > 0 && (
-                  <Alert className="bg-amber-50 border-amber-200">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    <AlertTitle className="text-amber-700">Atenção: {produtosSemConversao.length} produto(s) sem conversão automática</AlertTitle>
-                    <AlertDescription className="text-amber-600">
-                      Informe a quantidade por caixa (coluna "Unid/Cx") para calcular o custo unitário corretamente. Os campos estão destacados na tabela abaixo.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
                 {/* Dados da NFe */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   <div className="bg-muted rounded-lg p-2">
@@ -1002,7 +978,7 @@ export default function NFeImportarPage() {
                             <TableHead className="w-16 h-7 px-1 text-[10px]">Cód</TableHead>
                             <TableHead className="min-w-[160px] h-7 px-1 text-[10px]">Produto</TableHead>
                             <TableHead className="w-16 h-7 px-1 text-center text-[10px]">Qtd</TableHead>
-                            <TableHead className="w-14 h-7 px-1 text-center text-[10px]">Cx</TableHead>
+                            <TableHead className="w-14 h-7 px-1 text-center text-[10px]">Conv</TableHead>
                             <TableHead className="w-24 h-7 px-1 text-right text-[10px]">Custo</TableHead>
                             <TableHead className="w-20 h-7 px-1 text-right text-[10px]">Total</TableHead>
                             <TableHead className="w-20 h-7 px-1 text-center text-[10px]">Mkp%</TableHead>
@@ -1058,20 +1034,26 @@ export default function NFeImportarPage() {
                                 {item.nfeProduto.quantidade} {item.nfeProduto.unidade}
                               </TableCell>
                               <TableCell className="px-1 py-0.5 text-center">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  max="9999"
-                                  value={item.unidadesPorCaixa === 0 ? '' : item.unidadesPorCaixa}
-                                  onChange={(e) => updateUnidadesPorCaixa(index, e.target.value)}
-                                  placeholder="0"
-                                  className={`w-16 h-7 text-center text-xs border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                    produtosSemConversao.includes(index) && item.unidadesPorCaixa === 0
-                                      ? 'border-2 border-amber-400 bg-amber-50 text-amber-700 font-bold ring-1 ring-amber-200'
-                                      : 'border-gray-200 bg-white'
-                                  }`}
-                                  title="Unidades por caixa (fator de conversão)"
-                                />
+                                <div className="flex items-center gap-0.5">
+                                  <select
+                                    value={item.unidadesPorCaixa}
+                                    onChange={(e) => {
+                                      const v = parseInt(e.target.value);
+                                      updateUnidadesPorCaixa(index, String(v));
+                                    }}
+                                    className={`w-14 h-7 text-center text-xs border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                      item.unidadesPorCaixa === 0
+                                        ? 'border-2 border-amber-400 bg-amber-50 text-amber-700 font-bold ring-1 ring-amber-200'
+                                        : 'border-gray-200 bg-white'
+                                    }`}
+                                  >
+                                    {OPCOES_CONVERSAO.map((opt) => (
+                                      <option key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
                               </TableCell>
                               <TableCell className="px-1 py-0.5 text-right font-mono text-[10px]">
                                 R$ {item.nfeProduto.valorUnitario.toFixed(2)}
