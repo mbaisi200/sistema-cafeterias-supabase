@@ -322,6 +322,8 @@ export function useCategorias() {
       .single();
 
     if (error) throw error;
+
+    await carregarDados();
     return data.id;
   };
 
@@ -336,6 +338,8 @@ export function useCategorias() {
       .eq('id', id);
 
     if (error) throw error;
+
+    await carregarDados();
   };
 
   const excluirCategoria = async (id: string) => {
