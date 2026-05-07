@@ -989,7 +989,7 @@ export default function ProdutosPage() {
                             </div>
                             <div className="space-y-2">
                               <Label htmlFor="unidadeTributavel">Unidade Tributável</Label>
-                              <Select name="unidadeTributavel" defaultValue={editandoProduto?.unidadeTributavel || 'UN'}>
+                              <Select name="unidadeTributavel" defaultValue={(editandoProduto?.unidadeTributavel || 'UN').toUpperCase()}>
                                 <SelectTrigger>
                                   <SelectValue placeholder="Selecione" />
                                 </SelectTrigger>
