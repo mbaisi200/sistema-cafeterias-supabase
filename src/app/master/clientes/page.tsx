@@ -670,52 +670,38 @@ export default function ClientesPage() {
           { title: 'Clientes' },
         ]}
       >
-        <div className="space-y-6">
+        <div className="space-y-2">
           {/* Alertas de expiração */}
-          {clientesVencidos.length > 0 && (
-            <Card className="border-red-200 bg-red-50">
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="h-5 w-5 text-red-600" />
-                  <div>
-                    <p className="font-semibold text-red-800">
-                      {clientesVencidos.length} cliente(s) com assinatura vencida!
-                    </p>
-                    <p className="text-sm text-red-700">
-                      {clientesVencidos.map(c => c.nome).join(', ')}
-                    </p>
-                  </div>
+          {(clientesVencidos.length > 0 || clientesVencendoEmBreve.length > 0) && (
+            <div className="flex flex-wrap gap-2">
+              {clientesVencidos.length > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-red-200 bg-red-50 text-sm">
+                  <AlertTriangle className="h-4 w-4 text-red-600 shrink-0" />
+                  <span className="text-red-800 font-medium text-xs">
+                    {clientesVencidos.length} vencido(s)
+                  </span>
+                  <span className="text-red-700 text-xs">
+                    {clientesVencidos.map(c => c.nome).join(', ')}
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {clientesVencendoEmBreve.length > 0 && (
-            <Card className="border-yellow-200 bg-yellow-50">
-              <CardContent className="pt-4">
-                <div className="flex items-center gap-3">
-                  <Clock className="h-5 w-5 text-yellow-600" />
-                  <div>
-                    <p className="font-semibold text-yellow-800">
-                      {clientesVencendoEmBreve.length} cliente(s) vencendo em até 3 dias
-                    </p>
-                    <p className="text-sm text-yellow-700">
-                      {clientesVencendoEmBreve.map(c => `${c.nome} (${formatDate(c.validade)})`).join(', ')}
-                    </p>
-                  </div>
+              )}
+              {clientesVencendoEmBreve.length > 0 && (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-md border border-yellow-200 bg-yellow-50 text-sm">
+                  <Clock className="h-4 w-4 text-yellow-600 shrink-0" />
+                  <span className="text-yellow-800 font-medium text-xs">
+                    {clientesVencendoEmBreve.length} vence(m) em breve
+                  </span>
+                  <span className="text-yellow-700 text-xs">
+                    {clientesVencendoEmBreve.map(c => `${c.nome} (${formatDate(c.validade)})`).join(', ')}
+                  </span>
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold">Gestão de Clientes</h1>
-              <p className="text-muted-foreground">
-                Gerencie todas as empresas cadastradas no sistema
-              </p>
+              )}
             </div>
+          )}
+
+          {/* Header + Novo Cliente */}
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="text-xl font-bold">Clientes</h1>
             <Dialog open={dialogOpen} onOpenChange={(open) => {
               setDialogOpen(open);
               if (!open) {
@@ -988,117 +974,109 @@ export default function ClientesPage() {
           </div>
 
           {/* Filters */}
-          <Card>
-            <CardContent className="pt-6">
-              <div className="flex flex-col md:flex-row gap-4">
-                <div className="flex-1">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder="Buscar por nome, CNPJ ou email do admin..."
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      className="pl-10"
-                    />
-                  </div>
-                </div>
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full md:w-40">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todos os Status</SelectItem>
-                    <SelectItem value="ativo">Ativo</SelectItem>
-                    <SelectItem value="inativo">Inativo</SelectItem>
-                    <SelectItem value="bloqueado">Bloqueado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, CNPJ ou email..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 h-9"
+              />
+            </div>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="w-36 h-9">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="ativo">Ativo</SelectItem>
+                <SelectItem value="inativo">Inativo</SelectItem>
+                <SelectItem value="bloqueado">Bloqueado</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Table */}
           {filteredClientes.length === 0 ? (
             <Card>
-              <CardContent className="flex flex-col items-center justify-center h-64">
-                <Search className="h-16 w-16 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium">Nenhum cliente encontrado</p>
-                <p className="text-sm text-muted-foreground">Clique em "Novo Cliente" para adicionar</p>
+              <CardContent className="flex flex-col items-center justify-center py-8">
+                <Search className="h-10 w-10 text-muted-foreground mb-2" />
+                <p className="text-sm font-medium">Nenhum cliente encontrado</p>
+                <p className="text-xs text-muted-foreground">Clique em "Novo Cliente" para adicionar</p>
               </CardContent>
             </Card>
           ) : (
             <Card>
-              <CardHeader>
-                <CardTitle>Clientes ({filteredClientes.length})</CardTitle>
-                <CardDescription>
-                  Lista de todas as empresas cadastradas
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
+              <CardContent className="p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-medium text-muted-foreground">
+                    {filteredClientes.length} cliente(s)
+                  </p>
+                </div>
                 <div className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Empresa</TableHead>
-                        <TableHead>Admin</TableHead>
-                        <TableHead>Localização</TableHead>
-                        <TableHead>Valor Mensal</TableHead>
-                        <TableHead>Validade</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
+                        <TableHead className="h-8 text-xs">Empresa</TableHead>
+                        <TableHead className="h-8 text-xs">Admin</TableHead>
+                        <TableHead className="h-8 text-xs">Local</TableHead>
+                        <TableHead className="h-8 text-xs">Valor</TableHead>
+                        <TableHead className="h-8 text-xs">Validade</TableHead>
+                        <TableHead className="h-8 text-xs">Status</TableHead>
+                        <TableHead className="h-8 text-xs text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {filteredClientes.map((cliente) => (
-                        <TableRow key={cliente.id} className={isVencido(cliente.validade) ? 'bg-red-50' : isVencendoEmBreve(cliente.validade) ? 'bg-yellow-50' : ''}>
+                        <TableRow key={cliente.id} className={isVencido(cliente.validade) ? 'bg-red-50/50' : isVencendoEmBreve(cliente.validade) ? 'bg-yellow-50/50' : ''}>
                           <TableCell>
-                            <div className="flex items-center gap-3">
-                              <div className="h-10 w-10 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white font-semibold">
+                            <div className="flex items-center gap-2">
+                              <div className="h-7 w-7 rounded-full bg-gradient-to-br from-orange-400 to-amber-500 flex items-center justify-center text-white text-xs font-semibold shrink-0">
                                 {cliente.nome.charAt(0)}
                               </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <p className="font-medium">{cliente.nome}</p>
+                              <div className="min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="font-medium text-sm truncate max-w-[140px]">{cliente.nome}</p>
                                   {cliente.segmentoNome && (
-                                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-blue-100 text-blue-700">
+                                    <Badge variant="secondary" className="text-[10px] px-1 py-0 bg-blue-100 text-blue-700 leading-none">
                                       {cliente.segmentoNome}
                                     </Badge>
                                   )}
                                 </div>
-                                <p className="text-sm text-muted-foreground">{cliente.email}</p>
+                                <p className="text-xs text-muted-foreground truncate max-w-[160px]">{cliente.email}</p>
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{cliente.adminNome}</p>
-                              <p className="text-sm text-muted-foreground">{cliente.adminEmail}</p>
+                              <p className="text-sm font-medium truncate max-w-[120px]">{cliente.adminNome}</p>
+                              <p className="text-xs text-muted-foreground truncate max-w-[160px]">{cliente.adminEmail}</p>
                             </div>
                           </TableCell>
-                          <TableCell>{cliente.cidade || '-'}/{cliente.estado || '-'}</TableCell>
+                          <TableCell className="text-xs">{cliente.cidade || '-'}/{cliente.estado || '-'}</TableCell>
                           <TableCell>
-                            <span className="font-semibold text-green-700">
+                            <span className="font-semibold text-green-700 text-sm">
                               {formatCurrency(cliente.valorMensal)}
                             </span>
-                            <span className="text-xs text-muted-foreground">/mês</span>
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              <span className={isVencido(cliente.validade) ? 'text-red-600 font-medium' : isVencendoEmBreve(cliente.validade) ? 'text-yellow-600 font-medium' : ''}>
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                              <span className={`text-xs ${isVencido(cliente.validade) ? 'text-red-600 font-medium' : isVencendoEmBreve(cliente.validade) ? 'text-yellow-600 font-medium' : ''}`}>
                                 {formatDate(cliente.validade)}
                               </span>
                               {isVencido(cliente.validade) && (
-                                <Badge variant="destructive" className="text-xs">Vencido</Badge>
+                                <Badge variant="destructive" className="text-[10px] px-1 py-0 leading-none">Vencido</Badge>
                               )}
                               {isVencendoEmBreve(cliente.validade) && !isVencido(cliente.validade) && (
-                                <Badge variant="outline" className="text-xs border-yellow-500 text-yellow-700">Vence em breve</Badge>
+                                <Badge variant="outline" className="text-[10px] px-1 py-0 border-yellow-500 text-yellow-700 leading-none">Em breve</Badge>
                               )}
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge className={statusCores[cliente.status || ''] || 'bg-gray-500'}>
-                              {(cliente.status?.charAt(0).toUpperCase() || '') + (cliente.status?.slice(1) || '') || 'Indefinido'}
+                            <Badge className={`${statusCores[cliente.status || ''] || 'bg-gray-500'} text-[10px] px-1.5 py-0 leading-none`}>
+                              {(cliente.status?.charAt(0).toUpperCase() || '') + (cliente.status?.slice(1) || '') || '-'}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right">

@@ -90,18 +90,6 @@ interface ProdutoImportacao {
 
 // =====================================================
 // Page Component
-
-const OPCOES_CONVERSAO = [
-  { value: 1, label: 'Un (unidade)' },
-  { value: 6, label: 'CX/6' },
-  { value: 12, label: 'CX/12' },
-  { value: 18, label: 'CX/18' },
-  { value: 24, label: 'CX/24' },
-  { value: 30, label: 'CX/30' },
-  { value: 48, label: 'CX/48' },
-  { value: 60, label: 'CX/60' },
-  { value: 100, label: 'CX/100' },
-];
 // =====================================================
 
 export default function NFeImportarPage() {
@@ -978,7 +966,7 @@ export default function NFeImportarPage() {
                             <TableHead className="w-16 h-7 px-1 text-[10px]">Cód</TableHead>
                             <TableHead className="min-w-[160px] h-7 px-1 text-[10px]">Produto</TableHead>
                             <TableHead className="w-16 h-7 px-1 text-center text-[10px]">Qtd</TableHead>
-                            <TableHead className="w-14 h-7 px-1 text-center text-[10px]">Conv</TableHead>
+                            <TableHead className="w-14 h-7 px-1 text-center text-[10px]">Cx</TableHead>
                             <TableHead className="w-24 h-7 px-1 text-right text-[10px]">Custo</TableHead>
                             <TableHead className="w-20 h-7 px-1 text-right text-[10px]">Total</TableHead>
                             <TableHead className="w-20 h-7 px-1 text-center text-[10px]">Mkp%</TableHead>
@@ -1034,26 +1022,20 @@ export default function NFeImportarPage() {
                                 {item.nfeProduto.quantidade} {item.nfeProduto.unidade}
                               </TableCell>
                               <TableCell className="px-1 py-0.5 text-center">
-                                <div className="flex items-center gap-0.5">
-                                  <select
-                                    value={item.unidadesPorCaixa}
-                                    onChange={(e) => {
-                                      const v = parseInt(e.target.value);
-                                      updateUnidadesPorCaixa(index, String(v));
-                                    }}
-                                    className={`w-14 h-7 text-center text-xs border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                                      item.unidadesPorCaixa === 0
-                                        ? 'border-2 border-amber-400 bg-amber-50 text-amber-700 font-bold ring-1 ring-amber-200'
-                                        : 'border-gray-200 bg-white'
-                                    }`}
-                                  >
-                                    {OPCOES_CONVERSAO.map((opt) => (
-                                      <option key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  step="1"
+                                  value={item.unidadesPorCaixa || ''}
+                                  onChange={(e) => updateUnidadesPorCaixa(index, e.target.value)}
+                                  placeholder="0"
+                                  className={`w-16 h-7 text-center text-xs border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                                    item.unidadesPorCaixa === 0
+                                      ? 'border-2 border-amber-400 bg-amber-50 text-amber-700 font-bold ring-1 ring-amber-200'
+                                      : 'border-gray-200 bg-white'
+                                  }`}
+                                  title="Unidades por caixa (0 = unidade)"
+                                />
                               </TableCell>
                               <TableCell className="px-1 py-0.5 text-right font-mono text-[10px]">
                                 R$ {item.nfeProduto.valorUnitario.toFixed(2)}
