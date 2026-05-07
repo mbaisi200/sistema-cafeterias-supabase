@@ -201,11 +201,9 @@ export function useProdutos() {
       .eq('id', id);
 
     if (error) {
-      // Se o erro for de coluna não existente, tentar remover campos problemáticos
-      if (error.message?.includes('column') || error.message?.includes('does not exist')) {
+      if (error.message?.includes('does not exist')) {
         console.warn('Aviso: Coluna não encontrada no banco. Verifique se as migrations foram executadas. Erro:', error.message);
         
-        // Remover campos que podem não existir e tentar novamente
         const optionalFields = [
           'disponivel_ifood', 'ifood_external_code', 'ifood_sync_status', 'ifood_product_id',
           'is_combo', 'combo_preco', 'unidades_por_caixa', 'preco_unidade',

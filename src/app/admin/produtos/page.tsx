@@ -141,14 +141,12 @@ export default function ProdutosPage() {
   useEffect(() => {
     if (!empresaId) { setLoadingUnidades(false); return; }
     const supabase = getSupabaseClient();
-    console.log('Carregando unidades para:', empresaId);
     supabase.from('unidades').select('*').eq('empresa_id', empresaId).order('nome')
-      .then(({ data, error }) => { 
-        console.log('Unidades carregadas:', data, error); 
-        if (data) setUnidades(data); 
-        setLoadingUnidades(false); 
+      .then(({ data, error }) => {
+        if (data) setUnidades(data);
+        setLoadingUnidades(false);
       })
-      .catch((err) => { console.error('Erro:', err); setLoadingUnidades(false); });
+      .catch(() => setLoadingUnidades(false));
   }, [empresaId]);
 
   const handleSalvarUnidade = async () => {
@@ -412,9 +410,13 @@ export default function ProdutosPage() {
       setDialogOpen(false);
       setEditandoProduto(null);
       refetchProdutos();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao salvar produto:', error);
-      toast({ variant: 'destructive', title: 'Erro ao salvar produto' });
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao salvar produto',
+        description: error?.message || error?.error_description || 'Erro desconhecido',
+      });
     } finally {
       setSaving(false);
     }
