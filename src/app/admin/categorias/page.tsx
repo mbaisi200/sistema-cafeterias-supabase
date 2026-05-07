@@ -132,7 +132,7 @@ export default function CategoriasPage() {
                     </div>
                     <div className="space-y-2">
                       <Label>Cor</Label>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         {colorOptions.map((color) => (
                           <button
                             key={color}
@@ -146,6 +146,20 @@ export default function CategoriasPage() {
                             style={{ backgroundColor: color }}
                           />
                         ))}
+                        <div className="relative">
+                          <input
+                            type="color"
+                            value={selectedColor}
+                            onChange={(e) => setSelectedColor(e.target.value)}
+                            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                          />
+                          <div
+                            className="h-8 w-8 rounded-full border-2 border-dashed border-gray-300 hover:scale-105 transition-all cursor-pointer flex items-center justify-center text-xs text-muted-foreground"
+                            title="Escolher cor personalizada"
+                          >
+                            +
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>

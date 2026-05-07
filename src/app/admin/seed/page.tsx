@@ -541,6 +541,7 @@ function SeedContent() {
   const [logs, setLogs] = useState<string[]>([]);
   const [dataInicio, setDataInicio] = useState('2026-01-01');
   const [dataFim, setDataFim] = useState('2026-04-30');
+  const [numVendas, setNumVendas] = useState(220);
 
   // Estados do segmento
   const [segmentos, setSegmentos] = useState<Segmento[]>([]);
@@ -988,7 +989,7 @@ function SeedContent() {
 
       const vendasIds: string[] = [];
       const vendasSeedInfo: {id: string, total: number, forma_pagamento: string, criado_em: number}[] = [];
-      const NUM_VENDAS = 220;
+      const NUM_VENDAS = Number(numVendas) || 220;
       const itensVendaData: {empresa_id: string, venda_id: string, produto_id: string, nome: string, quantidade: number, preco_unitario: number, total: number, criado_em: string}[] = [];
       const pagamentosData: {empresa_id: string, venda_id: string, forma_pagamento: string, valor: number, criado_em: string}[] = [];
 
@@ -1507,6 +1508,32 @@ function SeedContent() {
             )}
           </div>
 
+          {/* Número de lançamentos */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-2">
+              <Layers className="h-4 w-4" />
+              Número de Lançamentos (vendas)
+            </Label>
+            <div className="flex items-center gap-4">
+              <input
+                type="range"
+                min={10}
+                max={1000}
+                step={10}
+                value={numVendas}
+                onChange={(e) => setNumVendas(Number(e.target.value))}
+                disabled={loading}
+                className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
+              />
+              <span className="text-lg font-bold text-orange-600 min-w-[4rem] text-right">{numVendas}</span>
+            </div>
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>10</span>
+              <span>500</span>
+              <span>1000</span>
+            </div>
+          </div>
+
           {/* Status da empresa selecionada */}
           {empresaId && (
             <div className="flex items-center gap-2 p-4 bg-green-50 rounded-lg border border-green-200">
@@ -1683,7 +1710,7 @@ function SeedContent() {
               <p className="text-sm text-green-700">Produtos</p>
             </div>
             <div className="p-3 bg-red-50 rounded-lg text-center">
-              <p className="text-2xl font-bold text-red-600">220</p>
+              <p className="text-2xl font-bold text-red-600">{numVendas}</p>
               <p className="text-sm text-red-700">Vendas</p>
             </div>
             <div className={`p-3 rounded-lg text-center ${isFeatureAtiva('estoque') ? 'bg-cyan-50' : 'bg-gray-100 opacity-50'}`}>
@@ -1719,7 +1746,7 @@ function SeedContent() {
             {segmentoId && secoesAtivas.length > 0 ? (
               <span>Valores ajustados pelo segmento selecionado — seções desabilitadas não geram dados</span>
             ) : (
-              <><strong>Total: ~550+ lançamentos</strong> distribuídos no período selecionado</>
+              <><strong>Total: ~{numVendas + 350} lançamentos</strong> distribuídos no período selecionado</>
             )}
           </p>
         </CardContent>

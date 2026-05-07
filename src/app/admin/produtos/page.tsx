@@ -1248,11 +1248,8 @@ export default function ProdutosPage() {
                   size="sm" 
                   className="bg-blue-600 hover:bg-blue-700"
                   onClick={() => {
-                    const nome = prompt('Nome da nova categoria:');
-                    if (nome) {
-                      const cor = prompt('Cor (ex: #f97316):') || '#f97316';
-                      adicionarCategoria({ nome, cor });
-                    }
+                    setSelectedColor('#f97316');
+                    setDialogCategoriaOpen(true);
                   }}
                 >
                   <Plus className="h-4 w-4 mr-1" />
@@ -1772,6 +1769,63 @@ export default function ProdutosPage() {
                 Salvar Itens
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog: Nova Categoria */}
+        <Dialog open={dialogCategoriaOpen} onOpenChange={setDialogCategoriaOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nova Categoria</DialogTitle>
+              <DialogDescription>Crie uma nova categoria para organizar os produtos</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSalvarCategoria}>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label htmlFor="nomeCategoria">Nome da Categoria</Label>
+                  <Input id="nomeCategoria" name="nome" placeholder="Ex: Bebidas Quentes" required />
+                </div>
+                <div className="space-y-2">
+                  <Label>Cor</Label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {colorOptions.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        onClick={() => setSelectedColor(color)}
+                        className={`h-8 w-8 rounded-full transition-all ${
+                          selectedColor === color
+                            ? 'ring-2 ring-offset-2 ring-gray-400 scale-110'
+                            : 'hover:scale-105'
+                        }`}
+                        style={{ backgroundColor: color }}
+                      />
+                    ))}
+                    <div className="relative">
+                      <input
+                        type="color"
+                        value={selectedColor}
+                        onChange={(e) => setSelectedColor(e.target.value)}
+                        className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                      />
+                      <div
+                        className="h-8 w-8 rounded-full border-2 border-dashed border-gray-300 hover:scale-105 transition-all cursor-pointer flex items-center justify-center text-xs text-muted-foreground"
+                        title="Escolher cor personalizada"
+                      >
+                        +
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter className="mt-4">
+                <Button variant="outline" type="button" onClick={() => setDialogCategoriaOpen(false)}>Cancelar</Button>
+                <Button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700">
+                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Salvar Categoria
+                </Button>
+              </DialogFooter>
+            </form>
           </DialogContent>
         </Dialog>
 
