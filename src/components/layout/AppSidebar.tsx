@@ -98,7 +98,7 @@ const masterMenuItems: MenuItem[] = [
   { title: 'Dashboard', url: '/master/dashboard', icon: LayoutDashboard },
   { title: 'Clientes', url: '/master/clientes', icon: Users },
   { title: 'Segmentos', url: '/master/segmentos', icon: Layers },
-  { title: 'Popular Dados', url: '/admin/seed', icon: Database },
+  { title: 'Popular Dados', url: '/master/seed', icon: Database },
   { title: 'Consumo de Dados', url: '/master/consumo-dados', icon: BarChart3 },
   { title: 'Integrações', url: '/master/integracoes', icon: Plug },
   { title: 'Configurações', url: '/master/configuracoes', icon: Coffee },

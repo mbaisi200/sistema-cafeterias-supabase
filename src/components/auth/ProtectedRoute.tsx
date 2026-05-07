@@ -28,7 +28,6 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     '/admin/configuracoes-cupom', // Sub-página de Cupons e NFEs
     '/admin/configuracoes/unidades', // Sub-página de Unidades
     '/admin/logs',               // Logs do sistema
-    '/admin/seed',               // Seed de dados (master/admin)
   ];
 
   const isMandatoryRoute = mandatoryRoutes.some(route =>

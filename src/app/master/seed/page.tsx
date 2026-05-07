@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { getSupabaseClient } from '@/lib/supabase';
 import Link from 'next/link';
-import { Database, CheckCircle, XCircle, Loader2, AlertTriangle, Building2, Trash2, CalendarDays, Layers, ChevronLeft } from 'lucide-react';
+import { Database, CheckCircle, XCircle, Loader2, AlertTriangle, Building2, Trash2, CalendarDays, Layers, ChevronLeft, FileText } from 'lucide-react';
 
 interface SeedStatus {
   step: string;
@@ -507,6 +507,7 @@ const FORMAS_PAGAMENTO = ['dinheiro', 'debito', 'credito', 'pix'];
 // Tabelas que serão limpas
 const TABELAS_PARA_LIMPAR = [
   'categorias',
+  'fornecedores',
   'funcionarios',
   'mesas',
   'produtos',
@@ -523,8 +524,8 @@ const TABELAS_PARA_LIMPAR = [
 
 export default function SeedPage() {
   return (
-    <ProtectedRoute allowedRoles={['admin', 'master']}>
-      <MainLayout breadcrumbs={[{ title: 'Seed de Dados' }]}>
+    <ProtectedRoute allowedRoles={['master']}>
+      <MainLayout breadcrumbs={[{ title: 'Master' }, { title: 'Seed de Dados' }]}>
         <SeedContent />
       </MainLayout>
     </ProtectedRoute>
@@ -551,6 +552,8 @@ function SeedContent() {
   const [loadingSegmentos, setLoadingSegmentos] = useState(false);
   const [secoesAtivas, setSecoesAtivas] = useState<SecaoAtiva[]>([]);
   const [loadingSecoes, setLoadingSecoes] = useState(false);
+  const [limpandoNFe, setLimpandoNFe] = useState(false);
+  const [mostrarLogsNFe, setMostrarLogsNFe] = useState(false);
 
   const addLog = (message: string) => {
     setLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${message}`]);
@@ -759,6 +762,54 @@ function SeedContent() {
     return data?.length || 0;
   };
 
+  const limparImportacoesNFe = async () => {
+    if (!empresaId) {
+      addLog('Erro: Selecione uma empresa!');
+      return;
+    }
+
+    setLimpandoNFe(true);
+    setMostrarLogsNFe(true);
+    setLogs([]);
+    addLog('🧹 Limpando histórico de importações NFe...');
+
+    const supabase = getSupabaseClient();
+
+    try {
+      // 1. Deletar nfe_importadas — ON DELETE CASCADE remove estoque_movimentos e contas vinculados
+      const { data: nfeDeletadas, error: errNfe } = await supabase
+        .from('nfe_importadas')
+        .delete()
+        .eq('empresa_id', empresaId)
+        .select('id');
+      if (errNfe) throw errNfe;
+      const countNfe = nfeDeletadas?.length || 0;
+      addLog(`  - nfe_importadas: ${countNfe} registro(s) removido(s)`);
+
+      // 2. Deletar fornecedores criados por importação NFe
+      const { data: fornDeletados, error: errForn } = await supabase
+        .from('fornecedores')
+        .delete()
+        .eq('empresa_id', empresaId)
+        .select('id');
+      if (errForn) throw errForn;
+      const countForn = fornDeletados?.length || 0;
+      addLog(`  - fornecedores: ${countForn} registro(s) removido(s)`);
+
+      const total = countNfe + countForn;
+      if (total > 0) {
+        addLog(`✅ ${total} registro(s) de importação NFe removido(s).`);
+      } else {
+        addLog('✅ Nenhum registro de importação NFe encontrado.');
+      }
+    } catch (err: any) {
+      addLog(`❌ Erro ao limpar importações NFe: ${err.message}`);
+      console.error('Erro limpar NFe:', err);
+    } finally {
+      setLimpandoNFe(false);
+    }
+  };
+
   const executarSeed = async () => {
     if (!empresaId) {
       addLog('Erro: Selecione uma empresa!');
@@ -766,6 +817,7 @@ function SeedContent() {
     }
 
     setLoading(true);
+    setMostrarLogsNFe(false);
     setProgress(0);
     setLogs([]);
     setStatusList([]);
@@ -1673,6 +1725,57 @@ function SeedContent() {
                   </div>
                 ))}
               </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Card: Limpeza de Importações NFe */}
+      <Card className="mb-6 border-red-200 dark:border-red-900/50">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileText className="h-5 w-5 text-red-500" />
+            Limpeza de Importações NFe
+          </CardTitle>
+          <CardDescription>
+            Remove apenas registros de notas fiscais importadas, seus fornecedores e vínculos (estoque e contas). 
+            Não afeta os demais dados da empresa.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-start gap-2 p-3 bg-amber-50 rounded-lg border border-amber-200 mb-4">
+            <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+            <p className="text-sm text-amber-700">
+              Os produtos criados pela importação <strong>não serão removidos</strong>. 
+              Para limpar todos os dados, use o seed completo acima.
+            </p>
+          </div>
+          <Button
+            onClick={limparImportacoesNFe}
+            disabled={limpandoNFe || !empresaId}
+            variant="outline"
+            className="w-full border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700"
+          >
+            {limpandoNFe ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Limpando...
+              </>
+            ) : (
+              <>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Limpar Histórico de NFe Importadas
+              </>
+            )}
+          </Button>
+          {/* Logs específicos da limpeza NFe */}
+          {mostrarLogsNFe && logs.length > 0 && (
+            <div className="mt-3 bg-gray-900 text-gray-100 p-3 rounded-lg font-mono text-sm max-h-40 overflow-y-auto">
+              {logs.map((log, idx) => (
+                <div key={idx} className={log.includes('✅') ? 'text-green-400' : log.includes('❌') ? 'text-red-400' : log.includes('🧹') ? 'text-yellow-400' : ''}>
+                  {log}
+                </div>
+              ))}
             </div>
           )}
         </CardContent>

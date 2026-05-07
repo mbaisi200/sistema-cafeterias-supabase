@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -57,7 +57,6 @@ import {
   XCircle,
   ChevronRight,
   Tag,
-  Calendar,
   Percent,
   DollarSign,
   ArrowDownToLine,
@@ -69,6 +68,7 @@ import {
   ShieldCheck,
   FilePlus2,
   RefreshCw,
+  Trash2,
 } from 'lucide-react';
 
 // =====================================================
@@ -105,6 +105,7 @@ export default function NFeImportarPage() {
   const [dialogSucesso, setDialogSucesso] = useState(false);
   const [dialogDetalhes, setDialogDetalhes] = useState<number | null>(null);
   const [importando, setImportando] = useState(false);
+  const [limpandoNFe, setLimpandoNFe] = useState(false);
   const [fileName, setFileName] = useState('');
   const [parseError, setParseError] = useState('');
   const [isDragging, setIsDragging] = useState(false);
@@ -123,6 +124,7 @@ export default function NFeImportarPage() {
     return d.toISOString().split('T')[0];
   }, []);
   const [vencimentoConta, setVencimentoConta] = useState(defaultVencimento);
+  const [vencimentosEditados, setVencimentosEditados] = useState<Record<number, string>>({});
 
   // Fornecedor encontrado
   const [fornecedorEncontrado, setFornecedorEncontrado] = useState<any>(null);
@@ -136,6 +138,19 @@ export default function NFeImportarPage() {
   const [verificandoDuplicidade, setVerificandoDuplicidade] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Inicializar vencimentos editados quando NFe for carregada
+  useEffect(() => {
+    if (nfeData?.cobranca?.duplicatas) {
+      const inicial: Record<number, string> = {};
+      nfeData.cobranca.duplicatas.forEach((dup, i) => {
+        if (dup.vencimento) {
+          inicial[i] = dup.vencimento;
+        }
+      });
+      setVencimentosEditados(inicial);
+    }
+  }, [nfeData]);
 
   // =====================================================
   // File Handling
@@ -406,6 +421,37 @@ export default function NFeImportarPage() {
   // Confirmar Importação
   // =====================================================
 
+  const limparHistoricoNFe = async () => {
+    if (!empresaId) return;
+    setLimpandoNFe(true);
+    try {
+      const res = await fetch('/api/limpar-nfe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ empresaId }),
+      });
+      const data = await res.json();
+      if (data.sucesso) {
+        toast({
+          title: 'Histórico limpo',
+          description: `${data.nfe_removidas} NFe(s) e ${data.fornecedores_removidos} fornecedor(es) removidos.`,
+        });
+        setNfeDuplicada(null);
+        setResultadoImportacao(null);
+      } else {
+        throw new Error(data.erro);
+      }
+    } catch (err: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao limpar',
+        description: err.message,
+      });
+    } finally {
+      setLimpandoNFe(false);
+    }
+  };
+
   const confirmarImportacao = async () => {
     if (!nfeData || !empresaId) return;
 
@@ -454,7 +500,9 @@ export default function NFeImportarPage() {
           empresaId,
           userId: user?.id,
           userName: user?.nome,
-          nfeData,
+          nfeData: nfeData.cobranca?.duplicatas && Object.keys(vencimentosEditados).length > 0
+            ? { ...nfeData, cobranca: { duplicatas: nfeData.cobranca.duplicatas.map((dup, i) => ({ ...dup, vencimento: vencimentosEditados[i] || dup.vencimento })) } }
+            : nfeData,
           opcoes: {
             criarFornecedor,
             atualizarEstoque,
@@ -1000,11 +1048,11 @@ export default function NFeImportarPage() {
                               <TableCell className="px-1 py-0.5 font-mono text-[10px]">
                                 {item.nfeProduto.codigo || '-'}
                               </TableCell>
-                              <TableCell className="px-1 py-0.5">
-                                <div className="max-w-[180px]">
-                                  <p className="font-medium text-[11px] truncate leading-tight">
-                                    {item.nfeProduto.descricao}
-                                  </p>
+                 <TableCell className="px-1 py-0.5">
+                   <div>
+                     <p className="font-medium text-[11px] leading-tight">
+                       {item.nfeProduto.descricao}
+                     </p>
                                   <div className="flex flex-wrap gap-x-2 gap-y-0">
                                     {item.nfeProduto.ncm && item.nfeProduto.ncm !== '00000000' && (
                                       <span className="text-[9px] text-muted-foreground">NCM:{item.nfeProduto.ncm}</span>
@@ -1241,7 +1289,12 @@ export default function NFeImportarPage() {
                                     <div key={i} className="flex items-center gap-2 text-xs bg-muted/50 rounded px-2 py-1.5">
                                       <span className="font-medium text-muted-foreground w-16">{dup.numero || `P${i + 1}`}</span>
                                       <span className="text-muted-foreground">Vence:</span>
-                                      <span className="font-medium">{new Date(dup.vencimento + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                                      <Input
+                                        type="date"
+                                        value={vencimentosEditados[i] || ''}
+                                        onChange={(e) => setVencimentosEditados(prev => ({ ...prev, [i]: e.target.value }))}
+                                        className="h-7 text-xs w-36"
+                                      />
                                       <span className="text-muted-foreground ml-auto">R$ {dup.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                     </div>
                                   ))}
@@ -1360,6 +1413,22 @@ export default function NFeImportarPage() {
             )}
 
             <DialogFooter className="gap-2 pt-2 border-t px-6 pb-4">
+              {nfeDuplicada && (
+                <Button
+                  onClick={limparHistoricoNFe}
+                  disabled={limpandoNFe}
+                  variant="destructive"
+                  size="sm"
+                  className="gap-1.5"
+                >
+                  {limpandoNFe ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-3.5 w-3.5" />
+                  )}
+                  {limpandoNFe ? 'Limpando...' : 'Limpar histórico e tentar novamente'}
+                </Button>
+              )}
               <Button variant="outline" onClick={() => setDialogPreview(false)} className="h-8">
                 Voltar
               </Button>

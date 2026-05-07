@@ -76,15 +76,18 @@ export interface NFeParsed {
  * Helper para obter texto de um elemento XML, buscando no namespace padrão e com namespace
  */
 function getTextContent(parent: Element, tagName: string): string {
-  // Tenta sem namespace primeiro
   let el = parent.getElementsByTagName(tagName)[0];
   if (el) return (el.textContent || '').trim();
 
-  // Tenta com namespace NFe comum
   const namespaces = ['nfe', 'nf', 'NFe', 'NFe'];
   for (const ns of namespaces) {
     el = parent.getElementsByTagName(`${ns}:${tagName}`)[0];
     if (el) return (el.textContent || '').trim();
+  }
+
+  const allEls = parent.getElementsByTagName('*');
+  for (let i = 0; i < allEls.length; i++) {
+    if (allEls[i].localName === tagName) return (allEls[i].textContent || '').trim();
   }
 
   return '';
@@ -351,17 +354,7 @@ export function parseNFeXML(xmlString: string): NFeParsed {
   let cobranca: { duplicatas: Array<{ numero: string; vencimento: string; valor: number }> } | undefined;
   const cobrEl = findElement(infNFe, 'cobr');
   if (cobrEl) {
-    const dupElements = Array.from(cobrEl.getElementsByTagName('dup'));
-    if (dupElements.length === 0) {
-      for (const prefix of ['nfe', 'nf', 'NFe', 'NFe']) {
-        const els = Array.from(cobrEl.getElementsByTagName(`${prefix}:dup`));
-        if (els.length > 0) { dupElements.push(...els); break; }
-      }
-    }
-    if (dupElements.length === 0) {
-      const allEls = Array.from(cobrEl.getElementsByTagName('*'));
-      dupElements.push(...allEls.filter(el => el.localName === 'dup'));
-    }
+    const dupElements = Array.from(cobrEl.getElementsByTagName('*')).filter(el => el.localName === 'dup');
     const duplicatas = dupElements.map(dup => ({
       numero: getTextContent(dup, 'nDup'),
       vencimento: getTextContent(dup, 'dVenc'),
@@ -387,6 +380,7 @@ export function parseNFeXML(xmlString: string): NFeParsed {
     valorDesconto,
     valorOutrasDespesas,
     produtos,
+    cobranca,
   };
 }
 
