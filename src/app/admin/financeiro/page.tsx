@@ -58,7 +58,21 @@ import {
   X,
   ChevronLeft,
   Clock,
+  RefreshCw,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { exportToPDF, formatCurrencyPDF, formatDatePDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 import { useToast } from '@/hooks/use-toast';
 
@@ -74,7 +88,10 @@ export default function FinanceiroPage() {
     contas, 
     loading: loadingContas, 
     adicionarConta, 
+    atualizarConta,
+    excluirConta,
     registrarPagamento,
+    carregarDados,
     contasPagar,
     contasReceber,
     totalPagarPendente,
@@ -85,7 +102,10 @@ export default function FinanceiroPage() {
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogPagamentoOpen, setDialogPagamentoOpen] = useState(false);
+  const [dialogExcluirOpen, setDialogExcluirOpen] = useState(false);
   const [contaSelecionada, setContaSelecionada] = useState<any>(null);
+  const [contaEditando, setContaEditando] = useState<any>(null);
+  const [contaExcluir, setContaExcluir] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [tipoConta, setTipoConta] = useState<'pagar' | 'receber'>('pagar');
   const { toast } = useToast();
@@ -95,24 +115,13 @@ export default function FinanceiroPage() {
   const [filterReceber, setFilterReceber] = useState<ContaFilter>('todas');
 
   // Date/Category/Search filters
-  const getCurrentMonthRange = () => {
-    const now = new Date();
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    return {
-      inicio: firstDay.toISOString().split('T')[0],
-      fim: lastDay.toISOString().split('T')[0],
-    };
-  };
-  const defaultDateRange = getCurrentMonthRange();
-
-  const [dataInicioPagar, setDataInicioPagar] = useState(defaultDateRange.inicio);
-  const [dataFimPagar, setDataFimPagar] = useState(defaultDateRange.fim);
+  const [dataInicioPagar, setDataInicioPagar] = useState('');
+  const [dataFimPagar, setDataFimPagar] = useState('');
   const [categoriaPagar, setCategoriaPagar] = useState('');
   const [searchPagar, setSearchPagar] = useState('');
 
-  const [dataInicioReceber, setDataInicioReceber] = useState(defaultDateRange.inicio);
-  const [dataFimReceber, setDataFimReceber] = useState(defaultDateRange.fim);
+  const [dataInicioReceber, setDataInicioReceber] = useState('');
+  const [dataFimReceber, setDataFimReceber] = useState('');
   const [categoriaReceber, setCategoriaReceber] = useState('');
   const [searchReceber, setSearchReceber] = useState('');
 
@@ -290,33 +299,78 @@ export default function FinanceiroPage() {
     
     try {
       const vencimentoStr = formData.get('vencimento') as string;
-      const vencimento = vencimentoStr ? new Date(vencimentoStr + 'T00:00:00') : null;
-      
-      await adicionarConta({
+      const vencimento = vencimentoStr ? new Date(vencimentoStr + 'T23:59:59') : null;
+      const dados = {
         tipo: tipoConta,
         descricao: formData.get('descricao') as string,
         valor: parseFloat(formData.get('valor') as string) || 0,
         vencimento: vencimento,
         categoria: formData.get('categoria') as string,
         fornecedor: formData.get('fornecedor') as string,
-      });
+      };
 
-      toast({
-        title: 'Conta cadastrada!',
-        description: `A conta a ${tipoConta} foi adicionada com sucesso.`,
-      });
+      if (contaEditando) {
+        await atualizarConta(contaEditando.id, dados);
+        toast({
+          title: 'Conta atualizada!',
+          description: `A conta a ${tipoConta} foi alterada com sucesso.`,
+        });
+      } else {
+        await adicionarConta(dados);
+        toast({
+          title: 'Conta cadastrada!',
+          description: `A conta a ${tipoConta} foi adicionada com sucesso.`,
+        });
+      }
 
+      await carregarDados();
       setDialogOpen(false);
+      setContaEditando(null);
     } catch (error) {
       console.error('Erro ao salvar conta:', error);
       toast({
         variant: 'destructive',
         title: 'Erro',
-        description: 'Não foi possível cadastrar a conta.',
+        description: 'Não foi possível salvar a conta.',
       });
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleExcluirConta = async () => {
+    if (!contaExcluir) return;
+    setSaving(true);
+    try {
+      await excluirConta(contaExcluir.id);
+      await carregarDados();
+      toast({
+        title: 'Conta excluída!',
+        description: 'A conta foi removida com sucesso.',
+      });
+      setDialogExcluirOpen(false);
+      setContaExcluir(null);
+    } catch (error) {
+      console.error('Erro ao excluir conta:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro',
+        description: 'Não foi possível excluir a conta.',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const abrirEdicao = (conta: any) => {
+    setContaEditando(conta);
+    setTipoConta(conta.tipo);
+    setDialogOpen(true);
+  };
+
+  const abrirExclusao = (conta: any) => {
+    setContaExcluir(conta);
+    setDialogExcluirOpen(true);
   };
 
   const handleRegistrarPagamento = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -469,7 +523,7 @@ export default function FinanceiroPage() {
       >
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-start gap-4">
             <div className="flex items-center gap-3">
               <Link href="/admin/dashboard">
                 <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -483,7 +537,16 @@ export default function FinanceiroPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={() => carregarDados()}
+                title="Recarregar dados"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </Button>
               <Button
                 variant="outline"
                 onClick={async () => {
@@ -554,7 +617,7 @@ export default function FinanceiroPage() {
                 <Download className="mr-2 h-4 w-4" />
                 PDF Receber
               </Button>
-              <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+              <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setContaEditando(null); }}>
                 <DialogTrigger asChild>
                   <Button className="bg-blue-600 hover:bg-blue-700">
                     <Plus className="mr-2 h-4 w-4" />
@@ -563,12 +626,12 @@ export default function FinanceiroPage() {
                 </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Cadastrar Conta</DialogTitle>
+                  <DialogTitle>{contaEditando ? 'Editar Conta' : 'Cadastrar Conta'}</DialogTitle>
                   <DialogDescription>
-                    Adicione uma nova conta a pagar ou receber
+                    {contaEditando ? 'Altere os dados da conta' : 'Adicione uma nova conta a pagar ou receber'}
                   </DialogDescription>
                 </DialogHeader>
-                <form onSubmit={handleSalvarConta}>
+                <form key={contaEditando?.id || 'new'} onSubmit={handleSalvarConta}>
                   <div className="space-y-4 py-4">
                     <div className="flex gap-2">
                       <Button
@@ -593,43 +656,43 @@ export default function FinanceiroPage() {
 
                     <div className="space-y-2">
                       <Label htmlFor="descricao">Descrição *</Label>
-                      <Input id="descricao" name="descricao" placeholder="Ex: Aluguel do mês" required />
+                      <Input id="descricao" name="descricao" placeholder="Ex: Aluguel do mês" required defaultValue={contaEditando?.descricao || ''} />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="valor">Valor (R$) *</Label>
-                        <Input id="valor" name="valor" type="number" step="0.01" placeholder="0,00" required />
+                        <Input id="valor" name="valor" type="number" step="0.01" placeholder="0,00" required defaultValue={contaEditando?.valor || ''} />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="vencimento">Vencimento</Label>
-                        <Input id="vencimento" name="vencimento" type="date" />
+                        <Input id="vencimento" name="vencimento" type="date" defaultValue={contaEditando?.vencimento ? new Date(contaEditando.vencimento).toISOString().split('T')[0] : ''} />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="categoria">Categoria</Label>
-                        <Select name="categoria">
+                        <Select name="categoria" defaultValue={contaEditando?.categoria || ''}>
                           <SelectTrigger>
                             <SelectValue placeholder="Selecione" />
                           </SelectTrigger>
                           <SelectContent>
                             {tipoConta === 'pagar' ? (
                               <>
-                                <SelectItem value="fornecedores">Fornecedores</SelectItem>
-                                <SelectItem value="aluguel">Aluguel</SelectItem>
-                                <SelectItem value="funcionarios">Funcionários</SelectItem>
-                                <SelectItem value="impostos">Impostos</SelectItem>
-                                <SelectItem value="servicos">Serviços</SelectItem>
-                                <SelectItem value="outros">Outros</SelectItem>
+                                <SelectItem value="Fornecedores">Fornecedores</SelectItem>
+                                <SelectItem value="Aluguel">Aluguel</SelectItem>
+                                <SelectItem value="Funcionários">Funcionários</SelectItem>
+                                <SelectItem value="Impostos">Impostos</SelectItem>
+                                <SelectItem value="Serviços">Serviços</SelectItem>
+                                <SelectItem value="Outros">Outros</SelectItem>
                               </>
                             ) : (
                               <>
-                                <SelectItem value="vendas">Vendas</SelectItem>
-                                <SelectItem value="servicos">Serviços</SelectItem>
-                                <SelectItem value="aluguel">Aluguel Recebido</SelectItem>
-                                <SelectItem value="outros">Outros</SelectItem>
+                                <SelectItem value="Vendas">Vendas</SelectItem>
+                                <SelectItem value="Serviços">Serviços</SelectItem>
+                                <SelectItem value="Aluguel">Aluguel Recebido</SelectItem>
+                                <SelectItem value="Outros">Outros</SelectItem>
                               </>
                             )}
                           </SelectContent>
@@ -643,17 +706,18 @@ export default function FinanceiroPage() {
                           id="fornecedor" 
                           name="fornecedor" 
                           placeholder={tipoConta === 'pagar' ? 'Nome do fornecedor' : 'Nome do cliente'} 
+                          defaultValue={contaEditando?.fornecedor || ''}
                         />
                       </div>
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" type="button" onClick={() => setDialogOpen(false)}>
+                    <Button variant="outline" type="button" onClick={() => { setDialogOpen(false); setContaEditando(null); }}>
                       Cancelar
                     </Button>
                     <Button type="submit" disabled={saving} className="bg-blue-600 hover:bg-blue-700">
                       {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                      Salvar
+                      {contaEditando ? 'Atualizar' : 'Salvar'}
                     </Button>
                   </DialogFooter>
                 </form>
@@ -953,9 +1017,19 @@ export default function FinanceiroPage() {
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Contas a Pagar</CardTitle>
-                  <CardDescription>Gerencie suas despesas e pagamentos</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Contas a Pagar</CardTitle>
+                    <CardDescription>Gerencie suas despesas e pagamentos</CardDescription>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                    onClick={() => { setTipoConta('pagar'); setContaEditando(null); setDialogOpen(true); }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nova Conta
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   <FilterTabs 
@@ -970,8 +1044,7 @@ export default function FinanceiroPage() {
                       <p className="text-sm">Clique em &quot;Nova Conta&quot; para adicionar</p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
+                      <Table className="min-w-max md:min-w-full w-auto [&_td]:px-2 [&_td]:py-2.5 [&_th]:px-2 [&_th]:h-10">
                         <TableHeader>
                           <TableRow>
                             <SortableHeader 
@@ -1019,47 +1092,67 @@ export default function FinanceiroPage() {
                           {contasPagarFiltered.map((conta) => (
                             <TableRow key={conta.id}>
                               <TableCell>
-                                <div>
-                                  <p className="font-medium">{conta.descricao}</p>
+                                <div className="max-w-[200px] truncate">
+                                  <p className="font-medium truncate">{conta.descricao}</p>
                                   {conta.fornecedor && (
-                                    <p className="text-sm text-muted-foreground">{conta.fornecedor}</p>
+                                    <p className="text-sm text-muted-foreground truncate">{conta.fornecedor}</p>
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell>{conta.categoria || '-'}</TableCell>
-                              <TableCell>
+                              <TableCell className="whitespace-nowrap">{conta.categoria || '-'}</TableCell>
+                              <TableCell className="whitespace-nowrap">
                                 {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
                               </TableCell>
-                              <TableCell className="font-semibold text-right">
+                              <TableCell className="font-semibold text-right whitespace-nowrap">
                                 {formatCurrency(conta.valor)}
                               </TableCell>
-                              <TableCell>{getStatusBadge(conta)}</TableCell>
-                              <TableCell className="text-right text-sm text-muted-foreground">
+                              <TableCell className="whitespace-nowrap">{getStatusBadge(conta)}</TableCell>
+                              <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
                                 {conta.dataPagamento 
                                   ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR')
                                   : '-'
                                 }
                               </TableCell>
-                              <TableCell className="text-right">
-                                {conta.status === 'pendente' && (
+                              <TableCell className="text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-0.5">
                                   <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setContaSelecionada(conta);
-                                      setDialogPagamentoOpen(true);
-                                    }}
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7"
+                                    onClick={() => abrirEdicao(conta)}
+                                    title="Editar"
                                   >
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Pagar
+                                    <Pencil className="h-3.5 w-3.5" />
                                   </Button>
-                                )}
+                                  {conta.status === 'pendente' && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs text-green-600 border-green-300 hover:bg-green-50 px-2"
+                                      onClick={() => {
+                                        setContaSelecionada(conta);
+                                        setDialogPagamentoOpen(true);
+                                      }}
+                                    >
+                                      <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                      Pagar
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-red-500"
+                                    onClick={() => abrirExclusao(conta)}
+                                    title="Excluir"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
-                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -1128,9 +1221,19 @@ export default function FinanceiroPage() {
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader>
-                  <CardTitle>Contas a Receber</CardTitle>
-                  <CardDescription>Gerencie seus recebíveis</CardDescription>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Contas a Receber</CardTitle>
+                    <CardDescription>Gerencie seus recebíveis</CardDescription>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="bg-blue-600 hover:bg-blue-700"
+                    onClick={() => { setTipoConta('receber'); setContaEditando(null); setDialogOpen(true); }}
+                  >
+                    <Plus className="h-4 w-4 mr-1" />
+                    Nova Conta
+                  </Button>
                 </CardHeader>
                 <CardContent>
                   <FilterTabs 
@@ -1145,8 +1248,7 @@ export default function FinanceiroPage() {
                       <p className="text-sm">Clique em &quot;Nova Conta&quot; para adicionar</p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
+                      <Table className="min-w-max md:min-w-full w-auto [&_td]:px-2 [&_td]:py-2.5 [&_th]:px-2 [&_th]:h-10">
                         <TableHeader>
                           <TableRow>
                             <SortableHeader 
@@ -1194,52 +1296,92 @@ export default function FinanceiroPage() {
                           {contasReceberFiltered.map((conta) => (
                             <TableRow key={conta.id}>
                               <TableCell>
-                                <div>
-                                  <p className="font-medium">{conta.descricao}</p>
+                                <div className="max-w-[200px] truncate">
+                                  <p className="font-medium truncate">{conta.descricao}</p>
                                   {conta.fornecedor && (
-                                    <p className="text-sm text-muted-foreground">{conta.fornecedor}</p>
+                                    <p className="text-sm text-muted-foreground truncate">{conta.fornecedor}</p>
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell>{conta.categoria || '-'}</TableCell>
-                              <TableCell>
+                              <TableCell className="whitespace-nowrap">{conta.categoria || '-'}</TableCell>
+                              <TableCell className="whitespace-nowrap">
                                 {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
                               </TableCell>
-                              <TableCell className="font-semibold text-right">
+                              <TableCell className="font-semibold text-right whitespace-nowrap">
                                 {formatCurrency(conta.valor)}
                               </TableCell>
-                              <TableCell>{getStatusBadge(conta)}</TableCell>
-                              <TableCell className="text-right text-sm text-muted-foreground">
+                              <TableCell className="whitespace-nowrap">{getStatusBadge(conta)}</TableCell>
+                              <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
                                 {conta.dataPagamento 
                                   ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR')
                                   : '-'
                                 }
                               </TableCell>
-                              <TableCell className="text-right">
-                                {conta.status === 'pendente' && (
+                              <TableCell className="text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-0.5">
                                   <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setContaSelecionada(conta);
-                                      setDialogPagamentoOpen(true);
-                                    }}
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7"
+                                    onClick={() => abrirEdicao(conta)}
+                                    title="Editar"
                                   >
-                                    <CheckCircle className="h-4 w-4 mr-1" />
-                                    Receber
+                                    <Pencil className="h-3.5 w-3.5" />
                                   </Button>
-                                )}
+                                  {conta.status === 'pendente' && (
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs text-green-600 border-green-300 hover:bg-green-50 px-2"
+                                      onClick={() => {
+                                        setContaSelecionada(conta);
+                                        setDialogPagamentoOpen(true);
+                                      }}
+                                    >
+                                      <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                                      Receber
+                                    </Button>
+                                  )}
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-red-500"
+                                    onClick={() => abrirExclusao(conta)}
+                                    title="Excluir"
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
                         </TableBody>
                       </Table>
-                    </div>
                   )}
                 </CardContent>
               </Card>
             </TabsContent>
           </Tabs>
+
+          {/* Dialog Excluir Conta */}
+          <AlertDialog open={dialogExcluirOpen} onOpenChange={(open) => { setDialogExcluirOpen(open); if (!open) setContaExcluir(null); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Excluir Conta</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Tem certeza que deseja excluir a conta &ldquo;{contaExcluir?.descricao}&rdquo; no valor de {contaExcluir ? formatCurrency(contaExcluir.valor) : ''}?
+                  Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleExcluirConta} disabled={saving} className="bg-red-500 hover:bg-red-600">
+                  {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Excluir
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           {/* Dialog Pagamento */}
           <Dialog open={dialogPagamentoOpen} onOpenChange={setDialogPagamentoOpen}>

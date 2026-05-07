@@ -303,6 +303,24 @@ const darkMode = resolvedTheme === 'dark';
 
 ---
 
+## 📌 CNPJ Alfanumérico (Lei RFB nº 2.229/2024)
+
+A partir de **julho/2026** novos CNPJs usarão letras (A-Z) + números nas 12 primeiras posições. DV continua numérico. CNPJs existentes não mudam.
+
+### Nosso sistema — diagnóstico
+- **DB**: Todos CNPJs já são `VARCHAR` — sem migration necessária.
+- **Máscaras**: `maskCNPJ` em `src/lib/masks.ts` e 5+ `formatarCNPJ`/`mascaraCPFCNPJ` inlines usam `\D` / `\d` — precisam aceitar `[A-Z0-9]`.
+- **Validação DV**: `src/services/nfe/nfe-service.ts` usa `parseInt()` — implementar ASCII (A=17, B=18…).
+- **APIs**: `src/app/api/nfe/importar/route.ts` e `src/app/api/clientes/route.ts` usam `replace(/\D/g,'')`.
+- **Duplicação**: 3+ `mascaraCPFCNPJ` inlines — centralizar em `src/lib/masks.ts`.
+
+### Prazo
+- **Homologação SEFAZ**: 06/04/2026 ✅
+- **Produção**: 06/07/2026 (2 meses)
+- **Simulador oficial**: https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/cnpj-alfanumerico
+
+---
+
 ## 🔑 Variáveis de Ambiente (.env)
 
 ```env

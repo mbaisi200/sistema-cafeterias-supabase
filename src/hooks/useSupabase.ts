@@ -992,6 +992,7 @@ export function useContas() {
     atualizarConta, 
     registrarPagamento, 
     excluirConta,
+    carregarDados,
     contasPagar,
     contasReceber,
     totalPagarPendente,

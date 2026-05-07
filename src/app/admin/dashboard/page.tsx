@@ -296,11 +296,39 @@ export default function AdminDashboardPage() {
     loadOSLavanderia();
   }, [empresaId]);
 
-  // ── Date helpers ──
-  const currentMonthStart = useMemo(() => startOfMonth(new Date()), []);
-  const currentMonthEnd = useMemo(() => endOfMonth(new Date()), []);
-  const prevMonthStart = useMemo(() => startOfMonth(subMonths(new Date(), 1)), []);
-  const prevMonthEnd = useMemo(() => endOfMonth(subMonths(new Date(), 1)), []);
+  // ── Period filter ──
+  type PeriodoDashboard = 'atual' | 'meses' | 'customizado';
+  const [periodoFiltro, setPeriodoFiltro] = useState<PeriodoDashboard>('atual');
+  const [mesSelecionado, setMesSelecionado] = useState(() => format(new Date(), 'yyyy-MM'));
+  const [dataInicioCustom, setDataInicioCustom] = useState(() => format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [dataFimCustom, setDataFimCustom] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+
+  const currentMonthStart = useMemo(() => {
+    switch (periodoFiltro) {
+      case 'meses': return startOfMonth(new Date(mesSelecionado + '-01'));
+      case 'customizado': return startOfDay(new Date(dataInicioCustom + 'T00:00:00'));
+      default: return startOfMonth(new Date());
+    }
+  }, [periodoFiltro, mesSelecionado, dataInicioCustom]);
+
+  const currentMonthEnd = useMemo(() => {
+    switch (periodoFiltro) {
+      case 'meses': return endOfMonth(new Date(mesSelecionado + '-01'));
+      case 'customizado': return endOfDay(new Date(dataFimCustom + 'T23:59:59'));
+      default: return endOfMonth(new Date());
+    }
+  }, [periodoFiltro, mesSelecionado, dataFimCustom]);
+
+  const prevMonthStart = useMemo(() => {
+    const base = periodoFiltro === 'meses' ? new Date(mesSelecionado + '-01') : new Date();
+    return startOfMonth(subMonths(base, 1));
+  }, [periodoFiltro, mesSelecionado]);
+
+  const prevMonthEnd = useMemo(() => {
+    const base = periodoFiltro === 'meses' ? new Date(mesSelecionado + '-01') : new Date();
+    return endOfMonth(subMonths(base, 1));
+  }, [periodoFiltro, mesSelecionado]);
+
   const selectedDayStart = useMemo(() => startOfDay(selectedDate), [selectedDate]);
   const selectedDayEnd = useMemo(() => endOfDay(selectedDate), [selectedDate]);
 
@@ -919,6 +947,57 @@ export default function AdminDashboardPage() {
               {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
             </p>
           </div>
+
+          {/* ═══════════════════════════════════ */}
+          {/* FILTRO DE PERÍODO                  */}
+          {/* ═══════════════════════════════════ */}
+          <section>
+            <div className="flex flex-wrap items-center gap-3 p-3 rounded-lg border bg-card">
+              <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+                {(['atual', 'meses', 'customizado'] as const).map(tipo => (
+                  <button
+                    key={tipo}
+                    onClick={() => setPeriodoFiltro(tipo)}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                      periodoFiltro === tipo
+                        ? 'bg-primary text-primary-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    {tipo === 'atual' ? 'Atual' : tipo === 'meses' ? 'Por meses' : 'Customizado'}
+                  </button>
+                ))}
+              </div>
+              {periodoFiltro === 'meses' && (
+                <input
+                  type="month"
+                  value={mesSelecionado}
+                  onChange={e => setMesSelecionado(e.target.value)}
+                  className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                />
+              )}
+              {periodoFiltro === 'customizado' && (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={dataInicioCustom}
+                    onChange={e => setDataInicioCustom(e.target.value)}
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  />
+                  <span className="text-xs text-muted-foreground">até</span>
+                  <input
+                    type="date"
+                    value={dataFimCustom}
+                    onChange={e => setDataFimCustom(e.target.value)}
+                    className="h-8 rounded-md border border-input bg-background px-2 text-xs"
+                  />
+                </div>
+              )}
+              <span className="text-xs text-muted-foreground ml-auto">
+                {format(currentMonthStart, "MMM 'a' dd", { locale: ptBR })} — {format(currentMonthEnd, "dd 'de' MMM", { locale: ptBR })}
+              </span>
+            </div>
+          </section>
 
           {/* ═══════════════════════════════════ */}
           {/* INFORMAÇÕES DO DIA                 */}
