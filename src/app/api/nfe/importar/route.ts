@@ -12,7 +12,7 @@ function normalizarUnidade(unidade: string): string {
     'ML': 'ml', 'MLT': 'ml', 'MILILITRO': 'ml', 'MILILITROS': 'ml',
     'G': 'g', 'GRAMA': 'g', 'GR': 'g', 'GRAMAS': 'g',
     'MG': 'mg', 'MILIGRAMA': 'mg',
-    'CX': 'un', 'CAIXA': 'un', // Caixas are normalized to 'un' since they're countable
+    'CX': 'un', 'CAIXA': 'un',
     'PAC': 'un', 'PACOTE': 'un',
     'M': 'un', 'MIL': 'un', 'MILHEIRO': 'un',
     'MM': 'un',
@@ -424,38 +424,72 @@ export async function POST(request: NextRequest) {
     }
 
     // ========================================
-    // 3. GERAR CONTA A PAGAR (se solicitado)
+    // 3. GERAR CONTA(S) A PAGAR (se solicitado)
     // ========================================
     if (opcoes.gerarContaPagar && nfeData.valorTotal > 0) {
       try {
-        const vencimento = opcoes.vencimentoConta
-          ? new Date(opcoes.vencimentoConta + 'T23:59:59').toISOString()
-          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        const duplicatas = nfeData.cobranca?.duplicatas;
+        const parcelas = duplicatas && duplicatas.length > 0 ? duplicatas : null;
 
-        const { error: errorConta } = await supabase.from('contas').insert({
-          empresa_id: empresaId,
-          tipo: 'pagar',
-          descricao: `NFe ${nfeData.numero}/${nfeData.serie} - ${nfeData.emitente?.nome || 'Fornecedor'}`,
-          valor: nfeData.valorTotal,
-          vencimento,
-          categoria: 'Fornecedores',
-          fornecedor: resultado.fornecedorNome || nfeData.emitente?.nome || null,
-          status: 'pendente',
-          observacao_pagamento: `Importação automática - NFe ${nfeData.numero}/${nfeData.serie}${nfeData.chaveAcesso ? ` - Chave: ${nfeData.chaveAcesso}` : ''}`,
-        });
+        if (parcelas) {
+          for (const parcela of parcelas) {
+            const vencimento = parcela.vencimento
+              ? new Date(parcela.vencimento + 'T23:59:59').toISOString()
+              : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-        if (errorConta) {
-          resultado.erros.push(`Erro ao gerar conta a pagar: ${errorConta.message}`);
+            const { error: errorConta } = await supabase.from('contas').insert({
+              empresa_id: empresaId,
+              tipo: 'pagar',
+              descricao: `NFe ${nfeData.numero}/${nfeData.serie} - ${parcela.numero || `Parcela`} - ${nfeData.emitente?.nome || 'Fornecedor'}`,
+              valor: parcela.valor,
+              vencimento,
+              categoria: 'Fornecedores',
+              fornecedor: resultado.fornecedorNome || nfeData.emitente?.nome || null,
+              status: 'pendente',
+              observacao_pagamento: `Importação automática - NFe ${nfeData.numero}/${nfeData.serie}${nfeData.chaveAcesso ? ` - Chave: ${nfeData.chaveAcesso}` : ''}`,
+            });
+
+            if (errorConta) {
+              resultado.erros.push(`Erro ao gerar conta a pagar (${parcela.numero || 'parcela'}): ${errorConta.message}`);
+            } else {
+              resultado.contaGerada = true;
+              resultado.detalhes.push({
+                descricao: `Conta a Pagar - NFe ${nfeData.numero}/${nfeData.serie} - ${parcela.numero || `Parcela`}`,
+                acao: `R$ ${parcela.valor.toFixed(2)} - Vencimento: ${new Date(vencimento).toLocaleDateString('pt-BR')}`,
+                status: 'criado',
+              });
+            }
+          }
         } else {
-          resultado.contaGerada = true;
-          resultado.detalhes.push({
-            descricao: `Conta a Pagar - NFe ${nfeData.numero}/${nfeData.serie}`,
-            acao: `R$ ${nfeData.valorTotal.toFixed(2)} - Vencimento: ${new Date(vencimento).toLocaleDateString('pt-BR')}`,
-            status: 'criado',
+          const vencimento = opcoes.vencimentoConta
+            ? new Date(opcoes.vencimentoConta + 'T23:59:59').toISOString()
+            : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+          const { error: errorConta } = await supabase.from('contas').insert({
+            empresa_id: empresaId,
+            tipo: 'pagar',
+            descricao: `NFe ${nfeData.numero}/${nfeData.serie} - ${nfeData.emitente?.nome || 'Fornecedor'}`,
+            valor: nfeData.valorTotal,
+            vencimento,
+            categoria: 'Fornecedores',
+            fornecedor: resultado.fornecedorNome || nfeData.emitente?.nome || null,
+            status: 'pendente',
+            observacao_pagamento: `Importação automática - NFe ${nfeData.numero}/${nfeData.serie}${nfeData.chaveAcesso ? ` - Chave: ${nfeData.chaveAcesso}` : ''}`,
           });
+
+          if (errorConta) {
+            resultado.erros.push(`Erro ao gerar conta a pagar: ${errorConta.message}`);
+          } else {
+            resultado.contaGerada = true;
+            resultado.detalhes.push({
+              descricao: `Conta a Pagar - NFe ${nfeData.numero}/${nfeData.serie}`,
+              acao: `R$ ${nfeData.valorTotal.toFixed(2)} - Vencimento: ${new Date(vencimento).toLocaleDateString('pt-BR')}`,
+              status: 'criado',
+            });
+          }
         }
       } catch (err: any) {
-        resultado.erros.push(`Erro ao gerar conta a pagar: ${err.message}`);
+        resultado.erros.push(`Erro ao gerar conta(s) a pagar: ${err.message}`);
       }
     }
 

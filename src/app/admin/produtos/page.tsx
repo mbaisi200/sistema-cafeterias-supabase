@@ -415,7 +415,7 @@ export default function ProdutosPage() {
       toast({
         variant: 'destructive',
         title: 'Erro ao salvar produto',
-        description: error?.message || error?.error_description || 'Erro desconhecido',
+        description: error?.message || 'Erro desconhecido',
       });
     } finally {
       setSaving(false);
@@ -681,7 +681,7 @@ export default function ProdutosPage() {
                     </TabsList>
 
                     {/* TAB: Dados Gerais */}
-                    <TabsContent value="geral" className="mt-4">
+                    <TabsContent value="geral" className="mt-4" forceMount>
                       <div className="grid gap-4 py-2">
                         {/* Foto do Produto */}
                         <div className="space-y-2">
@@ -874,7 +874,7 @@ export default function ProdutosPage() {
                     </TabsContent>
 
                     {/* TAB: Dados Fiscais (NFE/NFCe) */}
-                    <TabsContent value="fiscal" className="mt-4">
+                    <TabsContent value="fiscal" className="mt-4" forceMount>
                       <div className="grid gap-4 py-2">
                         {/* Info banner */}
                         <div className="flex items-start gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3">

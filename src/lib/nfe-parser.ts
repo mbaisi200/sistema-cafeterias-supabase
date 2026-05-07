@@ -66,6 +66,9 @@ export interface NFeParsed {
   valorSeguro: number;
   valorDesconto: number;
   valorOutrasDespesas: number;
+  cobranca?: {
+    duplicatas: Array<{ numero: string; vencimento: string; valor: number }>;
+  };
   produtos: NFeProduto[];
 }
 
@@ -342,6 +345,31 @@ export function parseNFeXML(xmlString: string): NFeParsed {
       cofinsAliquota,
       cofinsValor,
     });
+  }
+
+  // --- Cobrança / Duplicatas ---
+  let cobranca: { duplicatas: Array<{ numero: string; vencimento: string; valor: number }> } | undefined;
+  const cobrEl = findElement(infNFe, 'cobr');
+  if (cobrEl) {
+    const dupElements = Array.from(cobrEl.getElementsByTagName('dup'));
+    if (dupElements.length === 0) {
+      for (const prefix of ['nfe', 'nf', 'NFe', 'NFe']) {
+        const els = Array.from(cobrEl.getElementsByTagName(`${prefix}:dup`));
+        if (els.length > 0) { dupElements.push(...els); break; }
+      }
+    }
+    if (dupElements.length === 0) {
+      const allEls = Array.from(cobrEl.getElementsByTagName('*'));
+      dupElements.push(...allEls.filter(el => el.localName === 'dup'));
+    }
+    const duplicatas = dupElements.map(dup => ({
+      numero: getTextContent(dup, 'nDup'),
+      vencimento: getTextContent(dup, 'dVenc'),
+      valor: getNumberContent(dup, 'vDup'),
+    })).filter(d => d.valor > 0);
+    if (duplicatas.length > 0) {
+      cobranca = { duplicatas };
+    }
   }
 
   return {

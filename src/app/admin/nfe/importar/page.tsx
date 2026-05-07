@@ -1226,31 +1226,48 @@ export default function NFeImportarPage() {
                         <div className="flex-1">
                           <Label htmlFor="gerarContaPagar" className="font-semibold cursor-pointer flex items-center gap-1.5">
                             <CreditCard className="h-3.5 w-3.5" />
-                            Gerar Conta a Pagar
+                            Gerar Conta(s) a Pagar
                           </Label>
                           <p className="text-xs text-muted-foreground mt-0.5">
-                            Cria uma conta a pagar com o valor total da NFe
+                            {nfeData.cobranca?.duplicatas
+                              ? `${nfeData.cobranca.duplicatas.length} parcela(s) encontrada(s) na NFe`
+                              : 'Cria uma conta a pagar com o valor total da NFe'}
                           </p>
                           {gerarContaPagar && (
                             <div className="mt-2 space-y-2">
-                              <div>
-                                <Label className="text-xs">Valor</Label>
-                                <Input
-                                  type="text"
-                                  value={`R$ ${nfeData.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
-                                  disabled
-                                  className="h-8 text-xs w-44 bg-muted"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs">Vencimento</Label>
-                                <Input
-                                  type="date"
-                                  value={vencimentoConta}
-                                  onChange={(e) => setVencimentoConta(e.target.value)}
-                                  className="h-8 text-xs w-44"
-                                />
-                              </div>
+                              {nfeData.cobranca?.duplicatas ? (
+                                <div className="space-y-1.5">
+                                  {nfeData.cobranca.duplicatas.map((dup, i) => (
+                                    <div key={i} className="flex items-center gap-2 text-xs bg-muted/50 rounded px-2 py-1.5">
+                                      <span className="font-medium text-muted-foreground w-16">{dup.numero || `P${i + 1}`}</span>
+                                      <span className="text-muted-foreground">Vence:</span>
+                                      <span className="font-medium">{new Date(dup.vencimento + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                                      <span className="text-muted-foreground ml-auto">R$ {dup.valor.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="flex gap-2">
+                                  <div>
+                                    <Label className="text-xs">Valor</Label>
+                                    <Input
+                                      type="text"
+                                      value={`R$ ${nfeData.valorTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                                      disabled
+                                      className="h-8 text-xs w-44 bg-muted"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="text-xs">Vencimento</Label>
+                                    <Input
+                                      type="date"
+                                      value={vencimentoConta}
+                                      onChange={(e) => setVencimentoConta(e.target.value)}
+                                      className="h-8 text-xs w-44"
+                                    />
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

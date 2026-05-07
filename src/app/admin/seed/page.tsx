@@ -515,6 +515,7 @@ const TABELAS_PARA_LIMPAR = [
   'pagamentos',
   'estoque_movimentos',
   'contas',
+  'nfe_importadas',
   'caixas',
   'movimentacoes_caixa',
   'logs'
