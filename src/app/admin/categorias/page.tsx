@@ -7,6 +7,18 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -49,6 +61,9 @@ export default function CategoriasPage() {
   
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#f97316');
+  const [categoriaExcluir, setCategoriaExcluir] = useState<string | null>(null);
+  const [excluindo, setExcluindo] = useState(false);
+  const { toast } = useToast();
   const [saving, setSaving] = useState(false);
 
   const handleSalvar = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -65,8 +80,23 @@ export default function CategoriasPage() {
       setDialogOpen(false);
     } catch (error) {
       console.error('Erro ao salvar categoria:', error);
+      toast({ variant: 'destructive', title: 'Erro ao salvar categoria' });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleExcluirCategoria = async () => {
+    if (!categoriaExcluir) return;
+    setExcluindo(true);
+    try {
+      await excluirCategoria(categoriaExcluir);
+      toast({ title: 'Categoria excluída!' });
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro ao excluir categoria' });
+    } finally {
+      setExcluindo(false);
+      setCategoriaExcluir(null);
     }
   };
 
@@ -250,7 +280,7 @@ export default function CategoriasPage() {
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               className="text-red-600"
-                              onClick={() => excluirCategoria(categoria.id)}
+                              onClick={() => setCategoriaExcluir(categoria.id)}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Excluir
@@ -265,6 +295,28 @@ export default function CategoriasPage() {
             </Card>
           )}
         </div>
+
+        <AlertDialog open={!!categoriaExcluir} onOpenChange={(open) => !open && setCategoriaExcluir(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir Categoria</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir esta categoria? Os produtos vinculados não serão afetados.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={excluindo}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                disabled={excluindo}
+                onClick={handleExcluirCategoria}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {excluindo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Excluir
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </MainLayout>
     </ProtectedRoute>
   );
