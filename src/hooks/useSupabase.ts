@@ -341,10 +341,12 @@ export function useCategorias() {
   const excluirCategoria = async (id: string) => {
     const { error } = await supabase
       .from('categorias')
-      .update({ ativo: false })
+      .delete()
       .eq('id', id);
 
     if (error) throw error;
+
+    await carregarDados();
   };
 
   return { categorias, loading, adicionarCategoria, atualizarCategoria, excluirCategoria };
