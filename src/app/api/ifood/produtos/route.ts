@@ -179,7 +179,6 @@ export async function GET(request: NextRequest) {
       ifoodAtivo: config?.ativo && config?.status === 'connected',
     });
   } catch (error) {
-    console.error('Erro ao buscar produtos:', error);
     return NextResponse.json({ error: 'Erro ao buscar produtos' }, { status: 500 });
   }
 }
@@ -499,7 +498,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Ação inválida' }, { status: 400 });
     }
   } catch (error) {
-    console.error('Erro na API iFood produtos:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

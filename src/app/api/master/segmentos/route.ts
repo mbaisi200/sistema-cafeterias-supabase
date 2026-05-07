@@ -58,7 +58,6 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil((count || 0) / limit),
     });
   } catch (error: any) {
-    console.error('Erro ao listar segmentos:', error);
     return NextResponse.json(
       { error: error.message || 'Erro interno do servidor' },
       { status: 500 }
@@ -108,13 +107,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Erro ao criar segmento:', error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ segmento: data }, { status: 201 });
   } catch (error: any) {
-    console.error('Erro ao criar segmento:', error);
     return NextResponse.json(
       { error: error.message || 'Erro interno do servidor' },
       { status: 500 }
@@ -173,7 +170,6 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Erro ao atualizar segmento:', error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
@@ -186,7 +182,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ segmento: data });
   } catch (error: any) {
-    console.error('Erro ao atualizar segmento:', error);
     return NextResponse.json(
       { error: error.message || 'Erro interno do servidor' },
       { status: 500 }
@@ -221,7 +216,6 @@ export async function DELETE(request: NextRequest) {
       .eq('ativo', true);
 
     if (countError) {
-      console.error('Erro ao verificar empresas do segmento:', countError);
       return NextResponse.json({ error: countError.message }, { status: 400 });
     }
 
@@ -241,7 +235,6 @@ export async function DELETE(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Erro ao excluir segmento:', error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
@@ -254,7 +247,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ segmento: data });
   } catch (error: any) {
-    console.error('Erro ao excluir segmento:', error);
     return NextResponse.json(
       { error: error.message || 'Erro interno do servidor' },
       { status: 500 }

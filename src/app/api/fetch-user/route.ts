@@ -9,12 +9,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'authUserId é obrigatório' }, { status: 400 });
     }
 
-    console.log('🔍 API: Buscando usuário com auth_user_id:', authUserId);
-    console.log('🔍 API: SUPABASE_URL:', process.env.NEXT_PUBLIC_SUPABASE_URL);
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
-    console.log('🔍 API: Service key prefix:', serviceKey?.slice(0, 20));
 
     const supabase = createClient(supabaseUrl, serviceKey, {
       auth: {
@@ -30,7 +27,6 @@ export async function POST(request: NextRequest) {
       .eq('auth_user_id', authUserId)
       .single();
 
-    console.log('📊 API: Resultado:', { data: data?.email, error: error?.message });
 
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -153,9 +149,7 @@ export async function POST(request: NextRequest) {
         }
       });
 
-      console.log('✅ Custom claims atualizados para o usuário:', authUserId);
     } catch (claimsError) {
-      console.warn('⚠️ Aviso ao atualizar custom claims:', claimsError);
     }
 
     return NextResponse.json({ 
@@ -174,7 +168,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Erro na API fetch-user:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

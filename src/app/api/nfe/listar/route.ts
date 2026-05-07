@@ -49,7 +49,6 @@ export async function POST(request: NextRequest) {
       const { data: movimentos, error } = await query;
 
       if (error) {
-        console.error('Erro ao buscar NF-e de entrada:', error);
         return NextResponse.json(
           { sucesso: false, erro: 'Erro ao buscar notas de entrada' },
           { status: 500 }
@@ -136,7 +135,6 @@ export async function POST(request: NextRequest) {
       const { data: vendas, error } = await query;
 
       if (error) {
-        console.error('Erro ao buscar NF-e de saída:', error);
         return NextResponse.json(
           { sucesso: false, erro: 'Erro ao buscar notas de saída' },
           { status: 500 }
@@ -167,7 +165,6 @@ export async function POST(request: NextRequest) {
       );
     }
   } catch (error: any) {
-    console.error('Erro ao listar NFes:', error);
     return NextResponse.json(
       { sucesso: false, erro: error.message || 'Erro interno do servidor' },
       { status: 500 }

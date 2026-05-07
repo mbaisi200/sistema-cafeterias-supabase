@@ -68,7 +68,6 @@ export async function GET(request: NextRequest) {
       .order('nome');
 
     if (empresasError) {
-      console.error('Erro ao buscar empresas:', empresasError);
       return NextResponse.json({ error: 'Erro ao buscar empresas' }, { status: 500 });
     }
 
@@ -82,7 +81,6 @@ export async function GET(request: NextRequest) {
             .select('*', { count: 'exact', head: true });
 
           if (error) {
-            console.error(`Erro ao contar ${tabela.nome}:`, error);
             return {
               tabela: tabela.nome,
               descricao: tabela.descricao,
@@ -219,7 +217,6 @@ export async function GET(request: NextRequest) {
           .eq(tabela.colunaEmpresa, empresaId);
 
         if (error) {
-          console.error(`Erro ao contar ${tabela.nome}:`, error);
           return {
             tabela: tabela.nome,
             descricao: tabela.descricao,
@@ -305,7 +302,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(resultado);
   } catch (error) {
-    console.error('Erro ao processar requisição:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

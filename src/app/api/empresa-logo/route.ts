@@ -74,7 +74,6 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError) {
-      console.error('Erro ao fazer upload do logo:', uploadError);
       return NextResponse.json(
         { error: 'Erro ao fazer upload do logo' },
         { status: 500 }
@@ -102,7 +101,6 @@ export async function POST(request: NextRequest) {
       .eq('id', empresaId);
 
     if (updateError) {
-      console.error('Erro ao atualizar logo da empresa:', updateError);
       return NextResponse.json(
         { error: 'Erro ao atualizar logo da empresa' },
         { status: 500 }
@@ -115,7 +113,6 @@ export async function POST(request: NextRequest) {
       path: storagePath,
     });
   } catch (error) {
-    console.error('Erro no upload do logo:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
@@ -148,7 +145,6 @@ export async function DELETE(request: NextRequest) {
       .single();
 
     if (fetchError) {
-      console.error('Erro ao buscar empresa:', fetchError);
       return NextResponse.json(
         { error: 'Empresa não encontrada' },
         { status: 404 }
@@ -175,7 +171,6 @@ export async function DELETE(request: NextRequest) {
       .eq('id', empresaId);
 
     if (updateError) {
-      console.error('Erro ao remover logo da empresa:', updateError);
       return NextResponse.json(
         { error: 'Erro ao remover logo da empresa' },
         { status: 500 }
@@ -184,7 +179,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Erro ao remover logo:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

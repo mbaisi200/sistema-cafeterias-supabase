@@ -49,7 +49,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ secoes: data || [] });
   } catch (error: any) {
-    console.error('Erro ao listar seções do menu:', error);
     return NextResponse.json(
       { error: error.message || 'Erro interno do servidor' },
       { status: 500 }
@@ -107,7 +106,6 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (checkError) {
-      console.error('Erro ao verificar chave existente:', checkError);
       return NextResponse.json({ error: checkError.message }, { status: 400 });
     }
 
@@ -137,13 +135,11 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Erro ao criar seção:', error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ secao: data }, { status: 201 });
   } catch (error: any) {
-    console.error('Erro ao criar seção:', error);
     return NextResponse.json(
       { error: error.message || 'Erro interno do servidor' },
       { status: 500 }
@@ -188,7 +184,6 @@ export async function PUT(request: NextRequest) {
         .maybeSingle();
 
       if (checkError) {
-        console.error('Erro ao verificar chave existente:', checkError);
         return NextResponse.json({ error: checkError.message }, { status: 400 });
       }
 
@@ -220,7 +215,6 @@ export async function PUT(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Erro ao atualizar seção:', error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
@@ -233,7 +227,6 @@ export async function PUT(request: NextRequest) {
 
     return NextResponse.json({ secao: data });
   } catch (error: any) {
-    console.error('Erro ao atualizar seção:', error);
     return NextResponse.json(
       { error: error.message || 'Erro interno do servidor' },
       { status: 500 }
@@ -291,13 +284,11 @@ export async function DELETE(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Erro ao excluir seção:', error);
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
     return NextResponse.json({ secao: data });
   } catch (error: any) {
-    console.error('Erro ao excluir seção:', error);
     return NextResponse.json(
       { error: error.message || 'Erro interno do servidor' },
       { status: 500 }

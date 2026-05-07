@@ -285,7 +285,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (saveError) {
-      console.error('Erro ao salvar NF-e:', saveError);
       return NextResponse.json(
         { sucesso: false, erro: { codigo: 'DB001', mensagem: 'Erro ao salvar NF-e no banco de dados' } },
         { status: 500 }
@@ -368,7 +367,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response);
 
   } catch (error: any) {
-    console.error('Erro na emissão NF-e:', error);
     return NextResponse.json(
       { sucesso: false, erro: { codigo: '500', mensagem: error.message } },
       { status: 500 }

@@ -1,11 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Verificar se as variáveis de ambiente estão configuradas
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Verificar se as credenciais são válidas
 const isValidSupabaseConfig = supabaseUrl && 
   supabaseAnonKey && 
   supabaseUrl !== 'https://your-project.supabase.co' &&
@@ -13,12 +11,21 @@ const isValidSupabaseConfig = supabaseUrl &&
   supabaseAnonKey !== 'your-anon-key-here' &&
   supabaseAnonKey.length > 50
 
+const securityHeaders = {
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'X-XSS-Protection': '0',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains',
+  'Content-Security-Policy': "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self';",
+}
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   })
 
-  // Se Supabase não está configurado, permitir acesso apenas a rotas públicas
   if (!isValidSupabaseConfig) {
     const publicRoutes = ['/', '/recuperar-senha', '/setup-master', '/diagnostico', '/setup']
     const isPublicRoute = publicRoutes.some(route =>
@@ -28,7 +35,6 @@ export async function middleware(request: NextRequest) {
     )
     
     if (!isPublicRoute) {
-      // Redirecionar para página de setup se tentar acessar rota protegida
       const url = request.nextUrl.clone()
       url.pathname = '/setup'
       return NextResponse.redirect(url)
@@ -58,32 +64,29 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // NÃO escreva lógica entre createServerClient e supabase.auth.getUser()
-
   const {
     data: { user },
     error,
   } = await supabase.auth.getUser()
 
-  // Verificar se funcionário está autenticado via cookie (PIN login)
   const funcAuthCookie = request.cookies.get('func_auth')?.value
   const isFuncionarioAuth = funcAuthCookie === 'true'
 
-  // Rotas públicas que não precisam de autenticação
   const publicRoutes = ['/', '/recuperar-senha', '/setup-master', '/diagnostico']
   const isPublicRoute = publicRoutes.some(route =>
     request.nextUrl.pathname === route || request.nextUrl.pathname.startsWith('/api/')
   )
 
-  // Se há erro de autenticação ou usuário null em rota protegida
-  // MAS se o funcionário está autenticado via cookie, permitir acesso
   if ((!user || error) && !isPublicRoute && !isFuncionarioAuth) {
-    console.log('🚪 Middleware: Sessão inválida, redirecionando para login')
     const url = request.nextUrl.clone()
     url.pathname = '/'
     url.searchParams.set('session_expired', 'true')
     return NextResponse.redirect(url)
   }
+
+  Object.entries(securityHeaders).forEach(([key, value]) => {
+    supabaseResponse.headers.set(key, value)
+  })
 
   return supabaseResponse
 }

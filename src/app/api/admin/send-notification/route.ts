@@ -88,7 +88,6 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
-    console.error('Error sending notification:', error);
     return NextResponse.json(
       { error: 'Failed to send notification' },
       { status: 500 }

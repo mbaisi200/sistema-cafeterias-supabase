@@ -168,7 +168,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Erro ao cancelar NF-e:', error);
     return NextResponse.json(
       { sucesso: false, erro: { codigo: '500', mensagem: error.message } },
       { status: 500 }

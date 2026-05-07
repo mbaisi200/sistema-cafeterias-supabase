@@ -264,7 +264,6 @@ export async function DELETE(request: NextRequest) {
       resultado,
     });
   } catch (error: any) {
-    console.error('Erro ao excluir NFe entrada:', error);
     return NextResponse.json(
       { sucesso: false, erro: error.message || 'Erro interno' },
       { status: 500 }

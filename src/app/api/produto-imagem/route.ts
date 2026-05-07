@@ -74,7 +74,6 @@ export async function POST(request: NextRequest) {
       });
 
     if (uploadError) {
-      console.error('Erro ao fazer upload da imagem:', uploadError);
       return NextResponse.json(
         { error: 'Erro ao fazer upload da imagem' },
         { status: 500 }
@@ -103,7 +102,6 @@ export async function POST(request: NextRequest) {
       .eq('empresa_id', empresaId);
 
     if (updateError) {
-      console.error('Erro ao atualizar foto do produto:', updateError);
       return NextResponse.json(
         { error: 'Erro ao atualizar foto do produto' },
         { status: 500 }
@@ -116,7 +114,6 @@ export async function POST(request: NextRequest) {
       path: storagePath,
     });
   } catch (error) {
-    console.error('Erro no upload de imagem:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
@@ -150,7 +147,6 @@ export async function DELETE(request: NextRequest) {
       .single();
 
     if (fetchError) {
-      console.error('Erro ao buscar produto:', fetchError);
       return NextResponse.json(
         { error: 'Produto não encontrado' },
         { status: 404 }
@@ -181,7 +177,6 @@ export async function DELETE(request: NextRequest) {
       .eq('empresa_id', empresaId);
 
     if (updateError) {
-      console.error('Erro ao remover foto do produto:', updateError);
       return NextResponse.json(
         { error: 'Erro ao remover foto do produto' },
         { status: 500 }
@@ -190,7 +185,6 @@ export async function DELETE(request: NextRequest) {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Erro ao remover imagem:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

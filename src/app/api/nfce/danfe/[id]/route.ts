@@ -45,7 +45,6 @@ export async function GET(
     });
 
   } catch (error: any) {
-    console.error('Erro ao gerar DANFE:', error);
     return new NextResponse('Erro ao gerar DANFE', { status: 500 });
   }
 }

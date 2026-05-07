@@ -71,7 +71,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Erro ao buscar config:', error);
     return NextResponse.json(
       { sucesso: false, erro: { codigo: '500', mensagem: error.message } },
       { status: 500 }
@@ -141,7 +140,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (result.error) {
-      console.error('Erro ao salvar:', result.error);
       return NextResponse.json(
         { sucesso: false, erro: { codigo: 'DB001', mensagem: 'Erro ao salvar configurações' } },
         { status: 500 }
@@ -154,7 +152,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Erro ao salvar config:', error);
     return NextResponse.json(
       { sucesso: false, erro: { codigo: '500', mensagem: error.message } },
       { status: 500 }

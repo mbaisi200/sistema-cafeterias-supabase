@@ -28,7 +28,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (caixaError || !caixa) {
-      console.error('Erro ao buscar caixa para registrar venda:', caixaError);
       return NextResponse.json({ error: 'Caixa não encontrado ou fechado' }, { status: 404 });
     }
 
@@ -47,7 +46,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (movError) {
-      console.error('Erro ao registrar movimentação de venda:', movError);
     }
 
     // Atualizar totais do caixa
@@ -61,13 +59,11 @@ export async function POST(request: NextRequest) {
       .eq('id', caixaId);
 
     if (updateError) {
-      console.error('Erro ao atualizar totais do caixa:', updateError);
       return NextResponse.json({ error: 'Erro ao atualizar caixa' }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Erro na API caixa-registrar-venda:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }

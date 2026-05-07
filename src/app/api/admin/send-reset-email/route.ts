@@ -22,7 +22,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      console.error('Erro ao enviar email de redefinição:', error);
       
       let errorMessage = 'Erro ao enviar email de redefinição';
       if (error.message.includes('User not found')) {
@@ -43,7 +42,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error: unknown) {
-    console.error('Erro ao enviar email de redefinição:', error);
     
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Erro desconhecido' },

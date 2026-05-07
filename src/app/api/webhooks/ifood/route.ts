@@ -28,11 +28,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
-    console.log('[iFood Webhook] Evento recebido:', JSON.stringify(body, null, 2));
 
     // Verificar assinatura
     if (!verifyWebhookSignature(request)) {
-      console.error('[iFood Webhook] Assinatura inválida');
       return NextResponse.json(
         { error: 'Assinatura inválida' },
         { status: 401 }
@@ -55,14 +53,12 @@ export async function POST(request: NextRequest) {
         return await handleTestEvent(event.data as { test: boolean; message?: string });
       
       default:
-        console.log('[iFood Webhook] Evento não tratado:', event.event);
         return NextResponse.json({ 
           received: true, 
           message: 'Evento recebido mas não processado' 
         });
     }
   } catch (error) {
-    console.error('[iFood Webhook] Erro:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }
@@ -73,7 +69,6 @@ export async function POST(request: NextRequest) {
 // Handler para novos pedidos
 async function handleNewOrder(order: IFoodOrder) {
   try {
-    console.log('[iFood Webhook] Novo pedido:', order.orderId);
 
     const supabase = createAdminClient();
 
@@ -86,7 +81,6 @@ async function handleNewOrder(order: IFoodOrder) {
       .single();
 
     if (configError || !config) {
-      console.error('[iFood Webhook] MerchantId não encontrado:', order.merchantId);
       return NextResponse.json(
         { error: 'Merchant não encontrado' },
         { status: 404 }
@@ -147,7 +141,6 @@ async function handleNewOrder(order: IFoodOrder) {
       dados_novos: order,
     });
 
-    console.log('[iFood Webhook] Pedido processado. Venda ID:', venda.id);
 
     return NextResponse.json({
       success: true,
@@ -155,7 +148,6 @@ async function handleNewOrder(order: IFoodOrder) {
       vendaId: venda.id,
     });
   } catch (error) {
-    console.error('[iFood Webhook] Erro ao processar pedido:', error);
 
     return NextResponse.json(
       { error: 'Erro ao processar pedido' },
@@ -167,7 +159,6 @@ async function handleNewOrder(order: IFoodOrder) {
 // Handler para atualizações de status
 async function handleStatusUpdate(update: IFoodOrderStatusUpdate) {
   try {
-    console.log('[iFood Webhook] Atualização de status:', update.orderId, update.status);
 
     const supabase = createAdminClient();
 
@@ -210,7 +201,6 @@ async function handleStatusUpdate(update: IFoodOrderStatusUpdate) {
       newStatus: update.status,
     });
   } catch (error) {
-    console.error('[iFood Webhook] Erro ao atualizar status:', error);
     return NextResponse.json(
       { error: 'Erro ao atualizar status' },
       { status: 500 }
@@ -220,7 +210,6 @@ async function handleStatusUpdate(update: IFoodOrderStatusUpdate) {
 
 // Handler para eventos de teste
 async function handleTestEvent(data: { test: boolean; message?: string }) {
-  console.log('[iFood Webhook] Teste recebido:', data.message || 'Conexão OK');
   
   return NextResponse.json({
     success: true,

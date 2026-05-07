@@ -5,7 +5,6 @@ export async function POST(request: NextRequest) {
   try {
     const { empresaId } = await request.json();
 
-    console.log('[API caixa-aberto] empresaId recebido:', empresaId);
 
     if (!empresaId) {
       return NextResponse.json({ error: 'empresaId é obrigatório', debug: { empresaId } }, { status: 400 });
@@ -15,7 +14,6 @@ export async function POST(request: NextRequest) {
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     if (!supabaseUrl || !serviceKey) {
-      console.error('[API caixa-aberto] Variáveis de ambiente ausentes');
       return NextResponse.json({ error: 'Configuração do servidor ausente' }, { status: 500 });
     }
 
@@ -32,14 +30,11 @@ export async function POST(request: NextRequest) {
       .from('caixas')
       .select('id, empresa_id, status, valor_atual, aberto_em');
 
-    console.log('[API caixa-aberto] Todos os caixas no banco:', todosCaixas?.length || 0);
     if (todosCaixas) {
       todosCaixas.forEach((c: any) => {
-        console.log(`  - Caixa id=${c.id?.substring(0,8)} empresa=${c.empresa_id?.substring(0,8)} status=${c.status} valor=${c.valor_atual}`);
       });
     }
     if (todosError) {
-      console.error('[API caixa-aberto] Erro ao buscar todos os caixas:', todosError);
     }
 
     // Buscar caixa aberto para esta empresa
@@ -54,15 +49,12 @@ export async function POST(request: NextRequest) {
 
     const caixa = caixas && caixas.length > 0 ? caixas[0] : null;
 
-    console.log('[API caixa-aberto] Resultado para empresa', empresaId?.substring(0,8) + ':', caixa ? 'ENCONTRADO id=' + caixa.id : 'NÃO ENCONTRADO', caixaError?.code || '', caixaError?.message || '', 'total_abertos:', caixas?.length || 0);
 
     if (caixaError) {
-      console.error('[API caixa-aberto] Erro na query:', caixaError);
     }
 
     // Se há mais de 1 caixa aberto, fechar os antigos automaticamente
     if (caixas && caixas.length > 1) {
-      console.log('[API caixa-aberto] ATENÇÃO: Há', caixas.length, 'caixas abertos! Fechando antigos...');
       const idsParaFechar = caixas.slice(1).map((c: any) => c.id);
       await supabase
         .from('caixas')
@@ -103,7 +95,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[API caixa-aberto] Erro:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }

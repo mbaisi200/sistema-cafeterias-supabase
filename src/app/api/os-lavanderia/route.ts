@@ -57,7 +57,6 @@ export async function DELETE(request: NextRequest) {
         .eq('venda_id', vendaId);
       
       if (itensError) {
-        console.error('Erro ao deletar itens_venda:', itensError);
       } else {
         deletados.push('itens_venda');
       }
@@ -69,7 +68,6 @@ export async function DELETE(request: NextRequest) {
         .eq('id', vendaId);
       
       if (vendaError) {
-        console.error('Erro ao deletar venda:', vendaError);
       } else {
         deletados.push('vendas');
       }
@@ -81,7 +79,6 @@ export async function DELETE(request: NextRequest) {
         .eq('venda_id', vendaId);
       
       if (caixaError) {
-        console.error('Erro ao deletar caixas:', caixaError);
       } else {
         deletados.push('caixas');
       }
@@ -110,7 +107,6 @@ export async function DELETE(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Erro ao excluir OS Lavanderia:', error);
     return NextResponse.json({ 
       sucesso: false, 
       erro: { codigo: '500', mensagem: error.message || 'Erro interno' } 

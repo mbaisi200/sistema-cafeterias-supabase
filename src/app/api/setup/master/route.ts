@@ -47,7 +47,6 @@ export async function POST(request: Request) {
         .single();
 
       if (empresaError) {
-        console.error('Erro ao criar empresa:', empresaError);
         return NextResponse.json(
           { error: 'Erro ao criar empresa master' },
           { status: 500 }
@@ -71,7 +70,6 @@ export async function POST(request: Request) {
       );
 
       if (updateError) {
-        console.error('Erro ao atualizar usuário:', updateError);
         return NextResponse.json(
           { error: 'Erro ao atualizar senha do usuário' },
           { status: 500 }
@@ -88,7 +86,6 @@ export async function POST(request: Request) {
       });
 
       if (authError) {
-        console.error('Erro ao criar usuário auth:', authError);
         return NextResponse.json(
           { error: 'Erro ao criar usuário de autenticação: ' + authError.message },
           { status: 500 }
@@ -120,7 +117,6 @@ export async function POST(request: Request) {
         .eq('id', existingUsuario.id);
 
       if (updateError) {
-        console.error('Erro ao atualizar registro usuario:', updateError);
         return NextResponse.json(
           { error: 'Erro ao atualizar registro de usuário' },
           { status: 500 }
@@ -140,7 +136,6 @@ export async function POST(request: Request) {
         });
 
       if (usuarioError) {
-        console.error('Erro ao criar registro usuario:', usuarioError);
         return NextResponse.json(
           { error: 'Erro ao criar registro de usuário: ' + usuarioError.message },
           { status: 500 }
@@ -160,7 +155,6 @@ export async function POST(request: Request) {
     });
 
   } catch (error) {
-    console.error('Erro geral:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

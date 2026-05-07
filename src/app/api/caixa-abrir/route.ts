@@ -50,7 +50,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (caixaError) {
-      console.error('Erro ao criar caixa:', caixaError);
       return NextResponse.json({ error: caixaError.message }, { status: 500 });
     }
 
@@ -68,7 +67,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ caixa });
   } catch (error) {
-    console.error('Erro na API caixa-abrir:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }

@@ -26,7 +26,6 @@ export async function POST(request: NextRequest) {
     // Buscar o usuário pelo email no Auth
     const { data: usersList, error: listError } = await supabase.auth.admin.listUsers();
     if (listError) {
-      console.error('❌ Erro ao listar usuários:', listError);
       return NextResponse.json({ error: 'Erro ao buscar usuários' }, { status: 500 });
     }
 
@@ -51,11 +50,9 @@ export async function POST(request: NextRequest) {
     });
 
     if (updateError) {
-      console.error('❌ Erro ao confirmar email:', updateError);
       return NextResponse.json({ error: 'Erro ao confirmar email' }, { status: 500 });
     }
 
-    console.log('✅ Email confirmado para:', email);
 
     return NextResponse.json({
       success: true,
@@ -63,7 +60,6 @@ export async function POST(request: NextRequest) {
       userId: user.id,
     });
   } catch (error) {
-    console.error('❌ Erro geral:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

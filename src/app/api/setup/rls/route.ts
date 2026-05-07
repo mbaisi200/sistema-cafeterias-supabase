@@ -18,9 +18,7 @@ export async function POST() {
       .single();
 
     if (checkError) {
-      console.log('Erro ao verificar usuário:', checkError);
     } else {
-      console.log('Usuário encontrado:', usuarios);
     }
 
     // O RLS precisa ser configurado diretamente no Supabase SQL Editor
@@ -78,7 +76,6 @@ FOR SELECT USING (true);
     });
 
   } catch (error) {
-    console.error('Erro:', error);
     return NextResponse.json({
       success: false,
       message: 'Erro interno: ' + (error instanceof Error ? error.message : 'Erro desconhecido')

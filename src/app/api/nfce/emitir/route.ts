@@ -234,7 +234,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(response);
 
   } catch (error: any) {
-    console.error('Erro na emissão:', error);
     return NextResponse.json(
       { sucesso: false, erro: { codigo: '500', mensagem: error.message } },
       { status: 500 }

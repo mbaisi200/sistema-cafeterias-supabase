@@ -64,7 +64,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       fetchingRef.current.add(authUserId);
-      console.log('🔄 Buscando usuário via API com auth_user_id:', authUserId);
 
       const response = await fetch('/api/fetch-user', {
         method: 'POST',
@@ -72,26 +71,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ authUserId }),
       });
 
-      console.log('📥 Response status:', response.status, response.ok);
-
       const result = await response.json();
-      console.log('📊 Resultado da API:', JSON.stringify(result).slice(0, 300));
 
       if (!response.ok) {
         if (result.blocked || result.expired) {
           await getSupabase().auth.signOut();
           throw new Error(result.error);
         }
-        console.error('❌ Erro da API:', result.error);
         return null;
       }
 
       if (!result.user) {
-        console.log('⚠️ Nenhum usuário encontrado');
         return null;
       }
 
-      console.log('✅ Usuário encontrado:', result.user.email, 'role:', result.user.role);
 
       // Armazenar seções permitidas e nome da marca
       setSecoesPermitidas(result.user.secoesPermitidas || []);
@@ -114,7 +107,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       return userData;
     } catch (error) {
-      console.error('❌ Error fetching user data:', error);
       // Tentar novamente uma vez após breve delay
       try {
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -126,12 +118,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (retryResponse.ok) {
           const retryResult = await retryResponse.json();
           if (retryResult.user) {
-            console.log('✅ Retry bem-sucedido');
             return retryResult.user;
           }
         }
-      } catch (retryError) {
-        console.error('❌ Retry também falhou:', retryError);
+      } catch {
       }
       return null;
     } finally {
@@ -151,7 +141,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const result = await response.json();
 
       if (!response.ok) {
-        console.warn('⚠️ Login funcionário:', result.error);
         return null;
       }
 
@@ -170,25 +159,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         criadoEm: new Date(func.criadoEm),
         atualizadoEm: new Date(func.atualizadoEm),
       };
-    } catch (error) {
-      console.error('Error fetching funcionario:', error);
+    } catch {
       return null;
     }
   };
 
   // Carregar sessão do funcionário do localStorage
-  // Só restaura se o cookie func_auth também existir (evita loop com middleware)
+  // A validação real é feita pelo middleware via cookie httpOnly no server
   const loadFuncionarioSession = (): User | null => {
     if (typeof window === 'undefined') return null;
     try {
-      // Verificar se o cookie de autenticação do funcionário existe
-      const hasCookie = document.cookie.split(';').some(c => c.trim().startsWith('func_auth='));
-      if (!hasCookie) {
-        // Cookie expirou ou não existe, limpar localStorage para evitar loop
-        localStorage.removeItem(FUNCIONARIO_SESSION_KEY);
-        return null;
-      }
-
       const sessionStr = localStorage.getItem(FUNCIONARIO_SESSION_KEY);
       if (sessionStr) {
         const parsed = JSON.parse(sessionStr);
@@ -236,7 +216,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Evitar dupla inicialização
     if (hasInitialized.current) {
-      console.log('⏭️ Já inicializado, pulando');
       return;
     }
 
@@ -245,7 +224,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       hasInitialized.current = true;
 
       try {
-        console.log('🚀 Iniciando sessão...');
         const { data: { session: initialSession } } = await getSupabase().auth.getSession();
 
         if (!mounted.current) return;
@@ -260,7 +238,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               try {
                 await verifyDevice(userData.empresaId, userData.id, userData.nome);
               } catch (deviceError) {
-                console.error('🔒 Dispositivo não autorizado:', deviceError);
                 await getSupabase().auth.signOut();
                 if (mounted.current) {
                   setUser(null);
@@ -271,7 +248,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
             if (mounted.current) {
               setUser(userData);
-              console.log('✅ setUser chamado com:', userData.email, userData.role);
             }
           } else if (mounted.current) {
             setUser(null);
@@ -285,13 +261,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         if (mounted.current) {
           setLoading(false);
-          console.log('✅ setLoading(false) chamado! Valor atual:', loading);
         }
       } catch (error) {
-        console.error('❌ Erro ao inicializar sessão:', error);
         if (mounted.current) {
           setLoading(false);
-          console.log('✅ setLoading(false) chamado no catch!');
         }
       }
     };
@@ -301,9 +274,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let subscription: { unsubscribe: () => void } | null = null;
 
     // Log de debug para verificar estado
-    console.log('📊 Estado atual - loading:', loading, 'user:', !!user);
 
-    console.log('✅ AuthProvider mounted, sessão inicializada (sem onAuthStateChange)');
 
     // Heartbeat para manter sessão viva - verifica a cada 2 minutos
     const heartbeatInterval = setInterval(async () => {
@@ -318,17 +289,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           // Se expira em menos de 5 minutos, fazer refresh proativo
           if (expiresAt && (expiresAt - now) < 300) {
-            console.log('🔄 Refresh proativo da sessão...');
             const { error } = await getSupabase().auth.refreshSession();
             if (error) {
-              console.error('❌ Erro no refresh proativo:', error);
             } else {
-              console.log('✅ Refresh proativo realizado');
             }
           }
         }
       } catch (error) {
-        console.error('❌ Erro no heartbeat:', error);
       }
     }, 2 * 60 * 1000); // 2 minutos
 
@@ -370,7 +337,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw deviceError;
       }
       // Silently pass if device check fails (network issue, etc.)
-      console.warn('⚠️ Não foi possível verificar o dispositivo:', deviceError);
     }
   };
 
@@ -382,7 +348,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Se o erro for "Email not confirmed", confirmar via admin API e retry
     if (error && (error.message.includes('Email not confirmed') || error.status === 400)) {
-      console.log('📧 Email não confirmado, tentando confirmar automaticamente...');
       try {
         const confirmResponse = await fetch('/api/auth/confirm-email', {
           method: 'POST',
@@ -392,7 +357,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const confirmResult = await confirmResponse.json();
 
         if (confirmResponse.ok && confirmResult.success) {
-          console.log('✅ Email confirmado automaticamente, tentando login novamente...');
           // Retry do login após confirmar o email
           const retry = await getSupabase().auth.signInWithPassword({ email, password });
           if (retry.error) throw retry.error;
@@ -416,7 +380,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
       } catch (confirmError) {
-        console.error('❌ Erro ao confirmar email automaticamente:', confirmError);
       }
       // Se não conseguiu confirmar, lançar o erro original
       throw error;

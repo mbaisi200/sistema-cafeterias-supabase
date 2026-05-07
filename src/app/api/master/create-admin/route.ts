@@ -20,7 +20,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log('🔄 Criando admin:', email, 'para empresa:', empresaId);
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -55,7 +54,6 @@ export async function POST(request: NextRequest) {
     });
 
     if (authError) {
-      console.error('❌ Erro ao criar usuário no Auth:', authError);
 
       // Se o email já existe no Auth, buscar o ID existente
       if (
@@ -76,7 +74,6 @@ export async function POST(request: NextRequest) {
               await supabase.auth.admin.updateUserById(existingUser.id, {
                 email_confirm: true,
               });
-              console.log('✅ Email confirmado para usuário existente:', email);
             }
           } else {
             return NextResponse.json(
@@ -98,7 +95,6 @@ export async function POST(request: NextRequest) {
       }
     } else {
       authUserId = authData.user!.id;
-      console.log('✅ Usuário criado no Auth com email confirmado:', authUserId);
     }
 
     // 2. Criar registro na tabela usuarios
@@ -130,14 +126,12 @@ export async function POST(request: NextRequest) {
           .eq('email', email);
 
         if (updateError) {
-          console.error('❌ Erro ao atualizar usuário existente:', updateError);
           return NextResponse.json(
             { error: 'Erro ao atualizar registro de usuário existente' },
             { status: 500 }
           );
         }
       } else {
-        console.error('❌ Erro ao criar registro usuario:', usuarioError);
         return NextResponse.json(
           { error: 'Erro ao criar registro de usuário: ' + usuarioError.message },
           { status: 500 }
@@ -145,7 +139,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('✅ Admin criado com sucesso! Pode fazer login imediatamente.');
 
     return NextResponse.json({
       success: true,
@@ -153,7 +146,6 @@ export async function POST(request: NextRequest) {
       userId: authUserId,
     });
   } catch (error) {
-    console.error('❌ Erro geral ao criar admin:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

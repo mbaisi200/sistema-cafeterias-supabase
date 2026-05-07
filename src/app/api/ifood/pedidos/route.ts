@@ -260,7 +260,6 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ vendas });
   } catch (error) {
-    console.error('Erro ao buscar pedidos:', error);
     return NextResponse.json({ error: 'Erro ao buscar pedidos' }, { status: 500 });
   }
 }
@@ -448,7 +447,6 @@ export async function POST(request: NextRequest) {
       novoStatus,
     });
   } catch (error) {
-    console.error('Erro na API iFood:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

@@ -29,13 +29,11 @@ export async function POST(request: NextRequest) {
       .limit(30);
 
     if (error) {
-      console.error('Erro ao buscar histórico de caixas:', error);
       return NextResponse.json({ caixas: [] });
     }
 
     return NextResponse.json({ caixas: caixas || [] });
   } catch (error) {
-    console.error('Erro na API caixa-historico:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }

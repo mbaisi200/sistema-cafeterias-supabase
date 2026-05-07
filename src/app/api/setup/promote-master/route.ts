@@ -35,7 +35,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Erro ao promover usuário:', error);
       return NextResponse.json(
         { error: 'Erro ao promover usuário: ' + error.message },
         { status: 500 }
@@ -60,7 +59,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Erro na API:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

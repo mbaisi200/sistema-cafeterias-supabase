@@ -31,7 +31,6 @@ export async function POST(request: NextRequest) {
       .eq('ativo', true);
 
     if (error) {
-      console.error('Erro ao buscar funcionário por PIN:', error.message);
       return NextResponse.json(
         { error: 'Erro ao buscar funcionário' },
         { status: 500 }
@@ -114,18 +113,17 @@ export async function POST(request: NextRequest) {
     });
 
     // Definir cookie para o middleware reconhecer o funcionário autenticado
-    // Cookie válido por 24 horas, NÃO HttpOnly para client poder verificar
+    // httpOnly: true previne acesso via JavaScript (proteção contra XSS)
     response.cookies.set('func_auth', 'true', {
-      httpOnly: false,
+      httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24, // 24 horas
+      maxAge: 60 * 60 * 24,
       path: '/',
     });
 
     return response;
   } catch (error) {
-    console.error('Erro no login de funcionário:', error);
     return NextResponse.json(
       { error: 'Erro interno do servidor' },
       { status: 500 }

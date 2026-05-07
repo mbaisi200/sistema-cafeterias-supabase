@@ -480,13 +480,11 @@ export async function POST(request: NextRequest) {
           criado_em: new Date().toISOString(),
         }).select('id').single();
         if (errorRegistro) {
-          console.error('Erro ao registrar NFe importada:', errorRegistro.message);
           resultado.erros.push(`Aviso: não foi possível registrar a NFe importada (${errorRegistro.message})`);
         } else if (nfeRegistro) {
           nfeImportadaId = nfeRegistro.id;
         }
       } catch (err: any) {
-        console.error('Erro ao registrar NFe importada:', err.message);
       }
     }
 
@@ -518,7 +516,6 @@ export async function POST(request: NextRequest) {
       resultado,
     });
   } catch (error: any) {
-    console.error('Erro ao importar NFe:', error);
     return NextResponse.json(
       { sucesso: false, erro: error.message || 'Erro interno ao processar importação' },
       { status: 500 }

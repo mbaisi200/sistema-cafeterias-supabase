@@ -13,7 +13,6 @@ export async function POST(request: NextRequest) {
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
     const supabase = createClient(supabaseUrl, anonKey);
 
-    console.log('Corrigindo auth_user_id para:', email, '->', authUserId);
 
     // Atualizar o registro do usuário com o auth_user_id correto
     const { data, error } = await supabase
@@ -27,7 +26,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (error) {
-      console.error('Erro ao atualizar:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
@@ -38,7 +36,6 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Erro:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }

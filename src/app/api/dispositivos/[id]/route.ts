@@ -47,7 +47,6 @@ export async function PATCH(
       .eq('id', id);
 
     if (updateError) {
-      console.error('Erro ao atualizar dispositivo:', updateError);
       return NextResponse.json({ error: 'Erro ao atualizar dispositivo' }, { status: 500 });
     }
 
@@ -58,7 +57,6 @@ export async function PATCH(
         : 'Dispositivo revogado com sucesso',
     });
   } catch (error) {
-    console.error('Erro na API dispositivos PATCH:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
@@ -99,7 +97,6 @@ export async function DELETE(
       .eq('id', id);
 
     if (deleteError) {
-      console.error('Erro ao excluir dispositivo:', deleteError);
       return NextResponse.json({ error: 'Erro ao excluir dispositivo' }, { status: 500 });
     }
 
@@ -108,7 +105,6 @@ export async function DELETE(
       message: 'Dispositivo removido com sucesso',
     });
   } catch (error) {
-    console.error('Erro na API dispositivos DELETE:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

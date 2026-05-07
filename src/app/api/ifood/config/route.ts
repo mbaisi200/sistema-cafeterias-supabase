@@ -45,7 +45,6 @@ export async function GET(request: NextRequest) {
       if (error.message?.includes('relation') || error.message?.includes('does not exist')) {
         return NextResponse.json({ config: null });
       }
-      console.error('Erro ao buscar config iFood:', error);
       return NextResponse.json({ config: null });
     }
 
@@ -68,7 +67,6 @@ export async function GET(request: NextRequest) {
       } : null 
     });
   } catch (error) {
-    console.error('Erro na API iFood config:', error);
     return NextResponse.json({ config: null });
   }
 }
@@ -148,7 +146,6 @@ export async function POST(request: NextRequest) {
       }
     });
   } catch (error) {
-    console.error('Erro ao salvar config iFood:', error);
     return NextResponse.json({ error: 'Erro ao salvar configuração' }, { status: 500 });
   }
 }

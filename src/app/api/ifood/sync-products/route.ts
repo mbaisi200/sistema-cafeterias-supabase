@@ -83,7 +83,6 @@ export async function POST(request: NextRequest) {
               .eq('id', config.id);
           }
         } catch (tokenError) {
-          console.error('Erro ao obter token:', tokenError);
         }
       }
     }
@@ -188,7 +187,6 @@ export async function POST(request: NextRequest) {
           results.push({ id: produto.id, status: 'success', ifoodProductId });
         } else {
           const errorText = await response.text();
-          console.error(`Erro ao sincronizar produto ${produto.id}:`, errorText);
 
           // Registrar erro
           await supabase
@@ -215,7 +213,6 @@ export async function POST(request: NextRequest) {
           results.push({ id: produto.id, status: 'error', error: errorText });
         }
       } catch (productError: any) {
-        console.error(`Erro ao processar produto ${produto.id}:`, productError);
         errors++;
         results.push({ id: produto.id, status: 'error', error: productError.message });
       }
@@ -240,7 +237,6 @@ export async function POST(request: NextRequest) {
       results,
     });
   } catch (error: any) {
-    console.error('Erro na sincronização iFood:', error);
     return NextResponse.json({ error: error.message || 'Erro interno' }, { status: 500 });
   }
 }
@@ -270,7 +266,6 @@ export async function GET(request: NextRequest) {
       .eq('empresa_id', empresaId);
 
     if (error) {
-      console.error('Erro ao buscar sync status:', error);
       return NextResponse.json({ error: 'Erro ao buscar status' }, { status: 500 });
     }
 
@@ -278,7 +273,6 @@ export async function GET(request: NextRequest) {
       produtos: syncData || [],
     });
   } catch (error: any) {
-    console.error('Erro ao buscar status de sincronização:', error);
     return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
   }
 }

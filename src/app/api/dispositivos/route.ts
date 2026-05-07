@@ -52,7 +52,6 @@ export async function GET(request: NextRequest) {
       .order('ultimo_acesso', { ascending: false });
 
     if (devicesError) {
-      console.error('Erro ao buscar dispositivos:', devicesError);
       return NextResponse.json({ error: devicesError.message }, { status: 500 });
     }
 
@@ -68,7 +67,6 @@ export async function GET(request: NextRequest) {
       restringir: empresa?.restringir_dispositivos || false,
     });
   } catch (error) {
-    console.error('Erro na API dispositivos GET:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
@@ -101,7 +99,6 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (empresaError) {
-      console.error('Erro ao buscar empresa:', empresaError);
       return NextResponse.json({ error: 'Empresa não encontrada' }, { status: 404 });
     }
 
@@ -118,7 +115,6 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (searchError) {
-      console.error('Erro ao buscar dispositivo:', searchError);
       return NextResponse.json({ error: 'Erro interno' }, { status: 500 });
     }
 
@@ -178,7 +174,6 @@ export async function POST(request: NextRequest) {
       .insert(newDevice);
 
     if (insertError) {
-      console.error('Erro ao registrar dispositivo:', insertError);
       return NextResponse.json({ error: 'Erro ao registrar dispositivo' }, { status: 500 });
     }
 
@@ -196,7 +191,6 @@ export async function POST(request: NextRequest) {
       message: 'Dispositivo registrado automaticamente',
     });
   } catch (error) {
-    console.error('Erro na API dispositivos POST:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }

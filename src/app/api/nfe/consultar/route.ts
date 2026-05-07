@@ -77,7 +77,6 @@ export async function GET(request: NextRequest) {
           });
         }
       } catch (sefazError) {
-        console.error('Erro na consulta SEFAZ:', sefazError);
       }
     }
 
@@ -92,7 +91,6 @@ export async function GET(request: NextRequest) {
     });
 
   } catch (error: any) {
-    console.error('Erro ao consultar NF-e:', error);
     return NextResponse.json(
       { sucesso: false, erro: { codigo: '500', mensagem: error.message } },
       { status: 500 }

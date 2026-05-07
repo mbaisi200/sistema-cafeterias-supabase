@@ -855,21 +855,18 @@ export function useEmpresas() {
   };
 
   const excluirEmpresa = async (id: string) => {
-    // Primeiro excluir usuários relacionados
-    const { error: errorUsuarios } = await supabase
-      .from('usuarios')
-      .delete()
-      .eq('empresa_id', id);
+    // Usar API com service role para deletar auth.users + banco
+    const response = await fetch('/api/master/excluir-empresa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ empresaId: id }),
+    });
 
-    if (errorUsuarios) throw errorUsuarios;
+    const result = await response.json();
 
-    // Depois excluir a empresa
-    const { error } = await supabase
-      .from('empresas')
-      .delete()
-      .eq('id', id);
-
-    if (error) throw error;
+    if (!response.ok) {
+      throw new Error(result.erro || 'Erro ao excluir empresa');
+    }
 
     // Recarregar lista
     await carregarEmpresas();

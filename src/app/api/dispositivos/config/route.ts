@@ -47,7 +47,6 @@ export async function GET() {
       .single();
 
     if (empresaError) {
-      console.error('Erro ao buscar configuração:', empresaError);
       return NextResponse.json({ error: 'Erro ao buscar configuração' }, { status: 500 });
     }
 
@@ -55,7 +54,6 @@ export async function GET() {
       restringir: empresa?.restringir_dispositivos || false,
     });
   } catch (error) {
-    console.error('Erro na API dispositivos/config GET:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
@@ -123,7 +121,6 @@ export async function PATCH(request: NextRequest) {
       .eq('id', usuario.empresa_id);
 
     if (updateError) {
-      console.error('Erro ao atualizar configuração:', updateError);
       return NextResponse.json({ error: 'Erro ao atualizar configuração' }, { status: 500 });
     }
 
@@ -135,7 +132,6 @@ export async function PATCH(request: NextRequest) {
         : 'Restrição de dispositivos desativada. Novos dispositivos serão registrados automaticamente.',
     });
   } catch (error) {
-    console.error('Erro na API dispositivos/config PATCH:', error);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
