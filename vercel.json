@@ -1,7 +1,6 @@
 {
   "installCommand": "npm install",
   "framework": "nextjs",
-  "nodeVersion": "20.x",
   "headers": [
     {
       "source": "/(.*)",
