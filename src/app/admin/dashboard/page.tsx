@@ -119,9 +119,9 @@ function KPICard({ data, index }: { data: KPICardData; index: number }) {
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide truncate">{data.titulo}</p>
-            <p className="text-2xl font-bold text-foreground mt-1 truncate">{data.valor}</p>
+            <p className="text-lg font-bold text-foreground mt-0.5 leading-tight">{data.valor}</p>
             {data.subtitulo && (
-              <p className="text-xs text-muted-foreground mt-1 truncate">{data.subtitulo}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{data.subtitulo}</p>
             )}
           </div>
           <div className={`flex-shrink-0 p-2 rounded-lg ${data.corBg} ${darkBgMap[data.corBg] || ''}`}>
@@ -1215,9 +1215,23 @@ export default function AdminDashboardPage() {
                         </Button>
                       </div>
                       <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
-                        {lowStockProdutos.slice(0, 5).map((p: any) => p.nome).join(', ')}
-                        {lowStockProdutos.length > 5 && ` e mais ${lowStockProdutos.length - 5} outro${lowStockProdutos.length - 5 !== 1 ? 's' : ''}`}
+                        Alguns produtos estão abaixo do estoque mínimo. Faça a reposição.
                       </p>
+                      <ul className="mt-2 space-y-0.5 max-h-32 overflow-y-auto">
+                        {lowStockProdutos.slice(0, 10).map((p: any) => (
+                          <li key={p.id} className="flex justify-between text-sm text-amber-700 dark:text-amber-400">
+                            <span className="truncate">{p.nome}</span>
+                            <span className="shrink-0 ml-2 font-medium">
+                              {p.estoque_atual ?? 0} / {p.estoque_minimo ?? 0}
+                            </span>
+                          </li>
+                        ))}
+                        {lowStockProdutos.length > 10 && (
+                          <li className="text-xs text-amber-600 dark:text-amber-500">
+                            E mais {lowStockProdutos.length - 10} outro{lowStockProdutos.length - 10 !== 1 ? 's' : ''}...
+                          </li>
+                        )}
+                      </ul>
                     </div>
                   </div>
                 </CardContent>

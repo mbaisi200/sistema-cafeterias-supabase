@@ -56,6 +56,7 @@ import {
   Download,
   ChevronLeft,
   ArrowUpDown,
+  Edit2,
 } from 'lucide-react';
 import { exportToPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 
@@ -93,6 +94,14 @@ export default function EstoquePage() {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState<'todos' | 'baixo' | 'normal'>('todos');
   const [filterCategoria, setFilterCategoria] = useState<string>('todos');
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [editandoColuna, setEditandoColuna] = useState<string | null>(null);
+  const [colunaNome, setColunaNome] = useState('Produto');
+  const [colunaCodigo, setColunaCodigo] = useState('Código');
+  const [colunaEstoqueAtual, setColunaEstoqueAtual] = useState('Estoque Atual');
+  const [colunaEstoqueMinimo, setColunaEstoqueMinimo] = useState('Estoque Mínimo');
+  const [colunaStatus, setColunaStatus] = useState('Status');
   const [dialogEntrada, setDialogEntrada] = useState(false);
   const [dialogSaida, setDialogSaida] = useState(false);
   const [dialogHistorico, setDialogHistorico] = useState(false);
@@ -201,20 +210,39 @@ export default function EstoquePage() {
   }, [carregarMovimentacoes]);
 
   // Filtros
-  const produtosFiltrados = produtos.filter(produto => {
-    const matchSearch = produto.nome.toLowerCase().includes(search.toLowerCase()) ||
-                       (produto.codigo && produto.codigo.toLowerCase().includes(search.toLowerCase())) ||
-                       (produto.codigoBarras && produto.codigoBarras.includes(search));
-    
-    const estoqueBaixo = (produto.estoqueAtual || 0) <= (produto.estoqueMinimo || 0);
-    const matchStatus = filterStatus === 'todos' || 
-                       (filterStatus === 'baixo' && estoqueBaixo) ||
-                       (filterStatus === 'normal' && !estoqueBaixo);
-    
-    const matchCategoria = filterCategoria === 'todos' || produto.categoriaId === filterCategoria;
-    
-    return matchSearch && matchStatus && matchCategoria;
-  });
+  const produtosFiltrados = useMemo(() => {
+    const filtered = produtos.filter(produto => {
+      const matchSearch = produto.nome.toLowerCase().includes(search.toLowerCase()) ||
+                         (produto.codigo && produto.codigo.toLowerCase().includes(search.toLowerCase())) ||
+                         (produto.codigoBarras && produto.codigoBarras.includes(search));
+
+      const estoqueBaixo = (produto.estoqueAtual || 0) <= (produto.estoqueMinimo || 0);
+      const matchStatus = filterStatus === 'todos' ||
+                         (filterStatus === 'baixo' && estoqueBaixo) ||
+                         (filterStatus === 'normal' && !estoqueBaixo);
+
+      const matchCategoria = filterCategoria === 'todos' || produto.categoriaId === filterCategoria;
+
+      return matchSearch && matchStatus && matchCategoria;
+    });
+
+    if (!sortBy) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      let aVal: any, bVal: any;
+      switch (sortBy) {
+        case 'nome': aVal = (a.nome || '').toLowerCase(); bVal = (b.nome || '').toLowerCase(); break;
+        case 'codigo': aVal = (a.codigo || '').toLowerCase(); bVal = (b.codigo || '').toLowerCase(); break;
+        case 'estoque_atual': aVal = a.estoqueAtual ?? 0; bVal = b.estoqueAtual ?? 0; break;
+        case 'estoque_minimo': aVal = a.estoqueMinimo ?? 0; bVal = b.estoqueMinimo ?? 0; break;
+        case 'ativo': aVal = a.ativo ? 1 : 0; bVal = b.ativo ? 1 : 0; break;
+        default: return 0;
+      }
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [produtos, search, filterStatus, filterCategoria, sortBy, sortDir]);
 
   const produtosBaixoEstoque = produtos.filter(p => (p.estoqueAtual || 0) <= (p.estoqueMinimo || 0));
 
@@ -799,19 +827,49 @@ export default function EstoquePage() {
 
           {/* Alertas */}
           {produtosBaixoEstoque.length > 0 && (
-            <Card className="border-yellow-200 bg-yellow-50">
-              <CardContent className="pt-6">
+                        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/50">
+              <CardContent className="p-4">
                 <div className="flex items-start gap-4">
-                  <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="h-6 w-6 text-yellow-600" />
+                  <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
                   </div>
-                  <div className="flex-1">
-                    <p className="font-semibold text-yellow-800">
-                      Atenção: {produtosBaixoEstoque.length} produtos com estoque baixo
-                    </p>
-                    <p className="text-sm text-yellow-700 mt-1">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold text-amber-800 dark:text-amber-300">
+                        Atenção: {produtosBaixoEstoque.length} produto{produtosBaixoEstoque.length !== 1 ? 's' : ''} com estoque baixo
+                      </p>
+                      <Button asChild variant="outline" size="sm" className="shrink-0 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/50">
+                        <a href="/admin/estoque?filter=baixo">Ver Estoque</a>
+                      </Button>
+                    </div>
+                    <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
                       Alguns produtos estão abaixo do estoque mínimo. Faça a reposição.
                     </p>
+                    <div className="mt-3 border border-amber-200 dark:border-amber-800/50 rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-amber-100/50 dark:bg-amber-900/30">
+                            <th className="text-left text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Produto</th>
+                            <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Atual</th>
+                            <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Mínimo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {produtosBaixoEstoque.slice(0, 5).map((p: any, idx: number) => (
+                            <tr key={p.id} className={`${idx % 2 === 0 ? 'bg-amber-50/50 dark:bg-amber-950/10' : ''} border-t border-amber-100 dark:border-amber-800/30`}>
+                              <td className="text-amber-800 dark:text-amber-400 px-3 py-1.5 truncate max-w-[200px]">{p.nome}</td>
+                              <td className="text-center text-amber-800 dark:text-amber-400 px-3 py-1.5 font-mono">{p.estoqueAtual ?? 0}</td>
+                              <td className="text-center text-amber-800 dark:text-amber-400 px-3 py-1.5 font-mono">{p.estoqueMinimo ?? 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {produtosBaixoEstoque.length > 5 && (
+                        <div className="bg-amber-100/50 dark:bg-amber-900/30 border-t border-amber-200 dark:border-amber-800/50 px-3 py-1.5 text-xs text-amber-600 dark:text-amber-500 text-center">
+                          E mais {produtosBaixoEstoque.length - 5} outro{produtosBaixoEstoque.length - 5 !== 1 ? 's' : ''}...
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -835,15 +893,151 @@ export default function EstoquePage() {
             </Card>
           ) : (
             <Card>
-              <Table>
+              <div className="overflow-x-auto">
+              <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Produto</TableHead>
-                    <TableHead>Código</TableHead>
-                    <TableHead className="text-center">Estoque Atual</TableHead>
-                    <TableHead className="text-center">Estoque Mínimo</TableHead>
-                    <TableHead className="text-center">Status</TableHead>
-                    <TableHead className="text-center">Ações</TableHead>
+                    <TableHead className="w-[35%]">
+                      <div className="flex items-center gap-1 group">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'nome') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                            else { setSortBy('nome'); setSortDir('asc'); }
+                            setEditandoColuna(null);
+                          }}
+                          className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <span className="text-muted-foreground group-hover:text-primary">
+                            {sortBy === 'nome' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                          </span>
+                          {colunaNome}
+                        </button>
+                        <Edit2 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity cursor-pointer" onClick={() => setEditandoColuna('nome')} />
+                      </div>
+                      {editandoColuna === 'nome' && (
+                        <Input
+                          className="h-6 text-xs mt-1"
+                          value={colunaNome}
+                          onChange={(e) => setColunaNome(e.target.value)}
+                          onBlur={() => setEditandoColuna(null)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') setEditandoColuna(null); }}
+                          autoFocus
+                        />
+                      )}
+                    </TableHead>
+                    <TableHead className="w-[15%]">
+                      <div className="flex items-center gap-1 group">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'codigo') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                            else { setSortBy('codigo'); setSortDir('asc'); }
+                            setEditandoColuna(null);
+                          }}
+                          className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <span className="text-muted-foreground group-hover:text-primary">
+                            {sortBy === 'codigo' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                          </span>
+                          {colunaCodigo}
+                        </button>
+                        <Edit2 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity cursor-pointer" onClick={() => setEditandoColuna('codigo')} />
+                      </div>
+                      {editandoColuna === 'codigo' && (
+                        <Input
+                          className="h-6 text-xs mt-1"
+                          value={colunaCodigo}
+                          onChange={(e) => setColunaCodigo(e.target.value)}
+                          onBlur={() => setEditandoColuna(null)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') setEditandoColuna(null); }}
+                          autoFocus
+                        />
+                      )}
+                    </TableHead>
+                    <TableHead className="w-[12%] text-center">
+                      <div className="flex items-center gap-1 group justify-center">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'estoque_atual') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                            else { setSortBy('estoque_atual'); setSortDir('asc'); }
+                            setEditandoColuna(null);
+                          }}
+                          className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <span className="text-muted-foreground">
+                            {sortBy === 'estoque_atual' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                          </span>
+                          {colunaEstoqueAtual}
+                        </button>
+                        <Edit2 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity cursor-pointer" onClick={() => setEditandoColuna('estoqueAtual')} />
+                      </div>
+                      {editandoColuna === 'estoqueAtual' && (
+                        <Input
+                          className="h-6 text-xs mt-1"
+                          value={colunaEstoqueAtual}
+                          onChange={(e) => setColunaEstoqueAtual(e.target.value)}
+                          onBlur={() => setEditandoColuna(null)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') setEditandoColuna(null); }}
+                          autoFocus
+                        />
+                      )}
+                    </TableHead>
+                    <TableHead className="w-[12%] text-center">
+                      <div className="flex items-center gap-1 group justify-center">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'estoque_minimo') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                            else { setSortBy('estoque_minimo'); setSortDir('asc'); }
+                            setEditandoColuna(null);
+                          }}
+                          className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <span className="text-muted-foreground">
+                            {sortBy === 'estoque_minimo' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                          </span>
+                          {colunaEstoqueMinimo}
+                        </button>
+                        <Edit2 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity cursor-pointer" onClick={() => setEditandoColuna('estoqueMinimo')} />
+                      </div>
+                      {editandoColuna === 'estoqueMinimo' && (
+                        <Input
+                          className="h-6 text-xs mt-1"
+                          value={colunaEstoqueMinimo}
+                          onChange={(e) => setColunaEstoqueMinimo(e.target.value)}
+                          onBlur={() => setEditandoColuna(null)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') setEditandoColuna(null); }}
+                          autoFocus
+                        />
+                      )}
+                    </TableHead>
+                    <TableHead className="w-[10%] text-center">
+                      <div className="flex items-center gap-1 group justify-center">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'ativo') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                            else { setSortBy('ativo'); setSortDir('asc'); }
+                            setEditandoColuna(null);
+                          }}
+                          className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
+                        >
+                          <span className="text-muted-foreground">
+                            {sortBy === 'ativo' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                          </span>
+                          {colunaStatus}
+                        </button>
+                        <Edit2 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity cursor-pointer" onClick={() => setEditandoColuna('status')} />
+                      </div>
+                      {editandoColuna === 'status' && (
+                        <Input
+                          className="h-6 text-xs mt-1"
+                          value={colunaStatus}
+                          onChange={(e) => setColunaStatus(e.target.value)}
+                          onBlur={() => setEditandoColuna(null)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') setEditandoColuna(null); }}
+                          autoFocus
+                        />
+                      )}
+                    </TableHead>
+                    <TableHead className="w-[16%] text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -925,8 +1119,9 @@ export default function EstoquePage() {
                   })}
                 </TableBody>
               </Table>
-            </Card>
-          )}
+                </div>
+              </Card>
+            )}
         </div>
 
         {/* DIALOG ENTRADA DE ESTOQUE */}

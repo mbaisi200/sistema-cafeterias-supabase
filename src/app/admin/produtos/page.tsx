@@ -39,7 +39,7 @@ import { useProdutos, useCategorias, useCombos } from '@/hooks/useSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Plus,
   Search,
@@ -67,6 +67,10 @@ import {
   ImageIcon,
   Upload,
   Ruler,
+  Edit2,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
 } from 'lucide-react';
 import Link from 'next/link';
 import { exportToPDF, formatCurrencyPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
@@ -121,6 +125,14 @@ export default function ProdutosPage() {
   
   // Estados de Produtos
   const [search, setSearch] = useState('');
+  const [colunaNome, setColunaNome] = useState('Produto');
+  const [colunaCodigo, setColunaCodigo] = useState('Código');
+  const [colunaEstoqueAtual, setColunaEstoqueAtual] = useState('Estoque Atual');
+  const [colunaEstoqueMinimo, setColunaEstoqueMinimo] = useState('Estoque Mínimo');
+  const [colunaStatus, setColunaStatus] = useState('Status');
+  const [editandoColuna, setEditandoColuna] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [categoriaFilter, setCategoriaFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'ativos' | 'inativos'>('ativos');
   const [produtoAtivo, setProdutoAtivo] = useState(true);
@@ -346,17 +358,37 @@ export default function ProdutosPage() {
     loadIfoodConfig();
   }, [empresaId]);
 
-  const filteredProdutos = produtos.filter(produto => {
-    const searchLower = search.toLowerCase();
-    const matchSearch = produto.nome.toLowerCase().includes(searchLower) ||
-                       (produto.codigo && produto.codigo.toLowerCase().includes(searchLower)) ||
-                       (produto.codigoBarras && produto.codigoBarras.includes(search));
-    const matchCategoria = categoriaFilter === 'all' || produto.categoriaId === categoriaFilter;
-    const matchStatus = statusFilter === 'todos' ||
-      (statusFilter === 'ativos' && produto.ativo !== false) ||
-      (statusFilter === 'inativos' && produto.ativo === false);
-    return matchSearch && matchCategoria && matchStatus;
-  });
+  const filteredProdutos = useMemo(() => {
+    const filtered = produtos.filter(produto => {
+      const searchLower = search.toLowerCase();
+      const matchSearch = produto.nome.toLowerCase().includes(searchLower) ||
+                         (produto.codigo && produto.codigo.toLowerCase().includes(searchLower)) ||
+                         (produto.codigoBarras && produto.codigoBarras.includes(search));
+      const matchCategoria = categoriaFilter === 'all' || produto.categoriaId === categoriaFilter;
+      const matchStatus = statusFilter === 'todos' ||
+        (statusFilter === 'ativos' && produto.ativo !== false) ||
+        (statusFilter === 'inativos' && produto.ativo === false);
+      return matchSearch && matchCategoria && matchStatus;
+    });
+
+    if (!sortBy) return filtered;
+
+    return [...filtered].sort((a, b) => {
+      let aVal: any, bVal: any;
+      switch (sortBy) {
+        case 'nome': aVal = (a.nome || '').toLowerCase(); bVal = (b.nome || '').toLowerCase(); break;
+        case 'codigo': aVal = (a.codigo || '').toLowerCase(); bVal = (b.codigo || '').toLowerCase(); break;
+        case 'estoque_atual': aVal = a.estoqueAtual ?? 0; bVal = b.estoqueAtual ?? 0; break;
+        case 'estoque_minimo': aVal = a.estoqueMinimo ?? 0; bVal = b.estoqueMinimo ?? 0; break;
+        case 'preco': aVal = a.preco ?? 0; bVal = b.preco ?? 0; break;
+        case 'ativo': aVal = a.ativo ? 1 : 0; bVal = b.ativo ? 1 : 0; break;
+        default: return 0;
+      }
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [produtos, search, categoriaFilter, statusFilter, sortBy, sortDir]);
 
   // Produtos marcados para iFood
   const produtosIfood = produtos.filter(p => p.disponivelIfood);
@@ -1250,16 +1282,136 @@ export default function ProdutosPage() {
               </Card>
             ) : (
               <Card>
-                <Table>
+                <div className="overflow-x-auto">
+                <Table className="table-fixed w-full min-w-[800px]">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[250px]">Produto</TableHead>
-                      <TableHead>Código</TableHead>
+                      <TableHead className="w-[200px]">
+                        <div className="flex items-center gap-1 group">
+                          <button
+                            onClick={() => {
+                              if (sortBy === 'nome') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                              else { setSortBy('nome'); setSortDir('asc'); }
+                              setEditandoColuna(null);
+                            }}
+                            className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
+                          >
+                            <span className="text-muted-foreground group-hover:text-primary">
+                              {sortBy === 'nome' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                            </span>
+                            {colunaNome}
+                          </button>
+                          <Edit2 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity cursor-pointer" onClick={() => setEditandoColuna('nome')} />
+                        </div>
+                        {editandoColuna === 'nome' && (
+                          <Input
+                            className="h-6 text-xs mt-1"
+                            value={colunaNome}
+                            onChange={(e) => setColunaNome(e.target.value)}
+                            onBlur={() => setEditandoColuna(null)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') setEditandoColuna(null); }}
+                            autoFocus
+                          />
+                        )}
+                      </TableHead>
+                      <TableHead>
+                        <div className="flex items-center gap-1 group">
+                          <button
+                            onClick={() => {
+                              if (sortBy === 'codigo') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                              else { setSortBy('codigo'); setSortDir('asc'); }
+                              setEditandoColuna(null);
+                            }}
+                            className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
+                          >
+                            <span className="text-muted-foreground group-hover:text-primary">
+                              {sortBy === 'codigo' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                            </span>
+                            {colunaCodigo}
+                          </button>
+                          <Edit2 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity cursor-pointer" onClick={() => setEditandoColuna('codigo')} />
+                        </div>
+                        {editandoColuna === 'codigo' && (
+                          <Input
+                            className="h-6 text-xs mt-1"
+                            value={colunaCodigo}
+                            onChange={(e) => setColunaCodigo(e.target.value)}
+                            onBlur={() => setEditandoColuna(null)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') setEditandoColuna(null); }}
+                            autoFocus
+                          />
+                        )}
+                      </TableHead>
                       <TableHead>Categoria</TableHead>
-                      <TableHead className="text-center">Estoque</TableHead>
-                      <TableHead className="text-right">Preço</TableHead>
+                      <TableHead className="text-center">
+                        <div className="flex items-center gap-1 group justify-center">
+                          <button
+                            onClick={() => {
+                              if (sortBy === 'estoque_atual') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                              else { setSortBy('estoque_atual'); setSortDir('asc'); }
+                              setEditandoColuna(null);
+                            }}
+                            className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
+                          >
+                            <span className="text-muted-foreground">
+                              {sortBy === 'estoque_atual' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                            </span>
+                            {colunaEstoqueAtual}
+                          </button>
+                          <Edit2 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity cursor-pointer" onClick={() => setEditandoColuna('estoqueAtual')} />
+                        </div>
+                        {editandoColuna === 'estoqueAtual' && (
+                          <Input
+                            className="h-6 text-xs mt-1"
+                            value={colunaEstoqueAtual}
+                            onChange={(e) => setColunaEstoqueAtual(e.target.value)}
+                            onBlur={() => setEditandoColuna(null)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') setEditandoColuna(null); }}
+                            autoFocus
+                          />
+                        )}
+                      </TableHead>
+                      <TableHead className="text-right">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'preco') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                            else { setSortBy('preco'); setSortDir('asc'); }
+                          }}
+                          className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
+                        >
+                          Preço
+                          {sortBy === 'preco' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                        </button>
+                      </TableHead>
                       <TableHead className="text-center">iFood</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">
+                        <div className="flex items-center gap-1 group justify-center">
+                          <button
+                            onClick={() => {
+                              if (sortBy === 'ativo') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                              else { setSortBy('ativo'); setSortDir('asc'); }
+                              setEditandoColuna(null);
+                            }}
+                            className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
+                          >
+                            <span className="text-muted-foreground">
+                              {sortBy === 'ativo' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                            </span>
+                            {colunaStatus}
+                          </button>
+                          <Edit2 className="h-3 w-3 opacity-0 group-hover:opacity-50 transition-opacity cursor-pointer" onClick={() => setEditandoColuna('status')} />
+                        </div>
+                        {editandoColuna === 'status' && (
+                          <Input
+                            className="h-6 text-xs mt-1"
+                            value={colunaStatus}
+                            onChange={(e) => setColunaStatus(e.target.value)}
+                            onBlur={() => setEditandoColuna(null)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') setEditandoColuna(null); }}
+                            autoFocus
+                          />
+                        )}
+                      </TableHead>
                       <TableHead className="w-[100px] text-center">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1273,7 +1425,7 @@ export default function ProdutosPage() {
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-2">
-                                <p className="font-medium truncate">{produto.nome}</p>
+                                <p className="font-medium truncate overflow-hidden">{produto.nome}</p>
                                 {produto.destaque && (
                                   <Star className="h-4 w-4 text-amber-500 fill-amber-500 flex-shrink-0" />
                                 )}
@@ -1337,7 +1489,8 @@ export default function ProdutosPage() {
                     ))}
                   </TableBody>
                 </Table>
-</Card>
+                </div>
+              </Card>
             )}
             </TabsContent>
 
