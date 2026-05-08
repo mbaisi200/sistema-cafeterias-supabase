@@ -15,6 +15,7 @@ interface AuthContextType {
   isConfigured: boolean;
   secoesPermitidas: string[];
   nomeMarca: string | null;
+  permitirFotoProduto: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginFuncionario: (codigoEmpresa: string, pin: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [secoesPermitidas, setSecoesPermitidas] = useState<string[]>([]);
   const [nomeMarca, setNomeMarca] = useState<string | null>(null);
+  const [permitirFotoProduto, setPermitirFotoProduto] = useState(true);
   const [loading, setLoading] = useState(true);
   const mounted = useRef(true);
   const hasInitialized = useRef(false);
@@ -86,9 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
 
-      // Armazenar seções permitidas e nome da marca
+      // Armazenar seções permitidas, nome da marca e permissão de foto
       setSecoesPermitidas(result.user.secoesPermitidas || []);
       setNomeMarca(result.user.nomeMarca || null);
+      setPermitirFotoProduto(result.user.permitirFotoProduto ?? true);
 
       const userData: User = {
         id: result.user.id,
@@ -440,6 +443,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setSecoesPermitidas([]);
     setNomeMarca(null);
+    setPermitirFotoProduto(true);
     clearFuncionarioSession();
     hasInitialized.current = false;
 
@@ -466,6 +470,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isConfigured: isSupabaseConfigured(),
     secoesPermitidas,
     nomeMarca,
+    permitirFotoProduto,
     login,
     loginFuncionario,
     logout,

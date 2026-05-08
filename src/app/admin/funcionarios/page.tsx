@@ -710,7 +710,7 @@ export default function FuncionariosPage() {
                         <TableHead>Cargo</TableHead>
                         <TableHead className="hidden md:table-cell">Contato</TableHead>
                         <TableHead>Dispositivos</TableHead>
-                        <TableHead className="hidden lg:table-cell">Permissões</TableHead>
+                          <TableHead className="hidden md:table-cell">Permissões</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
@@ -769,13 +769,30 @@ export default function FuncionariosPage() {
                               );
                             })()}
                           </TableCell>
-                          <TableCell className="hidden lg:table-cell">
+                          <TableCell className="hidden md:table-cell">
                             <div className="flex flex-wrap gap-1">
-                              {func.perm_pdv && <Badge variant="secondary" className="text-xs">PDV</Badge>}
-                              {func.perm_pdv_garcom && <Badge variant="secondary" className="text-xs">PDV Garçon</Badge>}
-                              {func.perm_estoque && <Badge variant="secondary" className="text-xs">Estoque</Badge>}
-                              {func.perm_financeiro && <Badge variant="secondary" className="text-xs">Financeiro</Badge>}
-                              {func.perm_relatorios && <Badge variant="secondary" className="text-xs">Relatórios</Badge>}
+                              {(() => {
+                                const perms: { key: string; label: string; color: string }[] = [
+                                  { key: 'perm_pdv', label: 'PDV', color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' },
+                                  { key: 'perm_pdv_garcom', label: 'PDV Garçom', color: 'bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300' },
+                                  { key: 'perm_estoque', label: 'Estoque', color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
+                                  { key: 'perm_financeiro', label: 'Financeiro', color: 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' },
+                                  { key: 'perm_cancelar_venda', label: 'Cancelar Venda', color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' },
+                                  { key: 'perm_dar_desconto', label: 'Dar Desconto', color: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' },
+                                  { key: 'perm_relatorios', label: 'Relatórios', color: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300' },
+                                ];
+                                const activePerms = perms.filter(p => (func as Record<string, boolean>)[p.key]);
+                                return activePerms.length > 0 ? activePerms.map((perm, i) => (
+                                  <span
+                                    key={i}
+                                    className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${perm.color}`}
+                                  >
+                                    {perm.label}
+                                  </span>
+                                )) : (
+                                  <span className="text-xs text-muted-foreground">Nenhuma</span>
+                                );
+                              })()}
                             </div>
                           </TableCell>
                           <TableCell>

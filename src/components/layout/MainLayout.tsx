@@ -62,8 +62,10 @@ export function MainLayout({ children, breadcrumbs = [] }: MainLayoutProps) {
             </Breadcrumb>
           )}
         </header>
-        <main className="flex-1 overflow-auto p-4 md:px-8 lg:px-10 md:py-6">
+        <main className="flex-1 overflow-auto p-4 md:px-6 lg:px-8 md:py-6">
+          <div className="w-full max-w-[1200px]">
           {children}
+          </div>
         </main>
       </SidebarInset>
     </SidebarProvider>

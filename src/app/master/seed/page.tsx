@@ -541,8 +541,14 @@ function SeedContent() {
   const [progress, setProgress] = useState(0);
   const [statusList, setStatusList] = useState<SeedStatus[]>([]);
   const [logs, setLogs] = useState<string[]>([]);
-  const [dataInicio, setDataInicio] = useState('2026-01-01');
-  const [dataFim, setDataFim] = useState('2026-04-30');
+  const [dataInicio, setDataInicio] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() - 1, 1).toISOString().split('T')[0];
+  });
+  const [dataFim, setDataFim] = useState(() => {
+    const d = new Date();
+    return new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+  });
   const [numVendas, setNumVendas] = useState(220);
 
   // Estados do segmento
@@ -992,7 +998,7 @@ function SeedContent() {
       addLog('Criando produtos...');
 
       const produtosIds: string[] = [];
-      const produtosDataInsert: {empresa_id: string, categoria_id: string, nome: string, descricao: string, codigo: string, preco: number, custo: number, unidade: string, estoque_atual: number, estoque_minimo: number, destaque: boolean, ativo: boolean, criado_em: string, atualizado_em: string}[] = [];
+      const produtosDataInsert: {empresa_id: string, categoria_id: string, nome: string, descricao: string, codigo: string, preco: number, custo: number, unidade: string, estoque_atual: number, estoque_minimo: number, controlar_estoque: boolean, destaque: boolean, ativo: boolean, criado_em: string, atualizado_em: string}[] = [];
       const produtosDataInfo: {id: string, nome: string, preco: number, custo: number}[] = [];
 
       for (const [nomeCategoria, produtos] of Object.entries(catalogoProdutos)) {
@@ -1008,8 +1014,11 @@ function SeedContent() {
             preco: produto.preco,
             custo: produto.custo,
             unidade: 'un',
-            estoque_atual: Math.floor(50 + Math.random() * 150),
-            estoque_minimo: 10,
+            estoque_atual: produtosIds.length % 5 === 0
+              ? Math.floor(Math.random() * 5)
+              : Math.floor(50 + Math.random() * 150),
+            estoque_minimo: Math.floor(5 + Math.random() * 25),
+            controlar_estoque: true,
             destaque: Math.random() > 0.7,
             ativo: true,
             criado_em: new Date().toISOString(),

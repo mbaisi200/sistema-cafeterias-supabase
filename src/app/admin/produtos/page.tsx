@@ -117,11 +117,13 @@ export default function ProdutosPage() {
   const { produtos, loading: loadingProdutos, adicionarProduto, atualizarProduto, excluirProduto, refetch: refetchProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias, adicionarCategoria, excluirCategoria } = useCategorias();
   const { toast } = useToast();
-  const { empresaId } = useAuth();
+  const { empresaId, permitirFotoProduto } = useAuth();
   
   // Estados de Produtos
   const [search, setSearch] = useState('');
   const [categoriaFilter, setCategoriaFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<'todos' | 'ativos' | 'inativos'>('ativos');
+  const [produtoAtivo, setProdutoAtivo] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editandoProduto, setEditandoProduto] = useState<Produto | null>(null);
   const [saving, setSaving] = useState(false);
@@ -129,6 +131,12 @@ export default function ProdutosPage() {
   // Estados de Categorias
   const [dialogCategoriaOpen, setDialogCategoriaOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#f97316');
+
+  // Estados de exclusão / inativação
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [produtoToDelete, setProdutoToDelete] = useState<Produto | null>(null);
+  const [produtoHasHistory, setProdutoHasHistory] = useState(false);
+  const [checkingHistory, setCheckingHistory] = useState(false);
 
   // Estados de Unidades
   const [unidades, setUnidades] = useState<{id: string; nome: string; descricao: string; ativo: boolean}[]>([]);
@@ -344,7 +352,10 @@ export default function ProdutosPage() {
                        (produto.codigo && produto.codigo.toLowerCase().includes(searchLower)) ||
                        (produto.codigoBarras && produto.codigoBarras.includes(search));
     const matchCategoria = categoriaFilter === 'all' || produto.categoriaId === categoriaFilter;
-    return matchSearch && matchCategoria;
+    const matchStatus = statusFilter === 'todos' ||
+      (statusFilter === 'ativos' && produto.ativo !== false) ||
+      (statusFilter === 'inativos' && produto.ativo === false);
+    return matchSearch && matchCategoria && matchStatus;
   });
 
   // Produtos marcados para iFood
@@ -396,7 +407,7 @@ export default function ProdutosPage() {
       }
 
       if (editandoProduto) {
-        await atualizarProduto(editandoProduto.id, dados);
+        await atualizarProduto(editandoProduto.id, { ...dados, ativo: produtoAtivo });
         toast({ title: 'Produto atualizado!' });
       } else {
         await adicionarProduto({
@@ -424,11 +435,13 @@ export default function ProdutosPage() {
 
   const handleEditarProduto = (produto: Produto) => {
     setEditandoProduto(produto);
+    setProdutoAtivo(produto.ativo ?? true);
     setDialogOpen(true);
   };
 
   const handleNovoProduto = () => {
     setEditandoProduto(null);
+    setProdutoAtivo(true);
     setDialogOpen(true);
   };
 
@@ -457,6 +470,43 @@ export default function ProdutosPage() {
       ],
       ...empresaInfo,
     });
+  };
+
+  const verificarProdutoEmUso = async (produtoId: string): Promise<boolean> => {
+    const supabase = getSupabaseClient();
+    const { count, error } = await supabase
+      .from('itens_venda')
+      .select('*', { count: 'exact', head: true })
+      .eq('produto_id', produtoId);
+    if (error) return false;
+    return (count || 0) > 0;
+  };
+
+  const handleDeleteClick = async (produto: Produto) => {
+    setProdutoToDelete(produto);
+    setCheckingHistory(true);
+    setProdutoHasHistory(false);
+    setDeleteDialogOpen(true);
+    const hasHistory = await verificarProdutoEmUso(produto.id);
+    setProdutoHasHistory(hasHistory);
+    setCheckingHistory(false);
+  };
+
+  const confirmDeleteOrInactivate = async () => {
+    if (!produtoToDelete) return;
+    try {
+      await excluirProduto(produtoToDelete.id);
+      toast({
+        title: produtoHasHistory ? 'Produto inativado!' : 'Produto excluído!',
+        description: produtoHasHistory
+          ? 'O produto foi inativado e não aparece mais nos cadastros, mas os relatórios anteriores continuam válidos.'
+          : undefined,
+      });
+      setDeleteDialogOpen(false);
+      setProdutoToDelete(null);
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro ao excluir produto' });
+    }
   };
 
   const handleExcluirProduto = async (id: string) => {
@@ -683,7 +733,8 @@ export default function ProdutosPage() {
                     {/* TAB: Dados Gerais */}
                     <TabsContent value="geral" className="mt-4" forceMount>
                       <div className="grid gap-4 py-2">
-                        {/* Foto do Produto */}
+                        {permitirFotoProduto && (
+                        /* Foto do Produto */
                         <div className="space-y-2">
                           <Label>Foto do Produto</Label>
                           <div className="flex items-center gap-4">
@@ -753,6 +804,7 @@ export default function ProdutosPage() {
                             </div>
                           </div>
                         </div>
+                        )}
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor="nome">Nome</Label>
@@ -826,6 +878,21 @@ export default function ProdutosPage() {
                             <Label htmlFor="estoqueMinimo">Estoque Mínimo</Label>
                             <Input id="estoqueMinimo" name="estoqueMinimo" type="number" placeholder="0" defaultValue={editandoProduto?.estoqueMinimo || ''} />
                           </div>
+                          {editandoProduto && (
+                            <div className="space-y-2">
+                              <Label>Estoque Atual</Label>
+                              <div className={`flex h-10 items-center rounded-md border px-3 text-sm font-mono ${
+                                (editandoProduto.estoqueAtual || 0) <= (editandoProduto.estoqueMinimo || 0)
+                                  ? 'bg-red-50 border-red-200 text-red-700'
+                                  : 'bg-green-50 border-green-200 text-green-700'
+                              }`}>
+                                {editandoProduto.estoqueAtual ?? 0} {editandoProduto.unidade || 'un'}
+                                {(editandoProduto.estoqueAtual || 0) <= (editandoProduto.estoqueMinimo || 0) && (
+                                  <span className="ml-2 text-xs font-normal">(abaixo do mínimo)</span>
+                                )}
+                              </div>
+                            </div>
+                          )}
                           <div className="space-y-2">
                             <Label htmlFor="precoUnidade">Preço/Unidade</Label>
                             <Input id="precoUnidade" name="precoUnidade" type="number" step="0.01" placeholder="0.00" defaultValue={editandoProduto?.precoUnidade || ''} />
@@ -1096,7 +1163,19 @@ export default function ProdutosPage() {
                     </TabsContent>
                   </Tabs>
 
-                  <DialogFooter className="mt-4 pt-4 border-t">
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div>
+                      <Label htmlFor="ativo" className="text-sm font-medium">Produto Ativo</Label>
+                      <p className="text-[11px] text-muted-foreground">Inative para ocultar o produto sem perder o histórico</p>
+                    </div>
+                    <Switch
+                      id="ativo"
+                      checked={produtoAtivo}
+                      onCheckedChange={setProdutoAtivo}
+                    />
+                  </div>
+
+                  <DialogFooter className="pt-2">
                     <Button variant="outline" type="button" onClick={() => { setDialogOpen(false); setEditandoProduto(null); }}>
                       Cancelar
                     </Button>
@@ -1118,6 +1197,32 @@ export default function ProdutosPage() {
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input placeholder="Buscar por nome ou código..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
                     </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant={statusFilter === 'ativos' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setStatusFilter('ativos')}
+                      className={statusFilter === 'ativos' ? 'bg-green-600 hover:bg-green-700' : ''}
+                    >
+                      Ativos
+                    </Button>
+                    <Button
+                      variant={statusFilter === 'inativos' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setStatusFilter('inativos')}
+                      className={statusFilter === 'inativos' ? 'bg-gray-500 hover:bg-gray-600' : ''}
+                    >
+                      Inativos
+                    </Button>
+                    <Button
+                      variant={statusFilter === 'todos' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setStatusFilter('todos')}
+                      className={statusFilter === 'todos' ? 'bg-orange-500 hover:bg-orange-600' : ''}
+                    >
+                      Todos
+                    </Button>
                   </div>
                   <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
                     <SelectTrigger className="w-full md:w-48">
@@ -1222,7 +1327,7 @@ export default function ProdutosPage() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => handleExcluirProduto(produto.id)}
+                              onClick={() => handleDeleteClick(produto)}
                             >
                               <Trash2 className="h-4 w-4 text-red-600" />
                             </Button>
@@ -1771,6 +1876,68 @@ export default function ProdutosPage() {
                 Salvar Itens
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Dialog: Confirmar Exclusão / Inativação */}
+        <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>
+                {checkingHistory ? 'Verificando...' : produtoHasHistory ? 'Inativar Produto' : 'Excluir Produto'}
+              </DialogTitle>
+              <DialogDescription>
+                {checkingHistory
+                  ? 'Verificando se o produto possui movimentações...'
+                  : produtoHasHistory
+                    ? 'Este produto já possui vendas ou movimentações. Excluí-lo permanentemente afetaria relatórios anteriores.'
+                    : 'Tem certeza que deseja excluir este produto?'}
+              </DialogDescription>
+            </DialogHeader>
+
+            {checkingHistory ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : (
+              <>
+                {produtoHasHistory && (
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                    <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                    <div className="text-sm text-amber-800">
+                      <p className="font-medium">Produto com histórico</p>
+                      <p className="mt-1">
+                        O produto <strong>{produtoToDelete?.nome}</strong> possui movimentações registradas.
+                        Ele será <strong>inativado</strong> — não aparecerá nos cadastros, mas os relatórios
+                        anteriores continuarão exibindo os dados corretamente.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {!produtoHasHistory && (
+                  <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
+                    <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                    <div className="text-sm text-red-800">
+                      <p>Esta ação não pode ser desfeita.</p>
+                    </div>
+                  </div>
+                )}
+
+                <DialogFooter className="gap-2">
+                  <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant={produtoHasHistory ? 'default' : 'destructive'}
+                    onClick={confirmDeleteOrInactivate}
+                    className={produtoHasHistory ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                  >
+                    {produtoHasHistory ? 'Inativar Produto' : 'Excluir Produto'}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
           </DialogContent>
         </Dialog>
 

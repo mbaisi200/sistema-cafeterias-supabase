@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sistema de Gestão - Cafeterias e Restaurantes",
+  title: "MB Sistemas",
   description: "Sistema SaaS completo para gestão de cafeterias e restaurantes. PDV touch, controle de estoque, financeiro e muito mais.",
   keywords: ["gestão", "cafeteria", "restaurante", "PDV", "estoque", "financeiro"],
   authors: [{ name: "Sistema de Gestão" }],

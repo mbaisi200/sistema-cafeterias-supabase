@@ -184,7 +184,10 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ sucesso: false, erro: { codigo: '400', mensagem: 'ID é obrigatório' } }, { status: 400 });
     }
 
-    const { error } = await supabase.from('clientes').delete().eq('id', id);
+    const { error } = await supabase
+      .from('clientes')
+      .update({ ativo: false, atualizado_em: new Date().toISOString() })
+      .eq('id', id);
 
     if (error) {
       return NextResponse.json({ sucesso: false, erro: { codigo: 'DB001', mensagem: error.message } }, { status: 500 });

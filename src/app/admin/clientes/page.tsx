@@ -47,6 +47,7 @@ import {
   Download,
   ChevronLeft,
   Loader2,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportToPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
@@ -86,7 +87,13 @@ export default function ClientesPage() {
   const [editando, setEditando] = useState(false);
   const [clienteEdit, setClienteEdit] = useState<Cliente | null>(null);
   const [salvando, setSalvando] = useState(false);
-  const [deletando, setDeletando] = useState<string | null>(null);
+
+  // Estados de exclusão / inativação
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [clienteToDelete, setClienteToDelete] = useState<Cliente | null>(null);
+  const [clienteHasHistory, setClienteHasHistory] = useState(false);
+  const [checkingClienteHistory, setCheckingClienteHistory] = useState(false);
+  const [clienteAtivo, setClienteAtivo] = useState(true);
 
   // Form
   const [tipoPessoa, setTipoPessoa] = useState('2');
@@ -147,6 +154,7 @@ export default function ClientesPage() {
     setUf('');
     setCep('');
     setObservacoes('');
+    setClienteAtivo(true);
   };
 
   const preencherForm = (c: Cliente) => {
@@ -168,6 +176,7 @@ export default function ClientesPage() {
     setUf(c.uf || '');
     setCep(c.cep || '');
     setObservacoes(c.observacoes || '');
+    setClienteAtivo(c.ativo ?? true);
   };
 
   const handleNovo = () => {
@@ -211,6 +220,7 @@ export default function ClientesPage() {
         uf,
         cep,
         observacoes: observacoes || undefined,
+        ...(editando ? { ativo: clienteAtivo } : {}),
       };
 
       const res = await fetch(editando ? '/api/clientes' : '/api/clientes', {
@@ -234,20 +244,41 @@ export default function ClientesPage() {
     }
   };
 
-  const handleDeletar = async (id: string) => {
+  const verificarClienteEmUso = async (clienteId: string): Promise<boolean> => {
     try {
-      const res = await fetch(`/api/clientes?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/clientes/vendas-count?id=${clienteId}`);
+      const data = await res.json();
+      return (data.count || 0) > 0;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleDeleteClick = async (cliente: Cliente) => {
+    setClienteToDelete(cliente);
+    setCheckingClienteHistory(true);
+    setClienteHasHistory(false);
+    setDeleteDialogOpen(true);
+    const hasHistory = await verificarClienteEmUso(cliente.id);
+    setClienteHasHistory(hasHistory);
+    setCheckingClienteHistory(false);
+  };
+
+  const confirmDeleteOrInactivate = async () => {
+    if (!clienteToDelete) return;
+    try {
+      const res = await fetch(`/api/clientes?id=${clienteToDelete.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.sucesso) {
-        toast.success('Cliente removido');
+        toast.success(clienteHasHistory ? 'Cliente inativado!' : 'Cliente removido!');
+        setDeleteDialogOpen(false);
+        setClienteToDelete(null);
         carregar();
       } else {
         toast.error('Erro ao remover');
       }
     } catch {
       toast.error('Erro de conexão');
-    } finally {
-      setDeletando(null);
     }
   };
 
@@ -451,7 +482,7 @@ export default function ClientesPage() {
                           <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEditar(c)}>
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" title="Remover" onClick={() => setDeletando(c.id)}>
+                          <Button variant="ghost" size="icon" title="Remover" onClick={() => handleDeleteClick(c)}>
                             <Trash2 className="h-4 w-4 text-red-600" />
                           </Button>
                         </div>
@@ -465,19 +496,56 @@ export default function ClientesPage() {
         </CardContent>
       </Card>
 
-      {/* Dialog Confirmar Delete */}
-      <Dialog open={!!deletando} onOpenChange={() => setDeletando(null)}>
+      {/* Dialog: Confirmar Exclusão / Inativação */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-red-600">Confirmar Exclusão</DialogTitle>
+            <DialogTitle>
+              {checkingClienteHistory ? 'Verificando...' : clienteHasHistory ? 'Inativar Cliente' : 'Excluir Cliente'}
+            </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-muted-foreground">Tem certeza que deseja excluir este cliente? Esta ação não pode ser desfeita.</p>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeletando(null)}>Cancelar</Button>
-            <Button variant="destructive" onClick={() => deletando && handleDeletar(deletando)}>
-              Excluir
-            </Button>
-          </DialogFooter>
+
+          {checkingClienteHistory ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : (
+            <>
+              {clienteHasHistory ? (
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-medium">Cliente com histórico</p>
+                    <p className="mt-1">
+                      O cliente <strong>{clienteToDelete?.nome_razao_social}</strong> possui vendas registradas.
+                      Ele será <strong>inativado</strong> — não aparecerá nos cadastros, mas os relatórios
+                      anteriores continuarão exibindo os dados corretamente.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
+                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                  <div className="text-sm text-red-800">
+                    <p>Esta ação não pode ser desfeita.</p>
+                  </div>
+                </div>
+              )}
+
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button
+                  variant={clienteHasHistory ? 'default' : 'destructive'}
+                  onClick={confirmDeleteOrInactivate}
+                  className={clienteHasHistory ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                >
+                  {clienteHasHistory ? 'Inativar Cliente' : 'Excluir Cliente'}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
@@ -637,6 +705,20 @@ export default function ClientesPage() {
               <Label>Observações</Label>
               <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} placeholder="Observações internas sobre o cliente" />
             </div>
+
+            {editando && (
+              <div className="flex items-center justify-between pt-2 border-t">
+                <div>
+                  <Label htmlFor="clienteAtivo" className="text-sm font-medium">Cliente Ativo</Label>
+                  <p className="text-[11px] text-muted-foreground">Inative para ocultar o cliente sem perder o histórico</p>
+                </div>
+                <Switch
+                  id="clienteAtivo"
+                  checked={clienteAtivo}
+                  onCheckedChange={setClienteAtivo}
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter className="gap-2">

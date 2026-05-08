@@ -13,12 +13,16 @@ import { VendasPorDiaChart, VendasPorFormaChart, VendasPorTipoChart, VendasPorCa
 import { ProdutosMaisVendidos, VendasPorOperador, FluxoCaixaResumo, LucroBrutoPorProduto } from '@/components/bi/Tabelas';
 import { VendasItensDia } from '@/components/bi/VendasItensDia';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis, Area, AreaChart } from 'recharts';
-import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign, PiggyBank, Download, ChevronLeft, WashingMachine, Package } from 'lucide-react';
+import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign, PiggyBank, Download, ChevronLeft, WashingMachine, Package, Database, Search } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { exportToPDF, formatCurrencyPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
@@ -200,6 +204,45 @@ export default function RelatoriosPage() {
 
   const bi = useBIData(vendas, produtos, categorias, movimentacoes);
 
+  // ── Estoque Tab state ──
+  const [estoqueCategoria, setEstoqueCategoria] = useState('');
+  const [estoqueSearch, setEstoqueSearch] = useState('');
+
+  const estoqueData = useMemo(() => {
+    let filtered = [...produtos];
+
+    if (estoqueCategoria) {
+      filtered = filtered.filter(p => p.categoriaId === estoqueCategoria);
+    }
+    if (estoqueSearch) {
+      const s = estoqueSearch.toLowerCase();
+      filtered = filtered.filter(p => p.nome.toLowerCase().includes(s));
+    }
+
+    return filtered.map(p => {
+      const qtd = p.estoqueAtual || 0;
+      const custo = p.custo || 0;
+      const preco = p.preco || 0;
+      const totalCusto = qtd * custo;
+      const totalVenda = qtd * preco;
+      return {
+        ...p,
+        totalCusto,
+        totalVenda,
+        resultado: totalVenda - totalCusto,
+      };
+    });
+  }, [produtos, estoqueCategoria, estoqueSearch]);
+
+  const estoqueTotais = useMemo(() => {
+    const totalCusto = estoqueData.reduce((acc, p) => acc + p.totalCusto, 0);
+    const totalVenda = estoqueData.reduce((acc, p) => acc + p.totalVenda, 0);
+    return { totalCusto, totalVenda, resultado: totalVenda - totalCusto };
+  }, [estoqueData]);
+
+  const fmt = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, style: 'currency', currency: 'BRL' });
+  const fmtQtd = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 0 });
+
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['admin']}>
@@ -282,7 +325,7 @@ export default function RelatoriosPage() {
           {/* Tabs de navegação */}
           <Tabs defaultValue="visao-geral" className="space-y-6">
             <div className="overflow-x-auto -mx-1 px-1">
-              <TabsList className="grid w-min md:w-auto md:inline-grid grid-cols-7 min-w-full md:min-w-0">
+              <TabsList className="grid w-min md:w-auto md:inline-grid grid-cols-8 min-w-full md:min-w-0">
               <TabsTrigger value="visao-geral" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Visão Geral</span>
@@ -290,6 +333,10 @@ export default function RelatoriosPage() {
               <TabsTrigger value="vendas" className="flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
                 <span className="hidden sm:inline">Vendas</span>
+              </TabsTrigger>
+              <TabsTrigger value="estoque" className="flex items-center gap-2">
+                <Database className="h-4 w-4" />
+                <span className="hidden sm:inline">Estoque</span>
               </TabsTrigger>
               <TabsTrigger value="itens" className="flex items-center gap-2">
                 <Package className="h-4 w-4" />
@@ -338,6 +385,185 @@ export default function RelatoriosPage() {
                 <AnaliseDiaSemanaChart dados={bi.analisePorDiaSemana} />
               </div>
               <VendasPorOperador dados={bi.vendasPorOperador} />
+            </TabsContent>
+
+            {/* Tab: Estoque */}
+            <TabsContent value="estoque" className="space-y-6">
+              <Card>
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle>Relatório de Estoque</CardTitle>
+                      <CardDescription>Quantidades, custos e valores de venda por produto</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          const empresaInfo = await fetchEmpresaPDFData(empresaId);
+                          exportToPDF({
+                            title: 'Relatório de Estoque',
+                            subtitle: `${estoqueData.length} produtos`,
+                            columns: [
+                              { header: 'Produto', accessor: (r: any) => r.nome },
+                              { header: 'Categoria', accessor: (r: any) => categorias.find((c: any) => c.id === r.categoriaId)?.nome || '-' },
+                              { header: 'Qtd', accessor: (r: any) => String(r.estoqueAtual || 0) },
+                              { header: 'Custo Unit.', accessor: (r: any) => formatCurrencyPDF(r.custo || 0) },
+                              { header: 'Venda Unit.', accessor: (r: any) => formatCurrencyPDF(r.preco || 0) },
+                              { header: 'Total Custo', accessor: (r: any) => formatCurrencyPDF(r.totalCusto) },
+                              { header: 'Total Venda', accessor: (r: any) => formatCurrencyPDF(r.totalVenda) },
+                              { header: 'Resultado', accessor: (r: any) => formatCurrencyPDF(r.resultado) },
+                            ],
+                            data: estoqueData,
+                            filename: `estoque-${new Date().toISOString().split('T')[0]}`,
+                            orientation: 'landscape',
+                            summary: [
+                              { label: 'Total Produtos', value: String(estoqueData.length) },
+                              { label: 'Total Custo', value: formatCurrencyPDF(estoqueTotais.totalCusto) },
+                              { label: 'Total Venda', value: formatCurrencyPDF(estoqueTotais.totalVenda) },
+                              { label: 'Resultado', value: formatCurrencyPDF(estoqueTotais.resultado) },
+                            ],
+                            ...empresaInfo,
+                          });
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        PDF
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const headers = ['Produto', 'Categoria', 'Qtd', 'Custo Unit.', 'Venda Unit.', 'Total Custo', 'Total Venda', 'Resultado'];
+                          const rows = estoqueData.map((p: any) => [
+                            p.nome,
+                            categorias.find((c: any) => c.id === p.categoriaId)?.nome || '-',
+                            String(p.estoqueAtual || 0),
+                            fmt(p.custo || 0),
+                            fmt(p.preco || 0),
+                            fmt(p.totalCusto),
+                            fmt(p.totalVenda),
+                            fmt(p.resultado),
+                          ]);
+                          rows.push([]);
+                          rows.push(['Total', '', '', '', '', fmt(estoqueTotais.totalCusto), fmt(estoqueTotais.totalVenda), fmt(estoqueTotais.resultado)]);
+                          const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Estoque</x:Name></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table>${[headers, ...rows].map(row => `<tr>${row.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</table></body></html>`;
+                          const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url;
+                          a.download = `estoque-${new Date().toISOString().split('T')[0]}.xls`;
+                          a.click();
+                          URL.revokeObjectURL(url);
+                        }}
+                      >
+                        <Download className="h-4 w-4 mr-1" />
+                        XLS
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col md:flex-row gap-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm whitespace-nowrap">Categoria:</Label>
+                      <Select value={estoqueCategoria} onValueChange={(v) => setEstoqueCategoria(v === '__all__' ? '' : v)}>
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Todas" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__all__">Todas</SelectItem>
+                          {categorias.map((cat: any) => (
+                            <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="relative flex-1 max-w-xs">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar produto..."
+                        value={estoqueSearch}
+                        onChange={(e) => setEstoqueSearch(e.target.value)}
+                        className="pl-9"
+                      />
+                    </div>
+                    {(estoqueCategoria || estoqueSearch) && (
+                      <Button variant="ghost" size="sm" onClick={() => { setEstoqueCategoria(''); setEstoqueSearch(''); }}>
+                        Limpar filtros
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <Table className="min-w-max md:min-w-full w-auto [&_td]:px-1.5 [&_td]:py-2 [&_th]:px-1.5 [&_th]:h-9">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[180px]">Produto</TableHead>
+                          <TableHead className="w-[100px]">Categoria</TableHead>
+                          <TableHead className="text-right w-[60px]">Qtd</TableHead>
+                          <TableHead className="text-right w-[90px]">Custo</TableHead>
+                          <TableHead className="text-right w-[90px]">Venda</TableHead>
+                          <TableHead className="text-right w-[100px]">Custo Total</TableHead>
+                          <TableHead className="text-right w-[100px]">Venda Total</TableHead>
+                          <TableHead className="text-right w-[100px]">Resultado</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {estoqueData.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                              Nenhum produto encontrado
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          estoqueData.map((p) => (
+                            <TableRow key={p.id}>
+                              <TableCell className="font-medium truncate max-w-[180px]" title={p.nome}>{p.nome}</TableCell>
+                              <TableCell className="truncate max-w-[100px]" title={categorias.find((c: any) => c.id === p.categoriaId)?.nome || ''}>{categorias.find((c: any) => c.id === p.categoriaId)?.nome || '-'}</TableCell>
+                              <TableCell className="text-right whitespace-nowrap">{fmtQtd(p.estoqueAtual || 0)}</TableCell>
+                              <TableCell className={`text-right whitespace-nowrap ${p.custo > 0 ? '' : 'text-muted-foreground'}`}>{p.custo > 0 ? fmt(p.custo) : '-'}</TableCell>
+                              <TableCell className={`text-right whitespace-nowrap ${p.preco > 0 ? '' : 'text-muted-foreground'}`}>{p.preco > 0 ? fmt(p.preco) : '-'}</TableCell>
+                              <TableCell className="text-right whitespace-nowrap">{fmt(p.totalCusto)}</TableCell>
+                              <TableCell className="text-right whitespace-nowrap">{fmt(p.totalVenda)}</TableCell>
+                              <TableCell className={`text-right whitespace-nowrap font-semibold ${p.resultado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                {fmt(p.resultado)}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  {/* Totalizador */}
+                  {estoqueData.length > 0 && (
+                    <div className="mt-4 p-4 rounded-lg border bg-muted/30">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Produtos</p>
+                          <p className="text-lg font-bold">{estoqueData.length}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total Custo</p>
+                          <p className="text-lg font-bold">{fmt(estoqueTotais.totalCusto)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total Venda</p>
+                          <p className="text-lg font-bold">{fmt(estoqueTotais.totalVenda)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Resultado</p>
+                          <p className={`text-lg font-bold ${estoqueTotais.resultado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {fmt(estoqueTotais.resultado)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             </TabsContent>
 
             {/* Tab: Itens */}

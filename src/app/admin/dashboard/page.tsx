@@ -28,6 +28,7 @@ import {
   CheckCircle,
   Download,
   DatabaseBackup,
+  AlertTriangle,
 } from 'lucide-react';
 import {
   Dialog,
@@ -163,7 +164,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 // Main Dashboard Page
 // ─────────────────────────────────────────
 export default function AdminDashboardPage() {
-  const { user, empresaId } = useAuth();
+  const { user, empresaId, secoesPermitidas } = useAuth();
   const { vendas, loading: loadingVendas } = useVendas();
 
   // ── All state declarations ──
@@ -175,6 +176,10 @@ export default function AdminDashboardPage() {
   const [backupDialogOpen, setBackupDialogOpen] = useState(false);
   const [backupProgress, setBackupProgress] = useState('');
   const [pdvUrl, setPdvUrl] = useState('/pdv');
+
+  // Low stock alert
+  const [lowStockProdutos, setLowStockProdutos] = useState<any[]>([]);
+  const [loadingLowStock, setLoadingLowStock] = useState(true);
 
   useEffect(() => {
     const loadPdvUrl = async () => {
@@ -294,6 +299,32 @@ export default function AdminDashboardPage() {
       }
     };
     loadOSLavanderia();
+  }, [empresaId]);
+
+  // ── Low stock alert ──
+  useEffect(() => {
+    if (!empresaId) return;
+    const loadLowStock = async () => {
+      try {
+        const supabase = getSupabaseClient();
+        const { data, error } = await supabase
+          .from('produtos')
+          .select('id, nome, estoque_atual, estoque_minimo, unidade, controlar_estoque')
+          .eq('empresa_id', empresaId)
+          .eq('ativo', true);
+
+        if (error) throw error;
+        const baixo = (data || []).filter(
+          (p: any) => p.controlar_estoque !== false && (p.estoque_atual || 0) <= (p.estoque_minimo || 0)
+        );
+        setLowStockProdutos(baixo);
+      } catch (err) {
+        console.error('Erro ao carregar estoque baixo:', err);
+      } finally {
+        setLoadingLowStock(false);
+      }
+    };
+    loadLowStock();
   }, [empresaId]);
 
   // ── Period filter ──
@@ -1144,22 +1175,55 @@ export default function AdminDashboardPage() {
           {/* ═══════════════════════════════════ */}
           {/* OS LAVANDERIA                       */}
           {/* ═══════════════════════════════════ */}
-          <section>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-              <LavanderiaSectionTitle>OS Lavanderia</LavanderiaSectionTitle>
-              <a
-                href="/admin/os-lavanderia"
-                className="text-xs text-sky-600 hover:text-sky-800 font-medium transition-colors"
-              >
-                Ver todas as OS →
-              </a>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {kpisLavanderia.map((kpi, i) => (
-                <KPICard key={`lav-${kpi.titulo}`} data={kpi} index={i + 12} />
-              ))}
-            </div>
-          </section>
+          {osLavanderia.length > 0 && (
+            <section>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <LavanderiaSectionTitle>OS Lavanderia</LavanderiaSectionTitle>
+                {secoesPermitidas.some(s => s.startsWith('/admin/os-lavanderia')) && (
+                  <a
+                    href="/admin/os-lavanderia"
+                    className="text-xs text-sky-600 hover:text-sky-800 font-medium transition-colors"
+                  >
+                    Ver todas as OS →
+                  </a>
+                )}
+              </div>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                {kpisLavanderia.map((kpi, i) => (
+                  <KPICard key={`lav-${kpi.titulo}`} data={kpi} index={i + 12} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* ── Low Stock Alert ── */}
+          {!loadingLowStock && lowStockProdutos.length > 0 && (
+            <section>
+              <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/50">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-4">
+                    <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
+                      <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="font-semibold text-amber-800 dark:text-amber-300">
+                          {lowStockProdutos.length} produto{lowStockProdutos.length !== 1 ? 's' : ''} com estoque baixo
+                        </p>
+                        <Button asChild variant="outline" size="sm" className="shrink-0 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/50">
+                          <a href="/admin/estoque">Ver Estoque</a>
+                        </Button>
+                      </div>
+                      <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
+                        {lowStockProdutos.slice(0, 5).map((p: any) => p.nome).join(', ')}
+                        {lowStockProdutos.length > 5 && ` e mais ${lowStockProdutos.length - 5} outro${lowStockProdutos.length - 5 !== 1 ? 's' : ''}`}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </section>
+          )}
 
           {/* ── Quick Actions ── */}
           <section>

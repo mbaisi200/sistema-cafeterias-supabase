@@ -57,7 +57,6 @@ export default function UnidadesPage() {
         setUnidades(data);
       }
     } catch (err) {
-      console.log('Erro ao carregar:', err);
     }
     setLoading(false);
   };

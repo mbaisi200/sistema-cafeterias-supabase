@@ -21,11 +21,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (errorBusca) {
-      console.error('Erro ao buscar usuário:', errorBusca);
       return NextResponse.json({ error: 'Usuário não encontrado: ' + errorBusca.message }, { status: 404 });
     }
-
-    console.log('Usuário encontrado:', usuario);
 
     // Se o auth_user_id está null ou vazio, usar o próprio id
     if (!usuario.auth_user_id) {
@@ -35,7 +32,6 @@ export async function POST(request: NextRequest) {
         .eq('id', usuario.id);
 
       if (updateError) {
-        console.error('Erro ao atualizar auth_user_id:', updateError);
         return NextResponse.json({ error: 'Erro ao atualizar: ' + updateError.message }, { status: 500 });
       }
 

@@ -55,6 +55,7 @@ import {
   Mail,
   Trash2,
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { maskCNPJ, maskPhone, maskCEP, unmask } from '@/lib/masks';
 
@@ -126,6 +127,7 @@ export default function ClientesPage() {
   const [segmentos, setSegmentos] = useState<any[]>([]);
   const [segmentoId, setSegmentoId] = useState<string>('');
   const [nomeMarca, setNomeMarca] = useState<string>('');
+  const [permitirFotoProduto, setPermitirFotoProduto] = useState(true);
 
   // Carregar dados dos admins das empresas
   useEffect(() => {
@@ -299,6 +301,7 @@ export default function ClientesPage() {
             .update({
               segmento_id: segmentoId || null,
               nome_marca: nomeMarca || null,
+              permitir_foto_produto: permitirFotoProduto,
             })
             .eq('id', empresaId);
 
@@ -319,6 +322,7 @@ export default function ClientesPage() {
       setValorMensalValue('');
       setSegmentoId('');
       setNomeMarca('');
+      setPermitirFotoProduto(true);
       
     } catch (error: unknown) {
       let mensagem = 'Erro ao cadastrar cliente';
@@ -382,12 +386,13 @@ export default function ClientesPage() {
 
       // Update segmento and brand name
       const supabase = getSupabaseClient();
-      if (supabase && (segmentoId || nomeMarca)) {
+      if (supabase) {
         await supabase
           .from('empresas')
           .update({
             segmento_id: segmentoId || null,
             nome_marca: nomeMarca || null,
+            permitir_foto_produto: permitirFotoProduto,
             atualizado_em: new Date().toISOString(),
           })
           .eq('id', selectedCliente.id);
@@ -426,12 +431,13 @@ export default function ClientesPage() {
     const supabase = getSupabaseClient();
     const { data: empresa } = await supabase
       .from('empresas')
-      .select('segmento_id, nome_marca')
+      .select('segmento_id, nome_marca, permitir_foto_produto')
       .eq('id', cliente.id)
       .single();
     if (empresa) {
       setSegmentoId(empresa.segmento_id || '');
       setNomeMarca(empresa.nome_marca || '');
+      setPermitirFotoProduto(empresa.permitir_foto_produto ?? true);
     }
 
     setEditDialogOpen(true);
@@ -712,9 +718,11 @@ export default function ClientesPage() {
                 setValidadeValue('');
                 setSegmentoId('');
                 setNomeMarca('');
+                setPermitirFotoProduto(true);
               } else {
                 setSegmentoId('');
                 setNomeMarca('');
+                setPermitirFotoProduto(true);
               }
             }}>
               <DialogTrigger asChild>
@@ -915,6 +923,18 @@ export default function ClientesPage() {
                           />
                         </div>
                       </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <Switch
+                          id="permitir_foto"
+                          checked={permitirFotoProduto}
+                          onCheckedChange={setPermitirFotoProduto}
+                        />
+                        <div>
+                          <Label htmlFor="permitir_foto">Permitir fotos nos produtos</Label>
+                          <p className="text-xs text-muted-foreground">Quando desativado, o campo de foto será ocultado no cadastro de produtos</p>
+                        </div>
+                      </div>
                     </div>
 
                     <Separator />
@@ -960,6 +980,7 @@ export default function ClientesPage() {
                       setValidadeValue('');
                       setSegmentoId('');
                       setNomeMarca('');
+                      setPermitirFotoProduto(true);
                     }}>
                       Cancelar
                     </Button>
@@ -1431,6 +1452,18 @@ export default function ClientesPage() {
                             value={nomeMarca}
                             onChange={(e) => setNomeMarca(e.target.value)}
                           />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <Switch
+                          id="edit_permitir_foto"
+                          checked={permitirFotoProduto}
+                          onCheckedChange={setPermitirFotoProduto}
+                        />
+                        <div>
+                          <Label htmlFor="edit_permitir_foto">Permitir fotos nos produtos</Label>
+                          <p className="text-xs text-muted-foreground">Quando desativado, o campo de foto será ocultado no cadastro de produtos</p>
                         </div>
                       </div>
                   </div>

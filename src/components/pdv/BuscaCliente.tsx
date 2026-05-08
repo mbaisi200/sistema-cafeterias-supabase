@@ -96,9 +96,8 @@ export function BuscaCliente({
         setShowDropdown(true);
       }
     } catch (error: any) {
-      console.error('Erro ao buscar clientes:', error);
-      if (error.name === 'AbortError') {
-        console.log('Busca cancelada por timeout');
+      if (error.name !== 'AbortError') {
+        console.error('Erro ao buscar clientes:', error);
       }
     } finally {
       setLoading(false);

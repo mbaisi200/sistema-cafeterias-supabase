@@ -368,8 +368,8 @@ export function AppSidebar() {
             <Coffee className={`h-5 w-5 ${darkMode ? 'text-cyan-300' : 'text-white'}`} />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden flex-1">
-            <span className={`text-sm font-semibold ${darkMode ? 'text-slate-100' : 'text-white'}`}>Gestão</span>
-            <span className={`text-xs ${darkMode ? 'text-teal-300/70' : 'text-teal-200/80'}`}>{nomeMarca || 'Café & Restaurante'}</span>
+            <span className={`text-sm font-semibold ${darkMode ? 'text-slate-100' : 'text-white'}`}>MB Sistemas</span>
+            <span className={`text-xs ${darkMode ? 'text-teal-300/70' : 'text-teal-200/80'}`}>{nomeMarca || 'Sistemas'}</span>
           </div>
           <button
             onClick={() => setTheme(darkMode ? 'light' : 'dark')}

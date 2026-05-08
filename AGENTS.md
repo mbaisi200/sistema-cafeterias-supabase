@@ -98,6 +98,7 @@ const {
   role,              // 'master' | 'admin' | 'funcionario'
   secoesPermitidas,  // Array de seções permitidas
   nomeMarca,         // Nome da marca/empresa
+  permitirFotoProduto, // BOOLEAN - controla se admin pode add foto nos produtos
   loading,           // Carregando auth
   isConfigured,      // Supabase configurado
   login,             // Login por email/senha
@@ -350,3 +351,15 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Cards: glassmorphism no tema escuro
 - Sidebar: azul petróleo (`#0f4c5c`)
 - Dashboard: gradientes no fundo, ícones com cores dinâmicas
+
+### Permissão de Foto nos Produtos (Master) ✅
+- Flag `permitir_foto_produto BOOLEAN DEFAULT true NOT NULL` adicionada na tabela `empresas`
+- Switch "Permitir fotos nos produtos" no diálogo de criar/editar empresa (Master > Clientes)
+- API `/api/fetch-user` retorna `permitirFotoProduto` no user response
+- `AuthContext` expõe `permitirFotoProduto` para todo o frontend
+- Página de produtos (`/admin/produtos`) oculta a seção de foto quando a flag está desativada
+- Logo upload (Notas Fiscais) **não** é afetado por esta flag
+
+### Layout das Páginas Admin ✅
+- `MainLayout` agora limita a largura máxima a `1200px` (`max-w-[1200px]`) centralizado
+- Isso evita scroll horizontal em telas grandes e mantém consistência entre todas as páginas admin

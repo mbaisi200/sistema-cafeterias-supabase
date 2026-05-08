@@ -127,10 +127,10 @@ export function AppLayout({ children }: AppLayoutProps) {
               </div>
               <div>
                 <h1 className={`text-xl font-bold ${darkMode ? 'text-white' : 'text-white'}`}>
-                  {nomeMarca || 'Gestão'}
+                  {nomeMarca || 'MB Sistemas'}
                 </h1>
                 <p className={`text-xs ${darkMode ? 'text-cyan-300/70' : 'text-teal-200/80'}`}>
-                  Sistema de Gestão
+                  Sistemas
                 </p>
               </div>
             </div>
@@ -381,7 +381,7 @@ export function AppLayout({ children }: AppLayoutProps) {
                   <Coffee className={`w-5 h-5 ${darkMode ? 'text-cyan-300' : 'text-white'}`} />
                 </div>
                 <span className={`font-bold ${darkMode ? 'text-white' : 'text-white'}`}>
-                  {nomeMarca || 'Gestão'}
+                  {nomeMarca || 'MB Sistemas'}
                 </span>
               </div>
             </div>

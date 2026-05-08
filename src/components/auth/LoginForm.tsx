@@ -70,9 +70,9 @@ export function LoginForm() {
             <Coffee className="h-8 w-8 text-white" />
           </div>
         </div>
-        <CardTitle className="text-2xl font-bold">Sistema de Gestão</CardTitle>
+        <CardTitle className="text-2xl font-bold">MB Sistemas</CardTitle>
         <CardDescription>
-          Cafeterias e Restaurantes
+          Sistemas
         </CardDescription>
       </CardHeader>
       <CardContent>

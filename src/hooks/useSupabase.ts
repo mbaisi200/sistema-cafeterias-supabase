@@ -26,7 +26,6 @@ export function useProdutos() {
         .from('produtos')
         .select('*')
         .eq('empresa_id', empresaId)
-        .eq('ativo', true)
         .order('nome');
 
       if (error) throw error;
@@ -193,6 +192,9 @@ export function useProdutos() {
     if (dados.ipiAliquota !== undefined) updateData.ipi_aliquota = dados.ipiAliquota || 0;
     if (dados.pisAliquota !== undefined) updateData.pis_aliquota = dados.pisAliquota || 0;
     if (dados.cofinsAliquota !== undefined) updateData.cofins_aliquota = dados.cofinsAliquota || 0;
+
+    // Ativo/Inativo
+    if (dados.ativo !== undefined) updateData.ativo = dados.ativo;
 
     // Atualizar todos os dados de uma vez
     const { error } = await supabase
@@ -716,14 +718,10 @@ export function useEmpresas() {
 
   const carregarEmpresas = async () => {
     try {
-      console.log('🔄 Carregando empresas...');
-
       const { data, error } = await supabase
         .from('empresas')
         .select('*')
         .order('nome');
-
-      console.log('📊 Resultado empresas:', { data: data?.length, error });
 
       if (error) throw error;
 
@@ -739,11 +737,9 @@ export function useEmpresas() {
       setEmpresas(mappedData);
       return mappedData;
     } catch (error) {
-      console.error('❌ Erro ao carregar empresas:', error);
       return [];
     } finally {
       setLoading(false);
-      console.log('✅ Loading finalizado');
     }
   };
 
@@ -776,8 +772,6 @@ export function useEmpresas() {
       insertData.validade = new Date(dados.validade + 'T23:59:59').toISOString();
     }
 
-    console.log('📝 Inserindo empresa:', JSON.stringify(insertData, null, 2));
-
     const { data, error } = await supabase
       .from('empresas')
       .insert(insertData)
@@ -785,12 +779,9 @@ export function useEmpresas() {
       .single();
 
     if (error) {
-      console.error('❌ Erro ao inserir empresa:', JSON.stringify(error, null, 2));
-      console.error('❌ Dados que causaram erro:', JSON.stringify(insertData, null, 2));
       throw new Error(`Erro ao criar empresa: ${error.message} - ${error.details || ''}`);
     }
 
-    // Recarregar lista
     await carregarEmpresas();
 
     return data.id;
@@ -834,9 +825,6 @@ export function useEmpresas() {
       updateData.status = dados.status;
     }
 
-    console.log('📝 Atualizando empresa ID:', id);
-    console.log('📝 Dados:', JSON.stringify(updateData, null, 2));
-
     const { data: resultData, error } = await supabase
       .from('empresas')
       .update(updateData)
@@ -844,17 +832,9 @@ export function useEmpresas() {
       .select();
 
     if (error) {
-      console.error('❌ Erro ao atualizar empresa:');
-      console.error('   Message:', error.message);
-      console.error('   Details:', error.details);
-      console.error('   Hint:', error.hint);
-      console.error('   Code:', error.code);
       throw new Error(`${error.message}${error.details ? ' - ' + error.details : ''}${error.hint ? ' (' + error.hint + ')' : ''}`);
     }
 
-    console.log('✅ Empresa atualizada:', resultData);
-
-    // Recarregar lista
     await carregarEmpresas();
   };
 
@@ -1968,17 +1948,11 @@ export function useConfiguracoesCupom() {
         .maybeSingle();
 
       if (selectError) {
-        console.error('❌ [CUPOM CONFIG] Erro ao verificar registro existente:', selectError);
         throw selectError;
       }
 
-      console.log('📋 [CUPOM CONFIG] Registro existente:', existing);
-
-      // Garantir que os valores sejam números inteiros válidos
       const tamanhoFonteInt = Math.round(Number(novasConfiguracoes.tamanhoFonte)) || 12;
       const larguraPapelInt = Math.round(Number(novasConfiguracoes.larguraPapel)) || 58;
-
-      console.log('🔢 [CUPOM CONFIG] tamanhoFonteInt:', tamanhoFonteInt, 'larguraPapelInt:', larguraPapelInt);
 
       // Dados essenciais para salvar - apenas campos que EXISTEM na tabela
       const configData: Record<string, any> = {
@@ -2006,20 +1980,14 @@ export function useConfiguracoesCupom() {
         atualizado_em: new Date().toISOString(),
       };
 
-      console.log('📤 [CUPOM CONFIG] Dados a salvar:', JSON.stringify(configData, null, 2));
-
       let result;
       if (existing?.id) {
-        // Atualizar registro existente
-        console.log('🔄 [CUPOM CONFIG] Atualizando registro ID:', existing.id);
         result = await supabase
           .from('cupom_config')
           .update(configData)
           .eq('id', existing.id)
           .select();
       } else {
-        // Inserir novo registro
-        console.log('➕ [CUPOM CONFIG] Inserindo novo registro');
         configData.criado_em = new Date().toISOString();
         result = await supabase
           .from('cupom_config')
@@ -2027,26 +1995,13 @@ export function useConfiguracoesCupom() {
           .select();
       }
 
-      console.log('📊 [CUPOM CONFIG] Resultado:', { data: result.data, error: result.error });
-
       if (result.error) {
-        console.error('❌ [CUPOM CONFIG] Erro ao salvar:', result.error);
-        console.error('❌ [CUPOM CONFIG] Código:', result.error.code);
-        console.error('❌ [CUPOM CONFIG] Mensagem:', result.error.message);
-        console.error('❌ [CUPOM CONFIG] Detalhes:', result.error.details);
-        console.error('❌ [CUPOM CONFIG] Hint:', result.error.hint);
         throw new Error(`Erro ao salvar: ${result.error.message} (${result.error.code})`);
       }
 
-      console.log('✅ [CUPOM CONFIG] Salvo com sucesso! Dados retornados:', result.data);
-
-      // Recarregar configurações do banco para garantir consistência
-      console.log('🔄 [CUPOM CONFIG] Recarregando configurações...');
       await carregarConfiguracoes();
-      console.log('✅ [CUPOM CONFIG] Configurações recarregadas!');
 
     } catch (error: any) {
-      console.error('❌ [CUPOM CONFIG] ERRO CRÍTICO:', error);
       throw error;
     } finally {
       setSaving(false);

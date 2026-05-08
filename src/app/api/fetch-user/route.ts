@@ -73,11 +73,12 @@ export async function POST(request: NextRequest) {
     // Fetch section permissions via SEGMENTO
     let secoesPermitidas: string[] = [];
     let nomeMarca: string | null = null;
+    let permitirFotoProduto = true;
 
     if (userData.empresa_id && userData.role !== 'master') {
       const { data: empresaRes } = await supabase
         .from('empresas')
-        .select('id, nome_marca, segmento_id')
+        .select('id, nome_marca, segmento_id, permitir_foto_produto')
         .eq('id', userData.empresa_id)
         .single();
 
@@ -122,6 +123,7 @@ export async function POST(request: NextRequest) {
       }
 
       if (empresaRes) {
+        permitirFotoProduto = empresaRes.permitir_foto_produto ?? true;
         if (empresaRes.nome_marca) {
           nomeMarca = empresaRes.nome_marca;
         } else if (segId) {
@@ -164,6 +166,7 @@ export async function POST(request: NextRequest) {
         atualizadoEm: userData.atualizado_em,
         secoesPermitidas,
         nomeMarca,
+        permitirFotoProduto,
       }
     });
 
