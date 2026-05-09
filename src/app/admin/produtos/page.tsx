@@ -215,15 +215,16 @@ export default function ProdutosPage() {
   const [fotoError, setFotoError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Estado do segmento da empresa (para controlar abas visíveis)
-  const [segmentoNome, setSegmentoNome] = useState<string | null>(null);
-  const segmentosSemIfoodCombos = ['lavanderia', 'petshop', 'pet', 'academia', 'barbearia'];
-  const showIfoodTab = segmentoNome === null || !segmentosSemIfoodCombos.some(s => segmentoNome.toLowerCase().includes(s));
-  const showCombosTab = segmentoNome === null || !segmentosSemIfoodCombos.some(s => segmentoNome.toLowerCase().includes(s));
+  // Sub-seções permitidas da página de Produtos (controlado por segmento)
+  const [subsecoesPermitidas, setSubsecoesPermitidas] = useState<string[]>([]);
+  const showCategoriasTab = subsecoesPermitidas.length === 0 || subsecoesPermitidas.includes('produtos_categorias');
+  const showUnidadesTab = subsecoesPermitidas.length === 0 || subsecoesPermitidas.includes('produtos_unidades');
+  const showIfoodTab = subsecoesPermitidas.length === 0 || subsecoesPermitidas.includes('produtos_ifood');
+  const showCombosTab = subsecoesPermitidas.length === 0 || subsecoesPermitidas.includes('produtos_combos');
 
-  // Carregar segmento da empresa
+  // Carregar sub-seções permitidas do segmento da empresa
   useEffect(() => {
-    const loadSegmento = async () => {
+    const loadSubsecoes = async () => {
       if (!empresaId) return;
       try {
         const supabase = getSupabaseClient();
@@ -233,18 +234,29 @@ export default function ProdutosPage() {
           .eq('id', empresaId)
           .single();
         if (empresa?.segmento_id) {
-          const { data: segmento } = await supabase
-            .from('segmentos')
-            .select('nome')
-            .eq('id', empresa.segmento_id)
-          .single();
-          if (segmento?.nome) setSegmentoNome(segmento.nome);
+          const { data: segSecoes } = await supabase
+            .from('segmento_secoes')
+            .select('secao_id, ativo')
+            .eq('segmento_id', empresa.segmento_id);
+          const ativoIds = (segSecoes || [])
+            .filter((s: any) => s.ativo)
+            .map((s: any) => s.secao_id);
+          if (ativoIds.length > 0) {
+            const { data: secoes } = await supabase
+              .from('secoes_menu')
+              .select('chave')
+              .in('id', ativoIds)
+              .in('chave', ['produtos_categorias', 'produtos_unidades', 'produtos_ifood', 'produtos_combos']);
+            if (secoes) {
+              setSubsecoesPermitidas(secoes.map((s: any) => s.chave));
+            }
+          }
         }
       } catch (err) {
-        console.error('Erro ao carregar segmento:', err);
+        console.error('Erro ao carregar sub-seções:', err);
       }
     };
-    loadSegmento();
+    loadSubsecoes();
   }, [empresaId]);
 
   
@@ -716,14 +728,18 @@ export default function ProdutosPage() {
               <Package className="h-4 w-4 mr-2" />
               Produtos ({produtos.length})
             </TabsTrigger>
-            <TabsTrigger value="categorias">
-              <FolderOpen className="h-4 w-4 mr-2" />
-              Categorias ({categorias.length})
-            </TabsTrigger>
-            <TabsTrigger value="unidades">
-              <Ruler className="h-4 w-4 mr-2" />
-              Unidades ({unidades.length})
-            </TabsTrigger>
+            {showCategoriasTab && (
+              <TabsTrigger value="categorias">
+                <FolderOpen className="h-4 w-4 mr-2" />
+                Categorias ({categorias.length})
+              </TabsTrigger>
+            )}
+            {showUnidadesTab && (
+              <TabsTrigger value="unidades">
+                <Ruler className="h-4 w-4 mr-2" />
+                Unidades ({unidades.length})
+              </TabsTrigger>
+            )}
             {showIfoodTab && (
               <TabsTrigger value="ifood">
                 <ShoppingCart className="h-4 w-4 mr-2" />
@@ -1495,6 +1511,7 @@ export default function ProdutosPage() {
             </TabsContent>
 
           {/* Tab Categorias */}
+          {showCategoriasTab && (
           <TabsContent value="categorias" className="space-y-4">
             {loadingCategorias ? (
               <div className="flex items-center justify-center h-20">
@@ -1579,8 +1596,10 @@ export default function ProdutosPage() {
             </>
             )}
           </TabsContent>
+          )}
 
           {/* Tab Unidades */}
+          {showUnidadesTab && (
           <TabsContent value="unidades" className="space-y-4">
             {loadingUnidades ? (
               <div className="flex items-center justify-center h-20">
@@ -1609,6 +1628,7 @@ export default function ProdutosPage() {
             </div>
             )}
           </TabsContent>
+          )}
 
           {/* Tab iFood */}
           {showIfoodTab && (

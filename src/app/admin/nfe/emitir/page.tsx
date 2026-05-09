@@ -1,12 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useEmitirNFe } from '@/hooks/useNFE';
-import { NFeService } from '@/services/nfe/nfe-service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -34,14 +33,15 @@ import {
   Search,
   Loader2,
   UserCheck,
-  Package,
 } from 'lucide-react';
 import Link from 'next/link';
 
 interface ProdutoForm {
   codigo: string;
+  codigo_barras: string;
   descricao: string;
   ncm: string;
+  cest: string;
   cfop: string;
   unidade_comercial: string;
   quantidade_comercial: number;
@@ -49,7 +49,15 @@ interface ProdutoForm {
   valor_total: number;
   valor_desconto: number;
   icms_origem: string;
+  icms_cst: string;
+  icms_csosn: string;
   icms_aliquota: number;
+  pis_cst: string;
+  pis_aliquota: number;
+  cofins_cst: string;
+  cofins_aliquota: number;
+  ipi_cst: string;
+  ipi_aliquota: number;
 }
 
 interface PagamentoForm {
@@ -88,19 +96,7 @@ export default function EmitirNFePage() {
   const [destIsentoICMS, setDestIsentoICMS] = useState(false);
 
   // Produtos
-  const [produtos, setProdutos] = useState<ProdutoForm[]>([{
-    codigo: '',
-    descricao: '',
-    ncm: '00000000',
-    cfop: '5102',
-    unidade_comercial: 'UN',
-    quantidade_comercial: 1,
-    valor_unitario_comercial: 0,
-    valor_total: 0,
-    valor_desconto: 0,
-    icms_origem: '0',
-    icms_aliquota: 0,
-  }]);
+  const [produtos, setProdutos] = useState<ProdutoForm[]>([]);
 
   // Pagamentos
   const [pagamentos, setPagamentos] = useState<PagamentoForm[]>([{
@@ -119,14 +115,14 @@ export default function EmitirNFePage() {
   const [produtosResult, setProdutosResult] = useState<any[]>([]);
   const [buscandoProduto, setBuscandoProduto] = useState(false);
 
-  const handleBuscarProdutos = async () => {
-    if (!buscaProduto.trim()) {
+  const handleBuscarProdutos = async (termo: string) => {
+    if (!termo.trim()) {
       setProdutosResult([]);
       return;
     }
     setBuscandoProduto(true);
     try {
-      const params = new URLSearchParams({ busca: buscaProduto.trim() });
+      const params = new URLSearchParams({ busca: termo.trim() });
       const res = await fetch(`/api/produtos?${params.toString()}`);
       const data = await res.json();
       if (data.sucesso) {
@@ -141,11 +137,55 @@ export default function EmitirNFePage() {
     }
   };
 
+  // Busca de produtos com debounce
+  useEffect(() => {
+    if (buscaProduto.trim().length < 2) {
+      setProdutosResult([]);
+      return;
+    }
+    const timer = setTimeout(() => handleBuscarProdutos(buscaProduto), 350);
+    return () => clearTimeout(timer);
+  }, [buscaProduto]);
+
+  const handleBuscarClientes = async (termo: string) => {
+    if (!termo.trim()) {
+      setClientesResult([]);
+      return;
+    }
+    setBuscandoCliente(true);
+    try {
+      const params = new URLSearchParams({ busca: termo.trim() });
+      const res = await fetch(`/api/clientes?${params.toString()}`);
+      const data = await res.json();
+      if (data.sucesso) {
+        setClientesResult(data.clientes || []);
+      } else {
+        setClientesResult([]);
+      }
+    } catch {
+      setClientesResult([]);
+    } finally {
+      setBuscandoCliente(false);
+    }
+  };
+
+  // Busca de clientes com debounce
+  useEffect(() => {
+    if (buscaCliente.trim().length < 3) {
+      setClientesResult([]);
+      return;
+    }
+    const timer = setTimeout(() => handleBuscarClientes(buscaCliente), 400);
+    return () => clearTimeout(timer);
+  }, [buscaCliente]);
+
   const handleSelecionarProduto = (p: any) => {
     const novoProduto: ProdutoForm = {
       codigo: p.codigo || '',
+      codigo_barras: p.codigo_barras || '',
       descricao: p.nome || '',
       ncm: p.ncm || '00000000',
+      cest: p.cest || '',
       cfop: p.cfop || '5102',
       unidade_comercial: p.unidade_tributavel || p.unidade || 'UN',
       quantidade_comercial: 1,
@@ -153,7 +193,15 @@ export default function EmitirNFePage() {
       valor_total: p.preco || 0,
       valor_desconto: 0,
       icms_origem: p.origem || '0',
+      icms_cst: p.cst || (p.csosn ? '' : '00'),
+      icms_csosn: p.csosn || (p.cst ? '' : '102'),
       icms_aliquota: p.icms || 0,
+      pis_cst: p.pis_cst || '',
+      pis_aliquota: p.pis_aliquota || 0,
+      cofins_cst: p.cofins_cst || '',
+      cofins_aliquota: p.cofins_aliquota || 0,
+      ipi_cst: p.ipi_cst || '',
+      ipi_aliquota: p.ipi_aliquota || 0,
     };
     setProdutos(prev => {
       const novos = [...prev, novoProduto];
@@ -169,15 +217,16 @@ export default function EmitirNFePage() {
 
   const addProduto = () => {
     setProdutos([...produtos, {
-      codigo: '', descricao: '', ncm: '00000000', cfop: '5102',
-      unidade_comercial: 'UN', quantidade_comercial: 1,
+      codigo: '', codigo_barras: '', descricao: '', ncm: '00000000', cest: '',
+      cfop: '5102', unidade_comercial: 'UN', quantidade_comercial: 1,
       valor_unitario_comercial: 0, valor_total: 0, valor_desconto: 0,
-      icms_origem: '0', icms_aliquota: 0,
+      icms_origem: '0', icms_cst: '', icms_csosn: '', icms_aliquota: 0,
+      pis_cst: '', pis_aliquota: 0, cofins_cst: '', cofins_aliquota: 0,
+      ipi_cst: '', ipi_aliquota: 0,
     }]);
   };
 
   const removeProduto = (index: number) => {
-    if (produtos.length <= 1) return;
     setProdutos(produtos.filter((_, i) => i !== index));
   };
 
@@ -206,28 +255,6 @@ export default function EmitirNFePage() {
     setPagamentos(novos);
   };
 
-  const handleBuscarClientes = async () => {
-    if (!buscaCliente.trim()) {
-      setClientesResult([]);
-      return;
-    }
-    setBuscandoCliente(true);
-    try {
-      const params = new URLSearchParams({ busca: buscaCliente.trim() });
-      const res = await fetch(`/api/clientes?${params.toString()}`);
-      const data = await res.json();
-      if (data.sucesso) {
-        setClientesResult(data.clientes || []);
-      } else {
-        setClientesResult([]);
-      }
-    } catch {
-      setClientesResult([]);
-    } finally {
-      setBuscandoCliente(false);
-    }
-  };
-
   const handleSelecionarCliente = (c: any) => {
     setDestCPF_CNPJ(c.cnpj_cpf || '');
     setDestNome(c.nome_razao_social || '');
@@ -251,6 +278,16 @@ export default function EmitirNFePage() {
 
   const totalProdutos = produtos.reduce((acc, p) => acc + (p.valor_total || 0), 0);
   const totalPagamentos = pagamentos.reduce((acc, p) => acc + (p.valor || 0), 0);
+
+  // Sincronizar valor do pagamento com total da NF
+  useEffect(() => {
+    setPagamentos(prev => {
+      if (prev.length === 0) return prev;
+      const novos = [...prev];
+      novos[0] = { ...novos[0], valor: totalProdutos };
+      return novos;
+    });
+  }, [totalProdutos]);
 
   const handleSubmit = async () => {
     const hasDest = destNome || destCPF_CNPJ;
@@ -278,8 +315,10 @@ export default function EmitirNFePage() {
       } : undefined,
       produtos: produtos.map(p => ({
         codigo: p.codigo,
+        codigo_barras: p.codigo_barras || undefined,
         descricao: p.descricao,
         ncm: p.ncm,
+        cest: p.cest || undefined,
         cfop: p.cfop,
         unidade_comercial: p.unidade_comercial,
         quantidade_comercial: p.quantidade_comercial,
@@ -287,7 +326,15 @@ export default function EmitirNFePage() {
         valor_total: p.valor_total,
         valor_desconto: p.valor_desconto,
         icms_origem: p.icms_origem,
+        icms_cst: p.icms_cst || undefined,
+        icms_csosn: p.icms_csosn || undefined,
         icms_aliquota: p.icms_aliquota,
+        pis_cst: p.pis_cst || undefined,
+        pis_aliquota: p.pis_aliquota,
+        cofins_cst: p.cofins_cst || undefined,
+        cofins_aliquota: p.cofins_aliquota,
+        ipi_cst: p.ipi_cst || undefined,
+        ipi_aliquota: p.ipi_aliquota,
       })),
       pagamentos: pagamentos.map(p => ({
         forma_pagamento: p.forma_pagamento as any,
@@ -424,29 +471,28 @@ export default function EmitirNFePage() {
             </CardContent>
           </Card>
 
-          {/* Buscar Cliente Cadastrado */}
+          {/* Destinatário */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <UserCheck className="h-5 w-5" />
-                Buscar Cliente Cadastrado
+                Destinatário (Opcional)
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar por nome, CPF/CNPJ..."
+                    placeholder="Buscar cliente por nome, CPF/CNPJ..."
                     value={buscaCliente}
                     onChange={(e) => setBuscaCliente(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleBuscarClientes()}
                     className="pl-10"
                   />
                 </div>
                 <Button
                   variant="outline"
-                  onClick={handleBuscarClientes}
+                  onClick={() => handleBuscarClientes(buscaCliente)}
                   disabled={buscandoCliente}
                 >
                   {buscandoCliente ? (
@@ -458,46 +504,56 @@ export default function EmitirNFePage() {
                 </Button>
               </div>
               {clienteSelecionado && (
-                <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
+                <div className="flex items-center gap-2 text-sm text-green-600 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
                   <CheckCircle2 className="h-4 w-4" />
-                  Cliente selecionado. Os campos do destinatário foram preenchidos automaticamente.
+                  Cliente selecionado. Os campos foram preenchidos automaticamente.
                 </div>
               )}
-              {clientesResult.length > 0 && (
-                <div className="mt-3 border rounded-lg max-h-60 overflow-y-auto">
+              {buscandoCliente && (
+                <div className="space-y-2">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+                  ))}
+                </div>
+              )}
+              {!buscandoCliente && clientesResult.length > 0 && (
+                <div className="border rounded-lg max-h-64 overflow-y-auto divide-y">
                   {clientesResult.map((c: any) => (
                     <button
                       key={c.id}
                       onClick={() => handleSelecionarCliente(c)}
-                      className="w-full text-left p-3 hover:bg-accent border-b last:border-b-0 transition-colors"
+                      className="w-full text-left p-3 hover:bg-accent transition-colors"
                     >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-medium">{c.nome_razao_social}</p>
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{c.nome_razao_social}</p>
                           <p className="text-xs text-muted-foreground">
-                            {c.cnpj_cpf} • {c.municipio}/{c.uf}
+                            {c.cnpj_cpf && <span className="font-mono">{c.cnpj_cpf}</span>}
+                            {c.municipio && c.uf && <span> • {c.municipio}/{c.uf}</span>}
                           </p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-muted-foreground">
+                            {c.logradouro && <span>{c.logradouro}{c.numero ? `, ${c.numero}` : ''}</span>}
+                            {c.telefone && <span>📞 {c.telefone}</span>}
+                            {c.email && <span>✉ {c.email}</span>}
+                          </div>
                         </div>
-                        <Badge variant="outline" className="shrink-0 ml-2">
-                          {c.tipo_pessoa === '1' ? 'PJ' : 'PF'}
-                        </Badge>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                          <Badge variant={c.tipo_pessoa === '1' ? 'default' : 'secondary'} className="text-[10px] h-5">
+                            {c.tipo_pessoa === '1' ? 'PJ' : 'PF'}
+                          </Badge>
+                          {c.inscricao_estadual && (
+                            <span className="text-[10px] text-muted-foreground">IE: {c.inscricao_estadual}</span>
+                          )}
+                        </div>
                       </div>
                     </button>
                   ))}
                 </div>
               )}
-              {buscaCliente.trim().length > 2 && !buscandoCliente && clientesResult.length === 0 && (
-                <p className="mt-2 text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
+              {!buscandoCliente && buscaCliente.trim().length > 2 && clientesResult.length === 0 && (
+                <p className="text-sm text-muted-foreground">Nenhum cliente encontrado.</p>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Destinatário */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Destinatário (Opcional)</CardTitle>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <Label>CNPJ / CPF *</Label>
                 <Input value={destCPF_CNPJ} onChange={(e) => setDestCPF_CNPJ(e.target.value)} placeholder="00.000.000/0000-00" />
@@ -574,32 +630,33 @@ export default function EmitirNFePage() {
                   <Input value={destCEP} onChange={(e) => setDestCEP(e.target.value)} placeholder="00000-000" />
                 </div>
               </div>
+              </div>
             </CardContent>
           </Card>
 
-          {/* Buscar Produto Cadastrado */}
+          {/* Produtos */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Package className="h-5 w-5" />
-                Buscar Produto do Cadastro
-              </CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle className="text-lg">Produtos ({produtos.length})</CardTitle>
+              <Button variant="outline" size="sm" onClick={addProduto} className="gap-2">
+                <Plus className="h-4 w-4" /> +Novo Item
+              </Button>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex gap-3">
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar por nome, código ou código de barras..."
+                    placeholder="Buscar produto por nome, código ou código de barras..."
                     value={buscaProduto}
                     onChange={(e) => setBuscaProduto(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleBuscarProdutos()}
+                    onKeyDown={(e) => e.key === 'Enter' && handleBuscarProdutos(buscaProduto)}
                     className="pl-10"
                   />
                 </div>
                 <Button
                   variant="outline"
-                  onClick={handleBuscarProdutos}
+                  onClick={() => handleBuscarProdutos(buscaProduto)}
                   disabled={buscandoProduto}
                 >
                   {buscandoProduto ? (
@@ -610,55 +667,57 @@ export default function EmitirNFePage() {
                   Buscar
                 </Button>
               </div>
-              {produtosResult.length > 0 && (
-                <div className="mt-3 border rounded-lg max-h-60 overflow-y-auto">
+              {buscandoProduto && (
+                <div className="space-y-2">
+                  {[1,2,3].map(i => (
+                    <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
+                  ))}
+                </div>
+              )}
+              {!buscandoProduto && produtosResult.length > 0 && (
+                <div className="border rounded-lg max-h-64 overflow-y-auto divide-y">
                   {produtosResult.map((p: any) => (
                     <button
                       key={p.id}
                       onClick={() => handleSelecionarProduto(p)}
-                      className="w-full text-left p-3 hover:bg-accent border-b last:border-b-0 transition-colors"
+                      className="w-full text-left p-3 hover:bg-accent transition-colors"
                     >
-                      <div className="flex justify-between items-start">
+                      <div className="flex items-start gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{p.nome}</p>
                           <p className="text-xs text-muted-foreground">
-                            {p.codigo ? `Cód: ${p.codigo}` : ''} {p.codigo_barras ? `• Barras: ${p.codigo_barras}` : ''} {p.ncm && p.ncm !== '00000000' ? `• NCM: ${p.ncm}` : ''}
+                            {p.codigo && <span className="font-mono">{p.codigo}</span>}
+                            {p.ncm && p.ncm !== '00000000' && <span> • NCM: {p.ncm}</span>}
                           </p>
+                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-muted-foreground">
+                            {p.codigo_barras && <span>📦 {p.codigo_barras}</span>}
+                            {p.cfop && <span>CFOP: {p.cfop}</span>}
+                            {p.unidade && <span>Un: {p.unidade}</span>}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0 ml-2">
+                        <div className="flex flex-col items-end gap-1 shrink-0">
                           <Badge variant="outline" className="font-semibold text-green-600">
                             R$ {(p.preco || 0).toFixed(2)}
                           </Badge>
+                          {p.unidade_tributavel && p.unidade_tributavel !== p.unidade && (
+                            <span className="text-[10px] text-muted-foreground">Trib: {p.unidade_tributavel}</span>
+                          )}
                         </div>
                       </div>
                     </button>
                   ))}
                 </div>
               )}
-              {buscaProduto.trim().length > 2 && !buscandoProduto && produtosResult.length === 0 && (
-                <p className="mt-2 text-sm text-muted-foreground">Nenhum produto encontrado.</p>
+              {!buscandoProduto && buscaProduto.trim().length > 2 && produtosResult.length === 0 && (
+                <p className="text-sm text-muted-foreground">Nenhum produto encontrado.</p>
               )}
-            </CardContent>
-          </Card>
-
-          {/* Produtos */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">Produtos ({produtos.length})</CardTitle>
-              <Button variant="outline" size="sm" onClick={addProduto} className="gap-2">
-                <Plus className="h-4 w-4" /> Adicionar Produto Manualmente
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4">
               {produtos.map((prod, index) => (
                 <div key={index} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="font-medium text-sm">Item {index + 1}</span>
-                    {produtos.length > 1 && (
-                      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeProduto(index)}>
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    )}
+                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => removeProduto(index)}>
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </Button>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-3">
                     <div>
@@ -672,6 +731,10 @@ export default function EmitirNFePage() {
                     <div>
                       <Label className="text-xs">NCM</Label>
                       <Input value={prod.ncm} onChange={(e) => updateProduto(index, 'ncm', e.target.value)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">CEST</Label>
+                      <Input value={prod.cest} onChange={(e) => updateProduto(index, 'cest', e.target.value)} placeholder="" />
                     </div>
                     <div>
                       <Label className="text-xs">CFOP</Label>
@@ -696,6 +759,22 @@ export default function EmitirNFePage() {
                     <div>
                       <Label className="text-xs">ICMS %</Label>
                       <Input type="number" step="0.01" value={prod.icms_aliquota} onChange={(e) => updateProduto(index, 'icms_aliquota', parseFloat(e.target.value) || 0)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">CST / CSOSN</Label>
+                      <Input value={prod.icms_csosn || prod.icms_cst} onChange={(e) => setProdutos(prev => { const v = e.target.value; const novos = [...prev]; const item = { ...novos[index], icms_cst: v, icms_csosn: v }; if (item.quantidade_comercial && item.valor_unitario_comercial) item.valor_total = (item.quantidade_comercial * item.valor_unitario_comercial) - (item.valor_desconto || 0); novos[index] = item; return novos; })} placeholder="00 / 102" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">PIS %</Label>
+                      <Input type="number" step="0.01" value={prod.pis_aliquota} onChange={(e) => updateProduto(index, 'pis_aliquota', parseFloat(e.target.value) || 0)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">COFINS %</Label>
+                      <Input type="number" step="0.01" value={prod.cofins_aliquota} onChange={(e) => updateProduto(index, 'cofins_aliquota', parseFloat(e.target.value) || 0)} />
+                    </div>
+                    <div>
+                      <Label className="text-xs">IPI %</Label>
+                      <Input type="number" step="0.01" value={prod.ipi_aliquota} onChange={(e) => updateProduto(index, 'ipi_aliquota', parseFloat(e.target.value) || 0)} />
                     </div>
                     <div className="flex items-end">
                       <div className="text-right w-full">

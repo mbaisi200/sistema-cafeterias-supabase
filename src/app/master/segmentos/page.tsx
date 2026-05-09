@@ -591,14 +591,14 @@ export default function SegmentosPage() {
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                       </div>
                     ) : (
-                      ['principal', 'atalho_rapido'].map((grupo) => {
+                      ['principal', 'atalho_rapido', 'subsecao'].map((grupo) => {
                         const grupoSecoes = secoesDisponiveis.filter((s: any) => s.grupo === grupo);
                         if (grupoSecoes.length === 0) return null;
 
                         return (
                           <div key={grupo}>
                             <h4 className="text-xs font-semibold mb-2 text-muted-foreground">
-                              {grupo === 'principal' ? '📋 Menu Principal' : '⚡ Atalho Rápido'}
+                              {grupo === 'principal' ? '📋 Menu Principal' : grupo === 'atalho_rapido' ? '⚡ Atalho Rápido' : '🔧 Sub-seções dos Produtos'}
                             </h4>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {grupoSecoes.map((secao: any) => (
