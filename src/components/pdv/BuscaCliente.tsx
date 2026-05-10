@@ -31,6 +31,7 @@ interface BuscaClienteProps {
   label?: string;
   showActions?: boolean;
   onCadastrarNovo?: () => void;
+  clientes?: ClienteEncontrado[];
 }
 
 export function BuscaCliente({
@@ -40,6 +41,7 @@ export function BuscaCliente({
   label = 'Identificar Cliente',
   showActions = true,
   onCadastrarNovo,
+  clientes,
 }: BuscaClienteProps) {
   const [busca, setBusca] = useState('');
   const [resultados, setResultados] = useState<ClienteEncontrado[]>([]);
@@ -67,8 +69,23 @@ export function BuscaCliente({
       return;
     }
 
-    // Normalizar termo removendo pontuação (permitir busca com ou sem máscara)
-    const termoNormalizado = termo.replace(/[.\-\/\(\)]/g, '');
+    const termoNormalizado = termo.replace(/[.\-\/\(\)]/g, '').toLowerCase();
+
+    if (clientes) {
+      const filtrados = clientes.filter((c) => {
+        const nome = (c.nome_razao_social || '').toLowerCase();
+        const doc = (c.cnpj_cpf || '').replace(/[.\-\/]/g, '');
+        const email = (c.email || '').toLowerCase();
+        return (
+          nome.includes(termoNormalizado) ||
+          doc.includes(termoNormalizado) ||
+          email.includes(termoNormalizado)
+        );
+      });
+      setResultados(filtrados.slice(0, 15));
+      setShowDropdown(true);
+      return;
+    }
 
     setLoading(true);
     try {
@@ -102,7 +119,7 @@ export function BuscaCliente({
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [clientes]);
 
   // Debounce na busca
   const handleBuscaChange = (valor: string) => {

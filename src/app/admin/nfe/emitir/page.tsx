@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useEmitirNFe } from '@/hooks/useNFE';
+import { useProdutos } from '@/hooks/useSupabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,6 +69,7 @@ interface PagamentoForm {
 export default function EmitirNFePage() {
   const { empresaId } = useAuth();
   const { emitir, emitindo, nfe, error } = useEmitirNFe();
+  const { produtos: allProducts, loading: loadingProdutos } = useProdutos();
   const router = useRouter();
 
   // Dados do formulário
@@ -145,12 +147,12 @@ export default function EmitirNFePage() {
   const handleSelecionarProduto = (p: any) => {
     const novoProduto: ProdutoForm = {
       codigo: p.codigo || '',
-      codigo_barras: p.codigo_barras || '',
+      codigo_barras: p.codigoBarras || p.codigo_barras || '',
       descricao: p.nome || '',
       ncm: p.ncm || '00000000',
       cest: p.cest || '',
       cfop: p.cfop || '5102',
-      unidade_comercial: p.unidade_tributavel || p.unidade || 'UN',
+      unidade_comercial: p.unidadeTributavel || p.unidade || 'UN',
       quantidade_comercial: 1,
       valor_unitario_comercial: p.preco || 0,
       valor_total: p.preco || 0,
@@ -159,12 +161,12 @@ export default function EmitirNFePage() {
       icms_cst: p.cst || (p.csosn ? '' : '00'),
       icms_csosn: p.csosn || (p.cst ? '' : '102'),
       icms_aliquota: p.icms || 0,
-      pis_cst: p.pis_cst || '',
-      pis_aliquota: p.pis_aliquota || 0,
-      cofins_cst: p.cofins_cst || '',
-      cofins_aliquota: p.cofins_aliquota || 0,
-      ipi_cst: p.ipi_cst || '',
-      ipi_aliquota: p.ipi_aliquota || 0,
+      pis_cst: p.pisCst || p.pis_cst || '',
+      pis_aliquota: p.pisAliquota || p.pis_aliquota || 0,
+      cofins_cst: p.cofinsCst || p.cofins_cst || '',
+      cofins_aliquota: p.cofinsAliquota || p.cofins_aliquota || 0,
+      ipi_cst: p.ipiCst || p.ipi_cst || '',
+      ipi_aliquota: p.ipiAliquota || p.ipi_aliquota || 0,
     };
     setProdutos(prev => {
       const novos = [...prev, novoProduto];
@@ -188,12 +190,6 @@ export default function EmitirNFePage() {
   };
 
   const removeProduto = (index: number) => {
-    const timer = buscaTimers.current.get(index);
-    if (timer) clearTimeout(timer);
-    buscaTimers.current.delete(index);
-    const controller = buscaControllers.current.get(index);
-    if (controller) controller.abort();
-    buscaControllers.current.delete(index);
     setResultadosBusca(prev => {
       const next = { ...prev };
       delete next[index];
@@ -212,14 +208,9 @@ export default function EmitirNFePage() {
     setProdutos(novos);
   };
 
-  const buscaTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
-  const buscaControllers = useRef<Map<number, AbortController>>(new Map());
   const [resultadosBusca, setResultadosBusca] = useState<Record<number, any[]>>({});
 
   const handleBuscaDescricao = (index: number, value: string) => {
-    const existingTimer = buscaTimers.current.get(index);
-    if (existingTimer) clearTimeout(existingTimer);
-
     if (value.trim().length < 2) {
       setResultadosBusca(prev => {
         if (!prev[index]) return prev;
@@ -229,27 +220,13 @@ export default function EmitirNFePage() {
       });
       return;
     }
-
-    const timer = setTimeout(async () => {
-      const existingController = buscaControllers.current.get(index);
-      if (existingController) existingController.abort();
-
-      const controller = new AbortController();
-      buscaControllers.current.set(index, controller);
-
-      try {
-        const params = new URLSearchParams({ busca: value.trim(), _: Date.now().toString() });
-        const res = await fetch(`/api/produtos?${params.toString()}`, { signal: controller.signal });
-        const data = await res.json();
-        if (!controller.signal.aborted) {
-          setResultadosBusca(prev => ({ ...prev, [index]: data.sucesso ? data.produtos || [] : [] }));
-        }
-      } catch {
-        if (controller.signal.aborted) return;
-      }
-    }, 100);
-
-    buscaTimers.current.set(index, timer);
+    const q = value.trim().toLowerCase();
+    const results = (allProducts || []).filter(p =>
+      p.nome.toLowerCase().includes(q) ||
+      (p.codigo && p.codigo.toLowerCase().includes(q)) ||
+      (p.codigoBarras && p.codigoBarras.toLowerCase().includes(q))
+    ).slice(0, 15);
+    setResultadosBusca(prev => ({ ...prev, [index]: results }));
   };
 
   const selecionarResultadoBusca = (index: number, p: any) => {
@@ -259,24 +236,24 @@ export default function EmitirNFePage() {
       novos[index] = {
         ...novos[index],
         codigo: p.codigo || novos[index].codigo,
-        codigo_barras: p.codigo_barras || novos[index].codigo_barras,
+        codigo_barras: p.codigoBarras || p.codigo_barras || novos[index].codigo_barras,
         descricao: p.nome || novos[index].descricao,
         ncm: p.ncm || '00000000',
         cest: p.cest || '',
         cfop: p.cfop || '5102',
-        unidade_comercial: p.unidade_tributavel || p.unidade || 'UN',
+        unidade_comercial: p.unidadeTributavel || p.unidade || 'UN',
         valor_unitario_comercial: p.preco || 0,
         valor_total: (novos[index].quantidade_comercial * (p.preco || 0)) - (novos[index].valor_desconto || 0),
         icms_origem: p.origem || '0',
         icms_cst: p.cst || (p.csosn ? '' : '00'),
         icms_csosn: p.csosn || (p.cst ? '' : '102'),
         icms_aliquota: p.icms || 0,
-        pis_cst: p.pis_cst || '',
-        pis_aliquota: p.pis_aliquota || 0,
-        cofins_cst: p.cofins_cst || '',
-        cofins_aliquota: p.cofins_aliquota || 0,
-        ipi_cst: p.ipi_cst || '',
-        ipi_aliquota: p.ipi_aliquota || 0,
+        pis_cst: p.pisCst || p.pis_cst || '',
+        pis_aliquota: p.pisAliquota || p.pis_aliquota || 0,
+        cofins_cst: p.cofinsCst || p.cofins_cst || '',
+        cofins_aliquota: p.cofinsAliquota || p.cofins_aliquota || 0,
+        ipi_cst: p.ipiCst || p.ipi_cst || '',
+        ipi_aliquota: p.ipiAliquota || p.ipi_aliquota || 0,
       };
       return novos;
     });
@@ -523,7 +500,7 @@ export default function EmitirNFePage() {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <UserCheck className="h-5 w-5" />
-                Destinatário (Opcional)
+                Destinatário
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -690,7 +667,7 @@ export default function EmitirNFePage() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-4">
-              <BuscaProduto onSelecionar={handleSelecionarProduto} />
+              <BuscaProduto onSelecionar={handleSelecionarProduto} allProducts={allProducts} />
               {produtos.map((prod, index) => (
                 <div key={index} className="border rounded-lg p-4 space-y-3">
                   <div className="flex items-center justify-between">
@@ -902,42 +879,24 @@ export default function EmitirNFePage() {
   );
 }
 
-function BuscaProduto({ onSelecionar }: { onSelecionar: (produto: any) => void }) {
+function BuscaProduto({ onSelecionar, allProducts }: { onSelecionar: (produto: any) => void; allProducts: any[] }) {
   const [busca, setBusca] = useState('');
   const [resultados, setResultados] = useState<any[]>([]);
-  const [buscando, setBuscando] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = e.target.value;
     setBusca(v);
-
-    if (timerRef.current) clearTimeout(timerRef.current);
-
     if (v.trim().length < 2) {
       setResultados([]);
       return;
     }
-
-    timerRef.current = setTimeout(async () => {
-      if (abortRef.current) abortRef.current.abort();
-      const controller = new AbortController();
-      abortRef.current = controller;
-
-      setBuscando(true);
-      try {
-        const params = new URLSearchParams({ busca: v.trim(), _: Date.now().toString() });
-        const res = await fetch(`/api/produtos?${params.toString()}`, { signal: controller.signal });
-        const data = await res.json();
-        setResultados(data.sucesso ? data.produtos || [] : []);
-      } catch {
-        if (controller.signal.aborted) return;
-        setResultados([]);
-      } finally {
-        if (!controller.signal.aborted) setBuscando(false);
-      }
-    }, 100);
+    const q = v.trim().toLowerCase();
+    const results = (allProducts || []).filter(p =>
+      p.nome.toLowerCase().includes(q) ||
+      (p.codigo && p.codigo.toLowerCase().includes(q)) ||
+      (p.codigoBarras && p.codigoBarras.toLowerCase().includes(q))
+    ).slice(0, 15);
+    setResultados(results);
   };
 
   return (
@@ -950,58 +909,20 @@ function BuscaProduto({ onSelecionar }: { onSelecionar: (produto: any) => void }
             value={busca}
             onChange={handleChange}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                if (timerRef.current) clearTimeout(timerRef.current);
-                if (busca.trim().length >= 2) {
-                  if (abortRef.current) abortRef.current.abort();
-                  const controller = new AbortController();
-                  abortRef.current = controller;
-                  setBuscando(true);
-                  (async () => {
-                    const params = new URLSearchParams({ busca: busca.trim(), _: Date.now().toString() });
-                    const res = await fetch(`/api/produtos?${params.toString()}`, { signal: controller.signal });
-                    const data = await res.json();
-                    setResultados(data.sucesso ? data.produtos || [] : []);
-                    if (!controller.signal.aborted) setBuscando(false);
-                  })();
-                }
+              if (e.key === 'Enter' && resultados.length > 0) {
+                onSelecionar(resultados[0]);
+                setBusca('');
+                setResultados([]);
               }
             }}
             className="pl-10"
           />
         </div>
-        <Button variant="outline" onClick={async () => {
-          if (timerRef.current) clearTimeout(timerRef.current);
-          if (busca.trim().length >= 2) {
-            if (abortRef.current) abortRef.current.abort();
-            const controller = new AbortController();
-            abortRef.current = controller;
-            setBuscando(true);
-            try {
-              const params = new URLSearchParams({ busca: busca.trim(), _: Date.now().toString() });
-              const res = await fetch(`/api/produtos?${params.toString()}`, { signal: controller.signal });
-              const data = await res.json();
-              setResultados(data.sucesso ? data.produtos || [] : []);
-            } catch {
-              if (controller.signal.aborted) return;
-              setResultados([]);
-            } finally {
-              if (!controller.signal.aborted) setBuscando(false);
-            }
-          }
-        }} disabled={buscando}>
-          {buscando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-          Buscar
+        <Button variant="outline" onClick={() => setBusca('')} disabled={!busca}>
+          Limpar
         </Button>
       </div>
-      {buscando && (
-        <div className="space-y-2">
-          {[1,2,3].map(i => (
-            <div key={i} className="h-16 bg-muted animate-pulse rounded-lg" />
-          ))}
-        </div>
-      )}
-      {!buscando && resultados.length > 0 && (
+      {resultados.length > 0 && (
         <div className="border rounded-lg max-h-64 overflow-y-auto divide-y">
           {resultados.map((p: any) => (
             <button
@@ -1021,7 +942,7 @@ function BuscaProduto({ onSelecionar }: { onSelecionar: (produto: any) => void }
                     {p.ncm && p.ncm !== '00000000' && <span> • NCM: {p.ncm}</span>}
                   </p>
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-muted-foreground">
-                    {p.codigo_barras && <span>📦 {p.codigo_barras}</span>}
+                    {p.codigoBarras && <span>📦 {p.codigoBarras}</span>}
                     {p.cfop && <span>CFOP: {p.cfop}</span>}
                     {p.unidade && <span>Un: {p.unidade}</span>}
                   </div>
@@ -1030,8 +951,8 @@ function BuscaProduto({ onSelecionar }: { onSelecionar: (produto: any) => void }
                   <Badge variant="outline" className="font-semibold text-green-600">
                     R$ {(p.preco || 0).toFixed(2)}
                   </Badge>
-                  {p.unidade_tributavel && p.unidade_tributavel !== p.unidade && (
-                    <span className="text-[10px] text-muted-foreground">Trib: {p.unidade_tributavel}</span>
+                  {p.unidadeTributavel && p.unidadeTributavel !== p.unidade && (
+                    <span className="text-[10px] text-muted-foreground">Trib: {p.unidadeTributavel}</span>
                   )}
                 </div>
               </div>
@@ -1039,7 +960,7 @@ function BuscaProduto({ onSelecionar }: { onSelecionar: (produto: any) => void }
           ))}
         </div>
       )}
-      {!buscando && busca.trim().length > 2 && resultados.length === 0 && (
+      {!resultados.length && busca.trim().length > 2 && (
         <p className="text-sm text-muted-foreground">Nenhum produto encontrado.</p>
       )}
     </>
