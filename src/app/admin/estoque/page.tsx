@@ -55,6 +55,7 @@ import {
   X,
   Download,
   ChevronLeft,
+  ChevronDown,
   ArrowUpDown,
   Edit2,
 } from 'lucide-react';
@@ -109,6 +110,7 @@ export default function EstoquePage() {
   const [dialogMovimentacao, setDialogMovimentacao] = useState(false);
   const [produtoSelecionado, setProdutoSelecionado] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [showBaixoEstoque, setShowBaixoEstoque] = useState(false);
   
   // Formulário de entrada
   const [quantidade, setQuantidade] = useState('');
@@ -762,20 +764,58 @@ export default function EstoquePage() {
               </CardContent>
             </Card>
             
-            <Card className={produtosBaixoEstoque.length > 0 ? 'border-yellow-300' : ''}>
+            <Card
+              className={`cursor-pointer transition-colors ${produtosBaixoEstoque.length > 0 ? 'border-yellow-300 hover:bg-yellow-50/50 dark:hover:bg-yellow-950/10' : ''} ${showBaixoEstoque ? 'ring-2 ring-yellow-300' : ''}`}
+              onClick={() => produtosBaixoEstoque.length > 0 && setShowBaixoEstoque(!showBaixoEstoque)}
+            >
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
-                    <AlertTriangle className="h-6 w-6 text-yellow-600" />
+                    <AlertTriangle className={`h-6 w-6 ${produtosBaixoEstoque.length > 0 ? 'text-yellow-600' : 'text-yellow-400'}`} />
                   </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Estoque Baixo</p>
+                  <div className="flex-1">
+                    <p className="text-sm text-muted-foreground">Estoque Baixo, Clique Aqui</p>
                     <p className="text-2xl font-bold text-yellow-600">{produtosBaixoEstoque.length}</p>
                   </div>
+                  {produtosBaixoEstoque.length > 0 && (
+                    <ChevronDown className={`h-5 w-5 text-yellow-600 transition-transform ${showBaixoEstoque ? 'rotate-180' : ''}`} />
+                  )}
                 </div>
               </CardContent>
             </Card>
           </div>
+
+          {showBaixoEstoque && produtosBaixoEstoque.length > 0 && (
+            <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/50">
+              <CardContent className="p-4">
+                <div className="border border-amber-200 dark:border-amber-800/50 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-amber-100/50 dark:bg-amber-900/30">
+                        <th className="text-left text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Produto</th>
+                        <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Atual</th>
+                        <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Mínimo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {produtosBaixoEstoque.slice(0, 5).map((p: any, idx: number) => (
+                        <tr key={p.id} className={`${idx % 2 === 0 ? 'bg-amber-50/50 dark:bg-amber-950/10' : ''} border-t border-amber-100 dark:border-amber-800/30`}>
+                          <td className="text-amber-800 dark:text-amber-400 px-3 py-1.5 truncate max-w-[200px]">{p.nome}</td>
+                          <td className="text-center text-amber-800 dark:text-amber-400 px-3 py-1.5 font-mono">{p.estoqueAtual ?? 0}</td>
+                          <td className="text-center text-amber-800 dark:text-amber-400 px-3 py-1.5 font-mono">{p.estoqueMinimo ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {produtosBaixoEstoque.length > 5 && (
+                    <div className="bg-amber-100/50 dark:bg-amber-900/30 border-t border-amber-200 dark:border-amber-800/50 px-3 py-1.5 text-xs text-amber-600 dark:text-amber-500 text-center">
+                      E mais {produtosBaixoEstoque.length - 5} outro{produtosBaixoEstoque.length - 5 !== 1 ? 's' : ''}...
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Filtros */}
           <Card>
@@ -824,57 +864,6 @@ export default function EstoquePage() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Alertas */}
-          {produtosBaixoEstoque.length > 0 && (
-                        <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/50">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <div className="h-10 w-10 rounded-full bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center shrink-0">
-                    <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="font-semibold text-amber-800 dark:text-amber-300">
-                        Atenção: {produtosBaixoEstoque.length} produto{produtosBaixoEstoque.length !== 1 ? 's' : ''} com estoque baixo
-                      </p>
-                      <Button asChild variant="outline" size="sm" className="shrink-0 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/50">
-                        <a href="/admin/estoque?filter=baixo">Ver Estoque</a>
-                      </Button>
-                    </div>
-                    <p className="text-sm text-amber-700 dark:text-amber-400 mt-1">
-                      Alguns produtos estão abaixo do estoque mínimo. Faça a reposição.
-                    </p>
-                    <div className="mt-3 border border-amber-200 dark:border-amber-800/50 rounded-lg overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="bg-amber-100/50 dark:bg-amber-900/30">
-                            <th className="text-left text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Produto</th>
-                            <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Atual</th>
-                            <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Mínimo</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {produtosBaixoEstoque.slice(0, 5).map((p: any, idx: number) => (
-                            <tr key={p.id} className={`${idx % 2 === 0 ? 'bg-amber-50/50 dark:bg-amber-950/10' : ''} border-t border-amber-100 dark:border-amber-800/30`}>
-                              <td className="text-amber-800 dark:text-amber-400 px-3 py-1.5 truncate max-w-[200px]">{p.nome}</td>
-                              <td className="text-center text-amber-800 dark:text-amber-400 px-3 py-1.5 font-mono">{p.estoqueAtual ?? 0}</td>
-                              <td className="text-center text-amber-800 dark:text-amber-400 px-3 py-1.5 font-mono">{p.estoqueMinimo ?? 0}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                      {produtosBaixoEstoque.length > 5 && (
-                        <div className="bg-amber-100/50 dark:bg-amber-900/30 border-t border-amber-200 dark:border-amber-800/50 px-3 py-1.5 text-xs text-amber-600 dark:text-amber-500 text-center">
-                          E mais {produtosBaixoEstoque.length - 5} outro{produtosBaixoEstoque.length - 5 !== 1 ? 's' : ''}...
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
 
           {/* Lista de Produtos */}
           {produtos.length === 0 ? (

@@ -84,6 +84,7 @@ interface KPICardData {
   corIcone: string;
   corBg: string;
   variacao?: number;
+  aoClicar?: () => void;
 }
 
 function KPICard({ data, index }: { data: KPICardData; index: number }) {
@@ -115,7 +116,15 @@ function KPICard({ data, index }: { data: KPICardData; index: number }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.05, duration: 0.3 }}
     >
-      <div className="rounded-lg border border-border/50 bg-white/90 dark:bg-[#1e1e32]/80 p-4 hover:shadow-sm transition-shadow backdrop-blur-sm">
+      <div
+        className={`rounded-lg border border-border/50 bg-white/90 dark:bg-[#1e1e32]/80 p-4 transition-shadow backdrop-blur-sm ${
+          data.aoClicar ? 'cursor-pointer hover:shadow-md hover:ring-1 hover:ring-primary/30' : 'hover:shadow-sm'
+        }`}
+        onClick={data.aoClicar}
+        role={data.aoClicar ? 'button' : undefined}
+        tabIndex={data.aoClicar ? 0 : undefined}
+        onKeyDown={data.aoClicar ? (e) => { if (e.key === 'Enter' || e.key === ' ') data.aoClicar?.(); } : undefined}
+      >
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide truncate">{data.titulo}</p>
@@ -176,6 +185,11 @@ export default function AdminDashboardPage() {
   const [backupDialogOpen, setBackupDialogOpen] = useState(false);
   const [backupProgress, setBackupProgress] = useState('');
   const [pdvUrl, setPdvUrl] = useState('/pdv');
+
+  // Detail dialog for product metrics
+  const [detalheDialogo, setDetalheDialogo] = useState<{ aberto: boolean; titulo: string; dados: { nome: string; quantidade: number; valor: number }[] }>({
+    aberto: false, titulo: '', dados: [],
+  });
 
   // Low stock alert
   const [lowStockProdutos, setLowStockProdutos] = useState<any[]>([]);
@@ -532,6 +546,32 @@ export default function AdminDashboardPage() {
   }
 
   // ── KPI Cards Data - Dia ──
+  function agregarProdutosVendidos(vendasList: any[]) {
+    const map = new Map<string, { nome: string; quantidade: number; valor: number }>();
+    vendasList.forEach(v => {
+      v.itens?.forEach((item: any) => {
+        const key = item.produtoId || item.nome || 'sem_nome';
+        const existing = map.get(key);
+        if (existing) {
+          existing.quantidade += item.quantidade || 0;
+          existing.valor += (item.precoUnitario || 0) * (item.quantidade || 0);
+        } else {
+          map.set(key, {
+            nome: item.nome || 'Produto',
+            quantidade: item.quantidade || 0,
+            valor: (item.precoUnitario || 0) * (item.quantidade || 0),
+          });
+        }
+      });
+    });
+    return Array.from(map.values()).sort((a, b) => b.quantidade - a.quantidade);
+  }
+
+  const abrirDetalheProdutos = (titulo: string, vendasList: any[]) => {
+    const dados = agregarProdutosVendidos(vendasList);
+    setDetalheDialogo({ aberto: true, titulo, dados });
+  };
+
   const kpisDia: KPICardData[] = [
     {
       titulo: 'Valor vendido',
@@ -556,6 +596,7 @@ export default function AdminDashboardPage() {
       icone: Layers,
       corIcone: 'text-violet-600',
       corBg: 'bg-violet-50',
+      aoClicar: () => abrirDetalheProdutos('Itens vendidos (SKU) - Hoje', vendasDia),
     },
     {
       titulo: 'Unidades vendidas',
@@ -564,6 +605,7 @@ export default function AdminDashboardPage() {
       icone: Package,
       corIcone: 'text-amber-600',
       corBg: 'bg-amber-50',
+      aoClicar: () => abrirDetalheProdutos('Unidades vendidas - Hoje', vendasDia),
     },
     {
       titulo: 'Média de itens por pedido',
@@ -611,6 +653,7 @@ export default function AdminDashboardPage() {
       corIcone: 'text-violet-600',
       corBg: 'bg-violet-50',
       variacao: calcVariacao(metricasMesAtual.itensSKU, metricasMesAnterior.itensSKU),
+      aoClicar: () => abrirDetalheProdutos('Itens vendidos (SKU) - Mês', vendasMesAtual),
     },
     {
       titulo: 'Unidades vendidas',
@@ -620,6 +663,7 @@ export default function AdminDashboardPage() {
       corIcone: 'text-amber-600',
       corBg: 'bg-amber-50',
       variacao: calcVariacao(metricasMesAtual.unidadesTotal, metricasMesAnterior.unidadesTotal),
+      aoClicar: () => abrirDetalheProdutos('Unidades vendidas - Mês', vendasMesAtual),
     },
     {
       titulo: 'Média de itens por pedido',
@@ -1319,6 +1363,50 @@ export default function AdminDashboardPage() {
                   </Button>
                 </DialogFooter>
               )}
+            </DialogContent>
+          </Dialog>
+
+          {/* ── Dialog: Detalhe de Produtos Vendidos ── */}
+          <Dialog open={detalheDialogo.aberto} onOpenChange={(open) => setDetalheDialogo(prev => ({ ...prev, aberto: open }))}>
+            <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col">
+              <DialogHeader>
+                <DialogTitle>{detalheDialogo.titulo}</DialogTitle>
+                <DialogDescription>
+                  {detalheDialogo.dados.length} produto{detalheDialogo.dados.length !== 1 ? 's' : ''} encontrado{detalheDialogo.dados.length !== 1 ? 's' : ''}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="overflow-y-auto flex-1 -mx-6 px-6">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-background">
+                    <tr className="border-b">
+                      <th className="text-left py-2 font-medium text-muted-foreground">Produto</th>
+                      <th className="text-right py-2 font-medium text-muted-foreground">Qtd</th>
+                      <th className="text-right py-2 font-medium text-muted-foreground">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detalheDialogo.dados.map((item, i) => (
+                      <tr key={i} className="border-b last:border-0">
+                        <td className="py-2 truncate max-w-[280px]">{item.nome}</td>
+                        <td className="py-2 text-right">{item.quantidade}</td>
+                        <td className="py-2 text-right font-medium">{formatBRL(item.valor)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-foreground/20 font-semibold">
+                      <td className="py-2 text-sm">Total</td>
+                      <td className="py-2 text-right text-sm">{detalheDialogo.dados.reduce((s, i) => s + i.quantidade, 0)}</td>
+                      <td className="py-2 text-right text-sm font-bold">{formatBRL(detalheDialogo.dados.reduce((s, i) => s + i.valor, 0))}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <DialogFooter className="border-t pt-4">
+                <Button variant="outline" onClick={() => setDetalheDialogo(prev => ({ ...prev, aberto: false }))}>
+                  Fechar
+                </Button>
+              </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
