@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -68,6 +68,14 @@ interface PagamentoForm {
 }
 
 export default function EmitirNFePage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-muted-foreground">Carregando...</div>}>
+      <EmitirNFeContent />
+    </Suspense>
+  );
+}
+
+function EmitirNFeContent() {
   const { empresaId } = useAuth();
   const { emitir, emitindo, nfe, error } = useEmitirNFe();
   const { produtos: allProducts, loading: loadingProdutos } = useProdutos();
