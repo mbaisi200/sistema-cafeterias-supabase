@@ -100,9 +100,11 @@ export async function POST(request: NextRequest) {
 
     } else if (tipo === 'saida') {
       // ============================================
-      // List NF-e de Saída (recent sales that could have NF-e)
+      // List NF-e de Saída (vendas + pedidos pendentes de NF-e)
       // ============================================
-      let query = supabase
+
+      // Fetch vendas (existing sales)
+      let vendasQuery = supabase
         .from('vendas')
         .select('id, empresa_id, status, criado_em, nome_cliente, total, forma_pagamento, nfe_emitida, nfe_id')
         .eq('empresa_id', empresaId)
@@ -110,38 +112,21 @@ export async function POST(request: NextRequest) {
         .order('criado_em', { ascending: false })
         .limit(100);
 
-      // Date filter
-      if (dataInicio) {
-        query = query.gte('criado_em', `${dataInicio}T00:00:00`);
-      }
-      if (dataFim) {
-        query = query.lte('criado_em', `${dataFim}T23:59:59`);
-      }
+      if (dataInicio) vendasQuery = vendasQuery.gte('criado_em', `${dataInicio}T00:00:00`);
+      if (dataFim) vendasQuery = vendasQuery.lte('criado_em', `${dataFim}T23:59:59`);
 
-      // Search by client name or sale number
-      if (search) {
-        query = query.or(
+      if (status === 'com_nfe') vendasQuery = vendasQuery.eq('nfe_emitida', true);
+      else if (status === 'sem_nfe') vendasQuery = vendasQuery.eq('nfe_emitida', false);
+
+      if (search && status !== 'com_nfe') {
+        vendasQuery = vendasQuery.or(
           `nome_cliente.ilike.%${search}%,id.ilike.%${search}%,forma_pagamento.ilike.%${search}%`
         );
       }
 
-      // Status filter (nfe_emitida: boolean)
-      if (status === 'com_nfe') {
-        query = query.eq('nfe_emitida', true);
-      } else if (status === 'sem_nfe') {
-        query = query.eq('nfe_emitida', false);
-      }
+      const { data: vendas } = await vendasQuery;
 
-      const { data: vendas, error } = await query;
-
-      if (error) {
-        return NextResponse.json(
-          { sucesso: false, erro: 'Erro ao buscar notas de saída' },
-          { status: 500 }
-        );
-      }
-
-      const resultados = (vendas || []).map((venda: any) => ({
+      const resultadosVendas = (vendas || []).map((venda: any) => ({
         id: venda.id,
         numero: venda.numero || venda.id?.substring(0, 8).toUpperCase(),
         data: venda.criado_em,
@@ -150,7 +135,44 @@ export async function POST(request: NextRequest) {
         forma_pagamento: venda.forma_pagamento || '-',
         status: venda.nfe_emitida ? 'nfe_emitida' : 'pendente',
         nfe_id: venda.nfe_id || null,
+        tipo_origem: 'venda',
       }));
+
+      // Fetch pedidos pendentes/aprovados sem NF-e
+      let pedidosQuery = supabase
+        .from('pedidos')
+        .select('id, empresa_id, numero, status, criado_em, cliente_nome, total, forma_pagamento, nfe_id')
+        .eq('empresa_id', empresaId)
+        .in('status', ['pendente', 'aprovado'])
+        .is('nfe_id', null)
+        .order('criado_em', { ascending: false })
+        .limit(50);
+
+      if (dataInicio) pedidosQuery = pedidosQuery.gte('criado_em', `${dataInicio}T00:00:00`);
+      if (dataFim) pedidosQuery = pedidosQuery.lte('criado_em', `${dataFim}T23:59:59`);
+
+      if (search && status !== 'com_nfe') {
+        pedidosQuery = pedidosQuery.or(
+          `cliente_nome.ilike.%${search}%,numero::text.ilike.%${search}%`
+        );
+      }
+
+      const { data: pedidos } = await pedidosQuery;
+
+      const resultadosPedidos = (pedidos || []).map((pedido: any) => ({
+        id: pedido.id,
+        numero: String(pedido.numero || pedido.id?.substring(0, 8)).toUpperCase(),
+        data: pedido.criado_em,
+        cliente: pedido.cliente_nome || 'Cliente não identificado',
+        total: pedido.total || 0,
+        forma_pagamento: pedido.forma_pagamento || '-',
+        status: 'pendente',
+        nfe_id: null,
+        tipo_origem: 'pedido',
+      }));
+
+      // Merge: vendas first, then pedidos
+      const resultados = [...resultadosVendas, ...resultadosPedidos];
 
       return NextResponse.json({
         sucesso: true,

@@ -16,10 +16,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Printer, FileText, User, Settings, CreditCard, CheckCircle } from 'lucide-react';
+import { Printer, FileText, User, Settings, CreditCard, CheckCircle, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useConfiguracoesCupom, ConfiguracoesCupom, configuracoesCupomPadrao } from '@/hooks/useSupabase';
 import { BuscaCliente, ClienteEncontrado } from './BuscaCliente';
+import { NovoClienteDialog } from './NovoClienteDialog';
 
 export interface DadosCupomFiscal {
   cpfCliente: string;
@@ -37,6 +38,7 @@ export interface DadosCupomFiscal {
   codigoBarras?: string;
   unidade?: string;
   vendedor?: string;
+  softwareName?: string;
 }
 
 interface CupomFiscalModalProps {
@@ -63,6 +65,8 @@ interface CupomFiscalModalProps {
   cidadeEmpresa?: string;
   ufEmpresa?: string;
   vendedor?: string;
+  clienteInicial?: ClienteEncontrado | null;
+  softwareName?: string;
 }
 
 export function CupomFiscalModal({
@@ -82,6 +86,8 @@ export function CupomFiscalModal({
   cidadeEmpresa = '',
   ufEmpresa = '',
   vendedor = '',
+  clienteInicial,
+  softwareName,
 }: CupomFiscalModalProps) {
   const { toast } = useToast();
   const { configuracoes, carregarConfiguracoes } = useConfiguracoesCupom();
@@ -99,6 +105,7 @@ export function CupomFiscalModal({
   const [clienteSelecionado, setClienteSelecionado] = useState<ClienteEncontrado | null>(null);
   const [cpfCliente, setCpfCliente] = useState('');
   const [nomeCliente, setNomeCliente] = useState('');
+
   const [modoEntradaManual, setModoEntradaManual] = useState(false);
 
   const [imprimirCupom, setImprimirCupom] = useState(true);
@@ -112,15 +119,22 @@ export function CupomFiscalModal({
     }
   }, [configuracoes]);
 
-  // Resetar valores quando o modal abrir
+  // Resetar/sincronizar cliente quando o modal abrir
   useEffect(() => {
     if (open) {
-      setClienteSelecionado(null);
-      setModoEntradaManual(false);
-      setCpfCliente('');
-      setNomeCliente('');
+      if (clienteInicial) {
+        setClienteSelecionado(clienteInicial);
+        setCpfCliente(clienteInicial.cnpj_cpf);
+        setNomeCliente(clienteInicial.nome_razao_social);
+        setModoEntradaManual(false);
+      } else {
+        setClienteSelecionado(null);
+        setCpfCliente('');
+        setNomeCliente('');
+        setModoEntradaManual(false);
+      }
     }
-  }, [open]);
+  }, [open, clienteInicial]);
 
   // Carregar configurações salvas
   useEffect(() => {
@@ -183,9 +197,17 @@ export function CupomFiscalModal({
     }
   };
 
+  const [dialogNovoCliente, setDialogNovoCliente] = useState(false);
+
   const handleCadastrarNovo = () => {
-    setClienteSelecionado(null);
-    setModoEntradaManual(true);
+    setDialogNovoCliente(true);
+  };
+
+  const handleClienteCadastrado = (cliente: ClienteEncontrado) => {
+    setClienteSelecionado(cliente);
+    setCpfCliente(cliente.cnpj_cpf);
+    setNomeCliente(cliente.nome_razao_social);
+    setModoEntradaManual(false);
   };
 
   const handleConfirmar = () => {
@@ -217,6 +239,7 @@ export function CupomFiscalModal({
       cidadeEmpresa,
       ufEmpresa,
       vendedor,
+      softwareName,
     }, formaPagamento);
   };
 
@@ -262,14 +285,25 @@ export function CupomFiscalModal({
 
           {/* Busca de Cliente */}
           {!modoEntradaManual ? (
-            <BuscaCliente
-              onSelect={handleClienteSelect}
-              selected={clienteSelecionado}
-              placeholder="Buscar por nome ou CPF/CNPJ..."
-              label="Identificar Cliente"
-              showActions={true}
-              onCadastrarNovo={handleCadastrarNovo}
-            />
+            <div>
+              <BuscaCliente
+                onSelect={handleClienteSelect}
+                selected={clienteSelecionado ?? (open ? clienteInicial : null)}
+                placeholder="Buscar por nome ou CPF/CNPJ..."
+                label="Identificar Cliente"
+                showActions={true}
+                onCadastrarNovo={handleCadastrarNovo}
+              />
+              <div className="mt-2 text-center">
+                <button
+                  type="button"
+                  className="text-xs text-gray-400 hover:text-gray-600 underline"
+                  onClick={() => setModoEntradaManual(true)}
+                >
+                  Digitar CPF manualmente
+                </button>
+              </div>
+            </div>
           ) : (
             /* Entrada manual de CPF e Nome (fallback) */
             <div className="space-y-3">
@@ -278,15 +312,27 @@ export function CupomFiscalModal({
                   <User className="h-4 w-4 text-gray-600" />
                   Dados do Cliente
                 </Label>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-xs text-blue-600 hover:text-blue-700"
-                  onClick={() => setModoEntradaManual(false)}
-                >
-                  Buscar cliente cadastrado
-                </Button>
+                <div className="flex gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                    onClick={handleCadastrarNovo}
+                  >
+                    <UserPlus className="h-3 w-3 mr-1" />
+                    Cadastrar
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-xs text-blue-600 hover:text-blue-700"
+                    onClick={() => setModoEntradaManual(false)}
+                  >
+                    Buscar cliente
+                  </Button>
+                </div>
               </div>
 
               {/* CPF do Cliente */}
@@ -327,6 +373,13 @@ export function CupomFiscalModal({
               </div>
             </div>
           )}
+
+          {/* Diálogo de cadastro completo */}
+          <NovoClienteDialog
+            open={dialogNovoCliente}
+            onOpenChange={setDialogNovoCliente}
+            onClienteCadastrado={handleClienteCadastrado}
+          />
 
           <Separator />
 
@@ -460,6 +513,7 @@ export function imprimirCupomFiscal(
     cidadeEmpresa: cidadeParam,
     ufEmpresa: ufParam,
     vendedor: vendedorParam,
+    softwareName: softwareNameParam,
   } = dados;
 
   // Usar configurações salvas ou padrão
@@ -689,13 +743,29 @@ export function imprimirCupomFiscal(
   cupom += `Data Emissao: ${data}\n`;
   cupom += `Hora Emissao:  ${hora}\n`;
   cupom += `Chave: ${chaveAcesso}\n`;
-  cupom += `Software: SISTEMA-CAFETERIAS\n`;
+  cupom += `Software: ${softwareNameParam || 'SISTEMA-PDV'}\n`;
 
   cupom += '\n';
 
   // === DADOS DO CLIENTE ===
   const nomeClienteFinal = cliente?.nome_razao_social || nomeCliente || 'AO CONSUMIDOR';
   cupom += `Cliente: ${nomeClienteFinal.toUpperCase()}\n`;
+  if (cliente) {
+    const enderecoParts = [
+      [cliente.logradouro, cliente.numero].filter(Boolean).join(', '),
+      cliente.complemento,
+    ].filter(Boolean);
+    if (enderecoParts.length > 0) {
+      quebrarTexto(enderecoParts.join(' - ').toUpperCase()).forEach(l => cupom += `  ${l}\n`);
+    }
+    const bairroCidade = [
+      cliente.bairro,
+      [cliente.municipio, cliente.uf].filter(Boolean).join(' - '),
+    ].filter(Boolean);
+    if (bairroCidade.length > 0) {
+      bairroCidade.forEach(part => cupom += `  ${part.toUpperCase()}\n`);
+    }
+  }
   cupom += `Vendedor: ${vendedor.toUpperCase()}\n`;
 
   cupom += '\n';
@@ -707,17 +777,15 @@ export function imprimirCupomFiscal(
   cupom += traco + '\n';
 
   itens.forEach((item) => {
-    const codigoStr = (item.codigo || '').padEnd(16, ' ');
+    const codigo = item.codigo || '';
     const unidade = (item.unidade || 'UN').toUpperCase();
     const valorUnitStr = (item.preco || 0).toFixed(2);
     const valorTotalStr = ((item.quantidade || 0) * (item.preco || 0)).toFixed(2);
 
-    // Linha 1: Código (se tiver) + Descrição
-    if (item.codigo) {
-      cupom += `${codigoStr}${item.nome}\n`;
-    } else {
-      cupom += `${item.nome}\n`;
-    }
+    // Linha 1: Código + Descrição (com quebra para evitar estouro)
+    const descricaoLinha = codigo ? `${codigo} ${item.nome}` : item.nome;
+    const linhasDesc = quebrarTexto(descricaoLinha.toUpperCase());
+    linhasDesc.forEach(l => cupom += `${l}\n`);
 
     // Linha 2: Qtde x UN R$ V.Unit R$ V.Total
     const detalhe = `${item.quantidade} ${unidade.padEnd(3, ' ')} x R$ ${valorUnitStr}`;

@@ -58,6 +58,7 @@ interface ItemCarrinho {
   produtoId: string;
   nome: string;
   preco: number;
+  precoOriginal: number;
   quantidade: number;
   codigo: string;
   codigoBarras: string;
@@ -81,7 +82,7 @@ const FORMAS_PAGAMENTO = [
 const fmt = (val: number | undefined | null) => (val || 0).toFixed(2);
 
 export default function PDVVarejoPage() {
-  const { user, empresaId, logout } = useAuth();
+  const { user, empresaId, nomeMarca, logout } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const { resolvedTheme } = useTheme();
@@ -114,6 +115,8 @@ export default function PDVVarejoPage() {
 
   const [valorDescontoInput, setValorDescontoInput] = useState('');
   const [descontoTotalPercentual, setDescontoTotalPercentual] = useState(0);
+  const [editTotalFinal, setEditTotalFinal] = useState(false);
+  const [editTotalFinalValue, setEditTotalFinalValue] = useState('');
   const [valorAberturaCaixa, setValorAberturaCaixa] = useState('');
   const [abrindoCaixa, setAbrindoCaixa] = useState(false);
 
@@ -131,9 +134,6 @@ export default function PDVVarejoPage() {
   const [devolucaoCodigo, setDevolucaoCodigo] = useState('');
   const [devolucaoQtd, setDevolucaoQtd] = useState('1');
   const [observacao, setObservacao] = useState('');
-  const [editPrecoItemId, setEditPrecoItemId] = useState<string | null>(null);
-  const [editPrecoValue, setEditPrecoValue] = useState('');
-
   const [buscaResults, setBuscaResults] = useState<any[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedDropdownIndex, setSelectedDropdownIndex] = useState(-1);
@@ -256,6 +256,7 @@ export default function PDVVarejoPage() {
         produtoId: produto.id,
         nome: produto.nome,
         preco: preco,
+        precoOriginal: produto.preco,
         quantidade: qtde,
         codigo: produto.codigo || '',
         codigoBarras: produto.codigoBarras || '',
@@ -302,7 +303,7 @@ export default function PDVVarejoPage() {
     }
     setItensCarrinho(prev =>
       prev.map(item =>
-        item.id === itemId ? { ...item, preco: novoPreco } : item
+        item.id === itemId ? { ...item, preco: novoPreco, descontoPercentual: 0 } : item
       )
     );
   };
@@ -450,28 +451,27 @@ export default function PDVVarejoPage() {
         .from('itens_venda')
         .insert(itensVenda);
 
-      if (itensError) console.error('Erro ao criar itens:', itensError);
+      if (itensError) throw itensError;
 
       for (const item of itensCarrinho) {
         try {
-          await supabase.rpc('decrementar_estoque_produto', {
+          const { error: rpcError } = await supabase.rpc('decrementar_estoque_produto', {
             p_produto_id: item.produtoId,
             p_quantidade: item.quantidade,
-          }).catch(async () => {
-            const { data: prod } = await supabase
-              .from('produtos')
-              .select('estoque_atual')
-              .eq('id', item.produtoId)
-              .single();
-            if (prod) {
-              await supabase
-                .from('produtos')
-                .update({ estoque_atual: Math.max(0, parseFloat(prod.estoque_atual) - item.quantidade) })
-                .eq('id', item.produtoId);
-            }
           });
-        } catch (err) {
-          console.error('Erro ao baixar estoque:', err);
+          if (rpcError) throw rpcError;
+        } catch {
+          const { data: prod } = await supabase
+            .from('produtos')
+            .select('estoque_atual')
+            .eq('id', item.produtoId)
+            .single();
+          if (prod) {
+            await supabase
+              .from('produtos')
+              .update({ estoque_atual: Math.max(0, parseFloat(prod.estoque_atual) - item.quantidade) })
+              .eq('id', item.produtoId);
+          }
         }
       }
 
@@ -487,7 +487,7 @@ export default function PDVVarejoPage() {
         .from('pagamentos')
         .insert(pagamentosInsert);
 
-      if (pagError) console.error('Erro ao criar pagamentos:', pagError);
+      if (pagError) throw pagError;
 
       if (caixaAberto) {
         const { error: movError } = await supabase
@@ -505,7 +505,7 @@ export default function PDVVarejoPage() {
             criado_em: new Date().toISOString(),
           });
 
-        if (movError) console.error('Erro ao registrar movimentação:', movError);
+        if (movError) throw movError;
 
         await supabase
           .from('caixas')
@@ -550,6 +550,7 @@ export default function PDVVarejoPage() {
           cidadeEmpresa: empresa?.cidade || '',
           ufEmpresa: empresa?.estado || '',
           vendedor: user?.nome || 'OPERADOR',
+          softwareName: nomeMarca || undefined,
         });
       }
 
@@ -943,7 +944,8 @@ export default function PDVVarejoPage() {
                       <th className={`text-left py-3 px-4 font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Código</th>
                       <th className={`text-left py-3 px-4 font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Descrição</th>
                       <th className={`text-center py-3 px-4 font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Qtde</th>
-                      <th className={`text-right py-3 px-4 font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Valor Un.</th>
+                      <th className={`text-right py-3 px-2 font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Valor Un.</th>
+                      <th className={`text-center py-3 px-2 font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>%Desc</th>
                       <th className={`text-right py-3 px-4 font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Total</th>
                       <th className={`text-center py-3 px-2 font-semibold ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}></th>
                     </tr>
@@ -1007,47 +1009,16 @@ export default function PDVVarejoPage() {
                                 </button>
                               </div>
                             </td>
-                            <td className={`py-3 px-4 text-right text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                              {editPrecoItemId === item.id ? (
-                                <div className="flex items-center justify-end gap-1">
-                                  <Input
-                                    type="number"
-                                    step="0.01"
-                                    min="0.01"
-                                    value={editPrecoValue}
-                                    onChange={(e) => setEditPrecoValue(e.target.value)}
-                                    className={`h-7 w-24 text-right text-sm font-bold ${darkMode ? 'bg-[#1a1a2e] border-teal-400 text-teal-300' : 'bg-white border-blue-400 text-blue-700'} rounded-lg`}
-                                    autoFocus
-                                    onClick={(e) => e.stopPropagation()}
-                                    onKeyDown={(e) => {
-                                      e.stopPropagation();
-                                      if (e.key === 'Enter') {
-                                        const p = parseFloat(editPrecoValue);
-                                        if (p > 0) setPrecoItem(item.id, p);
-                                        setEditPrecoItemId(null);
-                                      }
-                                      if (e.key === 'Escape') {
-                                        setEditPrecoItemId(null);
-                                      }
-                                    }}
-                                    onBlur={() => {
-                                      const p = parseFloat(editPrecoValue);
-                                      if (p > 0) setPrecoItem(item.id, p);
-                                      setEditPrecoItemId(null);
-                                    }}
-                                  />
-                                </div>
+                            <td className={`py-3 px-2 text-right text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                              R$ {fmt(item.preco)}
+                            </td>
+                            <td className={`py-3 px-2 text-center text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              {item.descontoPercentual > 0 ? (
+                                <span className="text-orange-500 font-semibold">
+                                  {item.descontoPercentual.toFixed(1)}%
+                                </span>
                               ) : (
-                                <button
-                                  className={`hover:underline cursor-pointer ${darkMode ? 'hover:text-teal-400' : 'hover:text-blue-700'}`}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setEditPrecoItemId(item.id);
-                                    setEditPrecoValue(item.preco.toString());
-                                  }}
-                                >
-                                  R$ {fmt(item.preco)}
-                                </button>
+                                <span className="text-gray-300">—</span>
                               )}
                             </td>
                             <td className={`py-3 px-4 text-right text-sm font-bold ${darkMode ? 'text-teal-400' : 'text-blue-600'}`}>
@@ -1117,16 +1088,71 @@ export default function PDVVarejoPage() {
                 <p className={`text-sm font-bold ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>R$ {fmt(subtotal)}</p>
               </div>
               <div className={`w-px h-8 ${darkMode ? 'bg-white/10' : 'bg-gray-200'}`} />
-              <div className="text-center">
+              <button
+                type="button"
+                className="text-center"
+                onClick={() => { setDialogDesconto('total'); setValorDescontoInput(descontoTotalPercentual.toString()); }}
+              >
                 <span className={`text-xs ${darkMode ? 'text-orange-400' : 'text-orange-500'}`}>Desconto</span>
-                <p className={`text-sm font-bold ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
-                  -R$ {fmt(totalDescontoItens + totalDescontoGeral)}
-                </p>
-              </div>
+                <div className="flex items-baseline justify-center gap-1">
+                  <p className={`text-sm font-bold ${darkMode ? 'text-orange-400' : 'text-orange-600'}`}>
+                    -R$ {fmt(totalDescontoItens + totalDescontoGeral)}
+                  </p>
+                  {descontoTotalPercentual > 0 && (
+                    <span className={`text-xs font-bold ${darkMode ? 'text-orange-300' : 'text-orange-600'}`}>
+                      ({descontoTotalPercentual.toFixed(1)}%)
+                    </span>
+                  )}
+                </div>
+              </button>
               <div className={`w-px h-8 ${darkMode ? 'bg-white/10' : 'bg-gray-200'}`} />
               <div className="text-center">
                 <span className={`text-xs ${darkMode ? 'text-teal-400' : 'text-blue-500'}`}>Total</span>
-                <p className={`text-lg font-bold ${darkMode ? 'text-teal-400' : 'text-blue-600'}`}>R$ {fmt(totalFinal)}</p>
+                <div className="mt-0.5">
+                  {editTotalFinal ? (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      value={editTotalFinalValue}
+                      onChange={(e) => setEditTotalFinalValue(e.target.value)}
+                      className={`h-8 w-20 text-right text-sm font-bold ${darkMode ? 'bg-[#1a1a2e] border-teal-400 text-teal-300' : 'bg-white border-blue-400 text-blue-700'} rounded-lg px-1`}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        e.stopPropagation();
+                        if (e.key === 'Enter') {
+                          const t = parseFloat(editTotalFinalValue);
+                          if (t > 0 && subtotal > 0) {
+                            const pct = Math.max(0, ((subtotal - t) / subtotal) * 100);
+                            setDescontoTotalPercentual(pct);
+                          }
+                          setEditTotalFinal(false);
+                        }
+                        if (e.key === 'Escape') setEditTotalFinal(false);
+                      }}
+                      onBlur={() => {
+                        const t = parseFloat(editTotalFinalValue);
+                        if (t > 0 && subtotal > 0) {
+                          const pct = Math.max(0, ((subtotal - t) / subtotal) * 100);
+                          setDescontoTotalPercentual(pct);
+                        }
+                        setEditTotalFinal(false);
+                      }}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className={`text-lg font-bold hover:underline cursor-pointer ${darkMode ? 'text-teal-400' : 'text-blue-600'}`}
+                      onClick={() => {
+                        setEditTotalFinalValue(totalFinal.toFixed(2));
+                        setEditTotalFinal(true);
+                      }}
+                    >
+                      R$ {fmt(totalFinal)}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -1496,7 +1522,9 @@ export default function PDVVarejoPage() {
           enderecoEmpresa={empresa?.endereco || ''}
           processando={processando}
           pagamentosMultiplos={pagamentos.length > 1 ? pagamentos : undefined}
-        />
+          clienteInicial={clienteSelecionado}
+          softwareName={nomeMarca}
+/>
 
         {/* F8 - Devolução */}
         <Dialog open={dialogDevolucao} onOpenChange={setDialogDevolucao}>

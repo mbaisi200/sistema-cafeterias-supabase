@@ -898,6 +898,11 @@ export default function PedidosPage() {
                                   <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => handleAprovar(p.id)} title="Aprovar">
                                     <CheckCircle2 className="h-4 w-4" />
                                   </Button>
+                                  <Link href={`/admin/nfe/emitir?pedido_id=${p.id}`}>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-purple-600" title="Emitir NF-e">
+                                      <FileText className="h-4 w-4" />
+                                    </Button>
+                                  </Link>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => handleCancelar(p.id)} title="Cancelar">
                                     <XCircle className="h-4 w-4" />
                                   </Button>
@@ -911,6 +916,11 @@ export default function PedidosPage() {
                               )}
                               {p.status === 'aprovado' && (
                                 <>
+                                  <Link href={`/admin/nfe/emitir?pedido_id=${p.id}`}>
+                                    <Button variant="ghost" size="sm" className="h-8 gap-1 text-purple-600 hover:text-purple-700" title="Emitir NF-e">
+                                      <FileText className="h-4 w-4" />
+                                    </Button>
+                                  </Link>
                                   <Button
                                     variant="ghost"
                                     size="sm"

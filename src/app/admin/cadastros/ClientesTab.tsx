@@ -265,9 +265,9 @@ export function ClientesTab() {
     if (cepLimpo.length !== 8) return;
     setBuscandoCEP(true);
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`);
+      const res = await fetch(`/api/cep/${cepLimpo}`);
       const data = await res.json();
-      if (data.erro) {
+      if (!data.sucesso) {
         toast.error('CEP não encontrado');
         return;
       }

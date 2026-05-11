@@ -302,6 +302,15 @@ export async function POST(request: NextRequest) {
         .eq('id', config.id);
     }
 
+    // Se houver pedido_id vinculado, atualizar o pedido
+    if (body.pedido_id) {
+      const pedidoUpdate: any = { nfe_id: nfeSalva.id };
+      if (status === 'autorizada') {
+        pedidoUpdate.status = 'convertido';
+      }
+      await supabase.from('pedidos').update(pedidoUpdate).eq('id', body.pedido_id);
+    }
+
     // Registrar log
     await supabase.from('nfe_logs').insert({
       empresa_id: empresaId,

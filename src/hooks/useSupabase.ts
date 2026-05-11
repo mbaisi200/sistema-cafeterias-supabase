@@ -5,6 +5,38 @@ import { getSupabaseClient } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { RealtimeChannel } from '@supabase/supabase-js';
 
+// ── Retry helper for connection errors ──
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000;
+
+function isRetryableError(error: any): boolean {
+  if (!error) return false;
+  const msg = (error?.message || String(error)).toLowerCase();
+  return (
+    msg.includes('connection closed') ||
+    msg.includes('network') ||
+    msg.includes('fetch failed') ||
+    msg.includes('timeout') ||
+    msg.includes('econnreset') ||
+    msg.includes('econnrefused') ||
+    msg.includes('500') ||
+    msg.includes('503') ||
+    msg.includes('502')
+  );
+}
+
+async function withRetry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      if (attempt === retries || !isRetryableError(error)) throw error;
+      await new Promise(r => setTimeout(r, RETRY_DELAY * attempt));
+    }
+  }
+  throw new Error('Retry exhausted');
+}
+
 // =====================================================
 // HOOK: PRODUTOS
 // =====================================================
@@ -22,11 +54,12 @@ export function useProdutos() {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await withRetry(() => supabase
         .from('produtos')
         .select('*')
         .eq('empresa_id', empresaId)
-        .order('nome');
+        .order('nome')
+      );
 
       if (error) throw error;
       
@@ -262,12 +295,13 @@ export function useCategorias() {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await withRetry(() => supabase
         .from('categorias')
         .select('*')
         .eq('empresa_id', empresaId)
         .eq('ativo', true)
-        .order('ordem');
+        .order('ordem')
+      );
 
       if (error) throw error;
       
@@ -604,6 +638,7 @@ export function useFuncionarios() {
 export function useVendas() {
   const [vendas, setVendas] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { empresaId, user } = useAuth();
   const supabase = getSupabaseClient();
 
@@ -611,26 +646,46 @@ export function useVendas() {
     if (!user || !empresaId) {
       setVendas([]);
       setLoading(false);
+      setError(user && !empresaId ? 'empresaId não disponível' : null);
       return;
     }
 
     try {
+      setError(null);
       // Carregar vendas
-      const { data: vendasData, error: vendasError } = await supabase
+      const { data: vendasData, error: vendasError } = await withRetry(() => supabase
         .from('vendas')
         .select('*')
         .eq('empresa_id', empresaId)
-        .order('criado_em', { ascending: false });
+        .order('criado_em', { ascending: false })
+      );
 
       if (vendasError) throw vendasError;
 
       // Carregar itens de venda
-      const { data: itensData, error: itensError } = await supabase
+      const { data: itensData, error: itensError } = await withRetry(() => supabase
         .from('itens_venda')
         .select('*')
-        .eq('empresa_id', empresaId);
+        .eq('empresa_id', empresaId)
+      );
 
       if (itensError) throw itensError;
+
+      // PostgREST limita em 1000 linhas — buscar páginas adicionais se necessário
+      const { count: dbCount } = await supabase
+        .from('itens_venda')
+        .select('id', { count: 'exact', head: true })
+        .eq('empresa_id', empresaId);
+
+      let allItens = itensData || [];
+      if (dbCount && dbCount > (itensData?.length || 0)) {
+        const { data: page2 } = await supabase
+          .from('itens_venda')
+          .select('*')
+          .eq('empresa_id', empresaId)
+          .range(itensData?.length || 0, (dbCount || 0) - 1);
+        if (page2) allItens = [...allItens, ...page2];
+      }
 
       // Combinar vendas com itens - mapear snake_case para camelCase
       const vendasCompletas = (vendasData || []).map(venda => ({
@@ -661,7 +716,7 @@ export function useVendas() {
         atualizadoEm: new Date(venda.atualizado_em),
         fechadoEm: venda.fechado_em ? new Date(venda.fechado_em) : null,
         // Itens mapeados para camelCase
-        itens: (itensData || [])
+        itens: (allItens || [])
           .filter(item => item.venda_id === venda.id)
           .map(item => ({
             id: item.id,
@@ -678,8 +733,10 @@ export function useVendas() {
       }));
 
       setVendas(vendasCompletas);
-    } catch (error) {
+    } catch (error: any) {
+      const msg = error?.message || JSON.stringify(error);
       console.error('Erro ao carregar vendas:', error);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -704,7 +761,7 @@ export function useVendas() {
     };
   }, [carregarDados]);
 
-  return { vendas, loading };
+  return { vendas, loading, error, refresh: carregarDados };
 }
 
 // =====================================================
@@ -2241,11 +2298,12 @@ export function useMovimentacoesBI() {
     }
 
     try {
-      const { data, error } = await supabase
+      const { data, error } = await withRetry(() => supabase
         .from('movimentacoes_caixa')
         .select('*')
         .eq('empresa_id', empresaId)
-        .order('criado_em', { ascending: false });
+        .order('criado_em', { ascending: false })
+      );
 
       if (error) throw error;
 

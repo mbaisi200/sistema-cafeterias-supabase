@@ -29,6 +29,7 @@ import {
   Download,
   DatabaseBackup,
   AlertTriangle,
+  RefreshCw,
 } from 'lucide-react';
 import {
   Dialog,
@@ -174,7 +175,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 // ─────────────────────────────────────────
 export default function AdminDashboardPage() {
   const { user, empresaId, secoesPermitidas } = useAuth();
-  const { vendas, loading: loadingVendas } = useVendas();
+  const { vendas, loading: loadingVendas, refresh: refreshVendas } = useVendas();
 
   // ── All state declarations ──
   const [osLavanderia, setOsLavanderia] = useState<any[]>([]);
@@ -340,6 +341,23 @@ export default function AdminDashboardPage() {
     };
     loadLowStock();
   }, [empresaId]);
+
+  // ── Auto-refresh: visibilidade + polling ──
+  useEffect(() => {
+    if (!refreshVendas) return;
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') refreshVendas();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    const interval = setInterval(() => refreshVendas(), 30000);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      clearInterval(interval);
+    };
+  }, [refreshVendas]);
 
   // ── Period filter ──
   type PeriodoDashboard = 'atual' | 'meses' | 'customizado';
@@ -1016,11 +1034,19 @@ export default function AdminDashboardPage() {
         <div className="space-y-6 max-w-[1600px] mx-auto">
           {/* ── Header ── */}
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              Bem-vindo, {user?.nome || 'Admin'}! &middot;{' '}
-              {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
-            </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Bem-vindo, {user?.nome || 'Admin'}! &middot;{' '}
+                  {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={refreshVendas} className="gap-1">
+                <RefreshCw className="h-3.5 w-3.5" />
+                Atualizar
+              </Button>
+            </div>
           </div>
 
           {/* ═══════════════════════════════════ */}

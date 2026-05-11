@@ -98,6 +98,7 @@ interface NFeSaida {
   forma_pagamento: string;
   status: string;
   nfe_id: string | null;
+  tipo_origem?: string;
 }
 
 // =====================================================
@@ -1095,7 +1096,7 @@ export default function NFePage() {
                                     <Printer className="h-4 w-4" />
                                   </Button>
                                   {venda.status === 'pendente' && (
-                                    <Link href="/admin/nfe/emitir">
+                                    <Link href={`/admin/nfe/emitir?${venda.tipo_origem === 'pedido' ? 'pedido_id' : 'venda_id'}=${venda.id}`}>
                                       <Button size="sm" className="gap-1 h-8 text-xs bg-blue-600 hover:bg-blue-700">
                                         <FilePlus2 className="h-3.5 w-3.5" />
                                         Emitir NF
@@ -1291,10 +1292,10 @@ export default function NFePage() {
                   </div>
 
                   {(detailItem as NFeSaida).status === 'pendente' && (
-                    <Link href="/admin/nfe/emitir">
+                    <Link href={`/admin/nfe/emitir?${(detailItem as NFeSaida).tipo_origem === 'pedido' ? 'pedido_id' : 'venda_id'}=${(detailItem as NFeSaida).id}`}>
                       <Button className="w-full gap-2 bg-blue-600 hover:bg-blue-700">
                         <FilePlus2 className="h-4 w-4" />
-                        Emitir NF-e para esta Venda
+                        Emitir NF-e
                       </Button>
                     </Link>
                   )}

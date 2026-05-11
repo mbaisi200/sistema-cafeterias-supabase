@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useEmitirNFe } from '@/hooks/useNFE';
 import { useProdutos } from '@/hooks/useSupabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -106,11 +107,90 @@ export default function EmitirNFePage() {
     valor: 0,
   }]);
 
+  // Pedido vindo de referência
+  const searchParams = useSearchParams();
+  const pedidoIdRef = searchParams.get('pedido_id');
+  const [pedidoId, setPedidoId] = useState<string | null>(pedidoIdRef);
+  const [carregandoPedido, setCarregandoPedido] = useState(!!pedidoIdRef);
+  const [pedidoOrigem, setPedidoOrigem] = useState<{ numero: number; cliente: string } | null>(null);
+
+  useEffect(() => {
+    if (!pedidoId || !empresaId) return;
+    const loadPedido = async () => {
+      setCarregandoPedido(true);
+      try {
+        const supabase = getSupabaseClient();
+        const { data: pedido } = await supabase
+          .from('pedidos')
+          .select('*')
+          .eq('id', pedidoId)
+          .eq('empresa_id', empresaId)
+          .single();
+        if (pedido) {
+          setPedidoOrigem({ numero: pedido.numero, cliente: pedido.cliente_nome || '' });
+
+          if (pedido.cliente_id) {
+            const { data: cliente } = await supabase
+              .from('clientes')
+              .select('*')
+              .eq('id', pedido.cliente_id)
+              .single();
+            if (cliente) {
+              setDestCPF_CNPJ(cliente.cnpj_cpf || '');
+              setDestNome(cliente.nome_razao_social || '');
+              setDestNomeFantasia(cliente.nome_fantasia || '');
+              setDestIE(cliente.inscricao_estadual || '');
+              setDestIndicadorIE(String(cliente.indicador_ie || '9'));
+              setDestEmail(cliente.email || '');
+              setDestTelefone(cliente.telefone || cliente.celular || '');
+              setDestLogradouro(cliente.logradouro || '');
+              setDestNumero(cliente.numero || '');
+              setDestComplemento(cliente.complemento || '');
+              setDestBairro(cliente.bairro || '');
+              setDestMunicipio(cliente.municipio || '');
+              setDestUF(cliente.uf || '');
+              setDestCEP(cliente.cep || '');
+              setDestCodMunicipio(cliente.codigo_municipio || '');
+            }
+          }
+
+          if (pedido.itens && Array.isArray(pedido.itens)) {
+            const prods = pedido.itens.map((item: any) => ({
+              codigo: item.codigo || '',
+              codigo_barras: item.codigo_barras || '',
+              descricao: item.produtoNome || '',
+              ncm: item.ncm || '00000000',
+              cest: item.cest || '',
+              cfop: item.cfop || '5102',
+              unidade_comercial: item.unidade || 'UN',
+              quantidade_comercial: item.quantidade || 1,
+              valor_unitario_comercial: item.precoUnitario || 0,
+              valor_total: item.total || (item.precoUnitario || 0) * (item.quantidade || 1),
+              valor_desconto: item.desconto || 0,
+              icms_origem: '0',
+              icms_cst: '',
+              icms_csosn: '',
+              icms_aliquota: 0,
+              pis_cst: '',
+              pis_aliquota: 0,
+              cofins_cst: '',
+              cofins_aliquota: 0,
+              ipi_cst: '',
+              ipi_aliquota: 0,
+            }));
+            setProdutos(prods);
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao carregar pedido:', err);
+      } finally {
+        setCarregandoPedido(false);
+      }
+    };
+    loadPedido();
+  }, [pedidoId, empresaId]);
+
   // Buscar Cliente
-  const [buscaCliente, setBuscaCliente] = useState('');
-  const [clientesResult, setClientesResult] = useState<any[]>([]);
-  const [buscandoCliente, setBuscandoCliente] = useState(false);
-  const [clienteSelecionado, setClienteSelecionado] = useState(false);
 
   const handleBuscarClientes = async (termo: string) => {
     if (!termo.trim()) {
@@ -366,6 +446,7 @@ export default function EmitirNFePage() {
       })),
       informacoes_adicionais: informacoesAdicionais || undefined,
       informacoes_fisco: informacoesFisco || undefined,
+      pedido_id: pedidoId || undefined,
     });
 
     if (result.sucesso) {
