@@ -71,6 +71,7 @@ import {
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
+  Truck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { exportToPDF, formatCurrencyPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
@@ -101,6 +102,10 @@ interface Produto {
   ifoodExternalCode?: string;
   ifoodSyncStatus?: 'synced' | 'pending' | 'error' | 'not_synced';
   ifoodProductId?: string;
+  disponivelUberEats?: boolean;
+  uberEatsExternalCode?: string;
+  uberEatsSyncStatus?: 'synced' | 'pending' | 'error' | 'not_synced';
+  uberEatsProductId?: string;
   // NFE/NFCe fiscal fields
   ncm?: string;
   cest?: string;
@@ -585,6 +590,29 @@ export default function ProdutosPage() {
     }
   };
 
+  // Toggle Uber Eats para produto
+  const handleToggleUberEats = async (produto: Produto, checked: boolean) => {
+    try {
+      const updateData: any = {
+        disponivelUberEats: checked,
+      };
+      
+      if (checked && !produto.uberEatsExternalCode) {
+        updateData.uberEatsExternalCode = `UBER-${Date.now()}`;
+        updateData.uberEatsSyncStatus = 'pending';
+      }
+      
+      await atualizarProduto(produto.id, updateData);
+      toast({ 
+        title: checked ? 'Produto marcado para Uber Eats' : 'Produto removido do Uber Eats',
+        description: checked ? 'Sincronize com o Uber Eats para atualizar o catálogo' : ''
+      });
+      refetchProdutos();
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro ao atualizar produto' });
+    }
+  };
+
   // Sincronizar produtos com iFood
   const handleSyncIfood = async () => {
     if (!ifoodConfig?.merchantId) {
@@ -672,6 +700,21 @@ export default function ProdutosPage() {
     if (!produto.disponivelIfood) return null;
     
     switch (produto.ifoodSyncStatus) {
+      case 'synced':
+        return <Badge className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" />Sincronizado</Badge>;
+      case 'pending':
+        return <Badge className="bg-yellow-500"><Clock className="h-3 w-3 mr-1" />Pendente</Badge>;
+      case 'error':
+        return <Badge className="bg-red-500"><XCircle className="h-3 w-3 mr-1" />Erro</Badge>;
+      default:
+        return <Badge className="bg-gray-500"><Clock className="h-3 w-3 mr-1" />Não sincronizado</Badge>;
+    }
+  };
+
+  const getUberEatsStatusBadge = (produto: Produto) => {
+    if (!produto.disponivelUberEats) return null;
+    
+    switch (produto.uberEatsSyncStatus) {
       case 'synced':
         return <Badge className="bg-green-500"><CheckCircle className="h-3 w-3 mr-1" />Sincronizado</Badge>;
       case 'pending':
@@ -962,6 +1005,16 @@ export default function ProdutosPage() {
                                 Enviar para iFood
                               </Label>
                               <p className="text-xs text-muted-foreground">Incluir no catálogo do iFood</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch id="disponivelUberEats" name="disponivelUberEats" defaultChecked={editandoProduto?.disponivelUberEats} />
+                            <div>
+                              <Label htmlFor="disponivelUberEats" className="flex items-center gap-1">
+                                <Truck className="h-4 w-4 text-green-600" />
+                                Enviar para Uber Eats
+                              </Label>
+                              <p className="text-xs text-muted-foreground">Incluir no catálogo do Uber Eats</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1400,6 +1453,7 @@ export default function ProdutosPage() {
                         </button>
                       </TableHead>
                       <TableHead className="text-center">iFood</TableHead>
+                      <TableHead className="text-center">Uber Eats</TableHead>
                       <TableHead className="text-center">
                         <div className="flex items-center gap-1 group justify-center">
                           <button
@@ -1480,6 +1534,15 @@ export default function ProdutosPage() {
                         </TableCell>
                         <TableCell className="text-center">
                           {getIfoodStatusBadge(produto)}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox 
+                            checked={produto.disponivelUberEats}
+                            onCheckedChange={(checked) => handleToggleUberEats(produto, checked as boolean)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {getUberEatsStatusBadge(produto)}
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-1">
