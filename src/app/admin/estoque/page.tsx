@@ -705,6 +705,11 @@ export default function EstoquePage() {
               <Button variant="outline" onClick={() => setDialogMovimentacao(true)} className="gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100">
                 <ArrowUpDown className="h-4 w-4" /> Movimentação de Estoque
               </Button>
+              <Link href="/admin/estoque/relatorio">
+                <Button variant="default" className="gap-2">
+                  <ArrowUpDown className="h-4 w-4" /> Relatório Completo
+                </Button>
+              </Link>
             </div>
           </div>
 

@@ -69,6 +69,7 @@ import {
   Sun,
   Moon,
   Ruler,
+  ArrowUpDown,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -125,6 +126,7 @@ const adminMenuItems: MenuItem[] = [
     ],
   },
   { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
+  { title: 'Relatório Estoque', url: '/admin/estoque/relatorio', icon: ArrowUpDown },
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
   { title: 'Delivery', url: '/admin/delivery', icon: Bike },
   { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
@@ -132,6 +134,16 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Dispositivos', url: '/admin/dispositivos', icon: Shield },
   { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
   { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
+  {
+    title: 'Uber Eats',
+    url: '#',
+    icon: Bike,
+    submenu: [
+      { title: 'Configuração', url: '/admin/integracoes/uber-eats', icon: Settings },
+      { title: 'Produtos', url: '/admin/integracoes/uber-eats/produtos', icon: Package },
+      { title: 'Pedidos', url: '/admin/integracoes/uber-eats/pedidos', icon: ShoppingBag },
+    ],
+  },
   { title: 'Cupons e NFEs', url: '/admin/cupons-nfes', icon: FileText },
   { title: 'Notas Fiscais', url: '/admin/nfe', icon: FileText },
   { title: 'Configurações', url: '/admin/configuracoes', icon: Settings },
@@ -142,6 +154,7 @@ const atalhoRapidoMenuItems: MenuItem[] = [
   { title: 'Cardápio', url: '/cardapio', icon: Menu, external: true },
   { title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings },
   { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
+  { title: 'Uber Eats', url: '/admin/integracoes/uber-eats', icon: Bike },
 ];
 
 // Fallback hardcoded para funcionário
@@ -391,7 +404,7 @@ export function AppSidebar() {
               {menuItems.map((item) =>
                 item.submenu ? (
                   <Collapsible
-                    key={item.url}
+                    key={item.title.toLowerCase().replace(/\s+/g, '-')}
                     open={openSubmenus.includes(item.title.toLowerCase().replace(/\s+/g, '-'))}
                     onOpenChange={(open) => {
                       const key = item.title.toLowerCase().replace(/\s+/g, '-');

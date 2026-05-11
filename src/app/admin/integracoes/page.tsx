@@ -65,20 +65,6 @@ const integracoesDisponiveis = [
     ],
   },
   {
-    id: 'uber_eats',
-    nome: 'Uber Eats',
-    descricao: 'Conecte seu estabelecimento ao Uber Eats e gerencie todos os pedidos em um só lugar.',
-    icone: <Bike className="h-10 w-10" />,
-    disponivel: false,
-    cor: 'text-green-500',
-    bgCor: 'bg-green-50',
-    recursos: [
-      'Integração de pedidos',
-      'Sincronização de menu',
-      'Atualização de status',
-    ],
-  },
-  {
     id: 'whatsapp',
     nome: 'WhatsApp Business',
     descricao: 'Receba pedidos via WhatsApp e integre diretamente ao seu sistema de gestão.',
@@ -90,6 +76,20 @@ const integracoesDisponiveis = [
       'Recebimento de pedidos via chat',
       'Respostas automáticas',
       'Integração com catálogo',
+    ],
+  },
+  {
+    id: 'uber-eats',
+    nome: 'Uber Eats',
+    descricao: 'Conecte seu cardápio ao Uber Eats e receba pedidos automaticamente.',
+    icone: <Bike className="h-10 w-10" />,
+    disponivel: true,
+    cor: 'text-green-500',
+    bgCor: 'bg-green-50',
+    recursos: [
+      'Sincronização de cardápio',
+      'Recebimento automático de pedidos',
+      'Atualização de estoque em tempo real',
     ],
   },
   {
@@ -134,6 +134,13 @@ function IntegracoesContent() {
         .eq('empresa_id', empresaId)
         .maybeSingle();
 
+      // Carregar status do Uber Eats
+      const { data: uberConfig } = await supabase
+        .from('uber_eats_config')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .maybeSingle();
+
       const status: Record<string, IntegracaoStatus> = {};
 
       if (ifoodConfig) {
@@ -149,9 +156,21 @@ function IntegracoesContent() {
         };
       }
 
+      if (uberConfig) {
+        status['uber-eats'] = {
+          ativo: uberConfig.ativo || false,
+          status: uberConfig.status || 'disconnected',
+          totalPedidos: uberConfig.total_pedidos_recebidos || 0
+        };
+      } else {
+        status['uber-eats'] = {
+          ativo: false,
+          status: 'disconnected'
+        };
+      }
+
       // Outras integrações (por enquanto desconectadas)
       status['rappi'] = { ativo: false, status: 'disconnected' };
-      status['uber_eats'] = { ativo: false, status: 'disconnected' };
       status['whatsapp'] = { ativo: false, status: 'disconnected' };
       status['mercado_pago'] = { ativo: false, status: 'disconnected' };
 

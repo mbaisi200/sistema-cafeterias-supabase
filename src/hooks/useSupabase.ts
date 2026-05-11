@@ -83,6 +83,10 @@ export function useProdutos() {
         ifoodExternalCode: p.ifood_external_code,
         ifoodSyncStatus: p.ifood_sync_status,
         ifoodProductId: p.ifood_product_id,
+        disponivelUberEats: p.disponivel_uber_eats,
+        uberEatsExternalCode: p.uber_eats_external_code,
+        uberEatsSyncStatus: p.uber_eats_sync_status,
+        uberEatsProductId: p.uber_eats_product_id,
         isCombo: p.is_combo,
         comboPreco: p.combo_preco,
         unidadesPorCaixa: p.unidades_por_caixa,
@@ -150,6 +154,9 @@ export function useProdutos() {
       disponivel_ifood: dados.disponivelIfood || false,
       ifood_external_code: dados.ifoodExternalCode || null,
       ifood_sync_status: dados.ifoodSyncStatus || 'not_synced',
+      disponivel_uber_eats: dados.disponivelUberEats || false,
+      uber_eats_external_code: dados.uberEatsExternalCode || null,
+      uber_eats_sync_status: dados.uberEatsSyncStatus || 'not_synced',
       ativo: true,
       // Unidades por caixa e preço unidade
       unidades_por_caixa: dados.unidadesPorCaixa || 0,
@@ -197,6 +204,7 @@ export function useProdutos() {
     if (dados.unidade !== undefined) updateData.unidade = dados.unidade;
     if (dados.categoriaId !== undefined) updateData.categoria_id = dados.categoriaId;
     if (dados.estoqueMinimo !== undefined) updateData.estoque_minimo = dados.estoqueMinimo;
+    if (dados.estoqueAtual !== undefined) updateData.estoque_atual = dados.estoqueAtual;
     if (dados.controlarEstoque !== undefined) updateData.controlar_estoque = dados.controlarEstoque;
     if (dados.destaque !== undefined) updateData.destaque = dados.destaque;
 
@@ -204,6 +212,11 @@ export function useProdutos() {
     if (dados.disponivelIfood !== undefined) updateData.disponivel_ifood = dados.disponivelIfood;
     if (dados.ifoodExternalCode !== undefined) updateData.ifood_external_code = dados.ifoodExternalCode;
     if (dados.ifoodSyncStatus !== undefined) updateData.ifood_sync_status = dados.ifoodSyncStatus;
+
+    // Campos de Uber Eats
+    if (dados.disponivelUberEats !== undefined) updateData.disponivel_uber_eats = dados.disponivelUberEats;
+    if (dados.uberEatsExternalCode !== undefined) updateData.uber_eats_external_code = dados.uberEatsExternalCode;
+    if (dados.uberEatsSyncStatus !== undefined) updateData.uber_eats_sync_status = dados.uberEatsSyncStatus;
 
     // Campos de Combo
     if (dados.isCombo !== undefined) updateData.is_combo = dados.isCombo;

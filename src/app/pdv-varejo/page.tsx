@@ -21,7 +21,7 @@ import {
 import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient, debitarEstoqueVenda } from '@/lib/supabase';
 import {
   Plus,
   Minus,
@@ -454,25 +454,7 @@ export default function PDVVarejoPage() {
       if (itensError) throw itensError;
 
       for (const item of itensCarrinho) {
-        try {
-          const { error: rpcError } = await supabase.rpc('decrementar_estoque_produto', {
-            p_produto_id: item.produtoId,
-            p_quantidade: item.quantidade,
-          });
-          if (rpcError) throw rpcError;
-        } catch {
-          const { data: prod } = await supabase
-            .from('produtos')
-            .select('estoque_atual')
-            .eq('id', item.produtoId)
-            .single();
-          if (prod) {
-            await supabase
-              .from('produtos')
-              .update({ estoque_atual: Math.max(0, parseFloat(prod.estoque_atual) - item.quantidade) })
-              .eq('id', item.produtoId);
-          }
-        }
+        await debitarEstoqueVenda(supabase, empresaId, item.produtoId, item.quantidade, user?.id, user?.nome, vendaId);
       }
 
       const pagamentosParaSalvar = pagamentos.length > 0 ? pagamentos : [{ forma: formaPagamento, valor: totalFinal }];
