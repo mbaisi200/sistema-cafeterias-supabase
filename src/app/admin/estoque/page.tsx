@@ -390,12 +390,16 @@ export default function EstoquePage() {
         .insert({
           empresa_id: empresaId,
           produto_id: produtoSelecionado.id,
+          produto_nome: produtoSelecionado.nome,
           tipo: 'entrada',
           quantidade: qtd,
           preco_unitario: null,
           observacao: observacaoFinal,
+          fornecedor: fornecedorResolvido || null,
+          documento_ref: documentoRef || null,
           usuario_id: user?.id,
           usuario_nome: user?.nome,
+          criado_por_nome: user?.nome,
         });
       
       if (error) throw error;
@@ -438,12 +442,16 @@ export default function EstoquePage() {
         return {
           empresa_id: empresaId,
           produto_id: item.produtoId,
+          produto_nome: item.produtoNome,
           tipo: 'entrada',
           quantidade: qtd,
           preco_unitario: null,
           observacao: observacaoFinal,
+          fornecedor: loteFornecedorResolvido || null,
+          documento_ref: loteDocumentoRef || null,
           usuario_id: user?.id,
           usuario_nome: user?.nome,
+          criado_por_nome: user?.nome,
         };
       });
 
@@ -506,12 +514,14 @@ export default function EstoquePage() {
         .insert({
           empresa_id: empresaId,
           produto_id: produtoSelecionado.id,
+          produto_nome: produtoSelecionado.nome,
           tipo: 'saida',
           quantidade: qtd,
           preco_unitario: null,
           observacao: observacao || null,
           usuario_id: user?.id,
           usuario_nome: user?.nome,
+          criado_por_nome: user?.nome,
         });
       
       if (error) throw error;

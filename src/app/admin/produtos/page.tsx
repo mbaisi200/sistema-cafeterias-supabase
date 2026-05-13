@@ -72,6 +72,7 @@ import {
   ArrowUp,
   ArrowDown,
   Truck,
+  DollarSign,
 } from 'lucide-react';
 import Link from 'next/link';
 import { exportToPDF, formatCurrencyPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
@@ -213,6 +214,9 @@ export default function ProdutosPage() {
   const [savingCombo, setSavingCombo] = useState(false);
   const [comboSearch, setComboSearch] = useState('');
 
+  // Estado toggle mostrar/ocultar preço de custo na Tabela de Preços
+  const [mostrarCusto, setMostrarCusto] = useState(false);
+
   // Estado de foto do produto
   const [produtoFoto, setProdutoFoto] = useState<string | null>(null);
   const [fotoUploading, setFotoUploading] = useState(false);
@@ -226,6 +230,7 @@ export default function ProdutosPage() {
   const showUnidadesTab = subsecoesPermitidas.length === 0 || subsecoesPermitidas.includes('produtos_unidades');
   const showIfoodTab = subsecoesPermitidas.length === 0 || subsecoesPermitidas.includes('produtos_ifood');
   const showCombosTab = subsecoesPermitidas.length === 0 || subsecoesPermitidas.includes('produtos_combos');
+  const showPrecosTab = true;
 
   // Carregar sub-seções permitidas do segmento da empresa
   useEffect(() => {
@@ -251,7 +256,7 @@ export default function ProdutosPage() {
               .from('secoes_menu')
               .select('chave')
               .in('id', ativoIds)
-              .in('chave', ['produtos_categorias', 'produtos_unidades', 'produtos_ifood', 'produtos_combos']);
+              .in('chave', ['produtos_categorias', 'produtos_unidades', 'produtos_ifood', 'produtos_combos', 'produtos_precos']);
             if (secoes) {
               setSubsecoesPermitidas(secoes.map((s: any) => s.chave));
             }
@@ -516,6 +521,41 @@ export default function ProdutosPage() {
         { label: 'Total de Produtos', value: filteredProdutos.length },
         { label: 'Produtos Ativos', value: filteredProdutos.filter((p: any) => p.ativo).length },
         { label: 'Produtos Inativos', value: filteredProdutos.filter((p: any) => !p.ativo).length },
+      ],
+      ...empresaInfo,
+    });
+  };
+
+  const handleExportPDFPrecos = async () => {
+    const empresaInfo = await fetchEmpresaPDFData(empresaId);
+    const columns: any[] = [
+      { header: 'Produto', accessor: (row: any) => row.nome, width: 45 },
+      { header: 'Categoria', accessor: (row: any) => getNomeCategoria(row.categoriaId), width: 30 },
+    ];
+    if (mostrarCusto) {
+      columns.push({ header: 'Custo', accessor: (row: any) => formatCurrencyPDF(row.custo || 0), width: 20 });
+    }
+    columns.push({ header: 'Preço Venda', accessor: (row: any) => formatCurrencyPDF(row.preco), width: 20 });
+    if (mostrarCusto) {
+      columns.push({ header: 'Margem (R$)', accessor: (row: any) => formatCurrencyPDF((row.preco || 0) - (row.custo || 0)), width: 20 });
+      columns.push({ header: 'Margem (%)', accessor: (row: any) => {
+        const c = row.custo || 0;
+        const p = row.preco || 0;
+        return c > 0 ? `${(((p - c) / c) * 100).toFixed(1)}%` : '-';
+      }, width: 18 });
+    }
+    columns.push({ header: 'Un.', accessor: (row: any) => row.unidade || 'un', width: 12 });
+    columns.push({ header: 'Status', accessor: (row: any) => row.ativo ? 'Ativo' : 'Inativo', width: 15 });
+    exportToPDF({
+      title: 'Tabela de Preços',
+      subtitle: `Gerado em ${new Date().toLocaleDateString('pt-BR')}`,
+      orientation: 'landscape',
+      columns,
+      data: filteredProdutos,
+      filename: `tabela-precos-${new Date().toISOString().slice(0, 10)}`,
+      summary: [
+        { label: 'Total de Produtos', value: filteredProdutos.length },
+        { label: 'Produtos Ativos', value: filteredProdutos.filter((p: any) => p.ativo).length },
       ],
       ...empresaInfo,
     });
@@ -793,6 +833,12 @@ export default function ProdutosPage() {
               <TabsTrigger value="combos">
                 <Layers className="h-4 w-4 mr-2" />
                 Combos ({produtos.filter(p => p.isCombo).length})
+              </TabsTrigger>
+            )}
+            {showPrecosTab && (
+              <TabsTrigger value="precos">
+                <DollarSign className="h-4 w-4 mr-2" />
+                Tabela de Preços
               </TabsTrigger>
             )}
           </TabsList>
@@ -1915,6 +1961,109 @@ export default function ProdutosPage() {
                     </TableBody>
                   </Table>
                 </CardContent>
+              </Card>
+            )}
+          </TabsContent>
+          )}
+
+          {/* Tab Tabela de Preços */}
+          {showPrecosTab && (
+          <TabsContent value="precos" className="space-y-6">
+            <Card>
+              <CardContent className="pt-6">
+                <div className="flex flex-col md:flex-row gap-4 items-end">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input placeholder="Buscar por nome ou código..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-10" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant={statusFilter === 'todos' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('todos')} className={statusFilter === 'todos' ? 'bg-orange-500 hover:bg-orange-600' : ''}>Todos</Button>
+                    <Button variant={statusFilter === 'ativos' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('ativos')} className={statusFilter === 'ativos' ? 'bg-green-600 hover:bg-green-700' : ''}>Ativos</Button>
+                    <Button variant={statusFilter === 'inativos' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('inativos')} className={statusFilter === 'inativos' ? 'bg-gray-500 hover:bg-gray-600' : ''}>Inativos</Button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch id="mostrarCusto" checked={mostrarCusto} onCheckedChange={setMostrarCusto} />
+                    <Label htmlFor="mostrarCusto" className="text-sm whitespace-nowrap">Exibir custo</Label>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={handleExportPDFPrecos}>
+                    <Download className="mr-2 h-4 w-4" />
+                    Exportar PDF
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {filteredProdutos.length === 0 ? (
+              <Card>
+                <CardContent className="flex flex-col items-center justify-center h-64">
+                  <Package className="h-16 w-16 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium">Nenhum produto encontrado</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <div className="overflow-x-auto">
+                  <Table className="table-fixed w-full min-w-[900px]">
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[180px]">Produto</TableHead>
+                        <TableHead>Categoria</TableHead>
+                        {mostrarCusto && <TableHead className="text-right">Preço Custo</TableHead>}
+                        <TableHead className="text-right">Preço Venda</TableHead>
+                        {mostrarCusto && <TableHead className="text-right">Margem (R$)</TableHead>}
+                        {mostrarCusto && <TableHead className="text-right">Margem (%)</TableHead>}
+                        <TableHead className="text-center">Un.</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredProdutos.map((produto) => {
+                        const custo = produto.custo || 0;
+                        const preco = produto.preco || 0;
+                        const margemR$ = preco - custo;
+                        const margemPct = custo > 0 ? ((margemR$ / custo) * 100) : 0;
+                        return (
+                          <TableRow key={produto.id}>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Package className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <div className="min-w-0">
+                                  <p className="font-medium truncate">{produto.nome}</p>
+                                  {produto.codigo && <p className="text-xs text-muted-foreground">{produto.codigo}</p>}
+                                </div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">
+                                {getNomeCategoria(produto.categoriaId)}
+                              </Badge>
+                            </TableCell>
+                            {mostrarCusto && <TableCell className="text-right font-mono text-red-600">R$ {custo.toFixed(2)}</TableCell>}
+                            <TableCell className="text-right font-mono text-green-600 font-semibold">
+                              R$ {preco.toFixed(2)}
+                            </TableCell>
+                            {mostrarCusto && <TableCell className={`text-right font-mono font-semibold ${margemR$ >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              R$ {margemR$.toFixed(2)}
+                            </TableCell>}
+                            {mostrarCusto && <TableCell className={`text-right font-mono font-semibold ${margemPct >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {margemPct >= 0 ? '+' : ''}{margemPct.toFixed(1)}%
+                            </TableCell>}
+                            <TableCell className="text-center text-xs text-muted-foreground">
+                              {produto.unidade || 'un'}
+                            </TableCell>
+                            <TableCell className="text-center">
+                              <Badge className={produto.ativo !== false ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}>
+                                {produto.ativo !== false ? 'Ativo' : 'Inativo'}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
               </Card>
             )}
           </TabsContent>

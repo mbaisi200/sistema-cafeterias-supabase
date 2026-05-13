@@ -52,6 +52,12 @@ import { useToast } from '@/hooks/use-toast';
 import { getSupabaseClient } from '@/lib/supabase';
 import { exportToPDF, formatCurrencyPDF, formatDatePDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
+import {
   Plus,
   ChevronLeft,
   Search,
@@ -75,7 +81,9 @@ import {
   Save,
   CheckCircle,
   AlertTriangle,
+  ClipboardList,
 } from 'lucide-react';
+import { PedidosListagemTab } from './PedidosListagemTab';
 
 // ============================================================
 // Types
@@ -686,7 +694,19 @@ export default function PedidosPage() {
   return (
     <ProtectedRoute allowedRoles={['admin']}>
       <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Pedidos' }]}>
-        <div className="space-y-6">
+        <Tabs defaultValue="pedidos" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="pedidos" className="gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              Pedidos
+            </TabsTrigger>
+            <TabsTrigger value="listagem" className="gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Listagem
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pedidos" className="space-y-6">
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -949,7 +969,12 @@ export default function PedidosPage() {
               )}
             </CardContent>
           </Card>
-        </div>
+        </TabsContent>
+
+          <TabsContent value="listagem" className="space-y-6">
+            <PedidosListagemTab />
+          </TabsContent>
+        </Tabs>
 
         {/* CREATE/EDIT DIALOG */}
         <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>

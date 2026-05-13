@@ -380,7 +380,7 @@ export default function RelatorioEstoquePage() {
                           <TableCell className={`text-xs py-1.5 text-center font-bold ${
                             m.tipo === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
                           }`}>
-                            {m.tipo === 'entrada' ? '+' : '-'}{Number(m.quantidade)}
+                            {m.tipo === 'entrada' ? '+' : '-'}{Math.abs(Number(m.quantidade))}
                           </TableCell>
                           <TableCell className="text-xs py-1.5 text-muted-foreground max-w-[130px] truncate" title={nomeFornecedorOuCliente(m) || ''}>
                             {nomeFornecedorOuCliente(m) || '-'}

@@ -6,12 +6,13 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Users, Truck, UserCheck, Wrench, ChevronLeft, UserCog } from 'lucide-react';
+import { Users, Truck, UserCheck, Wrench, ChevronLeft, UserCog, ClipboardList } from 'lucide-react';
 import { ClientesTab } from './ClientesTab';
 import { FornecedoresTab } from './FornecedoresTab';
 import { VendedoresTab } from './VendedoresTab';
 import { ServicosTab } from './ServicosTab';
 import { FuncionariosTab } from './FuncionariosTab';
+import { ListagemTab } from './ListagemTab';
 
 export default function CadastrosPage() {
   return (
@@ -54,6 +55,10 @@ export default function CadastrosPage() {
                 <UserCog className="h-4 w-4" />
                 Funcionários
               </TabsTrigger>
+              <TabsTrigger value="listagem" className="gap-2">
+                <ClipboardList className="h-4 w-4" />
+                Listagem
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="clientes">
@@ -74,6 +79,9 @@ export default function CadastrosPage() {
 
             <TabsContent value="funcionarios">
               <FuncionariosTab />
+            </TabsContent>
+            <TabsContent value="listagem">
+              <ListagemTab />
             </TabsContent>
           </Tabs>
         </div>

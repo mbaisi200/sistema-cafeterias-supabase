@@ -43,6 +43,7 @@ src/
 │   │   ├── nfe/                  # Emissão e importação de NF-e
 │   │   │   └── importar/         # Importar XML de NF-e de entrada
 │   │   ├── ordens-servico/       # OS (lavanderia)
+│   │   ├── pedidos/              # Pedidos de compra
 │   │   └── produtos/             # Catálogo de produtos
 │   ├── api/                      # API Routes (Server Actions)
 │   │   ├── clientes/             # CRUD clientes
@@ -51,8 +52,10 @@ src/
 │   │   ├── caixa/                # Gestão de caixa
 │   │   ├── nfe/importar/         # Importação de NF-e
 │   │   ├── os-lavanderia/        # OS lavanderia + exclusão em cascata
+│   │   ├── pedidos/              # CRUD pedidos de compra
 │   │   ├── setup/                # Setup inicial do sistema
-│   │   └── webhooks/             # Webhooks (iFood)
+│   │   ├── uber-eats/            # Integração Uber Eats
+│   │   └── webhooks/             # Webhooks (iFood, Uber Eats)
 │   ├── cardapio/                 # Cardápio online (público)
 │   ├── login/                    # Página de login
 │   ├── master/                   # Painel Master (super admin)
@@ -175,6 +178,7 @@ const {
 | `mesas` | Mesas do restaurante (livre/ocupada) |
 | `comandas` | Comandas abertas |
 | `nfe` | Notas fiscais eletrônicas |
+| `estoque_movimentos` | Movimentações de estoque (entrada/saída/ajuste/venda) |
 | `fornecedores` | Fornecedores |
 | `ordens_servico` | OS (lavanderia) |
 | `pagamentos` | Formas de pagamento |
@@ -261,7 +265,8 @@ const darkMode = resolvedTheme === 'dark';
 | 17 | **Configurações** | Ajustes gerais do sistema |
 | 18 | **Logs** | Log de atividades do sistema |
 | 19 | **Cardápio Online** | Cardápio público com checkout |
-| 20 | **Painel Master** | Super admin (multi-tenant) |
+| 20 | **Pedidos** | Pedidos de compra |
+| 21 | **Painel Master** | Super admin (multi-tenant) |
 
 ---
 
@@ -363,3 +368,27 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ### Layout das Páginas Admin ✅
 - `MainLayout` agora limita a largura máxima a `1200px` (`max-w-[1200px]`) centralizado
 - Isso evita scroll horizontal em telas grandes e mantém consistência entre todas as páginas admin
+
+### Tabela de Preços (Produtos) ✅
+- Aba "Tabela de Preços" em `/admin/produtos` com colunas: Produto, Categoria, Preço Custo*, Preço Venda, Margem (R$)*, Margem (%)*, Un., Status
+- Switch "Exibir custo" (default OFF) controla visibilidade de Custo + Margens
+- Export PDF respeita o toggle de custo e os filtros ativos
+
+### Listagem Unificada (Cadastros) ✅
+- Aba "Listagem" em `/admin/cadastros` com busca unificada de Clientes, Vendedores, Fornecedores
+- Filtros: search, tipo, status
+- Export PDF com todos os filtros aplicados
+
+### Listagem de Pedidos ✅
+- Aba "Listagem" em `/admin/pedidos` com filtro por período (data início/fim), status e busca
+- Export PDF com filtros aplicados
+- Aba "Pedidos" mantém o CRUD original
+
+### Correções Estoque ✅
+- Movimentações manuais (entrada individual, entrada em lote, saída) agora salvam `produto_nome`, `fornecedor`, `documento_ref`, `criado_por_nome` nas colunas dedicadas do banco
+- Relatório de Movimentações: corrigido sinal duplicado (`--4`) na coluna Qtd para tipos não-entrada
+
+### Colunas Uber Eats (Produtos) ✅
+- `disponivelUberEats` (boolean), `uberEatsExternalCode`, `uberEatsSyncStatus` no cadastro de produtos
+- Toggle "Enviar para Uber Eats" com badge de status (synced/pending/error)
+- `uberEatsExternalCode` gerado automaticamente ao ativar
