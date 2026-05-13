@@ -1983,6 +1983,17 @@ export default function ProdutosPage() {
                     <Button variant={statusFilter === 'ativos' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('ativos')} className={statusFilter === 'ativos' ? 'bg-green-600 hover:bg-green-700' : ''}>Ativos</Button>
                     <Button variant={statusFilter === 'inativos' ? 'default' : 'outline'} size="sm" onClick={() => setStatusFilter('inativos')} className={statusFilter === 'inativos' ? 'bg-gray-500 hover:bg-gray-600' : ''}>Inativos</Button>
                   </div>
+                  <Select value={categoriaFilter} onValueChange={setCategoriaFilter}>
+                    <SelectTrigger className="w-full md:w-44">
+                      <SelectValue placeholder="Categoria" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as Categorias</SelectItem>
+                      {categorias.map(cat => (
+                        <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <div className="flex items-center gap-2">
                     <Switch id="mostrarCusto" checked={mostrarCusto} onCheckedChange={setMostrarCusto} />
                     <Label htmlFor="mostrarCusto" className="text-sm whitespace-nowrap">Exibir custo</Label>
