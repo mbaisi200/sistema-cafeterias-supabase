@@ -111,6 +111,7 @@ export default function FinanceiroPage() {
   const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
   const [pdfTipo, setPdfTipo] = useState<'pagar' | 'receber'>('pagar');
   const [pdfFilter, setPdfFilter] = useState<ContaFilter>('todas');
+  const [pdfSearchVendedor, setPdfSearchVendedor] = useState('');
   const { toast } = useToast();
 
   // Filters
@@ -204,7 +205,8 @@ export default function FinanceiroPage() {
       const searchLower = extraFilters.search.toLowerCase();
       filtered = filtered.filter(c => 
         (c.descricao || '').toLowerCase().includes(searchLower) || 
-        (c.fornecedor || '').toLowerCase().includes(searchLower)
+        (c.fornecedor || '').toLowerCase().includes(searchLower) ||
+        (c.vendedor_nome || '').toLowerCase().includes(searchLower)
       );
     }
 
@@ -310,6 +312,7 @@ export default function FinanceiroPage() {
         vencimento: vencimento,
         categoria: formData.get('categoria') as string,
         fornecedor: formData.get('fornecedor') as string,
+        vendedor_nome: (formData.get('vendedor_nome') as string) || null,
       };
 
       if (contaEditando) {
@@ -378,17 +381,10 @@ export default function FinanceiroPage() {
 
   const gerarPDF = async () => {
     const contas = pdfTipo === 'pagar' ? contasPagar : contasReceber;
-    let dados = [...contas];
-    switch (pdfFilter) {
-      case 'pagas':
-        dados = dados.filter(c => c.status === 'pago');
-        break;
-      case 'vencidas':
-        dados = dados.filter(c => c.status === 'pendente' && c.vencimento && new Date(c.vencimento) < hoje);
-        break;
-      case 'pendentes':
-        dados = dados.filter(c => c.status === 'pendente' && (!c.vencimento || new Date(c.vencimento) >= hoje));
-        break;
+    let dados = applyFilterAndSort(contas, pdfFilter, { field: 'vencimento', dir: 'asc' });
+    if (pdfSearchVendedor) {
+      const termo = pdfSearchVendedor.toLowerCase();
+      dados = dados.filter((c: any) => (c.vendedor_nome || '').toLowerCase().includes(termo));
     }
 
     const totalPendente = dados.filter(c => c.status === 'pendente').reduce((acc: number, c: any) => acc + (c.valor || 0), 0);
@@ -396,19 +392,27 @@ export default function FinanceiroPage() {
     const titulo = pdfTipo === 'pagar' ? 'Contas a Pagar' : 'Contas a Receber';
     const nomeArquivo = pdfTipo === 'pagar' ? 'contas-a-pagar' : 'contas-a-receber';
 
+    const temVendedor = dados.some((c: any) => c.vendedor_nome);
+    const columns: any[] = [
+      { header: 'Descrição', accessor: (c) => c.descricao || '-' },
+      { header: 'Categoria', accessor: (c) => c.categoria || '-' },
+    ];
+    if (temVendedor) {
+      columns.push({ header: 'Vendedor', accessor: (c) => c.vendedor_nome || '-' });
+    }
+    columns.push(
+      { header: pdfTipo === 'pagar' ? 'Fornecedor' : 'Cliente', accessor: (c) => c.fornecedor || '-' },
+      { header: 'Vencimento', accessor: (c) => formatDatePDF(c.vencimento) },
+      { header: 'Valor', accessor: (c) => formatCurrencyPDF(c.valor) },
+      { header: 'Status', accessor: (c) => c.status === 'pago' ? (pdfTipo === 'pagar' ? 'Pago' : 'Recebido') : (c.vencimento && new Date(c.vencimento) < hoje ? 'Vencida' : 'Pendente') },
+      { header: 'Data Pagto', accessor: (c) => formatDatePDF(c.dataPagamento) },
+    );
+
     const empresaInfo = await fetchEmpresaPDFData(empresaId);
     exportToPDF({
       title: titulo,
       subtitle: `Filtro: ${pdfFilter === 'todas' ? 'Todas' : pdfFilter === 'pagas' ? 'Pagas' : pdfFilter === 'vencidas' ? 'Vencidas' : 'Pendentes'} | Total pendente: ${formatCurrencyPDF(totalPendente)}`,
-      columns: [
-        { header: 'Descrição', accessor: (c) => c.descricao || '-' },
-        { header: 'Categoria', accessor: (c) => c.categoria || '-' },
-        { header: pdfTipo === 'pagar' ? 'Fornecedor' : 'Cliente', accessor: (c) => c.fornecedor || '-' },
-        { header: 'Vencimento', accessor: (c) => formatDatePDF(c.vencimento) },
-        { header: 'Valor', accessor: (c) => formatCurrencyPDF(c.valor) },
-        { header: 'Status', accessor: (c) => c.status === 'pago' ? (pdfTipo === 'pagar' ? 'Pago' : 'Recebido') : (c.vencimento && new Date(c.vencimento) < hoje ? 'Vencida' : 'Pendente') },
-        { header: 'Data Pagto', accessor: (c) => formatDatePDF(c.dataPagamento) },
-      ],
+      columns,
       data: dados,
       filename: `${nomeArquivo}-${new Date().toISOString().split('T')[0]}`,
       summary: [
@@ -602,14 +606,14 @@ export default function FinanceiroPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => { setPdfTipo('pagar'); setPdfFilter('todas'); setPdfDialogOpen(true); }}
+                onClick={() => { setPdfTipo('pagar'); setPdfFilter('todas'); setPdfSearchVendedor(''); setPdfDialogOpen(true); }}
               >
                 <Download className="mr-2 h-4 w-4" />
                 PDF Pagar
               </Button>
               <Button
                 variant="outline"
-                onClick={() => { setPdfTipo('receber'); setPdfFilter('todas'); setPdfDialogOpen(true); }}
+                onClick={() => { setPdfTipo('receber'); setPdfFilter('todas'); setPdfSearchVendedor(''); setPdfDialogOpen(true); }}
               >
                 <Download className="mr-2 h-4 w-4" />
                 PDF Receber
@@ -706,6 +710,15 @@ export default function FinanceiroPage() {
                           defaultValue={contaEditando?.fornecedor || ''}
                         />
                       </div>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="vendedor_nome">Vendedor</Label>
+                      <Input
+                        id="vendedor_nome"
+                        name="vendedor_nome"
+                        placeholder="Nome do vendedor (opcional)"
+                        defaultValue={contaEditando?.vendedor_nome || ''}
+                      />
                     </div>
                   </div>
                   <DialogFooter>
@@ -1042,17 +1055,18 @@ export default function FinanceiroPage() {
                     </div>
                   ) : (
                       <Table className="min-w-max md:min-w-full w-auto [&_td]:px-2 [&_td]:py-2.5 [&_th]:px-2 [&_th]:h-10">
-                        <TableHeader>
-                          <TableRow>
-                            <SortableHeader 
-                              field="descricao" 
-                              label="Descrição" 
-                              currentSort={sortPagar}
-                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
-                            />
-                            <SortableHeader 
-                              field="categoria" 
-                              label="Categoria" 
+                          <TableHeader>
+                            <TableRow>
+                              <SortableHeader 
+                                field="descricao" 
+                                label="Descrição" 
+                                currentSort={sortPagar}
+                                onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
+                              />
+                              <TableHead className="text-left text-[11px] py-2">Vendedor</TableHead>
+                              <SortableHeader 
+                                field="categoria" 
+                                label="Categoria" 
                               currentSort={sortPagar}
                               onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
                             />
@@ -1096,6 +1110,7 @@ export default function FinanceiroPage() {
                                   )}
                                 </div>
                               </TableCell>
+                              <TableCell className="whitespace-nowrap text-sm">{conta.vendedor_nome || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">{conta.categoria || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">
                                 {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
@@ -1254,6 +1269,7 @@ export default function FinanceiroPage() {
                               currentSort={sortReceber}
                               onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
                             />
+                            <TableHead className="text-left text-[11px] py-2">Vendedor</TableHead>
                             <SortableHeader 
                               field="categoria" 
                               label="Categoria" 
@@ -1300,6 +1316,7 @@ export default function FinanceiroPage() {
                                   )}
                                 </div>
                               </TableCell>
+                              <TableCell className="whitespace-nowrap text-sm">{conta.vendedor_nome || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">{conta.categoria || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">
                                 {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
@@ -1504,6 +1521,19 @@ export default function FinanceiroPage() {
                     {opt.label}
                   </Button>
                 ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pdfVendedor">Vendedor (opcional)</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="pdfVendedor"
+                  placeholder="Filtrar por vendedor..."
+                  value={pdfSearchVendedor}
+                  onChange={(e) => setPdfSearchVendedor(e.target.value)}
+                  className="pl-9"
+                />
               </div>
             </div>
           </div>
