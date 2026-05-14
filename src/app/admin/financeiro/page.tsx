@@ -383,8 +383,7 @@ export default function FinanceiroPage() {
     const contas = pdfTipo === 'pagar' ? contasPagar : contasReceber;
     let dados = applyFilterAndSort(contas, pdfFilter, { field: 'vencimento', dir: 'asc' });
     if (pdfSearchVendedor) {
-      const termo = pdfSearchVendedor.toLowerCase();
-      dados = dados.filter((c: any) => (c.vendedor_nome || '').toLowerCase().includes(termo));
+      dados = dados.filter((c: any) => c.vendedor_nome === pdfSearchVendedor);
     }
 
     const totalPendente = dados.filter(c => c.status === 'pendente').reduce((acc: number, c: any) => acc + (c.valor || 0), 0);
@@ -1524,17 +1523,22 @@ export default function FinanceiroPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="pdfVendedor">Vendedor (opcional)</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="pdfVendedor"
-                  placeholder="Filtrar por vendedor..."
-                  value={pdfSearchVendedor}
-                  onChange={(e) => setPdfSearchVendedor(e.target.value)}
-                  className="pl-9"
-                />
-              </div>
+              <Label>Vendedor</Label>
+              <Select value={pdfSearchVendedor} onValueChange={(v) => setPdfSearchVendedor(v === '__all__' ? '' : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os vendedores" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todos os vendedores</SelectItem>
+                  {Array.from(new Set(
+                    (pdfTipo === 'pagar' ? contasPagar : contasReceber)
+                      .map((c: any) => c.vendedor_nome)
+                      .filter(Boolean)
+                  )).map((nome) => (
+                    <SelectItem key={nome as string} value={nome as string}>{nome as string}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
