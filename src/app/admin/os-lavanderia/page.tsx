@@ -1397,64 +1397,76 @@ export default function OSLavanderiaPage() {
                 </div>
 
                 {itens.length === 0 ? (
-                  <p className="text-xs text-muted-foreground bg-muted rounded-lg p-4 text-center">
-                    Nenhuma peça adicionada. Clique em &quot;Adicionar Peça&quot; para começar.
-                    <br />
-                    <span className="text-sky-600">Os itens e serviços serão buscados automaticamente do catálogo.</span>
-                  </p>
+                  <div className="flex items-center justify-center flex-1 bg-muted rounded-lg mt-3">
+                    <div className="text-center">
+                      <Shirt className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
+                      <p className="text-sm text-muted-foreground">
+                        Nenhuma peça adicionada. Clique em &quot;Adicionar Peça&quot; para começar.
+                      </p>
+                      <p className="text-xs text-sky-600 mt-1">Os itens e serviços serão buscados automaticamente do catálogo.</p>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="border rounded-lg overflow-hidden">
+                  <div className="border rounded-lg overflow-auto mt-3">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-20 text-center"><div>Qtd</div><div className="text-[10px] font-normal leading-tight">m²</div></TableHead>
-                          <TableHead>Descrição da Peça</TableHead>
-                          <TableHead className="w-44">Tipo de Serviço</TableHead>
-                          <TableHead className="w-52">Observações</TableHead>
-                          <TableHead className="w-28 text-right">Valor Unit.</TableHead>
-                          <TableHead className="w-24 text-right">Total</TableHead>
-                          <TableHead className="w-10"></TableHead>
+                          <TableHead className="w-20 text-center align-top pt-3"><div className="text-xs font-semibold">Qtd</div><div className="text-[10px] font-normal leading-tight">m²</div></TableHead>
+                          <TableHead className="min-w-[300px] align-top pt-3 text-xs font-semibold">Descrição da Peça</TableHead>
+                          <TableHead className="w-44 align-top pt-3 text-xs font-semibold">Tipo de Serviço</TableHead>
+                          <TableHead className="w-52 align-top pt-3 text-xs font-semibold">Observações</TableHead>
+                          <TableHead className="w-28 text-right align-top pt-3 text-xs font-semibold">Valor Unit.</TableHead>
+                          <TableHead className="w-24 text-right align-top pt-3 text-xs font-semibold">Total</TableHead>
+                          <TableHead className="w-10 align-top pt-3"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {itens.map((item, idx) => (
                           <TableRow key={idx}>
-                            <TableCell>
-                              <Input type="number" min="0.01" step="0.01" className="h-9 text-center w-20 text-sm font-medium" value={item.quantidade} onChange={(e) => atualizarItem(idx, 'quantidade', parseFloat(e.target.value) || 0)} />
+                            <TableCell className="align-top py-3">
+                              <Input type="number" min="0.01" step="0.01" className="h-10 text-center w-20 text-sm font-medium" value={item.quantidade} onChange={(e) => atualizarItem(idx, 'quantidade', parseFloat(e.target.value) || 0)} />
                             </TableCell>
-                              <TableCell>
-                              <Popover
-                                open={openItemPopoverIdx === idx}
-                                onOpenChange={(open) => {
-                                  setOpenItemPopoverIdx(open ? idx : null);
-                                  setItemSearch('');
+                            <TableCell className="relative align-top py-3 min-w-[300px]">
+                              <Input
+                                className="h-10 w-full text-sm px-3"
+                                placeholder="Buscar item..."
+                                value={item.descricaoPeca}
+                                onChange={(e) => {
+                                  const novos = [...itens];
+                                  novos[idx] = { ...novos[idx], descricaoPeca: e.target.value, itemCatalogoId: '' };
+                                  setItens(novos);
+                                  setItemSearch(e.target.value);
+                                  setOpenItemPopoverIdx(idx);
                                 }}
-                              >
-                                <PopoverTrigger asChild>
-                                  <Input
-                                    readOnly
-                                    className="h-9 w-full cursor-pointer text-sm px-3"
-                                    placeholder="Buscar item..."
-                                    value={item.descricaoPeca}
-                                    onChange={() => {}}
-                                  />
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80 p-0" align="start">
-                                  <Command shouldFilter={false}>
-                                    <CommandInput
-                                      placeholder="Filtrar itens..."
-                                      value={itemSearch}
-                                      onValueChange={setItemSearch}
-                                      autoFocus
-                                    />
-                                    <CommandList>
-                                      <CommandEmpty>Nenhum item encontrado</CommandEmpty>
-                                      <CommandGroup className="max-h-52 overflow-y-auto">
-                                        {catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).map((ci: any) => (
-                                          <CommandItem
+                                onFocus={() => setOpenItemPopoverIdx(idx)}
+                              />
+                              {openItemPopoverIdx === idx && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={() => { setOpenItemPopoverIdx(null); setItemSearch(''); }} />
+                                  <div
+                                    className="absolute left-0 top-full mt-1 z-50 rounded-md border bg-popover text-popover-foreground shadow-md flex flex-col"
+                                    style={{ width: 'min(480px, 90vw)', minHeight: '400px', maxHeight: '70vh' }}
+                                    onPointerDown={(e) => e.preventDefault()}
+                                  >
+                                    <div className="p-2 border-b">
+                                      <Input
+                                        placeholder="Filtrar itens..."
+                                        value={itemSearch}
+                                        onChange={(e) => setItemSearch(e.target.value)}
+                                        autoFocus
+                                        className="h-9 text-sm"
+                                      />
+                                    </div>
+                                    <div className="overflow-y-auto flex-1 p-1">
+                                      {catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).length === 0 ? (
+                                        <p className="text-sm text-muted-foreground py-4 text-center">Nenhum item encontrado</p>
+                                      ) : (
+                                        catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).map((ci: any) => (
+                                          <div
                                             key={ci.id}
-                                            value={ci.descricao}
-                                            onSelect={() => {
+                                            className="flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                                            onMouseDown={(e) => {
+                                              e.preventDefault();
                                               const novos = [...itens];
                                               novos[idx] = {
                                                 ...novos[idx],
@@ -1471,45 +1483,46 @@ export default function OSLavanderiaPage() {
                                               setItemSearch('');
                                             }}
                                           >
-                                            <Shirt className="mr-2 h-3 w-3 shrink-0 text-muted-foreground" />
-                                            <span className="flex-1 truncate text-xs">{ci.descricao}</span>
-                                            {ci.categoria && <Badge variant="secondary" className="text-[9px] ml-2">{ci.categoria}</Badge>}
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    </CommandList>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
+                                            <Shirt className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                            <span className="flex-1 text-sm">{ci.descricao}</span>
+                                            {ci.categoria && <Badge variant="secondary" className="text-[10px] ml-2 shrink-0 px-1.5">{ci.categoria}</Badge>}
+                                          </div>
+                                        ))
+                                      )}
+                                    </div>
+                                  </div>
+                                </>
+                              )}
                             </TableCell>
-                            <TableCell>
-                              <Popover
-                                open={openServicoPopoverIdx === idx}
-                                onOpenChange={(open) => {
-                                  setOpenServicoPopoverIdx(open ? idx : null);
-                                  setServicoSearch('');
+                            <TableCell className="relative align-top py-3">
+                              <Input
+                                className="h-10 w-full text-sm px-3"
+                                placeholder="Serviço..."
+                                value={servicoSearch || (item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : '')}
+                                onChange={(e) => {
+                                  setServicoSearch(e.target.value);
+                                  setOpenServicoPopoverIdx(idx);
                                 }}
-                              >
-                                <PopoverTrigger asChild>
-                                  <Input
-                                    readOnly
-                                    className="h-9 w-full cursor-pointer text-sm px-3"
-                                    placeholder="Serviço..."
-                                    value={item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : ''}
-                                    onChange={() => {}}
-                                  />
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80 p-0" align="start">
-                                  <Command shouldFilter={false}>
+                                onFocus={() => setOpenServicoPopoverIdx(idx)}
+                              />
+                              {openServicoPopoverIdx === idx && (
+                                <>
+                                  <div className="fixed inset-0 z-40" onClick={() => { setOpenServicoPopoverIdx(null); setServicoSearch(''); }} />
+                                <div
+                                  className="absolute left-0 top-full mt-1 z-50 rounded-md border bg-popover text-popover-foreground shadow-md flex flex-col"
+                                  style={{ width: 'min(380px, 85vw)', height: '400px', maxHeight: '60vh' }}
+                                  onPointerDown={(e) => e.preventDefault()}
+                                >
+                                  <Command shouldFilter={false} className="flex-1 min-h-0 flex flex-col">
                                     <CommandInput
                                       placeholder="Filtrar serviços..."
                                       value={servicoSearch}
                                       onValueChange={setServicoSearch}
                                       autoFocus
                                     />
-                                    <CommandList>
+                                    <CommandList className="max-h-none flex-1 overflow-y-auto">
                                       <CommandEmpty>Nenhum serviço encontrado</CommandEmpty>
-                                      <CommandGroup className="max-h-52 overflow-y-auto">
+                                      <CommandGroup className="overflow-y-auto">
                                         {catalogoServicos.length > 0 && catalogoServicos.filter((cs: any) => !servicoSearch.trim() || cs.nome.toLowerCase().includes(servicoSearch.toLowerCase())).map((cs: any) => {
                                           const precoEspecifico = item.itemCatalogoId ? lookupPreco(item.itemCatalogoId, cs.id) : -1;
                                           const hasPreco = precoEspecifico >= 0;
@@ -1518,6 +1531,7 @@ export default function OSLavanderiaPage() {
                                           <CommandItem
                                             key={cs.id}
                                             value={cs.nome}
+                                            className="py-2.5"
                                             onSelect={() => {
                                               const novos = [...itens];
                                               novos[idx] = {
@@ -1536,10 +1550,10 @@ export default function OSLavanderiaPage() {
                                               setServicoSearch('');
                                             }}
                                           >
-                                            <Sparkles className="mr-2 h-3 w-3 shrink-0 text-muted-foreground" />
+                                            <Sparkles className="mr-3 h-4 w-4 shrink-0 text-muted-foreground" />
                                             <div className="flex flex-col flex-1 min-w-0">
-                                              <span className="text-xs truncate">{cs.nome}</span>
-                                              <span className={`text-[10px] ${hasPreco ? 'text-green-600' : (precoDisplay > 0 ? 'text-amber-600' : 'text-muted-foreground')}`}>
+                                              <span className="text-sm">{cs.nome}</span>
+                                              <span className={`text-[11px] ${hasPreco ? 'text-green-600' : (precoDisplay > 0 ? 'text-amber-600' : 'text-muted-foreground')}`}>
                                                 {hasPreco ? `R$ ${precoDisplay.toFixed(2)} (preço do item)` : (precoDisplay > 0 ? `R$ ${precoDisplay.toFixed(2)} (preço padrão)` : 'Sem preço cadastrado')}
                                               </span>
                                             </div>
@@ -1550,6 +1564,7 @@ export default function OSLavanderiaPage() {
                                           <CommandItem
                                             key={ts.value}
                                             value={ts.label}
+                                            className="py-2.5"
                                             onSelect={() => {
                                               const novos = [...itens];
                                               novos[idx] = {
@@ -1563,31 +1578,32 @@ export default function OSLavanderiaPage() {
                                               setServicoSearch('');
                                             }}
                                           >
-                                            <ts.icon className="mr-2 h-3 w-3 shrink-0 text-muted-foreground" />
+                                            <ts.icon className="mr-3 h-4 w-4 shrink-0 text-muted-foreground" />
                                             <div className="flex flex-col">
-                                              <span className="text-xs">{ts.label}</span>
-                                              <span className="text-[10px] text-muted-foreground">Sem preço cadastrado</span>
+                                              <span className="text-sm">{ts.label}</span>
+                                              <span className="text-[11px] text-muted-foreground">Sem preço cadastrado</span>
                                             </div>
                                           </CommandItem>
                                         ))}
                                       </CommandGroup>
                                     </CommandList>
                                   </Command>
-                                </PopoverContent>
-                              </Popover>
+                                </div>
+                              </>
+                            )}
                             </TableCell>
-                            <TableCell>
-                              <Input className="h-8 text-xs" placeholder="Manchas, defeitos..." value={item.observacoes} onChange={(e) => atualizarItem(idx, 'observacoes', e.target.value)} />
+                            <TableCell className="align-top py-3">
+                              <Input className="h-10 w-full text-sm" placeholder="Obs..." value={item.observacoes} onChange={(e) => atualizarItem(idx, 'observacoes', e.target.value)} />
                             </TableCell>
-                            <TableCell>
-                              <Input type="number" step="0.01" min="0" className="h-8 text-right" placeholder="0,00" value={item.valorUnitario || ''} onChange={(e) => atualizarItem(idx, 'valorUnitario', parseFloat(e.target.value) || 0)} />
+                            <TableCell className="text-right align-top py-3">
+                              <Input type="number" min="0" step="0.01" className="h-10 text-right w-28 text-sm" value={item.valorUnitario} onChange={(e) => atualizarItem(idx, 'valorUnitario', parseFloat(e.target.value) || 0)} />
                             </TableCell>
-                            <TableCell className="text-right font-medium text-green-600 text-sm">
-                              {formatCurrency(item.total)}
+                            <TableCell className="text-right align-top py-3 font-semibold text-sm">
+                              R$ {(item.total || 0).toFixed(2)}
                             </TableCell>
-                            <TableCell>
-                              <Button type="button" variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => removerItem(idx)}>
-                                <Trash2 className="h-3 w-3" />
+                            <TableCell className="align-top py-3">
+                              <Button variant="ghost" size="icon" className="h-10 w-10 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => removerItem(idx)}>
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -1807,7 +1823,7 @@ export default function OSLavanderiaPage() {
                     </Card>
                   )}
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <div className="bg-sky-50 rounded-lg p-3 text-center">
                       <p className="text-xs text-sky-600">Total de Peças</p>
                       <p className="text-xl font-bold text-sky-800">{detailOS.totalPecas}</p>

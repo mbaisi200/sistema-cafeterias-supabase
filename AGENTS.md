@@ -427,3 +427,13 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Botão de ações trocado de ícone único para DropdownMenu (Editar / Inativar ou Ativar / Excluir)
 - Inativar via dialog com verificação de vendas vinculadas (soft-delete)
 - Ativar diretamente via PUT na API
+- Hard-delete (`force=true`) disponível na API para cliente sem vendas vinculadas
+- "Excluir Permanentemente" no diálogo chama hard-delete quando não há histórico
+
+### OS Lavanderia — Dropdowns e Layout ✅
+- Item search dropdown convertido de Popover/Command cmdk para divs simples com Input + lista estilizada
+- Dropdown com `minHeight: 400px` e `maxHeight: 70vh` para melhor visualização
+- Service search dropdown mantido com Command, com `height: 400px` e scroll
+- Campos aumentados para `h-10`, fontes `text-sm`, padding `py-3`
+- `overflow-hidden` removido do container da tabela para não cortar dropdowns
+- Layout simplificado: revertido flex restructuring para `space-y-5` original

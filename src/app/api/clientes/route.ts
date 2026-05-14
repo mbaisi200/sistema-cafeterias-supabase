@@ -179,15 +179,27 @@ export async function DELETE(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const force = searchParams.get('force') === 'true';
 
     if (!id) {
       return NextResponse.json({ sucesso: false, erro: { codigo: '400', mensagem: 'ID é obrigatório' } }, { status: 400 });
     }
 
-    const { error } = await supabase
-      .from('clientes')
-      .update({ ativo: false, atualizado_em: new Date().toISOString() })
-      .eq('id', id);
+    let error;
+
+    if (force) {
+      const result = await supabase
+        .from('clientes')
+        .delete()
+        .eq('id', id);
+      error = result.error;
+    } else {
+      const result = await supabase
+        .from('clientes')
+        .update({ ativo: false, atualizado_em: new Date().toISOString() })
+        .eq('id', id);
+      error = result.error;
+    }
 
     if (error) {
       return NextResponse.json({ sucesso: false, erro: { codigo: 'DB001', mensagem: error.message } }, { status: 500 });

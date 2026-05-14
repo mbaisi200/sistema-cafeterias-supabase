@@ -273,10 +273,13 @@ export function ClientesTab() {
   const confirmInactivate = async () => {
     if (!clienteToDelete) return;
     try {
-      const res = await fetch(`/api/clientes?id=${clienteToDelete.id}`, { method: 'DELETE' });
+      const url = clienteHasHistory
+        ? `/api/clientes?id=${clienteToDelete.id}`
+        : `/api/clientes?id=${clienteToDelete.id}&force=true`;
+      const res = await fetch(url, { method: 'DELETE' });
       const data = await res.json();
       if (data.sucesso) {
-        toast.success(clienteHasHistory ? 'Cliente inativado para preservar o histórico!' : 'Cliente removido!');
+        toast.success(clienteHasHistory ? 'Cliente inativado para preservar o histórico!' : 'Cliente excluído permanentemente!');
         setDeleteDialogOpen(false);
         setClienteToDelete(null);
         carregar();
