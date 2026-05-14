@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/table';
 import { useVendas, useContas } from '@/hooks/useSupabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   DollarSign,
   TrendingUp,
@@ -112,7 +112,24 @@ export default function FinanceiroPage() {
   const [pdfTipo, setPdfTipo] = useState<'pagar' | 'receber'>('pagar');
   const [pdfFilter, setPdfFilter] = useState<ContaFilter>('todas');
   const [pdfSearchVendedor, setPdfSearchVendedor] = useState('');
+  const [vendedoresLista, setVendedoresLista] = useState<string[]>([]);
   const { toast } = useToast();
+
+  // Carregar lista de vendedores do cadastro
+  useEffect(() => {
+    if (!empresaId) return;
+    const supabase = getSupabaseClient();
+    supabase
+      .from('vendedores')
+      .select('nome')
+      .eq('empresa_id', empresaId)
+      .eq('ativo', true)
+      .order('nome')
+      .then(({ data }) => {
+        if (data) setVendedoresLista(data.map((v: any) => v.nome).filter(Boolean));
+      })
+      .catch(() => {});
+  }, [empresaId]);
 
   // Filters
   const [filterPagar, setFilterPagar] = useState<ContaFilter>('todas');
@@ -1530,12 +1547,8 @@ export default function FinanceiroPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__all__">Todos os vendedores</SelectItem>
-                  {Array.from(new Set(
-                    (pdfTipo === 'pagar' ? contasPagar : contasReceber)
-                      .map((c: any) => c.vendedor_nome)
-                      .filter(Boolean)
-                  )).map((nome) => (
-                    <SelectItem key={nome as string} value={nome as string}>{nome as string}</SelectItem>
+                  {vendedoresLista.map((nome) => (
+                    <SelectItem key={nome} value={nome}>{nome}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

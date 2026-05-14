@@ -61,6 +61,7 @@ import {
   MapPin,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { maskPhone } from '@/lib/masks';
 
 interface Vendedor {
   id: string;
@@ -71,6 +72,7 @@ interface Vendedor {
   estado: string;
   cep: string;
   email: string;
+  telefone: string;
   ativo: boolean;
   empresa_id: string;
   criado_em?: string;
@@ -106,6 +108,7 @@ export function VendedoresTab() {
   const [cidadeVendedor, setCidadeVendedor] = useState('');
   const [estadoVendedor, setEstadoVendedor] = useState('');
   const [buscandoCEP, setBuscandoCEP] = useState(false);
+  const [telefoneVendedor, setTelefoneVendedor] = useState('');
   const cepTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const mascaraCEP = (valor: string) => valor.replace(/\D/g, '').replace(/(\d{5})(\d{0,3})/, '$1-$2');
@@ -195,6 +198,7 @@ export function VendedoresTab() {
       setEnderecoVendedor('');
       setCidadeVendedor('');
       setEstadoVendedor('');
+      setTelefoneVendedor('');
     }
   }, [dialogOpen]);
 
@@ -220,6 +224,7 @@ export function VendedoresTab() {
         estado: (formData.get('estado') as string) || null,
         cep: (formData.get('cep') as string) || null,
         email: (formData.get('email') as string) || null,
+        telefone: (formData.get('telefone') as string) || null,
         ativo: true,
         empresa_id: empresaId,
       };
@@ -260,6 +265,7 @@ export function VendedoresTab() {
     setEnderecoVendedor(vendedor.endereco || '');
     setCidadeVendedor(vendedor.cidade || '');
     setEstadoVendedor(vendedor.estado || '');
+    setTelefoneVendedor(vendedor.telefone || '');
     setDialogOpen(true);
   };
 
@@ -386,6 +392,17 @@ export function VendedoresTab() {
                     type="email"
                     placeholder="email@exemplo.com"
                     defaultValue={editandoVendedor?.email || ''}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="telefone">Telefone</Label>
+                  <Input
+                    id="telefone"
+                    name="telefone"
+                    placeholder="(00) 00000-0000"
+                    value={telefoneVendedor}
+                    onChange={(e) => setTelefoneVendedor(maskPhone(e.target.value))}
+                    maxLength={15}
                   />
                 </div>
                 <div className="space-y-2">
@@ -536,7 +553,8 @@ export function VendedoresTab() {
                   <TableRow>
                     <TableHead className="w-[250px]">Nome</TableHead>
                     <TableHead className="hidden md:table-cell">Email</TableHead>
-                    <TableHead className="hidden lg:table-cell">Cidade/UF</TableHead>
+                    <TableHead className="hidden lg:table-cell">Telefone</TableHead>
+                    <TableHead className="hidden xl:table-cell">Cidade/UF</TableHead>
                     <TableHead className="hidden xl:table-cell">CEP</TableHead>
                     <TableHead className="text-center">Status</TableHead>
                     <TableHead className="w-[80px] text-center">Ações</TableHead>
@@ -561,6 +579,11 @@ export function VendedoresTab() {
                         </span>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
+                        <span className="text-sm font-mono">
+                          {vendedor.telefone || '-'}
+                        </span>
+                      </TableCell>
+                      <TableCell className="hidden xl:table-cell">
                         <span className="text-sm">
                           {[vendedor.cidade, vendedor.estado].filter(Boolean).join('/') || '-'}
                         </span>
