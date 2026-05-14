@@ -307,11 +307,11 @@ export default function PedidosPage() {
   const handleDeleteCondicao = async (id: string) => {
     try {
       const supabase = getSupabase();
-      await supabase.from('condicoes_pagamento').delete().eq('id', id);
+      await supabase.from('condicoes_pagamento').update({ ativo: false }).eq('id', id);
       loadCondicoes();
-      toast({ title: 'Condição removida' });
+      toast({ title: 'Condição inativada' });
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro ao remover condição', description: err.message });
+      toast({ variant: 'destructive', title: 'Erro ao inativar condição', description: err.message });
     }
   };
 

@@ -6,6 +6,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Dialog,
   DialogContent,
@@ -75,6 +86,9 @@ export function FuncionariosTab() {
   const [saving, setSaving] = useState(false);
   const [telefoneValue, setTelefoneValue] = useState('');
   const [editandoFuncionario, setEditandoFuncionario] = useState<Funcionario | null>(null);
+  const [filtroAtivo, setFiltroAtivo] = useState<'todos' | 'ativos' | 'inativos'>('ativos');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Funcionario | null>(null);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -115,31 +129,35 @@ export function FuncionariosTab() {
     setLoading(false);
   };
 
-  const filteredFuncionarios = funcionarios.filter(f =>
-    f.nome.toLowerCase().includes(search.toLowerCase()) ||
-    f.cargo?.toLowerCase().includes(search.toLowerCase()) ||
-    f.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredFuncionarios = funcionarios.filter(f => {
+    if (filtroAtivo === 'ativos' && !f.ativo) return false;
+    if (filtroAtivo === 'inativos' && f.ativo) return false;
+    return (
+      f.nome.toLowerCase().includes(search.toLowerCase()) ||
+      f.cargo?.toLowerCase().includes(search.toLowerCase()) ||
+      f.email?.toLowerCase().includes(search.toLowerCase())
+    );
+  });
 
   const handleOpenDialog = (funcionario?: Funcionario) => {
     if (funcionario) {
       setEditandoFuncionario(funcionario);
       setFormData({
-        nome: funcionarios.nome || '',
-        cargo: funcionarios.cargo || '',
-        email: funcionarios.email || '',
-        telefone: funcionarios.telefone || '',
-        pin: funcionarios.pin || '',
-        perm_pdv: funcionarios.perm_pdv ?? true,
-        perm_pdv_garcom: funcionarios.perm_pdv_garcom ?? true,
-        perm_estoque: funcionarios.perm_estoque ?? false,
-        perm_financeiro: funcionarios.perm_financeiro ?? false,
-        perm_relatorios: funcionarios.perm_relatorios ?? false,
-        perm_cancelar_venda: funcionarios.perm_cancelar_venda ?? false,
-        perm_dar_desconto: funcionarios.perm_dar_desconto ?? false,
-        ativo: funcionarios.ativo ?? true,
+        nome: funcionario.nome || '',
+        cargo: funcionario.cargo || '',
+        email: funcionario.email || '',
+        telefone: funcionario.telefone || '',
+        pin: funcionario.pin || '',
+        perm_pdv: funcionario.perm_pdv ?? true,
+        perm_pdv_garcom: funcionario.perm_pdv_garcom ?? true,
+        perm_estoque: funcionario.perm_estoque ?? false,
+        perm_financeiro: funcionario.perm_financeiro ?? false,
+        perm_relatorios: funcionario.perm_relatorios ?? false,
+        perm_cancelar_venda: funcionario.perm_cancelar_venda ?? false,
+        perm_dar_desconto: funcionario.perm_dar_desconto ?? false,
+        ativo: funcionario.ativo ?? true,
       });
-      setTelefoneValue(funcionarios.telefone || '');
+      setTelefoneValue(funcionario.telefone || '');
     } else {
       setEditandoFuncionario(null);
       const randomPin = Math.floor(1000 + Math.random() * 9000).toString();
@@ -205,19 +223,39 @@ export function FuncionariosTab() {
     }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleToggleAtivo = async (func: Funcionario) => {
     if (!supabase) return;
     const { error } = await supabase
       .from('funcionarios')
-      .delete()
-      .eq('id', id);
-    
+      .update({ ativo: !func.ativo })
+      .eq('id', func.id);
     if (error) {
-      toast.error('Erro ao excluir funcionário');
+      toast.error('Erro ao alterar status');
     } else {
-      toast.success('Funcionário excluído');
+      toast.success(func.ativo ? `"${func.nome}" inativado` : `"${func.nome}" ativado`);
       loadFuncionarios();
     }
+  };
+
+  const handleDeleteClick = (func: Funcionario) => {
+    setDeleteTarget(func);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmInativar = async () => {
+    if (!deleteTarget || !supabase) return;
+    const { error } = await supabase
+      .from('funcionarios')
+      .update({ ativo: false })
+      .eq('id', deleteTarget.id);
+    if (error) {
+      toast.error('Erro ao inativar funcionário');
+    } else {
+      toast.success(`"${deleteTarget.nome}" inativado`);
+      loadFuncionarios();
+    }
+    setDeleteDialogOpen(false);
+    setDeleteTarget(null);
   };
 
   const copyPin = (pin: string) => {
@@ -227,7 +265,7 @@ export function FuncionariosTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -237,10 +275,17 @@ export function FuncionariosTab() {
             className="pl-9"
           />
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="h-4 w-4 mr-2" />
-          Novo Funcionário
-        </Button>
+        <div className="flex items-center gap-2">
+          <ToggleGroup type="single" value={filtroAtivo} onValueChange={(v) => v && setFiltroAtivo(v as 'todos' | 'ativos' | 'inativos')}>
+            <ToggleGroupItem value="ativos" className="text-xs h-8 px-3 data-[state=on]:bg-green-100 data-[state=on]:text-green-700">Ativos</ToggleGroupItem>
+            <ToggleGroupItem value="inativos" className="text-xs h-8 px-3 data-[state=on]:bg-gray-200 data-[state=on]:text-gray-700">Inativos</ToggleGroupItem>
+            <ToggleGroupItem value="todos" className="text-xs h-8 px-3 data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700">Todos</ToggleGroupItem>
+          </ToggleGroup>
+          <Button onClick={() => handleOpenDialog()}>
+            <Plus className="h-4 w-4 mr-2" />
+            Novo Funcionário
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -304,8 +349,26 @@ export function FuncionariosTab() {
                           <Edit className="h-4 w-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        {func.ativo ? (
+                          <DropdownMenuItem
+                            className="text-orange-600"
+                            onClick={() => handleToggleAtivo(func)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Inativar
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            className="text-green-600"
+                            onClick={() => handleToggleAtivo(func)}
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Ativar
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem
-                          onClick={() => handleDelete(func.id)}
+                          onClick={() => handleDeleteClick(func)}
                           className="text-red-600"
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
@@ -477,6 +540,27 @@ export function FuncionariosTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => { setDeleteDialogOpen(open); if (!open) { setDeleteTarget(null); }}}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Inativar Funcionário</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja inativar <strong>{deleteTarget?.nome}</strong>? O funcionário não poderá mais acessar o sistema, mas poderá ser reativado depois.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2">
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmInativar}
+              className="bg-orange-500 hover:bg-orange-600"
+            >
+              Inativar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

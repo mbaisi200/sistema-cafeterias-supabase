@@ -306,6 +306,7 @@ const darkMode = resolvedTheme === 'dark';
 6. **Dark mode no PDV** usa variável `darkMode` (não usa classes `dark:` diretamente nos elementos, pois o PDV é fullscreen sem wrapper do tema)
 7. **NFe parser** está em `src/lib/nfe-parser.ts` — não modifique sem entender a estrutura do XML fiscal
 8. **NF-e importação** — o fluxo é: upload XML → parser → matching → preview → confirmação → API
+9. **NÃO faça `git push` sem ser explicitamente requisitado** — o push manual expõe tokens no terminal
 
 ---
 
@@ -392,3 +393,11 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - `disponivelUberEats` (boolean), `uberEatsExternalCode`, `uberEatsSyncStatus` no cadastro de produtos
 - Toggle "Enviar para Uber Eats" com badge de status (synced/pending/error)
 - `uberEatsExternalCode` gerado automaticamente ao ativar
+
+### Soft-delete (Inativar) em Todos os Módulos ✅
+- **Convertido de hard-delete para soft-delete** em 11 entidades: categorias, funcionarios, servicos, unidades, condicoes_pagamento, lavanderia_itens_catalogo, lavanderia_servicos_catalogo, lavanderia_categorias, segmentos, nfce_certificados, dispositivos_usuario
+- FuncionariosTab: adicionado filtro Ativos/Inativos/Todos, toggle Inativar/Ativar no dropdown, diálogo de confirmação, e bugfix `funcionarios`→`funcionario`
+- Categorias: diálogo mostra count de produtos vinculados antes de inativar
+- Produtos (tab unidades): checa produtos vinculados antes de inativar
+- Financeiro: filtro vendedor no PDF + vendedor_nome na tabela contas
+- VendedoresTab: linked-records check, toggle Inativar/Ativar, filtro ativo

@@ -676,14 +676,14 @@ export default function CatalogoLavanderiaPage() {
       const supabase = getSupabase();
       const { error } = await supabase
         .from('lavanderia_itens_catalogo')
-        .delete()
+        .update({ ativo: false })
         .eq('id', deleteDialog.id);
       if (error) throw error;
-      toast({ title: 'Item excluído!', description: `"${deleteDialog.nome}" foi removido do catálogo.` });
+      toast({ title: 'Item inativado!', description: `"${deleteDialog.nome}" foi inativado do catálogo.` });
       setDeleteDialog({ open: false, type: 'item', id: '', nome: '' });
       loadItens();
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro ao excluir item', description: err.message });
+      toast({ variant: 'destructive', title: 'Erro ao inativar item', description: err.message });
     }
   };
 
@@ -765,14 +765,14 @@ export default function CatalogoLavanderiaPage() {
       const supabase = getSupabase();
       const { error } = await supabase
         .from('lavanderia_servicos_catalogo')
-        .delete()
+        .update({ ativo: false })
         .eq('id', deleteDialog.id);
       if (error) throw error;
-      toast({ title: 'Serviço excluído!', description: `"${deleteDialog.nome}" foi removido do catálogo.` });
+      toast({ title: 'Serviço inativado!', description: `"${deleteDialog.nome}" foi inativado do catálogo.` });
       setDeleteDialog({ open: false, type: 'servico', id: '', nome: '' });
       loadServicos();
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro ao excluir serviço', description: err.message });
+      toast({ variant: 'destructive', title: 'Erro ao inativar serviço', description: err.message });
     }
   };
 
@@ -985,15 +985,15 @@ export default function CatalogoLavanderiaPage() {
       const supabase = getSupabase();
       const { error } = await supabase
         .from('lavanderia_categorias')
-        .delete()
+        .update({ ativo: false })
         .eq('id', deleteDialog.id);
       if (error) throw error;
-      toast({ title: 'Categoria excluída!', description: `"${deleteDialog.nome}" foi removida.` });
+      toast({ title: 'Categoria inativada!', description: `"${deleteDialog.nome}" foi inativada.` });
       setDeleteDialog({ open: false, type: 'item', id: '', nome: '' });
       loadCategorias();
     } catch (err: any) {
-      console.error('Erro ao excluir categoria:', err);
-      toast({ variant: 'destructive', title: 'Erro ao excluir categoria', description: err.message });
+      console.error('Erro ao inativar categoria:', err);
+      toast({ variant: 'destructive', title: 'Erro ao inativar categoria', description: err.message });
     }
   };
 

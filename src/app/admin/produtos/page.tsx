@@ -193,10 +193,10 @@ export default function ProdutosPage() {
   };
 
   const handleExcluirUnidade = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir?')) return;
+    if (!confirm('Tem certeza que deseja inativar esta unidade?')) return;
     const supabase = getSupabaseClient();
-    await supabase.from('unidades').delete().eq('id', id);
-    toast({ title: 'Unidade excluída!' });
+    await supabase.from('unidades').update({ ativo: false }).eq('id', id);
+    toast({ title: 'Unidade inativada!' });
     const { data } = await supabase.from('unidades').select('*').eq('empresa_id', empresaId).order('nome');
     if (data) setUnidades(data);
   };
@@ -720,10 +720,18 @@ export default function ProdutosPage() {
 
   const handleExcluirCategoria = async (id: string) => {
     try {
+      const supabase = getSupabaseClient();
+      const { count } = await supabase
+        .from('produtos')
+        .select('*', { count: 'exact', head: true })
+        .eq('categoriaId', id);
+      if (count && count > 0) {
+        toast({ title: `Esta categoria possui ${count} produto(s) vinculado(s). Inativando categoria...` });
+      }
       await excluirCategoria(id);
-      toast({ title: 'Categoria excluída!' });
+      toast({ title: 'Categoria inativada!' });
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Erro ao excluir categoria' });
+      toast({ variant: 'destructive', title: 'Erro ao inativar categoria' });
     }
   };
 

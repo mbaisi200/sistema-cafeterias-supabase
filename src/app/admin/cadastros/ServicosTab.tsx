@@ -233,13 +233,13 @@ export function ServicosTab() {
       const supabase = getSupabaseClient();
       const { error } = await supabase
         .from('servicos')
-        .delete()
+        .update({ ativo: false })
         .eq('id', deleteTarget.id);
       if (error) throw error;
-      toast.success(`Serviço "${deleteTarget.nome}" excluído!`);
+      toast.success(`Serviço "${deleteTarget.nome}" inativado!`);
       await carregar();
     } catch {
-      toast.error('Erro ao excluir serviço');
+      toast.error('Erro ao inativar serviço');
     } finally {
       setDeleteDialogOpen(false);
       setDeleteTarget(null);

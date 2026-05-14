@@ -284,7 +284,7 @@ export function useNFCeConfig(): UseNFCeConfigReturn {
     try {
       const { error } = await supabase
         .from('nfce_certificados')
-        .delete()
+        .update({ ativo: false })
         .eq('id', id);
 
       if (error) {

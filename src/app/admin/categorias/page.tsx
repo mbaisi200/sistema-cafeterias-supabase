@@ -91,14 +91,16 @@ export default function CategoriasPage() {
     setExcluindo(true);
     try {
       await excluirCategoria(categoriaExcluir);
-      toast({ title: 'Categoria excluída!' });
+      toast({ title: 'Categoria inativada!' });
     } catch {
-      toast({ variant: 'destructive', title: 'Erro ao excluir categoria' });
+      toast({ variant: 'destructive', title: 'Erro ao inativar categoria' });
     } finally {
       setExcluindo(false);
       setCategoriaExcluir(null);
     }
   };
+
+
 
   const getProdutosPorCategoria = (categoriaId: string) => {
     return produtos.filter(p => p.categoriaId === categoriaId && p.ativo).length;
@@ -299,9 +301,13 @@ export default function CategoriasPage() {
         <AlertDialog open={!!categoriaExcluir} onOpenChange={(open) => !open && setCategoriaExcluir(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Excluir Categoria</AlertDialogTitle>
+              <AlertDialogTitle>Inativar Categoria</AlertDialogTitle>
               <AlertDialogDescription>
-                Tem certeza que deseja excluir esta categoria? Os produtos vinculados não serão afetados.
+                {categoriaExcluir && getProdutosPorCategoria(categoriaExcluir) > 0 ? (
+                  <>Esta categoria possui <strong>{getProdutosPorCategoria(categoriaExcluir)} produto(s)</strong> vinculados. Ao inativar a categoria, os produtos continuarão existindo mas a categoria ficará oculta.</>
+                ) : (
+                  <>Tem certeza que deseja inativar esta categoria? Ela ficará oculta mas poderá ser reativada depois.</>
+                )}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -309,10 +315,10 @@ export default function CategoriasPage() {
               <AlertDialogAction
                 disabled={excluindo}
                 onClick={handleExcluirCategoria}
-                className="bg-red-600 hover:bg-red-700"
+                className="bg-orange-500 hover:bg-orange-600"
               >
                 {excluindo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Excluir
+                Inativar
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

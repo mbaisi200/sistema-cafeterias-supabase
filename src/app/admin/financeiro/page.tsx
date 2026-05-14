@@ -74,6 +74,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { exportToPDF, formatCurrencyPDF, formatDatePDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
+import { getSupabaseClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 
 type SortField = 'descricao' | 'categoria' | 'vencimento' | 'valor' | 'status' | 'dataPagamento';
@@ -427,7 +428,7 @@ export default function FinanceiroPage() {
     const empresaInfo = await fetchEmpresaPDFData(empresaId);
     exportToPDF({
       title: titulo,
-      subtitle: `Filtro: ${pdfFilter === 'todas' ? 'Todas' : pdfFilter === 'pagas' ? 'Pagas' : pdfFilter === 'vencidas' ? 'Vencidas' : 'Pendentes'} | Total pendente: ${formatCurrencyPDF(totalPendente)}`,
+      subtitle: `Filtro: ${pdfFilter === 'todas' ? 'Todas' : pdfFilter === 'pagas' ? 'Pagas' : pdfFilter === 'vencidas' ? 'Vencidas' : 'Pendentes'}${pdfSearchVendedor ? ` | Vendedor: ${pdfSearchVendedor}` : ''} | Total pendente: ${formatCurrencyPDF(totalPendente)}`,
       columns,
       data: dados,
       filename: `${nomeArquivo}-${new Date().toISOString().split('T')[0]}`,

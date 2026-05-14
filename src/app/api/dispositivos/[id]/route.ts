@@ -90,19 +90,19 @@ export async function DELETE(
       );
     }
 
-    // Delete device
+    // Inactivate device
     const { error: deleteError } = await supabase
       .from('dispositivos_usuario')
-      .delete()
+      .update({ ativo: false })
       .eq('id', id);
 
     if (deleteError) {
-      return NextResponse.json({ error: 'Erro ao excluir dispositivo' }, { status: 500 });
+      return NextResponse.json({ error: 'Erro ao inativar dispositivo' }, { status: 500 });
     }
 
     return NextResponse.json({
       success: true,
-      message: 'Dispositivo removido com sucesso',
+      message: 'Dispositivo inativado com sucesso',
     });
   } catch (error) {
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });

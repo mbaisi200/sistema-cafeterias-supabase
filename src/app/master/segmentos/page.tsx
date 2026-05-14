@@ -380,14 +380,14 @@ export default function SegmentosPage() {
       const supabase = getSupabaseClient();
       const { error } = await supabase
         .from('segmentos')
-        .delete()
+        .update({ ativo: false })
         .eq('id', selectedSegmento.id);
 
       if (error) throw error;
 
       toast({
-        title: 'Segmento excluído!',
-        description: `"${selectedSegmento.nome}" foi removido com sucesso.`,
+        title: 'Segmento inativado!',
+        description: `"${selectedSegmento.nome}" foi inativado com sucesso.`,
       });
 
       setDeleteDialogOpen(false);
@@ -396,7 +396,7 @@ export default function SegmentosPage() {
     } catch (error: unknown) {
       toast({
         variant: 'destructive',
-        title: 'Erro ao excluir',
+        title: 'Erro ao inativar',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
       });
     } finally {

@@ -392,7 +392,7 @@ export function useCategorias() {
   const excluirCategoria = async (id: string) => {
     const { error } = await supabase
       .from('categorias')
-      .delete()
+      .update({ ativo: false })
       .eq('id', id);
 
     if (error) throw error;
@@ -636,7 +636,7 @@ export function useFuncionarios() {
   const excluirFuncionario = async (id: string) => {
     const { error } = await supabase
       .from('funcionarios')
-      .delete()
+      .update({ ativo: false })
       .eq('id', id);
 
     if (error) throw error;

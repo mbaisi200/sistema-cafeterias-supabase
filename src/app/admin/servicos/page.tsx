@@ -278,22 +278,22 @@ export default function ServicosPage() {
     try {
       const { error } = await supabase
         .from('servicos')
-        .delete()
+        .update({ ativo: false })
         .eq('id', deleteTarget.id);
 
       if (error) throw error;
 
       toast({
-        title: 'Serviço excluído!',
-        description: `${deleteTarget.nome} foi removido com sucesso.`,
+        title: 'Serviço inativado!',
+        description: `${deleteTarget.nome} foi inativado com sucesso.`,
       });
 
       await carregarServicos();
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Erro ao excluir',
-        description: 'Não foi possível excluir o serviço.',
+        title: 'Erro ao inativar',
+        description: 'Não foi possível inativar o serviço.',
       });
     } finally {
       setDeleteDialogOpen(false);

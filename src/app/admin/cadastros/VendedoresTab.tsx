@@ -46,6 +46,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -98,11 +99,13 @@ export function VendedoresTab() {
   const [vendedores, setVendedores] = useState<Vendedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [filtroAtivo, setFiltroAtivo] = useState<'todos' | 'ativos' | 'inativos'>('ativos');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editandoVendedor, setEditandoVendedor] = useState<Vendedor | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Vendedor | null>(null);
+  const [deleteMsgVinculo, setDeleteMsgVinculo] = useState(false);
   const [cepVendedor, setCepVendedor] = useState('');
   const [enderecoVendedor, setEnderecoVendedor] = useState('');
   const [cidadeVendedor, setCidadeVendedor] = useState('');
@@ -176,8 +179,10 @@ export function VendedoresTab() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [empresaId]);
 
-  // Filtrar vendedores
+  // Filtrar vendedores por busca e status
   const filteredVendedores = vendedores.filter(v => {
+    if (filtroAtivo === 'ativos' && !v.ativo) return false;
+    if (filtroAtivo === 'inativos' && v.ativo) return false;
     const searchLower = search.toLowerCase();
     return (
       v.nome.toLowerCase().includes(searchLower) ||
@@ -274,9 +279,43 @@ export function VendedoresTab() {
     setDialogOpen(true);
   };
 
-  const handleDeleteClick = (vendedor: Vendedor) => {
+  const handleDeleteClick = async (vendedor: Vendedor) => {
     setDeleteTarget(vendedor);
+    setDeleteMsgVinculo(false);
+    // Verificar se há contas vinculadas
+    try {
+      const supabase = getSupabaseClient();
+      const { count } = await supabase
+        .from('contas')
+        .select('*', { count: 'exact', head: true })
+        .eq('vendedor_nome', vendedor.nome);
+      if (count && count > 0) {
+        setDeleteMsgVinculo(true);
+      }
+    } catch {
+      // Se a consulta falhar, permite a exclusão normalmente
+    }
     setDeleteDialogOpen(true);
+  };
+
+  const handleInativar = async () => {
+    if (!deleteTarget) return;
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase
+        .from('vendedores')
+        .update({ ativo: false })
+        .eq('id', deleteTarget.id);
+      if (error) throw error;
+      toast.success(`${deleteTarget.nome} foi inativado com sucesso.`);
+      loadVendedores();
+    } catch (error) {
+      toast.error('Não foi possível inativar o vendedor.');
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeleteTarget(null);
+      setDeleteMsgVinculo(false);
+    }
   };
 
   const handleConfirmDelete = async () => {
@@ -295,6 +334,7 @@ export function VendedoresTab() {
     } finally {
       setDeleteDialogOpen(false);
       setDeleteTarget(null);
+      setDeleteMsgVinculo(false);
     }
   };
 
@@ -494,30 +534,44 @@ export function VendedoresTab() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => { setDeleteDialogOpen(open); if (!open) { setDeleteTarget(null); setDeleteMsgVinculo(false); }}}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Vendedor</AlertDialogTitle>
+            <AlertDialogTitle>
+              {deleteMsgVinculo ? 'Vendedor Possui Lançamentos' : 'Excluir Vendedor'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir <strong>{deleteTarget?.nome}</strong>?
-              Esta ação não pode ser desfeita.
+              {deleteMsgVinculo ? (
+                <>O vendedor <strong>{deleteTarget?.nome}</strong> possui lançamentos vinculados no financeiro. Excluí-lo pode comprometer a integridade dos relatórios. Recomendamos <strong>inativar</strong> o vendedor em vez de excluir.</>
+              ) : (
+                <>Tem certeza que deseja excluir <strong>{deleteTarget?.nome}</strong>? Esta ação não pode ser desfeita.</>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-2">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-red-600 hover:bg-red-700"
-            >
-              Excluir
-            </AlertDialogAction>
+            {deleteMsgVinculo ? (
+              <AlertDialogAction
+                onClick={handleInativar}
+                className="bg-orange-500 hover:bg-orange-600"
+              >
+                Inativar Vendedor
+              </AlertDialogAction>
+            ) : (
+              <AlertDialogAction
+                onClick={handleConfirmDelete}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Excluir
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Search */}
+      {/* Search + Filter */}
       <Card>
-        <CardContent className="pt-6">
+        <CardContent className="pt-6 space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -526,6 +580,13 @@ export function VendedoresTab() {
               onChange={(e) => setSearch(e.target.value)}
               className="pl-10"
             />
+          </div>
+          <div className="flex items-center gap-2">
+            <ToggleGroup type="single" value={filtroAtivo} onValueChange={(v) => v && setFiltroAtivo(v as 'todos' | 'ativos' | 'inativos')}>
+              <ToggleGroupItem value="ativos" className="text-xs h-8 px-3 data-[state=on]:bg-green-100 data-[state=on]:text-green-700">Ativos</ToggleGroupItem>
+              <ToggleGroupItem value="inativos" className="text-xs h-8 px-3 data-[state=on]:bg-gray-200 data-[state=on]:text-gray-700">Inativos</ToggleGroupItem>
+              <ToggleGroupItem value="todos" className="text-xs h-8 px-3 data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700">Todos</ToggleGroupItem>
+            </ToggleGroup>
           </div>
         </CardContent>
       </Card>
@@ -613,6 +674,30 @@ export function VendedoresTab() {
                               Editar
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
+                            {vendedor.ativo ? (
+                              <DropdownMenuItem
+                                className="text-orange-600"
+                                onClick={() => { setDeleteTarget(vendedor); setDeleteMsgVinculo(false); setDeleteDialogOpen(true); }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Inativar
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                className="text-green-600"
+                                onClick={async () => {
+                                  try {
+                                    const supabase = getSupabaseClient();
+                                    await supabase.from('vendedores').update({ ativo: true }).eq('id', vendedor.id);
+                                    toast.success(`${vendedor.nome} foi ativado novamente.`);
+                                    loadVendedores();
+                                  } catch { toast.error('Erro ao ativar vendedor.'); }
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Ativar
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem
                               className="text-red-600"
                               onClick={() => handleDeleteClick(vendedor)}

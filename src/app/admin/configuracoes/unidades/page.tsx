@@ -89,15 +89,15 @@ export default function UnidadesPage() {
   };
 
   const handleExcluir = async (id: string) => {
-    if (!confirm('Tem certeza que deseja excluir?')) return;
+    if (!confirm('Tem certeza que deseja inativar esta unidade?')) return;
     
     const supabase = getSupabaseClient();
-    const { error } = await supabase.from('unidades').delete().eq('id', id);
+    const { error } = await supabase.from('unidades').update({ ativo: false }).eq('id', id);
     
     if (error) {
-      toast({ variant: 'destructive', title: 'Erro ao excluir' });
+      toast({ variant: 'destructive', title: 'Erro ao inativar' });
     } else {
-      toast({ title: 'Unidade excluída!' });
+      toast({ title: 'Unidade inativada!' });
       loadUnidades();
     }
   };
