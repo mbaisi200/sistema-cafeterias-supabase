@@ -75,6 +75,7 @@ import {
   DollarSign,
   BookOpen,
   FileDown,
+  X,
 } from 'lucide-react';
 
 // ============================================================
@@ -1402,57 +1403,62 @@ export default function OSLavanderiaPage() {
                                 }}
                                 onFocus={() => setOpenItemPopoverIdx(idx)}
                               />
-                              {openItemPopoverIdx === idx && (
+{openItemPopoverIdx === idx && (
                                 <>
                                   <div className="fixed inset-0 z-40" onClick={() => { setOpenItemPopoverIdx(null); setItemSearch(''); }}></div>
                                   <div
-                                     className="absolute left-0 top-full mt-1 z-50 rounded-md border bg-popover text-popover-foreground shadow-md flex flex-col"
-                                     style={{ width: 'min(480px, 90vw)', minHeight: '400px', maxHeight: '70vh' }}
+                                     className="fixed inset-0 z-50 flex items-center justify-center"
                                    >
-                                     <div className="p-2 border-b">
-                                       <Input
-                                         placeholder="Filtrar itens..."
-                                         value={itemSearch}
-                                         onChange={(e) => setItemSearch(e.target.value)}
-                                         autoFocus
-                                         className="h-9 text-sm"
-                                       />
+                                     <div className="w-[min(480px,90vw)] h-[min(500px,70vh)] rounded-lg border bg-popover text-popover-foreground shadow-xl flex flex-col">
+                                      <div className="p-2 border-b flex items-center justify-between">
+                                        <span className="text-sm font-semibold">Buscar Peça</span>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setOpenItemPopoverIdx(null); setItemSearch(''); }}><X className="h-4 w-4" /></Button>
+                                      </div>
+                                      <div className="p-2 border-b">
+                                        <Input
+                                          placeholder="Filtrar itens..."
+                                          value={itemSearch}
+                                          onChange={(e) => setItemSearch(e.target.value)}
+                                          autoFocus
+                                          className="h-9 text-sm"
+                                        />
+                                      </div>
+                                      <div className="overflow-y-auto flex-1 p-1">
+                                        {catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).length === 0 ? (
+                                          <p className="text-sm text-muted-foreground py-4 text-center">Nenhum item encontrado</p>
+                                        ) : (
+                                          catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).map((ci: any) => (
+                                            <div
+                                              key={ci.id}
+                                              className="flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                                               onClick={() => {
+                                                 const novos = [...itens];
+                                                 novos[idx] = {
+                                                   ...novos[idx],
+                                                   descricaoPeca: ci.descricao,
+                                                   itemCatalogoId: ci.id,
+                                                 };
+                                                 if (novos[idx].tipoServico) {
+                                                   const preco = lookupPreco(ci.id, novos[idx].tipoServico);
+                                                   if (preco >= 0) novos[idx].valorUnitario = preco;
+                                                 }
+                                                 novos[idx].total = novos[idx].quantidade * novos[idx].valorUnitario;
+                                                 setItens(novos);
+                                                 setOpenItemPopoverIdx(null);
+                                                 setItemSearch('');
+                                               }}
+                                            >
+                                              <Shirt className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                              <span className="flex-1 text-sm">{ci.descricao}</span>
+                                              {ci.categoria && <Badge variant="secondary" className="text-[10px] ml-2 shrink-0 px-1.5">{ci.categoria}</Badge>}
+                                            </div>
+                                          ))
+                                        )}
+                                      </div>
                                      </div>
-                                     <div className="overflow-y-auto flex-1 p-1">
-                                       {catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).length === 0 ? (
-                                         <p className="text-sm text-muted-foreground py-4 text-center">Nenhum item encontrado</p>
-                                       ) : (
-                                         catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).map((ci: any) => (
-                                           <div
-                                             key={ci.id}
-                                             className="flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                                              onClick={() => {
-                                                const novos = [...itens];
-                                                novos[idx] = {
-                                                  ...novos[idx],
-                                                  descricaoPeca: ci.descricao,
-                                                  itemCatalogoId: ci.id,
-                                                };
-                                                if (novos[idx].tipoServico) {
-                                                  const preco = lookupPreco(ci.id, novos[idx].tipoServico);
-                                                  if (preco >= 0) novos[idx].valorUnitario = preco;
-                                                }
-                                                novos[idx].total = novos[idx].quantidade * novos[idx].valorUnitario;
-                                                setItens(novos);
-                                                setOpenItemPopoverIdx(null);
-                                                setItemSearch('');
-                                              }}
-                                           >
-                                             <Shirt className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                             <span className="flex-1 text-sm">{ci.descricao}</span>
-                                             {ci.categoria && <Badge variant="secondary" className="text-[10px] ml-2 shrink-0 px-1.5">{ci.categoria}</Badge>}
-                                           </div>
-                                         ))
-                                       )}
-                                     </div>
-                                   </div>
-                                 </>
-                               )}
+                                  </div>
+                                </>
+                              )}
                              </TableCell>
                              <TableCell className="relative py-1">
                                <Input
@@ -1465,66 +1471,66 @@ export default function OSLavanderiaPage() {
                                  }}
                                  onFocus={() => setOpenServicoPopoverIdx(idx)}
                                />
-                               {openServicoPopoverIdx === idx && (
-                                 <>
-                                   <div className="fixed inset-0 z-40" onClick={() => { setOpenServicoPopoverIdx(null); setServicoSearch(''); }}></div>
-                                <div
-                                   className="absolute left-0 top-full mt-1 z-50 rounded-md border bg-popover text-popover-foreground shadow-md flex flex-col"
-                                   style={{ width: 'min(380px, 85vw)', height: '400px', maxHeight: '60vh' }}
-                                 >
-                                  <Command shouldFilter={false} className="flex-1 min-h-0 flex flex-col">
-                                    <CommandInput
-                                      placeholder="Filtrar serviços..."
-                                      value={servicoSearch}
-                                      onValueChange={setServicoSearch}
-                                      autoFocus
-                                    />
-                                    <CommandList className="max-h-none flex-1 overflow-y-auto">
-                                      <CommandEmpty>Nenhum serviço encontrado</CommandEmpty>
-                                      <CommandGroup className="overflow-y-auto">
+{openServicoPopoverIdx === idx && (
+                                  <>
+                                    <div className="fixed inset-0 z-40" onClick={() => { setOpenServicoPopoverIdx(null); setServicoSearch(''); }}></div>
+                                    <div className="fixed inset-0 z-50 flex items-center justify-center">
+                                     <div className="w-[min(380px,85vw)] h-[min(500px,70vh)] rounded-lg border bg-popover text-popover-foreground shadow-xl flex flex-col">
+                                      <div className="p-2 border-b flex items-center justify-between">
+                                        <span className="text-sm font-semibold">Buscar Serviço</span>
+                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setOpenServicoPopoverIdx(null); setServicoSearch(''); }}><X className="h-4 w-4" /></Button>
+                                      </div>
+                                      <div className="px-2 pb-2">
+                                        <Input
+                                          placeholder="Filtrar serviços..."
+                                          value={servicoSearch}
+                                          onChange={(e) => setServicoSearch(e.target.value)}
+                                          autoFocus
+                                          className="h-9 text-sm"
+                                        />
+                                      </div>
+                                      <div className="overflow-y-auto flex-1 px-1 pb-1">
                                         {catalogoServicos.length > 0 && catalogoServicos.filter((cs: any) => !servicoSearch.trim() || cs.nome.toLowerCase().includes(servicoSearch.toLowerCase())).map((cs: any) => {
                                           const precoEspecifico = item.itemCatalogoId ? lookupPreco(item.itemCatalogoId, cs.id) : -1;
                                           const hasPreco = precoEspecifico >= 0;
                                           const precoDisplay = hasPreco ? precoEspecifico : (parseFloat(cs.preco) || 0);
                                           return (
-                                          <CommandItem
-                                            key={cs.id}
-                                            value={cs.nome}
-                                            className="py-2.5"
-                                            onSelect={() => {
-                                              const novos = [...itens];
-                                              novos[idx] = {
-                                                ...novos[idx],
-                                                tipoServico: cs.id,
-                                              };
-                                              if (novos[idx].itemCatalogoId) {
-                                                const p = lookupPreco(novos[idx].itemCatalogoId, cs.id);
-                                                novos[idx].valorUnitario = p >= 0 ? p : (parseFloat(cs.preco) || 0);
-                                              } else {
-                                                novos[idx].valorUnitario = parseFloat(cs.preco) || 0;
-                                              }
-                                              novos[idx].total = novos[idx].quantidade * novos[idx].valorUnitario;
-                                              setItens(novos);
-                                              setOpenServicoPopoverIdx(null);
-                                              setServicoSearch('');
-                                            }}
-                                          >
-                                            <Sparkles className="mr-3 h-4 w-4 shrink-0 text-muted-foreground" />
-                                            <div className="flex flex-col flex-1 min-w-0">
-                                              <span className="text-sm">{cs.nome}</span>
-                                              <span className={`text-[11px] ${hasPreco ? 'text-green-600' : (precoDisplay > 0 ? 'text-amber-600' : 'text-muted-foreground')}`}>
-                                                {hasPreco ? `R$ ${precoDisplay.toFixed(2)} (preço do item)` : (precoDisplay > 0 ? `R$ ${precoDisplay.toFixed(2)} (preço padrão)` : 'Sem preço cadastrado')}
-                                              </span>
+                                            <div
+                                              key={cs.id}
+                                              className="flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                                              onClick={() => {
+                                                const novos = [...itens];
+                                                novos[idx] = {
+                                                  ...novos[idx],
+                                                  tipoServico: cs.id,
+                                                };
+                                                if (novos[idx].itemCatalogoId) {
+                                                  const p = lookupPreco(novos[idx].itemCatalogoId, cs.id);
+                                                  novos[idx].valorUnitario = p >= 0 ? p : (parseFloat(cs.preco) || 0);
+                                                } else {
+                                                  novos[idx].valorUnitario = parseFloat(cs.preco) || 0;
+                                                }
+                                                novos[idx].total = novos[idx].quantidade * novos[idx].valorUnitario;
+                                                setItens(novos);
+                                                setOpenServicoPopoverIdx(null);
+                                                setServicoSearch('');
+                                              }}
+                                            >
+                                              <Sparkles className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                              <div className="flex flex-col flex-1 min-w-0">
+                                                <span className="text-sm">{cs.nome}</span>
+                                                <span className={`text-[11px] ${hasPreco ? 'text-green-600' : (precoDisplay > 0 ? 'text-amber-600' : 'text-muted-foreground')}`}>
+                                                  {hasPreco ? `R$ ${precoDisplay.toFixed(2)} (preço do item)` : (precoDisplay > 0 ? `R$ ${precoDisplay.toFixed(2)} (preço padrão)` : 'Sem preço cadastrado')}
+                                                </span>
+                                              </div>
                                             </div>
-                                          </CommandItem>
                                           );
                                         })}
                                         {catalogoServicos.length === 0 && TIPOS_SERVICO.filter(ts => !servicoSearch.trim() || ts.label.toLowerCase().includes(servicoSearch.toLowerCase())).map(ts => (
-                                          <CommandItem
+                                          <div
                                             key={ts.value}
-                                            value={ts.label}
-                                            className="py-2.5"
-                                            onSelect={() => {
+                                            className="flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                                            onClick={() => {
                                               const novos = [...itens];
                                               novos[idx] = {
                                                 ...novos[idx],
@@ -1537,19 +1543,18 @@ export default function OSLavanderiaPage() {
                                               setServicoSearch('');
                                             }}
                                           >
-                                            <ts.icon className="mr-3 h-4 w-4 shrink-0 text-muted-foreground" />
+                                            <ts.icon className="h-4 w-4 shrink-0 text-muted-foreground" />
                                             <div className="flex flex-col">
                                               <span className="text-sm">{ts.label}</span>
                                               <span className="text-[11px] text-muted-foreground">Sem preço cadastrado</span>
                                             </div>
-                                          </CommandItem>
+                                          </div>
                                         ))}
-                                      </CommandGroup>
-                                    </CommandList>
-                                  </Command>
-                                </div>
-                              </>
-                            )}
+                                      </div>
+                                     </div>
+                                    </div>
+                                  </>
+                                )}
                             </TableCell>
                             <TableCell className="py-1">
                               <Input className="h-7 w-full text-xs px-2" placeholder="Obs..." value={item.observacoes} onChange={(e) => atualizarItem(idx, 'observacoes', e.target.value)} />

@@ -452,3 +452,11 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Resumo Financeiro, Vendedor/Status, Observações compactados
 - Dialog padding `p-6` → `!p-4`, header e footer compactados
 - Bugfix: grid `</div>` faltando adicionado (causava TS17008)
+
+### OS Lavanderia — Dropdowns como Modal Overlay ✅
+- Item e Serviço dropdowns convertidos de `position: absolute` para `position: fixed` centralizados na tela
+- Dropdown era cortado pelo container `overflow-y-auto` da tabela (mostrava apenas 1 item com scroll minúsculo)
+- Agora ambos abrem como overlay modal centralizado com título e botão X para fechar
+- Tamanho: `w-[min(480px,90vw)]` e `h-[min(500px,70vh)]` (item), `w-[min(380px,85vw)]` para serviço
+- Service dropdown migrado de cmdk Command para divs simples (consistente com item dropdown)
+- Ícone `X` adicionado ao import do lucide-react
