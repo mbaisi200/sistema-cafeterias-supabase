@@ -1255,65 +1255,43 @@ export default function OSLavanderiaPage() {
         {/* CREATE/EDIT DIALOG */}
         {/* ============================================================ */}
         <Dialog open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) resetForm(); }}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <WashingMachine className="h-5 w-5 text-sky-600" />
-                {editingOS ? `Editar OS #${editingOS.numero}` : 'Nova Ordem de Serviço - Lavanderia'}
+          <DialogContent className="max-w-4xl !p-4 max-h-[90vh] overflow-y-auto">
+            <DialogHeader className="pb-1">
+              <DialogTitle className="flex items-center gap-2 text-sm">
+                <WashingMachine className="h-4 w-4 text-sky-600" />
+                {editingOS ? `Editar OS #${editingOS.numero}` : 'Nova OS - Lavanderia'}
               </DialogTitle>
-              <DialogDescription>Preencha os dados da ordem de serviço de lavanderia</DialogDescription>
             </DialogHeader>
 
-            <div className="space-y-5">
-              {/* Número da OS */}
-              <div className="flex items-center gap-4 bg-sky-50 p-3 rounded-lg">
-                <span className="text-sm font-medium text-sky-700">Nº da OS:</span>
-                <span className="text-lg font-bold font-mono text-sky-800">
-                  #{editingOS ? editingOS.numero : formNumero}
-                </span>
-              </div>
+            <div className="space-y-2">
 
-              {/* Datas de Entrada e Previsão */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium flex items-center gap-1">
-                    <CalendarDays className="h-3 w-3" /> Data Entrada
-                  </Label>
-                  <Input type="date" value={formDataEntrada} onChange={(e) => setFormDataEntrada(e.target.value)} />
+              {/* Linha única: datas + cliente */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                <div className="space-y-0.5">
+                  <Label className="text-[11px] font-medium">Data Entrada</Label>
+                  <Input type="date" className="h-8 text-xs" value={formDataEntrada} onChange={(e) => setFormDataEntrada(e.target.value)} />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> Hora Entrada
-                  </Label>
-                  <Input type="time" value={formHoraEntrada} onChange={(e) => setFormHoraEntrada(e.target.value)} />
+                <div className="space-y-0.5">
+                  <Label className="text-[11px] font-medium">Hora</Label>
+                  <Input type="time" className="h-8 text-xs" value={formHoraEntrada} onChange={(e) => setFormHoraEntrada(e.target.value)} />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium flex items-center gap-1">
-                    <CalendarDays className="h-3 w-3" /> Previsão Entrega
-                  </Label>
-                  <Input type="date" value={formDataPrevisao} onChange={(e) => setFormDataPrevisao(e.target.value)} />
+                <div className="space-y-0.5">
+                  <Label className="text-[11px] font-medium">Prev. Entrega</Label>
+                  <Input type="date" className="h-8 text-xs" value={formDataPrevisao} onChange={(e) => setFormDataPrevisao(e.target.value)} />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-medium flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> Hora Previsão
-                  </Label>
-                  <Input type="time" value={formHoraPrevisao} onChange={(e) => setFormHoraPrevisao(e.target.value)} />
+                <div className="space-y-0.5">
+                  <Label className="text-[11px] font-medium">Hora</Label>
+                  <Input type="time" className="h-8 text-xs" value={formHoraPrevisao} onChange={(e) => setFormHoraPrevisao(e.target.value)} />
                 </div>
-              </div>
-
-              {/* Cliente */}
-              <div className="space-y-2">
-                <Label>Cliente <span className="text-red-500">*</span></Label>
+                <div className="space-y-0.5">
+                  <Label className="text-[11px] font-medium">Cliente <span className="text-red-500">*</span></Label>
                 <Popover open={openClienteSearch} onOpenChange={setOpenClienteSearch}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="h-10 w-full justify-start font-normal text-sm">
+                    <Button variant="outline" className="h-8 w-full justify-start font-normal text-xs px-2">
                       {clienteNome ? (
-                        <span className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <div className="flex flex-col items-start">
-                            <span>{clienteNome}</span>
-                            {clienteTelefone && <span className="text-xs text-muted-foreground">{clienteTelefone}</span>}
-                          </div>
+                        <span className="flex items-center gap-1.5 truncate w-full">
+                          <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                          <span className="truncate">{clienteNome}</span>
                         </span>
                       ) : (
                         <span className="text-muted-foreground">Selecionar cliente...</span>
@@ -1360,28 +1338,13 @@ export default function OSLavanderiaPage() {
                   </PopoverContent>
                 </Popover>
               </div>
-
-              {/* Cliente info fields */}
-              {(clienteNome || clienteTelefone) && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 bg-muted rounded-lg p-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs flex items-center gap-1"><Phone className="h-3 w-3" /> Telefone/WhatsApp</Label>
-                    <Input placeholder="(00) 00000-0000" value={clienteTelefone} onChange={(e) => setClienteTelefone(e.target.value)} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs flex items-center gap-1"><MapPin className="h-3 w-3" /> Endereço/Entrega</Label>
-                    <Input placeholder="Rua, Nº, Bairro, Cidade - UF" value={clienteEndereco} onChange={(e) => setClienteEndereco(e.target.value)} />
-                  </div>
-                </div>
-              )}
-
-              <Separator />
+              </div>
 
               {/* ITENS E SERVIÇOS */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-sm font-semibold flex items-center gap-2">
-                    <Shirt className="h-4 w-4 text-sky-600" />
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs font-semibold flex items-center gap-1">
+                    <Shirt className="h-3.5 w-3.5 text-sky-600" />
                     Itens e Serviços
                   </Label>
                   <div className="flex gap-2">
@@ -1397,38 +1360,37 @@ export default function OSLavanderiaPage() {
                 </div>
 
                 {itens.length === 0 ? (
-                  <div className="flex items-center justify-center flex-1 bg-muted rounded-lg mt-3">
+                  <div className="flex items-center justify-center bg-muted rounded-md py-6">
                     <div className="text-center">
-                      <Shirt className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-                      <p className="text-sm text-muted-foreground">
-                        Nenhuma peça adicionada. Clique em &quot;Adicionar Peça&quot; para começar.
+                      <Shirt className="h-8 w-8 mx-auto text-muted-foreground/40 mb-1" />
+                      <p className="text-xs text-muted-foreground">
+                        Nenhuma peça adicionada.
                       </p>
-                      <p className="text-xs text-sky-600 mt-1">Os itens e serviços serão buscados automaticamente do catálogo.</p>
                     </div>
                   </div>
                 ) : (
-                  <div className="border rounded-lg overflow-auto mt-3">
+                  <div className="border rounded-md max-h-[260px] overflow-y-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-20 text-center align-top pt-3"><div className="text-xs font-semibold">Qtd</div><div className="text-[10px] font-normal leading-tight">m²</div></TableHead>
-                          <TableHead className="min-w-[300px] align-top pt-3 text-xs font-semibold">Descrição da Peça</TableHead>
-                          <TableHead className="w-44 align-top pt-3 text-xs font-semibold">Tipo de Serviço</TableHead>
-                          <TableHead className="w-52 align-top pt-3 text-xs font-semibold">Observações</TableHead>
-                          <TableHead className="w-28 text-right align-top pt-3 text-xs font-semibold">Valor Unit.</TableHead>
-                          <TableHead className="w-24 text-right align-top pt-3 text-xs font-semibold">Total</TableHead>
-                          <TableHead className="w-10 align-top pt-3"></TableHead>
+                          <TableHead className="w-16 text-center py-1"><span className="text-[11px] font-semibold">Qtd</span></TableHead>
+                          <TableHead className="min-w-[280px] py-1 text-[11px] font-semibold">Peça</TableHead>
+                          <TableHead className="w-40 py-1 text-[11px] font-semibold">Serviço</TableHead>
+                          <TableHead className="w-40 py-1 text-[11px] font-semibold">Obs</TableHead>
+                          <TableHead className="w-24 text-right py-1 text-[11px] font-semibold">Valor Un.</TableHead>
+                          <TableHead className="w-20 text-right py-1 text-[11px] font-semibold">Total</TableHead>
+                          <TableHead className="w-8 py-1"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {itens.map((item, idx) => (
                           <TableRow key={idx}>
-                            <TableCell className="align-top py-3">
-                              <Input type="number" min="0.01" step="0.01" className="h-10 text-center w-20 text-sm font-medium" value={item.quantidade} onChange={(e) => atualizarItem(idx, 'quantidade', parseFloat(e.target.value) || 0)} />
+                            <TableCell className="py-1">
+                              <Input type="number" min="0.01" step="0.01" className="h-7 text-center w-14 text-xs font-medium" value={item.quantidade} onChange={(e) => atualizarItem(idx, 'quantidade', parseFloat(e.target.value) || 0)} />
                             </TableCell>
-                            <TableCell className="relative align-top py-3 min-w-[300px]">
+                            <TableCell className="relative py-1 min-w-[280px]">
                               <Input
-                                className="h-10 w-full text-sm px-3"
+                                className="h-7 w-full text-xs px-2"
                                 placeholder="Buscar item..."
                                 value={item.descricaoPeca}
                                 onChange={(e) => {
@@ -1442,77 +1404,74 @@ export default function OSLavanderiaPage() {
                               />
                               {openItemPopoverIdx === idx && (
                                 <>
-                                  <div className="fixed inset-0 z-40" onClick={() => { setOpenItemPopoverIdx(null); setItemSearch(''); }} />
+                                  <div className="fixed inset-0 z-40" onClick={() => { setOpenItemPopoverIdx(null); setItemSearch(''); }}></div>
                                   <div
-                                    className="absolute left-0 top-full mt-1 z-50 rounded-md border bg-popover text-popover-foreground shadow-md flex flex-col"
-                                    style={{ width: 'min(480px, 90vw)', minHeight: '400px', maxHeight: '70vh' }}
-                                    onPointerDown={(e) => e.preventDefault()}
-                                  >
-                                    <div className="p-2 border-b">
-                                      <Input
-                                        placeholder="Filtrar itens..."
-                                        value={itemSearch}
-                                        onChange={(e) => setItemSearch(e.target.value)}
-                                        autoFocus
-                                        className="h-9 text-sm"
-                                      />
-                                    </div>
-                                    <div className="overflow-y-auto flex-1 p-1">
-                                      {catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).length === 0 ? (
-                                        <p className="text-sm text-muted-foreground py-4 text-center">Nenhum item encontrado</p>
-                                      ) : (
-                                        catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).map((ci: any) => (
-                                          <div
-                                            key={ci.id}
-                                            className="flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                                            onMouseDown={(e) => {
-                                              e.preventDefault();
-                                              const novos = [...itens];
-                                              novos[idx] = {
-                                                ...novos[idx],
-                                                descricaoPeca: ci.descricao,
-                                                itemCatalogoId: ci.id,
-                                              };
-                                              if (novos[idx].tipoServico) {
-                                                const preco = lookupPreco(ci.id, novos[idx].tipoServico);
-                                                if (preco >= 0) novos[idx].valorUnitario = preco;
-                                              }
-                                              novos[idx].total = novos[idx].quantidade * novos[idx].valorUnitario;
-                                              setItens(novos);
-                                              setOpenItemPopoverIdx(null);
-                                              setItemSearch('');
-                                            }}
-                                          >
-                                            <Shirt className="h-4 w-4 shrink-0 text-muted-foreground" />
-                                            <span className="flex-1 text-sm">{ci.descricao}</span>
-                                            {ci.categoria && <Badge variant="secondary" className="text-[10px] ml-2 shrink-0 px-1.5">{ci.categoria}</Badge>}
-                                          </div>
-                                        ))
-                                      )}
-                                    </div>
-                                  </div>
-                                </>
-                              )}
-                            </TableCell>
-                            <TableCell className="relative align-top py-3">
-                              <Input
-                                className="h-10 w-full text-sm px-3"
-                                placeholder="Serviço..."
-                                value={servicoSearch || (item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : '')}
-                                onChange={(e) => {
-                                  setServicoSearch(e.target.value);
-                                  setOpenServicoPopoverIdx(idx);
-                                }}
-                                onFocus={() => setOpenServicoPopoverIdx(idx)}
-                              />
-                              {openServicoPopoverIdx === idx && (
-                                <>
-                                  <div className="fixed inset-0 z-40" onClick={() => { setOpenServicoPopoverIdx(null); setServicoSearch(''); }} />
+                                     className="absolute left-0 top-full mt-1 z-50 rounded-md border bg-popover text-popover-foreground shadow-md flex flex-col"
+                                     style={{ width: 'min(480px, 90vw)', minHeight: '400px', maxHeight: '70vh' }}
+                                   >
+                                     <div className="p-2 border-b">
+                                       <Input
+                                         placeholder="Filtrar itens..."
+                                         value={itemSearch}
+                                         onChange={(e) => setItemSearch(e.target.value)}
+                                         autoFocus
+                                         className="h-9 text-sm"
+                                       />
+                                     </div>
+                                     <div className="overflow-y-auto flex-1 p-1">
+                                       {catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).length === 0 ? (
+                                         <p className="text-sm text-muted-foreground py-4 text-center">Nenhum item encontrado</p>
+                                       ) : (
+                                         catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).map((ci: any) => (
+                                           <div
+                                             key={ci.id}
+                                             className="flex items-center gap-3 px-3 py-2.5 rounded-md cursor-pointer hover:bg-accent hover:text-accent-foreground"
+                                              onClick={() => {
+                                                const novos = [...itens];
+                                                novos[idx] = {
+                                                  ...novos[idx],
+                                                  descricaoPeca: ci.descricao,
+                                                  itemCatalogoId: ci.id,
+                                                };
+                                                if (novos[idx].tipoServico) {
+                                                  const preco = lookupPreco(ci.id, novos[idx].tipoServico);
+                                                  if (preco >= 0) novos[idx].valorUnitario = preco;
+                                                }
+                                                novos[idx].total = novos[idx].quantidade * novos[idx].valorUnitario;
+                                                setItens(novos);
+                                                setOpenItemPopoverIdx(null);
+                                                setItemSearch('');
+                                              }}
+                                           >
+                                             <Shirt className="h-4 w-4 shrink-0 text-muted-foreground" />
+                                             <span className="flex-1 text-sm">{ci.descricao}</span>
+                                             {ci.categoria && <Badge variant="secondary" className="text-[10px] ml-2 shrink-0 px-1.5">{ci.categoria}</Badge>}
+                                           </div>
+                                         ))
+                                       )}
+                                     </div>
+                                   </div>
+                                 </>
+                               )}
+                             </TableCell>
+                             <TableCell className="relative py-1">
+                               <Input
+                                 className="h-7 w-full text-xs px-2"
+                                 placeholder="Serviço..."
+                                 value={servicoSearch || (item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : '')}
+                                 onChange={(e) => {
+                                   setServicoSearch(e.target.value);
+                                   setOpenServicoPopoverIdx(idx);
+                                 }}
+                                 onFocus={() => setOpenServicoPopoverIdx(idx)}
+                               />
+                               {openServicoPopoverIdx === idx && (
+                                 <>
+                                   <div className="fixed inset-0 z-40" onClick={() => { setOpenServicoPopoverIdx(null); setServicoSearch(''); }}></div>
                                 <div
-                                  className="absolute left-0 top-full mt-1 z-50 rounded-md border bg-popover text-popover-foreground shadow-md flex flex-col"
-                                  style={{ width: 'min(380px, 85vw)', height: '400px', maxHeight: '60vh' }}
-                                  onPointerDown={(e) => e.preventDefault()}
-                                >
+                                   className="absolute left-0 top-full mt-1 z-50 rounded-md border bg-popover text-popover-foreground shadow-md flex flex-col"
+                                   style={{ width: 'min(380px, 85vw)', height: '400px', maxHeight: '60vh' }}
+                                 >
                                   <Command shouldFilter={false} className="flex-1 min-h-0 flex flex-col">
                                     <CommandInput
                                       placeholder="Filtrar serviços..."
@@ -1592,18 +1551,18 @@ export default function OSLavanderiaPage() {
                               </>
                             )}
                             </TableCell>
-                            <TableCell className="align-top py-3">
-                              <Input className="h-10 w-full text-sm" placeholder="Obs..." value={item.observacoes} onChange={(e) => atualizarItem(idx, 'observacoes', e.target.value)} />
+                            <TableCell className="py-1">
+                              <Input className="h-7 w-full text-xs px-2" placeholder="Obs..." value={item.observacoes} onChange={(e) => atualizarItem(idx, 'observacoes', e.target.value)} />
                             </TableCell>
-                            <TableCell className="text-right align-top py-3">
-                              <Input type="number" min="0" step="0.01" className="h-10 text-right w-28 text-sm" value={item.valorUnitario} onChange={(e) => atualizarItem(idx, 'valorUnitario', parseFloat(e.target.value) || 0)} />
+                            <TableCell className="text-right py-1">
+                              <Input type="number" min="0" step="0.01" className="h-7 text-right w-24 text-xs" value={item.valorUnitario} onChange={(e) => atualizarItem(idx, 'valorUnitario', parseFloat(e.target.value) || 0)} />
                             </TableCell>
-                            <TableCell className="text-right align-top py-3 font-semibold text-sm">
+                            <TableCell className="text-right py-1 font-semibold text-xs">
                               R$ {(item.total || 0).toFixed(2)}
                             </TableCell>
-                            <TableCell className="align-top py-3">
-                              <Button variant="ghost" size="icon" className="h-10 w-10 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => removerItem(idx)}>
-                                <Trash2 className="h-4 w-4" />
+                            <TableCell className="py-1">
+                              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => removerItem(idx)}>
+                                <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -1614,52 +1573,42 @@ export default function OSLavanderiaPage() {
                 )}
               </div>
 
-              <Separator />
-
               {/* RESUMO FINANCEIRO */}
-              <div className="space-y-3">
-                <Label className="text-sm font-semibold flex items-center gap-2">
-                  <FileText className="h-4 w-4" />
-                  Resumo Financeiro
-                </Label>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Total de Peças</Label>
-                    <div className="h-9 flex items-center px-3 bg-muted rounded-md font-semibold">
-                      {totalPecasCalc} peça(s)
-                    </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                <div>
+                  <Label className="text-[11px]">Peças</Label>
+                  <div className="h-7 flex items-center px-2 bg-muted rounded text-xs font-semibold">
+                    {totalPecasCalc}
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Peso (kg)</Label>
-                    <Input type="number" step="0.1" min="0" placeholder="0,0" value={pesoKg || ''} onChange={(e) => setPesoKg(parseFloat(e.target.value) || 0)} />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Valor Total (R$)</Label>
-                    <Input type="number" step="0.01" min="0" placeholder="0,00" value={formValorTotal || ''} onChange={(e) => setFormValorTotal(parseFloat(e.target.value) || 0)} className="font-semibold text-green-600" />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Forma de Pagamento <span className="text-red-500">*</span></Label>
-                    <Select value={formaPagamento} onValueChange={setFormaPagamento}>
-                      <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
-                      <SelectContent>
-                        {FORMAS_PAGAMENTO.map(fp => (
-                          <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                </div>
+                <div>
+                  <Label className="text-[11px]">Peso (kg)</Label>
+                  <Input type="number" step="0.1" min="0" placeholder="0" className="h-7 text-xs" value={pesoKg || ''} onChange={(e) => setPesoKg(parseFloat(e.target.value) || 0)} />
+                </div>
+                <div>
+                  <Label className="text-[11px]">Valor Total (R$)</Label>
+                  <Input type="number" step="0.01" min="0" placeholder="0" className="h-7 text-xs font-semibold text-green-600" value={formValorTotal || ''} onChange={(e) => setFormValorTotal(parseFloat(e.target.value) || 0)} />
+                </div>
+                <div>
+                  <Label className="text-[11px]">Pagamento <span className="text-red-500">*</span></Label>
+                  <Select value={formaPagamento} onValueChange={setFormaPagamento}>
+                    <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                    <SelectContent>
+                      {FORMAS_PAGAMENTO.map(fp => (
+                        <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
-              <Separator />
-
               {/* Status e Vendedor */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Vendedor</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-[11px]">Vendedor</Label>
                   <Popover open={openVendedorSearch} onOpenChange={setOpenVendedorSearch}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="h-10 w-full justify-start font-normal text-sm">
+                      <Button variant="outline" className="h-7 w-full justify-start font-normal text-xs px-2">
                         {formVendedorNome ? (
                           <span>{formVendedorNome}</span>
                         ) : (
@@ -1690,10 +1639,10 @@ export default function OSLavanderiaPage() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Status</Label>
+                <div>
+                  <Label className="text-[11px]">Status</Label>
                   <Select value={formStatus} onValueChange={setFormStatus}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {STATUS_OPTIONS.map(s => (
                         <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
@@ -1704,16 +1653,13 @@ export default function OSLavanderiaPage() {
               </div>
 
               {/* Observações */}
-              <div className="space-y-1">
-                <Label className="text-xs">Observações Internas</Label>
-                <textarea className="w-full min-h-[60px] p-3 border rounded-lg resize-none text-sm" placeholder="Observações adicionais sobre a OS..." value={formObservacoes} onChange={(e) => setFormObservacoes(e.target.value)} />
-              </div>
+              <textarea className="w-full h-14 p-2 border rounded text-xs resize-none" placeholder="Observações..." value={formObservacoes} onChange={(e) => setFormObservacoes(e.target.value)} />
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => { setFormOpen(false); resetForm(); }}>Cancelar</Button>
-              <Button onClick={handleSaveOS} disabled={saving} className="bg-sky-600 hover:bg-sky-700">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            <DialogFooter className="pt-1">
+              <Button variant="outline" size="sm" onClick={() => { setFormOpen(false); resetForm(); }}>Cancelar</Button>
+              <Button size="sm" onClick={handleSaveOS} disabled={saving} className="bg-sky-600 hover:bg-sky-700">
+                {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
                 {editingOS ? 'Atualizar OS' : 'Criar OS'}
               </Button>
             </DialogFooter>

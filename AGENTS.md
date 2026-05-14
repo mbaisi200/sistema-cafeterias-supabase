@@ -434,6 +434,21 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Item search dropdown convertido de Popover/Command cmdk para divs simples com Input + lista estilizada
 - Dropdown com `minHeight: 400px` e `maxHeight: 70vh` para melhor visualização
 - Service search dropdown mantido com Command, com `height: 400px` e scroll
-- Campos aumentados para `h-10`, fontes `text-sm`, padding `py-3`
 - `overflow-hidden` removido do container da tabela para não cortar dropdowns
 - Layout simplificado: revertido flex restructuring para `space-y-5` original
+
+### OS Lavanderia — Item Selection Fix ✅
+- `onMouseDown` com `preventDefault` trocado por `onClick` nos itens do dropdown — `preventDefault` no `onMouseDown` impedia o `click` de disparar em alguns navegadores
+- `onPointerDown` com `preventDefault` removido dos containers dos dropdowns (item e serviço) — em Chromium podia cancelar o `click`
+
+### OS Lavanderia — Dialog Compactado (Sem Scroll) ✅
+- Bloco "Nº da OS" removido (já está no título do dialog)
+- Espaçamento geral `space-y-5` → `space-y-2`
+- Datas e cliente unificados em grid única de 5 colunas
+- Inputs reduzidos: `h-10` → `h-8`/`h-7`, labels `text-xs` → `text-[11px]`
+- Tabela de itens com scroll interno: `max-h-[260px] overflow-y-auto`, padding `py-3` → `py-1`
+- Bloco de info do cliente (telefone/endereço) removido (dados já aparecem no botão)
+- Separators removidos entre seções
+- Resumo Financeiro, Vendedor/Status, Observações compactados
+- Dialog padding `p-6` → `!p-4`, header e footer compactados
+- Bugfix: grid `</div>` faltando adicionado (causava TS17008)
