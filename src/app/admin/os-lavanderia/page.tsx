@@ -1256,7 +1256,7 @@ export default function OSLavanderiaPage() {
         {/* CREATE/EDIT DIALOG */}
         {/* ============================================================ */}
         <Dialog open={formOpen} onOpenChange={(open) => { setFormOpen(open); if (!open) resetForm(); }}>
-          <DialogContent className="max-w-4xl !p-4 max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-6xl !p-6 max-h-[90vh] overflow-y-auto">
             <DialogHeader className="pb-1">
               <DialogTitle className="flex items-center gap-2 text-sm">
                 <WashingMachine className="h-4 w-4 text-sky-600" />
@@ -1266,32 +1266,15 @@ export default function OSLavanderiaPage() {
 
             <div className="space-y-2">
 
-              {/* Linha única: datas + cliente */}
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                <div className="space-y-0.5">
-                  <Label className="text-[11px] font-medium">Data Entrada</Label>
-                  <Input type="date" className="h-8 text-xs" value={formDataEntrada} onChange={(e) => setFormDataEntrada(e.target.value)} />
-                </div>
-                <div className="space-y-0.5">
-                  <Label className="text-[11px] font-medium">Hora</Label>
-                  <Input type="time" className="h-8 text-xs" value={formHoraEntrada} onChange={(e) => setFormHoraEntrada(e.target.value)} />
-                </div>
-                <div className="space-y-0.5">
-                  <Label className="text-[11px] font-medium">Prev. Entrega</Label>
-                  <Input type="date" className="h-8 text-xs" value={formDataPrevisao} onChange={(e) => setFormDataPrevisao(e.target.value)} />
-                </div>
-                <div className="space-y-0.5">
-                  <Label className="text-[11px] font-medium">Hora</Label>
-                  <Input type="time" className="h-8 text-xs" value={formHoraPrevisao} onChange={(e) => setFormHoraPrevisao(e.target.value)} />
-                </div>
-                <div className="space-y-0.5">
-                  <Label className="text-[11px] font-medium">Cliente <span className="text-red-500">*</span></Label>
+              {/* Cliente em primeiro lugar */}
+              <div className="space-y-1">
+                <Label className="text-xs font-medium">Cliente <span className="text-red-500">*</span></Label>
                 <Popover open={openClienteSearch} onOpenChange={setOpenClienteSearch}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" className="h-8 w-full justify-start font-normal text-xs px-2">
+                    <Button variant="outline" className="h-10 w-full justify-start font-normal text-sm px-3">
                       {clienteNome ? (
-                        <span className="flex items-center gap-1.5 truncate w-full">
-                          <User className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                        <span className="flex items-center gap-2 truncate w-full">
+                          <User className="h-4 w-4 shrink-0 text-muted-foreground" />
                           <span className="truncate">{clienteNome}</span>
                         </span>
                       ) : (
@@ -1339,6 +1322,25 @@ export default function OSLavanderiaPage() {
                   </PopoverContent>
                 </Popover>
               </div>
+
+              {/* Datas de Entrada e Previsão */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Data Entrada</Label>
+                  <Input type="date" className="h-10 text-sm" value={formDataEntrada} onChange={(e) => setFormDataEntrada(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Hora</Label>
+                  <Input type="time" className="h-10 text-sm" value={formHoraEntrada} onChange={(e) => setFormHoraEntrada(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Prev. Entrega</Label>
+                  <Input type="date" className="h-10 text-sm" value={formDataPrevisao} onChange={(e) => setFormDataPrevisao(e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-medium">Hora</Label>
+                  <Input type="time" className="h-10 text-sm" value={formHoraPrevisao} onChange={(e) => setFormHoraPrevisao(e.target.value)} />
+                </div>
               </div>
 
               {/* ITENS E SERVIÇOS */}
@@ -1370,28 +1372,32 @@ export default function OSLavanderiaPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="border rounded-md max-h-[260px] overflow-y-auto">
+                  <div className="border rounded-md max-h-[400px] overflow-y-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-16 text-center py-1"><span className="text-[11px] font-semibold">Qtd</span></TableHead>
-                          <TableHead className="min-w-[280px] py-1 text-[11px] font-semibold">Peça</TableHead>
-                          <TableHead className="w-40 py-1 text-[11px] font-semibold">Serviço</TableHead>
-                          <TableHead className="w-40 py-1 text-[11px] font-semibold">Obs</TableHead>
-                          <TableHead className="w-24 text-right py-1 text-[11px] font-semibold">Valor Un.</TableHead>
-                          <TableHead className="w-20 text-right py-1 text-[11px] font-semibold">Total</TableHead>
-                          <TableHead className="w-8 py-1"></TableHead>
+                          <TableHead className="w-24 text-center py-2"><span className="text-xs font-semibold">Qtd</span><div className="text-[10px] font-normal leading-tight">m²</div></TableHead>
+                          <TableHead className="min-w-[300px] py-2 text-xs font-semibold">Peça</TableHead>
+                          <TableHead className="w-48 py-2 text-xs font-semibold">Serviço</TableHead>
+                          <TableHead className="w-48 py-2 text-xs font-semibold">Obs</TableHead>
+                          <TableHead className="w-28 text-right py-2 text-xs font-semibold">Valor Un.</TableHead>
+                          <TableHead className="w-24 text-right py-2 text-xs font-semibold">Total</TableHead>
+                          <TableHead className="w-10 py-2"></TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {itens.map((item, idx) => (
                           <TableRow key={idx}>
-                            <TableCell className="py-1">
-                              <Input type="number" min="0.01" step="0.01" className="h-7 text-center w-14 text-xs font-medium" value={item.quantidade} onChange={(e) => atualizarItem(idx, 'quantidade', parseFloat(e.target.value) || 0)} />
+                            <TableCell className="py-2">
+                              <Input type="text" inputMode="decimal" className="h-9 text-center w-20 text-sm font-medium" value={item.quantidade === 0 ? '' : String(item.quantidade).replace('.', ',')} onChange={(e) => {
+                                const raw = e.target.value.replace(/[^0-9,]/g, '');
+                                const parsed = parseFloat(raw.replace(',', '.'));
+                                atualizarItem(idx, 'quantidade', isNaN(parsed) ? 0 : parsed);
+                              }} />
                             </TableCell>
-                            <TableCell className="relative py-1 min-w-[280px]">
+                            <TableCell className="relative py-2 min-w-[300px]">
                               <Input
-                                className="h-7 w-full text-xs px-2"
+                                className="h-9 w-full text-sm px-3"
                                 placeholder="Buscar item..."
                                 value={item.descricaoPeca}
                                 onChange={(e) => {
@@ -1409,7 +1415,7 @@ export default function OSLavanderiaPage() {
                                   <div
                                      className="fixed inset-0 z-50 flex items-center justify-center"
                                    >
-                                     <div className="w-[min(480px,90vw)] h-[min(500px,70vh)] rounded-lg border bg-popover text-popover-foreground shadow-xl flex flex-col">
+                                     <div className="w-[min(560px,90vw)] h-[min(600px,80vh)] rounded-lg border bg-popover text-popover-foreground shadow-xl flex flex-col">
                                       <div className="p-2 border-b flex items-center justify-between">
                                         <span className="text-sm font-semibold">Buscar Peça</span>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setOpenItemPopoverIdx(null); setItemSearch(''); }}><X className="h-4 w-4" /></Button>
@@ -1460,22 +1466,22 @@ export default function OSLavanderiaPage() {
                                 </>
                               )}
                              </TableCell>
-                             <TableCell className="relative py-1">
-                               <Input
-                                 className="h-7 w-full text-xs px-2"
-                                 placeholder="Serviço..."
-                                 value={servicoSearch || (item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : '')}
-                                 onChange={(e) => {
-                                   setServicoSearch(e.target.value);
-                                   setOpenServicoPopoverIdx(idx);
-                                 }}
-                                 onFocus={() => setOpenServicoPopoverIdx(idx)}
-                               />
+                              <TableCell className="relative py-2">
+                                <Input
+                                  className="h-9 w-full text-sm px-3"
+                                  placeholder="Serviço..."
+                                  value={servicoSearch || (item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : '')}
+                                  onChange={(e) => {
+                                    setServicoSearch(e.target.value);
+                                    setOpenServicoPopoverIdx(idx);
+                                  }}
+                                  onFocus={() => setOpenServicoPopoverIdx(idx)}
+                                />
 {openServicoPopoverIdx === idx && (
                                   <>
                                     <div className="fixed inset-0 z-40" onClick={() => { setOpenServicoPopoverIdx(null); setServicoSearch(''); }}></div>
                                     <div className="fixed inset-0 z-50 flex items-center justify-center">
-                                     <div className="w-[min(380px,85vw)] h-[min(500px,70vh)] rounded-lg border bg-popover text-popover-foreground shadow-xl flex flex-col">
+                                     <div className="w-[min(460px,85vw)] h-[min(600px,80vh)] rounded-lg border bg-popover text-popover-foreground shadow-xl flex flex-col">
                                       <div className="p-2 border-b flex items-center justify-between">
                                         <span className="text-sm font-semibold">Buscar Serviço</span>
                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setOpenServicoPopoverIdx(null); setServicoSearch(''); }}><X className="h-4 w-4" /></Button>
@@ -1556,18 +1562,18 @@ export default function OSLavanderiaPage() {
                                   </>
                                 )}
                             </TableCell>
-                            <TableCell className="py-1">
-                              <Input className="h-7 w-full text-xs px-2" placeholder="Obs..." value={item.observacoes} onChange={(e) => atualizarItem(idx, 'observacoes', e.target.value)} />
+                            <TableCell className="py-2">
+                              <Input className="h-9 w-full text-sm px-3" placeholder="Obs..." value={item.observacoes} onChange={(e) => atualizarItem(idx, 'observacoes', e.target.value)} />
                             </TableCell>
-                            <TableCell className="text-right py-1">
-                              <Input type="number" min="0" step="0.01" className="h-7 text-right w-24 text-xs" value={item.valorUnitario} onChange={(e) => atualizarItem(idx, 'valorUnitario', parseFloat(e.target.value) || 0)} />
+                            <TableCell className="text-right py-2">
+                              <Input type="number" min="0" step="0.01" className="h-9 text-right w-28 text-sm" value={item.valorUnitario} onChange={(e) => atualizarItem(idx, 'valorUnitario', parseFloat(e.target.value) || 0)} />
                             </TableCell>
-                            <TableCell className="text-right py-1 font-semibold text-xs">
+                            <TableCell className="text-right py-2 font-semibold text-sm">
                               R$ {(item.total || 0).toFixed(2)}
                             </TableCell>
-                            <TableCell className="py-1">
-                              <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => removerItem(idx)}>
-                                <Trash2 className="h-3.5 w-3.5" />
+                            <TableCell className="py-2">
+                              <Button variant="ghost" size="icon" className="h-9 w-9 text-red-500 hover:text-red-700 hover:bg-red-50" onClick={() => removerItem(idx)}>
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -1579,25 +1585,25 @@ export default function OSLavanderiaPage() {
               </div>
 
               {/* RESUMO FINANCEIRO */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
-                  <Label className="text-[11px]">Peças</Label>
-                  <div className="h-7 flex items-center px-2 bg-muted rounded text-xs font-semibold">
+                  <Label className="text-xs">Peças</Label>
+                  <div className="h-9 flex items-center px-3 bg-muted rounded text-sm font-semibold">
                     {totalPecasCalc}
                   </div>
                 </div>
                 <div>
-                  <Label className="text-[11px]">Peso (kg)</Label>
-                  <Input type="number" step="0.1" min="0" placeholder="0" className="h-7 text-xs" value={pesoKg || ''} onChange={(e) => setPesoKg(parseFloat(e.target.value) || 0)} />
+                  <Label className="text-xs">Peso (kg)</Label>
+                  <Input type="number" step="0.1" min="0" placeholder="0" className="h-9 text-sm" value={pesoKg || ''} onChange={(e) => setPesoKg(parseFloat(e.target.value) || 0)} />
                 </div>
                 <div>
-                  <Label className="text-[11px]">Valor Total (R$)</Label>
-                  <Input type="number" step="0.01" min="0" placeholder="0" className="h-7 text-xs font-semibold text-green-600" value={formValorTotal || ''} onChange={(e) => setFormValorTotal(parseFloat(e.target.value) || 0)} />
+                  <Label className="text-xs">Valor Total (R$)</Label>
+                  <Input type="number" step="0.01" min="0" placeholder="0" className="h-9 text-sm font-semibold text-green-600" value={formValorTotal || ''} onChange={(e) => setFormValorTotal(parseFloat(e.target.value) || 0)} />
                 </div>
                 <div>
-                  <Label className="text-[11px]">Pagamento <span className="text-red-500">*</span></Label>
+                  <Label className="text-xs">Pagamento <span className="text-red-500">*</span></Label>
                   <Select value={formaPagamento} onValueChange={setFormaPagamento}>
-                    <SelectTrigger className="h-7 text-xs"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
+                    <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                     <SelectContent>
                       {FORMAS_PAGAMENTO.map(fp => (
                         <SelectItem key={fp.value} value={fp.value}>{fp.label}</SelectItem>
@@ -1608,12 +1614,12 @@ export default function OSLavanderiaPage() {
               </div>
 
               {/* Status e Vendedor */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-[11px]">Vendedor</Label>
+                  <Label className="text-xs">Vendedor</Label>
                   <Popover open={openVendedorSearch} onOpenChange={setOpenVendedorSearch}>
                     <PopoverTrigger asChild>
-                      <Button variant="outline" className="h-7 w-full justify-start font-normal text-xs px-2">
+                      <Button variant="outline" className="h-9 w-full justify-start font-normal text-sm px-3">
                         {formVendedorNome ? (
                           <span>{formVendedorNome}</span>
                         ) : (
@@ -1645,9 +1651,9 @@ export default function OSLavanderiaPage() {
                   </Popover>
                 </div>
                 <div>
-                  <Label className="text-[11px]">Status</Label>
+                  <Label className="text-xs">Status</Label>
                   <Select value={formStatus} onValueChange={setFormStatus}>
-                    <SelectTrigger className="h-7 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {STATUS_OPTIONS.map(s => (
                         <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
@@ -1658,13 +1664,13 @@ export default function OSLavanderiaPage() {
               </div>
 
               {/* Observações */}
-              <textarea className="w-full h-14 p-2 border rounded text-xs resize-none" placeholder="Observações..." value={formObservacoes} onChange={(e) => setFormObservacoes(e.target.value)} />
+              <textarea className="w-full h-20 p-3 border rounded text-sm resize-none" placeholder="Observações..." value={formObservacoes} onChange={(e) => setFormObservacoes(e.target.value)} />
             </div>
 
-            <DialogFooter className="pt-1">
-              <Button variant="outline" size="sm" onClick={() => { setFormOpen(false); resetForm(); }}>Cancelar</Button>
-              <Button size="sm" onClick={handleSaveOS} disabled={saving} className="bg-sky-600 hover:bg-sky-700">
-                {saving ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+            <DialogFooter className="pt-2">
+              <Button variant="outline" size="default" onClick={() => { setFormOpen(false); resetForm(); }}>Cancelar</Button>
+              <Button size="default" onClick={handleSaveOS} disabled={saving} className="bg-sky-600 hover:bg-sky-700">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 {editingOS ? 'Atualizar OS' : 'Criar OS'}
               </Button>
             </DialogFooter>

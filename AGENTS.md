@@ -460,3 +460,20 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Tamanho: `w-[min(480px,90vw)]` e `h-[min(500px,70vh)]` (item), `w-[min(380px,85vw)]` para serviço
 - Service dropdown migrado de cmdk Command para divs simples (consistente com item dropdown)
 - Ícone `X` adicionado ao import do lucide-react
+
+### OS Lavanderia — Layout para Alta Resolução ✅
+- Dialog width aumentado: `max-w-4xl` (896px) → `max-w-6xl` (1152px), padding `!p-4` → `!p-6`
+- Tabela de itens: `max-h-[260px]` → `max-h-[400px]`, padding `py-1` → `py-2`, inputs `h-7` → `h-9`, fontes `text-xs` → `text-sm`
+- Dropdowns overlay: item `480px×500px` → `560px×600px`, serviço `380px×500px` → `460px×600px`
+- Datas e cliente: inputs `h-8` → `h-10`, fontes `text-xs` → `text-sm`
+- Resumo Financeiro / Vendedor / Status: inputs `h-7` → `h-9`
+- Observações: `h-14` → `h-20`, `text-xs` → `text-sm`
+- Footer: botões `size="sm"` → `size="default"`
+
+### OS Lavanderia — Campo QTD com m² ✅
+- "m²" adicionado abaixo do cabeçalho "Qtd"
+- Input de quantidade: `type="text"` com `inputMode="decimal"`, aceita inteiros primeiro, vírgula como separador decimal
+- Nenhum 0 default — campo fica em branco quando vazio
+
+### OS Lavanderia — Cliente em Primeiro ✅
+- Cliente movido para antes das Datas no formulário do dialog
