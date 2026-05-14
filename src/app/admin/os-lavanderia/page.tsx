@@ -294,7 +294,8 @@ export default function OSLavanderiaPage() {
 
       setOrdens(parsed);
       const allData = data || [];
-      const maxNum = allData.reduce((max: number, o: any) => Math.max(max, o.numero || 0), 0);
+      const lavData = allData.filter((o: any) => (o.observacoes || '').startsWith('[LAVANDERIA]'));
+      const maxNum = lavData.reduce((max: number, o: any) => Math.max(max, o.numero || 0), 0);
       setFormNumero(maxNum + 1);
     } catch (err: any) {
       console.error('Erro ao carregar OS de lavanderia:', err);
@@ -554,20 +555,11 @@ export default function OSLavanderiaPage() {
         if (error) throw error;
         toast({ title: 'OS atualizada!', description: 'A ordem de serviço de lavanderia foi atualizada.' });
       } else {
-        const { data: lastNum } = await supabase
-          .from('ordens_servico')
-          .select('numero')
-          .eq('empresa_id', empresaId)
-          .order('numero', { ascending: false })
-          .limit(1)
-          .single();
-        const nextNum = (lastNum?.numero || 0) + 1;
-
         const { error } = await supabase
           .from('ordens_servico')
           .insert({
             empresa_id: empresaId,
-            numero: nextNum,
+            numero: formNumero,
             cliente_id: clienteId,
             cliente_nome: clienteNome,
             descricao: `OS Lavanderia - ${clienteNome}`,
@@ -1430,7 +1422,7 @@ export default function OSLavanderiaPage() {
                             <TableCell>
                               <Input type="number" min="0.01" step="0.01" className="h-9 text-center w-20 text-sm font-medium" value={item.quantidade} onChange={(e) => atualizarItem(idx, 'quantidade', parseFloat(e.target.value) || 0)} />
                             </TableCell>
-                            <TableCell>
+                              <TableCell>
                               <Popover
                                 open={openItemPopoverIdx === idx}
                                 onOpenChange={(open) => {
@@ -1439,21 +1431,26 @@ export default function OSLavanderiaPage() {
                                 }}
                               >
                                 <PopoverTrigger asChild>
-                                  <Button variant="outline" className="h-9 w-full justify-start font-normal text-sm px-3">
-                                    {item.descricaoPeca || <span className="text-muted-foreground">Buscar item...</span>}
-                                  </Button>
+                                  <Input
+                                    readOnly
+                                    className="h-9 w-full cursor-pointer text-sm px-3"
+                                    placeholder="Buscar item..."
+                                    value={item.descricaoPeca}
+                                    onChange={() => {}}
+                                  />
                                 </PopoverTrigger>
                                 <PopoverContent className="w-80 p-0" align="start">
-                                  <Command>
+                                  <Command shouldFilter={false}>
                                     <CommandInput
                                       placeholder="Filtrar itens..."
                                       value={itemSearch}
                                       onValueChange={setItemSearch}
+                                      autoFocus
                                     />
                                     <CommandList>
                                       <CommandEmpty>Nenhum item encontrado</CommandEmpty>
                                       <CommandGroup className="max-h-52 overflow-y-auto">
-                                        {catalogoItens.map((ci: any) => (
+                                        {catalogoItens.filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase())).map((ci: any) => (
                                           <CommandItem
                                             key={ci.id}
                                             value={ci.descricao}
@@ -1494,21 +1491,26 @@ export default function OSLavanderiaPage() {
                                 }}
                               >
                                 <PopoverTrigger asChild>
-                                  <Button variant="outline" className="h-9 w-full justify-start font-normal text-sm px-3">
-                                    {item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : <span className="text-muted-foreground">Serviço...</span>}
-                                  </Button>
+                                  <Input
+                                    readOnly
+                                    className="h-9 w-full cursor-pointer text-sm px-3"
+                                    placeholder="Serviço..."
+                                    value={item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : ''}
+                                    onChange={() => {}}
+                                  />
                                 </PopoverTrigger>
                                 <PopoverContent className="w-80 p-0" align="start">
-                                  <Command>
+                                  <Command shouldFilter={false}>
                                     <CommandInput
                                       placeholder="Filtrar serviços..."
                                       value={servicoSearch}
                                       onValueChange={setServicoSearch}
+                                      autoFocus
                                     />
                                     <CommandList>
                                       <CommandEmpty>Nenhum serviço encontrado</CommandEmpty>
                                       <CommandGroup className="max-h-52 overflow-y-auto">
-                                        {catalogoServicos.length > 0 && catalogoServicos.map((cs: any) => {
+                                        {catalogoServicos.length > 0 && catalogoServicos.filter((cs: any) => !servicoSearch.trim() || cs.nome.toLowerCase().includes(servicoSearch.toLowerCase())).map((cs: any) => {
                                           const precoEspecifico = item.itemCatalogoId ? lookupPreco(item.itemCatalogoId, cs.id) : -1;
                                           const hasPreco = precoEspecifico >= 0;
                                           const precoDisplay = hasPreco ? precoEspecifico : (parseFloat(cs.preco) || 0);
@@ -1544,7 +1546,7 @@ export default function OSLavanderiaPage() {
                                           </CommandItem>
                                           );
                                         })}
-                                        {catalogoServicos.length === 0 && TIPOS_SERVICO.map(ts => (
+                                        {catalogoServicos.length === 0 && TIPOS_SERVICO.filter(ts => !servicoSearch.trim() || ts.label.toLowerCase().includes(servicoSearch.toLowerCase())).map(ts => (
                                           <CommandItem
                                             key={ts.value}
                                             value={ts.label}

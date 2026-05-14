@@ -81,8 +81,8 @@ export async function POST(request: NextRequest) {
       inscricao_municipal, email, telefone, celular, logradouro, numero, complemento,
       bairro, codigo_municipio, municipio, uf, cep, observacoes } = body;
 
-    if (!cnpj_cpf || !nome_razao_social) {
-      return NextResponse.json({ sucesso: false, erro: { codigo: '400', mensagem: 'CNPJ/CPF e Nome/Razão Social são obrigatórios' } }, { status: 400 });
+    if (!nome_razao_social) {
+      return NextResponse.json({ sucesso: false, erro: { codigo: '400', mensagem: 'Nome/Razão Social é obrigatório' } }, { status: 400 });
     }
 
     const { data: cliente, error } = await supabase

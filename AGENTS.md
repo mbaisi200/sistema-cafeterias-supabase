@@ -411,8 +411,15 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Impressão da OS: logo da empresa, QTD+m² no header, CNPJ/telefone formatados, endereço primeiro
 - Termos expandidos de 3 para 7 cláusulas (prazo retirada, peças de risco, indenização ABNT, etc.)
 - Print assíncrono com `setTimeout(500)` + `onafterprint` para fechar
+- Número da OS (`formNumero`) usado diretamente no save (sem re-query `max+1`), e filtrado apenas OS de lavanderia (`[LAVANDERIA]` no `observacoes`) — evitando número pular ao reabrir formulário sem salvar ou por OS de outros módulos
+- Popover de Item/Serviço: trigger trocado de `Button` para `Input readOnly` (foco natural ao clicar), `shouldFilter={false}` + `autoFocus` + `.filter()` manual para busca confiável
 
 ### Dashboard — Filtro de Período ✅
 - Seção "Informações do dia" oculta quando filtro não é "Atual"
 - Subtítulos dos KPIs do mês dinâmicos com o período selecionado
 - `format()` com try/catch via `safeFormat` para evitar RangeError em datas inválidas
+
+### Clientes — CPF/CNPJ Opcional ✅
+- CPF/CNPJ não é mais obrigatório no cadastro de clientes
+- Validação removida do frontend (`clientes/page.tsx`) e da API route (`clientes/route.ts`)
+- Asterisco removido do label no formulário

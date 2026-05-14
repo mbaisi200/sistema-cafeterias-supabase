@@ -194,8 +194,8 @@ export default function ClientesPage() {
   };
 
   const handleSalvar = async () => {
-    if (!nomeRazao.trim() || !cnpjCpf.replace(/\D/g, '')) {
-      toast.error('CNPJ/CPF e Nome/Razão Social são obrigatórios');
+    if (!nomeRazao.trim()) {
+      toast.error('Nome/Razão Social é obrigatório');
       return;
     }
 
@@ -573,7 +573,7 @@ export default function ClientesPage() {
                 </Select>
               </div>
               <div>
-                <Label>{tipoPessoa === '1' ? 'CNPJ *' : 'CPF *'}</Label>
+                <Label>{tipoPessoa === '1' ? 'CNPJ' : 'CPF'}</Label>
                 <Input
                   value={cnpjCpf}
                   onChange={(e) => setCnpjCpf(mascaraCPFCNPJ(e.target.value))}
