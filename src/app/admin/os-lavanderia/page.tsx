@@ -84,6 +84,7 @@ import {
 interface ItemLavanderia {
   id?: string;
   quantidade: number;
+  quantidadeRaw: string;
   descricaoPeca: string;
   tipoServico: string;
   observacoes: string;
@@ -426,6 +427,7 @@ export default function OSLavanderiaPage() {
   const adicionarItem = () => {
     setItens([...itens, {
       quantidade: 0,
+      quantidadeRaw: '',
       descricaoPeca: '',
       tipoServico: 'lavar_passar',
       observacoes: '',
@@ -1376,7 +1378,7 @@ export default function OSLavanderiaPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-24 text-center py-2"><span className="text-xs font-semibold">Qtd</span><div className="text-[10px] font-normal leading-tight">m²</div></TableHead>
+                          <TableHead className="w-28 text-center py-2"><span className="text-xs font-semibold">Qtd</span><div className="text-[10px] font-normal leading-tight">m² / Kg</div></TableHead>
                           <TableHead className="min-w-[300px] py-2 text-xs font-semibold">Peça</TableHead>
                           <TableHead className="w-48 py-2 text-xs font-semibold">Serviço</TableHead>
                           <TableHead className="w-48 py-2 text-xs font-semibold">Obs</TableHead>
@@ -1389,10 +1391,17 @@ export default function OSLavanderiaPage() {
                         {itens.map((item, idx) => (
                           <TableRow key={idx}>
                             <TableCell className="py-2">
-                              <Input type="text" inputMode="decimal" className="h-9 text-center w-20 text-sm font-medium" value={item.quantidade === 0 ? '' : String(item.quantidade).replace('.', ',')} onChange={(e) => {
+                              <Input type="text" inputMode="decimal" className="h-9 text-center w-20 text-sm font-medium" value={item.quantidadeRaw || ''} onChange={(e) => {
                                 const raw = e.target.value.replace(/[^0-9,]/g, '');
-                                const parsed = parseFloat(raw.replace(',', '.'));
-                                atualizarItem(idx, 'quantidade', isNaN(parsed) ? 0 : parsed);
+                                const qtd = parseFloat(raw.replace(',', '.'));
+                                const novos = [...itens];
+                                novos[idx] = {
+                                  ...novos[idx],
+                                  quantidadeRaw: raw,
+                                  quantidade: isNaN(qtd) ? 0 : qtd,
+                                  total: (isNaN(qtd) ? 0 : qtd) * novos[idx].valorUnitario,
+                                };
+                                setItens(novos);
                               }} />
                             </TableCell>
                             <TableCell className="relative py-2 min-w-[300px]">

@@ -474,6 +474,8 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - "m²" adicionado abaixo do cabeçalho "Qtd"
 - Input de quantidade: `type="text"` com `inputMode="decimal"`, aceita inteiros primeiro, vírgula como separador decimal
 - Nenhum 0 default — campo fica em branco quando vazio
+- Corrigido: `quantidadeRaw` (string) preserva digitação do usuário (vírgula/ponto); `quantidade` (number) para cálculos
+- Cabeçalho: `m² / Kg` abaixo de Qtd
 
 ### OS Lavanderia — Cliente em Primeiro ✅
 - Cliente movido para antes das Datas no formulário do dialog
