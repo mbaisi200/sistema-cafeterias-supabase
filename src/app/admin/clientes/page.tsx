@@ -27,6 +27,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import {
   Table,
   TableBody,
   TableCell,
@@ -48,6 +57,7 @@ import {
   ChevronLeft,
   Loader2,
   AlertTriangle,
+  MoreHorizontal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { exportToPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
@@ -81,6 +91,7 @@ export default function ClientesPage() {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(false);
   const [busca, setBusca] = useState('');
+  const [filtroAtivo, setFiltroAtivo] = useState<'todos' | 'ativos' | 'inativos'>('ativos');
 
   // Dialog
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -123,6 +134,8 @@ export default function ClientesPage() {
     try {
       const params = new URLSearchParams();
       if (busca) params.append('busca', busca);
+      if (filtroAtivo === 'ativos') params.append('ativo', 'true');
+      else if (filtroAtivo === 'inativos') params.append('ativo', 'false');
       const res = await fetch(`/api/clientes?${params.toString()}`);
       const data = await res.json();
       if (data.sucesso) setClientes(data.clientes || []);
@@ -131,7 +144,7 @@ export default function ClientesPage() {
     } finally {
       setLoading(false);
     }
-  }, [empresaId, busca]);
+  }, [empresaId, busca, filtroAtivo]);
 
   useEffect(() => { carregar(); }, [carregar]);
 
@@ -220,7 +233,7 @@ export default function ClientesPage() {
         uf,
         cep,
         observacoes: observacoes || undefined,
-        ...(editando ? { ativo: clienteAtivo } : {}),
+        ativo: clienteAtivo,
       };
 
       const res = await fetch(editando ? '/api/clientes' : '/api/clientes', {
@@ -264,18 +277,18 @@ export default function ClientesPage() {
     setCheckingClienteHistory(false);
   };
 
-  const confirmDeleteOrInactivate = async () => {
+  const confirmInactivate = async () => {
     if (!clienteToDelete) return;
     try {
       const res = await fetch(`/api/clientes?id=${clienteToDelete.id}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.sucesso) {
-        toast.success(clienteHasHistory ? 'Cliente inativado!' : 'Cliente removido!');
+        toast.success(clienteHasHistory ? 'Cliente inativado para preservar o histórico!' : 'Cliente removido!');
         setDeleteDialogOpen(false);
         setClienteToDelete(null);
         carregar();
       } else {
-        toast.error('Erro ao remover');
+        toast.error(data.erro?.mensagem || 'Erro ao remover');
       }
     } catch {
       toast.error('Erro de conexão');
@@ -398,8 +411,8 @@ export default function ClientesPage() {
       {/* Busca */}
       <Card>
         <CardContent className="p-4">
-          <div className="flex items-center gap-3">
-            <div className="relative flex-1">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <div className="relative flex-1 w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar por nome, CNPJ/CPF, e-mail ou telefone..."
@@ -408,9 +421,16 @@ export default function ClientesPage() {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline" size="icon" onClick={carregar}>
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <ToggleGroup type="single" value={filtroAtivo} onValueChange={(v) => v && setFiltroAtivo(v as 'todos' | 'ativos' | 'inativos')}>
+                <ToggleGroupItem value="ativos" className="text-xs h-8 px-3 data-[state=on]:bg-green-100 data-[state=on]:text-green-700">Ativos</ToggleGroupItem>
+                <ToggleGroupItem value="inativos" className="text-xs h-8 px-3 data-[state=on]:bg-gray-200 data-[state=on]:text-gray-700">Inativos</ToggleGroupItem>
+                <ToggleGroupItem value="todos" className="text-xs h-8 px-3 data-[state=on]:bg-blue-100 data-[state=on]:text-blue-700">Todos</ToggleGroupItem>
+              </ToggleGroup>
+              <Button variant="outline" size="icon" onClick={carregar}>
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -478,14 +498,64 @@ export default function ClientesPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          <Button variant="ghost" size="icon" title="Editar" onClick={() => handleEditar(c)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" title="Remover" onClick={() => handleDeleteClick(c)}>
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleEditar(c)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {c.ativo ? (
+                              <DropdownMenuItem
+                                className="text-orange-600"
+                                onClick={() => handleDeleteClick(c)}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Inativar
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                className="text-green-600"
+                                onClick={async () => {
+                                  try {
+                                    const res = await fetch('/api/clientes', {
+                                      method: 'PUT',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ id: c.id, ativo: true }),
+                                    });
+                                    const data = await res.json();
+                                    if (data.sucesso) {
+                                      toast.success(`${c.nome_razao_social} foi ativado novamente.`);
+                                      carregar();
+                                    } else {
+                                      toast.error(data.erro?.mensagem || 'Erro ao ativar');
+                                    }
+                                  } catch {
+                                    toast.error('Erro de conexão');
+                                  }
+                                }}
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Ativar
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              className="text-red-600"
+                              onClick={() => handleDeleteClick(c)}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Excluir
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -501,7 +571,7 @@ export default function ClientesPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {checkingClienteHistory ? 'Verificando...' : clienteHasHistory ? 'Inativar Cliente' : 'Excluir Cliente'}
+              {checkingClienteHistory ? 'Verificando...' : clienteHasHistory ? 'Cliente não pode ser excluído' : 'Excluir Cliente'}
             </DialogTitle>
           </DialogHeader>
 
@@ -509,39 +579,49 @@ export default function ClientesPage() {
             <div className="flex items-center justify-center py-6">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : (
+          ) : clienteHasHistory ? (
             <>
-              {clienteHasHistory ? (
-                <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
-                  <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
-                  <div className="text-sm text-amber-800">
-                    <p className="font-medium">Cliente com histórico</p>
-                    <p className="mt-1">
-                      O cliente <strong>{clienteToDelete?.nome_razao_social}</strong> possui vendas registradas.
-                      Ele será <strong>inativado</strong> — não aparecerá nos cadastros, mas os relatórios
-                      anteriores continuarão exibindo os dados corretamente.
-                    </p>
-                  </div>
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium">Cliente possui lançamentos anteriores</p>
+                  <p className="mt-1">
+                    O cliente <strong>{clienteToDelete?.nome_razao_social}</strong> possui <strong>vendas</strong> e/ou outros lançamentos no sistema.
+                  </p>
+                  <p className="mt-2">
+                    Para <strong>preservar o histórico</strong> das movimentações, este cliente não pode ser excluído permanentemente.
+                    Ele será <strong>inativado</strong> — ficará oculto da listagem, mas os relatórios
+                    anteriores continuarão exibindo os dados corretamente.
+                  </p>
                 </div>
-              ) : (
-                <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
-                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
-                  <div className="text-sm text-red-800">
-                    <p>Esta ação não pode ser desfeita.</p>
-                  </div>
-                </div>
-              )}
-
+              </div>
               <DialogFooter className="gap-2">
                 <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
                   Cancelar
                 </Button>
                 <Button
-                  variant={clienteHasHistory ? 'default' : 'destructive'}
-                  onClick={confirmDeleteOrInactivate}
-                  className={clienteHasHistory ? 'bg-amber-600 hover:bg-amber-700' : ''}
+                  onClick={confirmInactivate}
+                  className="bg-amber-600 hover:bg-amber-700"
                 >
-                  {clienteHasHistory ? 'Inativar Cliente' : 'Excluir Cliente'}
+                  Inativar Cliente
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
+                <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                <div className="text-sm text-red-800">
+                  <p>Confirma a exclusão permanente de <strong>{clienteToDelete?.nome_razao_social}</strong>?</p>
+                  <p className="mt-1">Esta ação não pode ser desfeita.</p>
+                </div>
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button variant="destructive" onClick={confirmInactivate}>
+                  Excluir Permanentemente
                 </Button>
               </DialogFooter>
             </>
@@ -706,19 +786,17 @@ export default function ClientesPage() {
               <Textarea value={observacoes} onChange={(e) => setObservacoes(e.target.value)} rows={2} placeholder="Observações internas sobre o cliente" />
             </div>
 
-            {editando && (
-              <div className="flex items-center justify-between pt-2 border-t">
-                <div>
-                  <Label htmlFor="clienteAtivo" className="text-sm font-medium">Cliente Ativo</Label>
-                  <p className="text-[11px] text-muted-foreground">Inative para ocultar o cliente sem perder o histórico</p>
-                </div>
-                <Switch
-                  id="clienteAtivo"
-                  checked={clienteAtivo}
-                  onCheckedChange={setClienteAtivo}
-                />
+            <div className="flex items-center justify-between pt-2 border-t">
+              <div>
+                <Label htmlFor="clienteAtivo" className="text-sm font-medium">Cliente Ativo</Label>
+                <p className="text-[11px] text-muted-foreground">Inative para ocultar o cliente sem perder o histórico</p>
               </div>
-            )}
+              <Switch
+                id="clienteAtivo"
+                checked={clienteAtivo}
+                onCheckedChange={setClienteAtivo}
+              />
+            </div>
           </div>
 
           <DialogFooter className="gap-2">

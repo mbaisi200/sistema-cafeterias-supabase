@@ -419,7 +419,11 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Subtítulos dos KPIs do mês dinâmicos com o período selecionado
 - `format()` com try/catch via `safeFormat` para evitar RangeError em datas inválidas
 
-### Clientes — CPF/CNPJ Opcional ✅
+### Clientes — CPF/CNPJ Opcional + Inativar/Ativar ✅
 - CPF/CNPJ não é mais obrigatório no cadastro de clientes
 - Validação removida do frontend (`clientes/page.tsx`) e da API route (`clientes/route.ts`)
 - Asterisco removido do label no formulário
+- Filtro Ativos/Inativos/Todos via ToggleGroup na busca
+- Botão de ações trocado de ícone único para DropdownMenu (Editar / Inativar ou Ativar / Excluir)
+- Inativar via dialog com verificação de vendas vinculadas (soft-delete)
+- Ativar diretamente via PUT na API
