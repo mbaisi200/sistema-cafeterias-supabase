@@ -82,7 +82,7 @@ type SortDir = 'asc' | 'desc';
 type ContaFilter = 'todas' | 'pagas' | 'vencidas' | 'pendentes';
 
 export default function FinanceiroPage() {
-  const { user } = useAuth();
+  const { user, empresaId } = useAuth();
   const { vendas, loading: loadingVendas } = useVendas();
   const { 
     contas, 
@@ -108,6 +108,9 @@ export default function FinanceiroPage() {
   const [contaExcluir, setContaExcluir] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [tipoConta, setTipoConta] = useState<'pagar' | 'receber'>('pagar');
+  const [pdfDialogOpen, setPdfDialogOpen] = useState(false);
+  const [pdfTipo, setPdfTipo] = useState<'pagar' | 'receber'>('pagar');
+  const [pdfFilter, setPdfFilter] = useState<ContaFilter>('todas');
   const { toast } = useToast();
 
   // Filters
@@ -373,6 +376,56 @@ export default function FinanceiroPage() {
     setDialogExcluirOpen(true);
   };
 
+  const gerarPDF = async () => {
+    const contas = pdfTipo === 'pagar' ? contasPagar : contasReceber;
+    let dados = [...contas];
+    switch (pdfFilter) {
+      case 'pagas':
+        dados = dados.filter(c => c.status === 'pago');
+        break;
+      case 'vencidas':
+        dados = dados.filter(c => c.status === 'pendente' && c.vencimento && new Date(c.vencimento) < hoje);
+        break;
+      case 'pendentes':
+        dados = dados.filter(c => c.status === 'pendente' && (!c.vencimento || new Date(c.vencimento) >= hoje));
+        break;
+    }
+
+    const totalPendente = dados.filter(c => c.status === 'pendente').reduce((acc: number, c: any) => acc + (c.valor || 0), 0);
+    const totalPagas = dados.filter(c => c.status === 'pago').reduce((acc: number, c: any) => acc + (c.valor || 0), 0);
+    const titulo = pdfTipo === 'pagar' ? 'Contas a Pagar' : 'Contas a Receber';
+    const nomeArquivo = pdfTipo === 'pagar' ? 'contas-a-pagar' : 'contas-a-receber';
+
+    const empresaInfo = await fetchEmpresaPDFData(empresaId);
+    exportToPDF({
+      title: titulo,
+      subtitle: `Filtro: ${pdfFilter === 'todas' ? 'Todas' : pdfFilter === 'pagas' ? 'Pagas' : pdfFilter === 'vencidas' ? 'Vencidas' : 'Pendentes'} | Total pendente: ${formatCurrencyPDF(totalPendente)}`,
+      columns: [
+        { header: 'Descrição', accessor: (c) => c.descricao || '-' },
+        { header: 'Categoria', accessor: (c) => c.categoria || '-' },
+        { header: pdfTipo === 'pagar' ? 'Fornecedor' : 'Cliente', accessor: (c) => c.fornecedor || '-' },
+        { header: 'Vencimento', accessor: (c) => formatDatePDF(c.vencimento) },
+        { header: 'Valor', accessor: (c) => formatCurrencyPDF(c.valor) },
+        { header: 'Status', accessor: (c) => c.status === 'pago' ? (pdfTipo === 'pagar' ? 'Pago' : 'Recebido') : (c.vencimento && new Date(c.vencimento) < hoje ? 'Vencida' : 'Pendente') },
+        { header: 'Data Pagto', accessor: (c) => formatDatePDF(c.dataPagamento) },
+      ],
+      data: dados,
+      filename: `${nomeArquivo}-${new Date().toISOString().split('T')[0]}`,
+      summary: [
+        { label: 'Total Pendente', value: formatCurrencyPDF(totalPendente) },
+        { label: pdfTipo === 'pagar' ? 'Total Pago' : 'Total Recebido', value: formatCurrencyPDF(totalPagas) },
+      ],
+      totals: {
+        label: 'TOTAL',
+        columnTotals: {
+          4: formatCurrencyPDF(dados.reduce((acc: number, c: any) => acc + (c.valor || 0), 0)),
+        },
+      },
+      ...empresaInfo,
+    });
+    setPdfDialogOpen(false);
+  };
+
   const handleRegistrarPagamento = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
@@ -549,70 +602,14 @@ export default function FinanceiroPage() {
               </Button>
               <Button
                 variant="outline"
-                onClick={async () => {
-                  const empresaInfo = await fetchEmpresaPDFData(empresaId);
-                  exportToPDF({
-                    title: 'Contas a Pagar',
-                    subtitle: `Total pendente: ${formatCurrencyPDF(totalPagarPendente)}`,
-                    columns: [
-                      { header: 'Descrição', accessor: (c) => c.descricao || '-' },
-                      { header: 'Categoria', accessor: (c) => c.categoria || '-' },
-                      { header: 'Fornecedor', accessor: (c) => c.fornecedor || '-' },
-                      { header: 'Vencimento', accessor: (c) => formatDatePDF(c.vencimento) },
-                      { header: 'Valor', accessor: (c) => formatCurrencyPDF(c.valor) },
-                      { header: 'Status', accessor: (c) => c.status === 'pago' ? 'Pago' : (c.vencimento && new Date(c.vencimento) < hoje ? 'Vencida' : 'Pendente') },
-                      { header: 'Data Pagto', accessor: (c) => formatDatePDF(c.dataPagamento) },
-                    ],
-                    data: contasPagarFiltered,
-                    filename: `contas-a-pagar-${new Date().toISOString().split('T')[0]}`,
-                    summary: [
-                      { label: 'Total Pendente', value: formatCurrencyPDF(totalPagarPendente) },
-                      { label: 'Total Pago', value: formatCurrencyPDF(totalPago) },
-                    ],
-                    totals: {
-                      label: 'TOTAL',
-                      columnTotals: {
-                        4: formatCurrencyPDF(contasPagarFiltered.reduce((acc: number, c: any) => acc + (c.valor || 0), 0)),
-                      },
-                    },
-                    ...empresaInfo,
-                  });
-                }}
+                onClick={() => { setPdfTipo('pagar'); setPdfFilter('todas'); setPdfDialogOpen(true); }}
               >
                 <Download className="mr-2 h-4 w-4" />
                 PDF Pagar
               </Button>
               <Button
                 variant="outline"
-                onClick={async () => {
-                  const empresaInfo = await fetchEmpresaPDFData(empresaId);
-                  exportToPDF({
-                    title: 'Contas a Receber',
-                    subtitle: `Total pendente: ${formatCurrencyPDF(totalReceberPendente)}`,
-                    columns: [
-                      { header: 'Descrição', accessor: (c) => c.descricao || '-' },
-                      { header: 'Categoria', accessor: (c) => c.categoria || '-' },
-                      { header: 'Cliente', accessor: (c) => c.fornecedor || '-' },
-                      { header: 'Vencimento', accessor: (c) => formatDatePDF(c.vencimento) },
-                      { header: 'Valor', accessor: (c) => formatCurrencyPDF(c.valor) },
-                      { header: 'Status', accessor: (c) => c.status === 'pago' ? 'Recebido' : (c.vencimento && new Date(c.vencimento) < hoje ? 'Vencida' : 'Pendente') },
-                      { header: 'Data Recebimento', accessor: (c) => formatDatePDF(c.dataPagamento) },
-                    ],
-                    data: contasReceberFiltered,
-                    filename: `contas-a-receber-${new Date().toISOString().split('T')[0]}`,
-                    summary: [
-                      { label: 'Total Pendente', value: formatCurrencyPDF(totalReceberPendente) },
-                      { label: 'Total Recebido', value: formatCurrencyPDF(totalRecebido) },
-                    ],
-                    totals: {
-                      label: 'TOTAL',
-                      columnTotals: {
-                        4: formatCurrencyPDF(contasReceberFiltered.reduce((acc: number, c: any) => acc + (c.valor || 0), 0)),
-                      },
-                    },
-                    ...empresaInfo,
-                  });
-                }}
+                onClick={() => { setPdfTipo('receber'); setPdfFilter('todas'); setPdfDialogOpen(true); }}
               >
                 <Download className="mr-2 h-4 w-4" />
                 PDF Receber
@@ -1469,6 +1466,54 @@ export default function FinanceiroPage() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Filter Dialog */}
+      <Dialog open={pdfDialogOpen} onOpenChange={setPdfDialogOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle>Exportar {pdfTipo === 'pagar' ? 'Contas a Pagar' : 'Contas a Receber'}</DialogTitle>
+            <DialogDescription>
+              Escolha o filtro para o relatório PDF
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Filtrar por status</Label>
+              <div className="flex flex-wrap gap-2">
+                {([
+                  { value: 'todas' as ContaFilter, label: 'Todas' },
+                  { value: 'pendentes' as ContaFilter, label: 'Pendentes' },
+                  { value: 'vencidas' as ContaFilter, label: 'Vencidas' },
+                  { value: 'pagas' as ContaFilter, label: 'Pagas' },
+                ]).map(opt => (
+                  <Button
+                    key={opt.value}
+                    type="button"
+                    size="sm"
+                    variant={pdfFilter === opt.value ? 'default' : 'outline'}
+                    onClick={() => setPdfFilter(opt.value)}
+                    className={pdfFilter === opt.value ? (
+                      opt.value === 'vencidas' ? 'bg-red-600 hover:bg-red-700' :
+                      opt.value === 'pagas' ? 'bg-green-600 hover:bg-green-700' :
+                      opt.value === 'pendentes' ? 'bg-blue-600 hover:bg-blue-700' :
+                      'bg-orange-500 hover:bg-orange-600'
+                    ) : ''}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPdfDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={gerarPDF} className="bg-blue-600 hover:bg-blue-700">
+              <Download className="mr-2 h-4 w-4" />
+              Gerar PDF
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
         </div>
