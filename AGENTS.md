@@ -401,3 +401,18 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Produtos (tab unidades): checa produtos vinculados antes de inativar
 - Financeiro: filtro vendedor no PDF + vendedor_nome na tabela contas
 - VendedoresTab: linked-records check, toggle Inativar/Ativar, filtro ativo
+
+### OS Lavanderia — Melhorias no Formulário ✅
+- Campo "Responsável" (texto livre) substituído por seletor de "Vendedor" (Popover+Command com busca em `vendedores`)
+- Vendedor salvo como `vendedorId` + `vendedorNome` no metadata JSON da OS
+- `handleFaturar` refatorado para seguir padrão PDV Varejo (venda + itens_venda + pagamentos + caixa + log)
+- `canal: 'lavanderia'` adicionado ao CHECK constraint de vendas via migration
+- Forma de Pagamento obrigatória (asterisco + validação)
+- Impressão da OS: logo da empresa, QTD+m² no header, CNPJ/telefone formatados, endereço primeiro
+- Termos expandidos de 3 para 7 cláusulas (prazo retirada, peças de risco, indenização ABNT, etc.)
+- Print assíncrono com `setTimeout(500)` + `onafterprint` para fechar
+
+### Dashboard — Filtro de Período ✅
+- Seção "Informações do dia" oculta quando filtro não é "Atual"
+- Subtítulos dos KPIs do mês dinâmicos com o período selecionado
+- `format()` com try/catch via `safeFormat` para evitar RangeError em datas inválidas

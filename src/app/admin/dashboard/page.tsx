@@ -644,11 +644,18 @@ export default function AdminDashboardPage() {
   ];
 
   // ── KPI Cards Data - Mês ──
+  const safeFormat = (d: Date, fmt: string) => { try { return format(d, fmt, { locale: ptBR }); } catch { return ''; } };
+  const periodoLabel = periodoFiltro === 'meses'
+    ? safeFormat(new Date(mesSelecionado + '-01'), "MMM/yyyy")
+    : periodoFiltro === 'customizado'
+      ? `${safeFormat(currentMonthStart, 'dd/MM')} - ${safeFormat(currentMonthEnd, 'dd/MM')}`
+      : safeFormat(new Date(), "MMM/yyyy");
+
   const kpisMes: KPICardData[] = [
     {
       titulo: 'Valor vendido',
       valor: formatBRL(metricasMesAtual.totalVendido),
-      subtitulo: `#${metricasMesAtual.qtdVendas} venda${metricasMesAtual.qtdVendas !== 1 ? 's' : ''} no mês`,
+      subtitulo: `#${metricasMesAtual.qtdVendas} venda${metricasMesAtual.qtdVendas !== 1 ? 's' : ''} • ${periodoLabel}`,
       icone: DollarSign,
       corIcone: 'text-green-600',
       corBg: 'bg-green-50',
@@ -657,7 +664,7 @@ export default function AdminDashboardPage() {
     {
       titulo: 'Quantidade de vendas',
       valor: formatNumber(metricasMesAtual.qtdVendas),
-      subtitulo: 'Pedidos finalizados',
+      subtitulo: `${metricasMesAtual.qtdVendas} pedido${metricasMesAtual.qtdVendas !== 1 ? 's' : ''} • ${periodoLabel}`,
       icone: ShoppingCart,
       corIcone: 'text-blue-600',
       corBg: 'bg-blue-50',
@@ -666,7 +673,7 @@ export default function AdminDashboardPage() {
     {
       titulo: 'Itens vendidos (SKU)',
       valor: formatNumber(metricasMesAtual.itensSKU),
-      subtitulo: 'Produtos diferentes',
+      subtitulo: `${metricasMesAtual.itensSKU} SKU${metricasMesAtual.itensSKU !== 1 ? 's' : ''} • ${periodoLabel}`,
       icone: Layers,
       corIcone: 'text-violet-600',
       corBg: 'bg-violet-50',
@@ -676,7 +683,7 @@ export default function AdminDashboardPage() {
     {
       titulo: 'Unidades vendidas',
       valor: formatNumber(metricasMesAtual.unidadesTotal),
-      subtitulo: 'Total de itens',
+      subtitulo: `${metricasMesAtual.unidadesTotal} unidade${metricasMesAtual.unidadesTotal !== 1 ? 's' : ''} • ${periodoLabel}`,
       icone: Package,
       corIcone: 'text-amber-600',
       corBg: 'bg-amber-50',
@@ -686,7 +693,7 @@ export default function AdminDashboardPage() {
     {
       titulo: 'Média de itens por pedido',
       valor: metricasMesAtual.mediaItensPorPedido.toFixed(2),
-      subtitulo: 'Itens/venda',
+      subtitulo: `${metricasMesAtual.mediaItensPorPedido.toFixed(2)} itens/venda • ${periodoLabel}`,
       icone: Hash,
       corIcone: 'text-cyan-600',
       corBg: 'bg-cyan-50',
@@ -695,7 +702,7 @@ export default function AdminDashboardPage() {
     {
       titulo: 'Ticket médio',
       valor: formatBRL(metricasMesAtual.ticketMedio),
-      subtitulo: 'Valor médio por venda',
+      subtitulo: `${formatBRL(metricasMesAtual.ticketMedio)} médio • ${periodoLabel}`,
       icone: BarChart3,
       corIcone: 'text-rose-600',
       corBg: 'bg-rose-50',
@@ -1095,7 +1102,12 @@ export default function AdminDashboardPage() {
                 </div>
               )}
               <span className="text-xs text-muted-foreground ml-auto">
-                {format(currentMonthStart, "MMM 'a' dd", { locale: ptBR })} — {format(currentMonthEnd, "dd 'de' MMM", { locale: ptBR })}
+                {periodoFiltro === 'meses'
+                  ? safeFormat(new Date(mesSelecionado + '-01'), "MMMM 'de' yyyy")
+                  : periodoFiltro === 'customizado'
+                    ? `${safeFormat(currentMonthStart, 'dd/MM/yyyy')} — ${safeFormat(currentMonthEnd, 'dd/MM/yyyy')}`
+                    : safeFormat(currentMonthStart, "MMMM 'de' yyyy")
+                }
               </span>
             </div>
           </section>
@@ -1103,6 +1115,7 @@ export default function AdminDashboardPage() {
           {/* ═══════════════════════════════════ */}
           {/* INFORMAÇÕES DO DIA                 */}
           {/* ═══════════════════════════════════ */}
+          {periodoFiltro === 'atual' && (
           <section>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <SectionTitle>Informações do dia</SectionTitle>
@@ -1120,7 +1133,7 @@ export default function AdminDashboardPage() {
                 <div className="flex items-center gap-2 text-xs text-muted-foreground">
                   <CalendarDays className="h-3.5 w-3.5" />
                   <span className="font-medium">
-                    {format(selectedDate, "dd/MM/yyyy")}
+                    {safeFormat(selectedDate, "dd/MM/yyyy")}
                   </span>
                 </div>
               </div>
@@ -1132,12 +1145,13 @@ export default function AdminDashboardPage() {
               ))}
             </div>
           </section>
+          )}
 
           {/* ═══════════════════════════════════ */}
           {/* INFORMAÇÕES DO MÊS                */}
           {/* ═══════════════════════════════════ */}
           <section>
-            <SectionTitle>Informações do mês</SectionTitle>
+            <SectionTitle>Informações {periodoLabel}</SectionTitle>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
               {kpisMes.map((kpi, i) => (
                 <KPICard key={`mes-${kpi.titulo}`} data={kpi} index={i + 6} />
@@ -1157,7 +1171,7 @@ export default function AdminDashboardPage() {
                       Formas de Pagamento
                     </CardTitle>
                     <Badge variant="secondary" className="text-xs text-muted-foreground">
-                      {format(currentMonthStart, 'MMM/yyyy', { locale: ptBR })}
+                      {periodoLabel}
                     </Badge>
                   </div>
                 </CardHeader>

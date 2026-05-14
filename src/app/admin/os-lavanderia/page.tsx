@@ -46,6 +46,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getSupabaseClient } from '@/lib/supabase';
+import { registrarLog } from '@/hooks/useSupabase';
 import { exportToPDF, formatCurrencyPDF, formatDatePDF } from '@/lib/export-pdf';
 import {
   Plus,
@@ -108,6 +109,8 @@ interface OSLavanderia {
   formaPagamento: string;
   status: string;
   responsavel: string;
+  vendedorId: string;
+  vendedorNome: string;
   observacoes: string;
   ativo: boolean;
   criadoEm: string;
@@ -178,11 +181,15 @@ export default function OSLavanderiaPage() {
   const [formValorTotal, setFormValorTotal] = useState(0);
   const [formaPagamento, setFormaPagamento] = useState('');
   const [formStatus, setFormStatus] = useState('recebida');
-  const [formResponsavel, setFormResponsavel] = useState('');
+  const [formVendedorId, setFormVendedorId] = useState('');
+  const [formVendedorNome, setFormVendedorNome] = useState('');
+  const [openVendedorSearch, setOpenVendedorSearch] = useState(false);
+  const [vendedorSearch, setVendedorSearch] = useState('');
   const [formObservacoes, setFormObservacoes] = useState('');
 
   // Data lists
   const [clientes, setClientes] = useState<any[]>([]);
+  const [vendedores, setVendedores] = useState<any[]>([]);
   const [catalogoItens, setCatalogoItens] = useState<any[]>([]);
   const [catalogoServicos, setCatalogoServicos] = useState<any[]>([]);
   const [empresaData, setEmpresaData] = useState<any>(null);
@@ -199,6 +206,7 @@ export default function OSLavanderiaPage() {
     if (empresaId) {
       loadOrdens();
       loadClientes();
+      loadVendedores();
       loadCatalogoItens();
       loadCatalogoServicos();
       loadPrecos();
@@ -249,6 +257,8 @@ export default function OSLavanderiaPage() {
             const rawParsed = typeof raw === 'string' ? JSON.parse(raw) : (raw || []);
             parsedItens = rawParsed.map((parsedItem: any) => ({
               ...parsedItem,
+              descricaoPeca: parsedItem.descricaoPeca || parsedItem.descricao || '',
+              tipoServico: parsedItem.tipoServico || '',
               itemCatalogoId: parsedItem.itemCatalogoId || '',
             }));
           } catch { /* ignore */ }
@@ -270,7 +280,9 @@ export default function OSLavanderiaPage() {
             valorTotal: parseFloat(o.valor_total) || 0,
             formaPagamento: metadata.formaPagamento || '',
             status: mapStatus(o.status),
-            responsavel: metadata.responsavel || '',
+            responsavel: metadata.vendedorNome || metadata.responsavel || '',
+            vendedorId: metadata.vendedorId || '',
+            vendedorNome: metadata.vendedorNome || metadata.responsavel || '',
             observacoes: metadata.observacoesTexto || '',
             ativo: o.ativo,
             criadoEm: o.criado_em || '',
@@ -329,6 +341,19 @@ export default function OSLavanderiaPage() {
     } catch (err) {
       console.error('Erro ao carregar clientes:', err);
     }
+  };
+
+  const loadVendedores = async () => {
+    try {
+      const supabase = getSupabase();
+      const { data } = await supabase
+        .from('vendedores')
+        .select('id, nome, email, telefone')
+        .eq('empresa_id', empresaId)
+        .eq('ativo', true)
+        .order('nome');
+      setVendedores(data || []);
+    } catch { /* ignore */ }
   };
 
   const loadCatalogoItens = async () => {
@@ -398,7 +423,7 @@ export default function OSLavanderiaPage() {
   // ============================================================
   const adicionarItem = () => {
     setItens([...itens, {
-      quantidade: 1,
+      quantidade: 0,
       descricaoPeca: '',
       tipoServico: 'lavar_passar',
       observacoes: '',
@@ -439,6 +464,15 @@ export default function OSLavanderiaPage() {
     );
   }, [clientes, clienteSearch]);
 
+  const vendedoresFiltrados = useMemo(() => {
+    if (!vendedorSearch.trim()) return vendedores;
+    const term = vendedorSearch.toLowerCase();
+    return vendedores.filter(v =>
+      (v.nome || '').toLowerCase().includes(term) ||
+      (v.email || '').toLowerCase().includes(term)
+    );
+  }, [vendedores, vendedorSearch]);
+
   const ordensFiltradas = useMemo(() => {
     return ordens.filter(os => {
       const matchSearch = !search ||
@@ -466,6 +500,10 @@ export default function OSLavanderiaPage() {
       toast({ variant: 'destructive', title: 'Adicione ao menos uma peça' });
       return;
     }
+    if (!formaPagamento) {
+      toast({ variant: 'destructive', title: 'Selecione a forma de pagamento' });
+      return;
+    }
 
     setSaving(true);
     try {
@@ -482,7 +520,8 @@ export default function OSLavanderiaPage() {
         horaPrevisao: formHoraPrevisao,
         pesoKg,
         formaPagamento,
-        responsavel: formResponsavel,
+        vendedorId: formVendedorId,
+        vendedorNome: formVendedorNome,
         observacoesTexto: formObservacoes,
       });
 
@@ -503,7 +542,7 @@ export default function OSLavanderiaPage() {
             cliente_id: clienteId,
             cliente_nome: clienteNome,
             descricao: `OS Lavanderia - ${clienteNome}`,
-            tecnico: formResponsavel,
+            tecnico: formVendedorNome,
             data_previsao: formDataPrevisao || null,
             valor_total: valorTotal,
             valor_servicos: valorTotal,
@@ -532,7 +571,7 @@ export default function OSLavanderiaPage() {
             cliente_id: clienteId,
             cliente_nome: clienteNome,
             descricao: `OS Lavanderia - ${clienteNome}`,
-            tecnico: formResponsavel,
+            tecnico: formVendedorNome,
             data_previsao: formDataPrevisao || null,
             valor_total: valorTotal,
             valor_servicos: valorTotal,
@@ -608,10 +647,13 @@ export default function OSLavanderiaPage() {
   // Faturamento
   // ============================================================
   const handleFaturar = async (os: OSLavanderia) => {
-    if (!confirm(`Faturar OS #${os.numero} no valor de ${formatCurrency(os.valorTotal)}? Uma venda será criada no PDV.`)) return;
+    if (!confirm(`Faturar OS #${os.numero} no valor de ${formatCurrency(os.valorTotal)}? Uma venda será criada no PDV Varejo.`)) return;
+    setSaving(true);
     try {
       const supabase = getSupabase();
+      const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 
+      // STEP 1: Criar venda
       const { data: vendaData, error: vendaError } = await supabase
         .from('vendas')
         .insert({
@@ -621,6 +663,7 @@ export default function OSLavanderiaPage() {
           status: 'fechada',
           total: os.valorTotal,
           desconto: 0,
+          forma_pagamento: os.formaPagamento || null,
           cliente_id: os.clienteId || null,
           nome_cliente: os.clienteNome || null,
           telefone_cliente: os.clienteTelefone || null,
@@ -634,22 +677,77 @@ export default function OSLavanderiaPage() {
         .single();
 
       if (vendaError) throw vendaError;
+      const vendaId = vendaData.id;
 
+      // STEP 2: Inserir itens_venda
       const itensVenda = (os.itens || []).map(item => ({
         empresa_id: empresaId,
-        venda_id: vendaData.id,
+        venda_id: vendaId,
         nome: `${item.descricaoPeca} - ${TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label || item.tipoServico}`,
         quantidade: item.quantidade,
         preco_unitario: item.valorUnitario,
-        subtotal: item.total,
+        total: item.total,
         criado_em: new Date().toISOString(),
       }));
 
       if (itensVenda.length > 0) {
-        await supabase.from('itens_venda').insert(itensVenda);
+        const { error: itensError } = await supabase.from('itens_venda').insert(itensVenda);
+        if (itensError) throw itensError;
       }
 
-      // Update OS: set vendido_id in metadata, change status to entregue
+      // STEP 3: Inserir pagamento (como PDV Varejo)
+      const formaPg = os.formaPagamento || 'dinheiro';
+      const { error: pagError } = await supabase
+        .from('pagamentos')
+        .insert({
+          empresa_id: empresaId,
+          venda_id: vendaId,
+          forma_pagamento: formaPg,
+          valor: os.valorTotal,
+        });
+      if (pagError) throw pagError;
+
+      // STEP 4: Registrar no caixa (se houver caixa aberto)
+      try {
+        const caixaResp = await fetch('/api/caixa-aberto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ empresaId }),
+        });
+        const caixaResult = await caixaResp.json();
+        if (caixaResult.caixa) {
+          const cx = caixaResult.caixa;
+          await supabase.from('movimentacoes_caixa').insert({
+            caixa_id: cx.id,
+            empresa_id: empresaId,
+            tipo: 'venda',
+            valor: os.valorTotal,
+            forma_pagamento: formaPg,
+            venda_id: vendaId,
+            descricao: `OS Lavanderia #${os.numero} - ${os.clienteNome || 'sem cliente'}`,
+            usuario_id: user?.id,
+            usuario_nome: user?.nome,
+            criado_em: new Date().toISOString(),
+          });
+          await supabase.from('caixas').update({
+            valor_atual: (cx.valor_atual || 0) + os.valorTotal,
+            total_vendas: (cx.total_vendas || 0) + os.valorTotal,
+            total_entradas: (cx.total_entradas || 0) + os.valorTotal,
+          }).eq('id', cx.id);
+        }
+      } catch { /* caixa nao obrigatorio */ }
+
+      // STEP 5: Registrar log
+      await registrarLog({
+        empresaId: empresaId || '',
+        usuarioId: user?.id || '',
+        usuarioNome: user?.nome || '',
+        acao: 'VENDA_LAVANDERIA_FATURADA',
+        detalhes: `OS #${os.numero} - ${os.itens?.length || 0} itens - ${fmt(os.valorTotal)}${os.clienteNome ? ` - ${os.clienteNome}` : ''}`,
+        tipo: 'venda',
+      });
+
+      // STEP 6: Atualizar OS com vendaId
       let metadata: any = {};
       if (os.observacoes) {
         try {
@@ -659,8 +757,8 @@ export default function OSLavanderiaPage() {
           }
         } catch { /* ignore */ }
       }
-      metadata.vendaId = vendaData.id;
-      metadata.vendaNumero = vendaData.id.substring(0, 8);
+      metadata.vendaId = vendaId;
+      metadata.vendaNumero = vendaId.substring(0, 8);
 
       await supabase
         .from('ordens_servico')
@@ -670,11 +768,13 @@ export default function OSLavanderiaPage() {
         })
         .eq('id', os.id);
 
-      toast({ title: 'OS faturada!', description: `Venda criada para OS #${os.numero}. ID: ${vendaData.id.substring(0, 8)}` });
+      toast({ title: 'OS faturada!', description: `Venda criada no PDV Varejo para OS #${os.numero}.` });
       loadOrdens();
     } catch (err: any) {
       console.error('Erro ao faturar OS:', err);
       toast({ variant: 'destructive', title: 'Erro ao faturar', description: err.message });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -736,7 +836,8 @@ export default function OSLavanderiaPage() {
     setFormValorTotal(os.valorTotal || 0);
     setFormaPagamento(os.formaPagamento || '');
     setFormStatus(os.status || 'recebida');
-    setFormResponsavel(os.responsavel || '');
+    setFormVendedorId(os.vendedorId || '');
+    setFormVendedorNome(os.vendedorNome || os.responsavel || '');
     setFormObservacoes(os.observacoes || '');
     setFormOpen(true);
   };
@@ -754,7 +855,10 @@ export default function OSLavanderiaPage() {
     setFormValorTotal(0);
     setFormaPagamento('');
     setFormStatus('recebida');
-    setFormResponsavel('');
+    setFormVendedorId('');
+    setFormVendedorNome('');
+    setOpenVendedorSearch(false);
+    setVendedorSearch('');
     setFormObservacoes('');
     const now = new Date();
     setFormDataEntrada(now.toISOString().split('T')[0]);
@@ -768,11 +872,12 @@ export default function OSLavanderiaPage() {
   // ============================================================
   // Print
   // ============================================================
-  const handlePrint = () => {
+  const handlePrint = (os?: OSLavanderia) => {
+    const targetOS = os || printOS;
     const printWindow = window.open('', '_blank');
-    if (!printWindow || !printOS) return;
+    if (!printWindow || !targetOS) return;
     printWindow.document.write(`
-      <html><head><title>OS Lavanderia #${printOS.numero}</title>
+      <html><head><title>OS Lavanderia #${targetOS.numero}</title>
       <style>
         body { font-family: Arial, sans-serif; margin: 20px; font-size: 12px; color: #333; }
         .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; margin-bottom: 15px; }
@@ -794,18 +899,21 @@ export default function OSLavanderiaPage() {
         .sig-line { border-top: 1px solid #333; margin-top: 30px; padding-top: 5px; font-size: 11px; }
         @media print { body { margin: 0; } }
       </style></head><body>
-      ${generatePrintHTML(printOS)}
+      ${generatePrintHTML(targetOS)}
       </body></html>
     `);
     printWindow.document.close();
-    printWindow.print();
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 500);
+    printWindow.onafterprint = () => printWindow.close();
   };
 
   const generatePrintHTML = (os: OSLavanderia): string => {
     const fmtCur = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
     const fmtDate = (d: string) => { try { return new Date(d).toLocaleDateString('pt-BR'); } catch { return '-'; } };
     const getPagLabel = (v: string) => FORMAS_PAGAMENTO.find(f => f.value === v)?.label || v || '-';
-    const getTipoLabel = (v: string) => TIPOS_SERVICO.find(t => t.value === v)?.label || v || '-';
     const getStatusLabel = (v: string) => STATUS_OPTIONS.find(s => s.value === v)?.label || v || '-';
 
     const empNome = empresaData?.nome_marca || empresaData?.nome || 'LAVANDERIA';
@@ -815,14 +923,28 @@ export default function OSLavanderiaPage() {
     const empLogo = empresaData?.logo_url || '';
     const empEndereco = [empresaData?.logradouro, empresaData?.numero, empresaData?.complemento, empresaData?.bairro, empresaData?.cidade, empresaData?.estado].filter(Boolean).join(', ');
 
-    const infoParts = [empCNPJ ? `CNPJ: ${empCNPJ}` : '', empTel, empEmail].filter(Boolean).join(' | ');
+    const fmtCNPJ = (v: string) => {
+      const d = v.replace(/\D/g, '');
+      if (d.length !== 14) return v;
+      return `${d.slice(0,2)}.${d.slice(2,5)}.${d.slice(5,8)}/${d.slice(8,12)}-${d.slice(12,14)}`;
+    };
+    const fmtPhone = (v: string) => {
+      const d = v.replace(/\D/g, '');
+      if (d.length === 11) return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7,11)}`;
+      if (d.length === 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6,10)}`;
+      return v;
+    };
+
+    const cnpjStr = empCNPJ ? `CNPJ: ${fmtCNPJ(empCNPJ)}` : '';
+    const telStr = empTel ? fmtPhone(empTel) : '';
+    const contatoParts = [cnpjStr, telStr, empEmail].filter(Boolean).join(' | ');
 
     return `
       <div class="header">
         ${empLogo ? `<img src="${empLogo}" style="max-height:50px;max-width:120px;object-fit:contain;margin-bottom:6px;" alt="Logo" onerror="this.style.display='none'" />` : ''}
         <h1>${empNome}</h1>
-        ${infoParts ? `<p>${infoParts}</p>` : ''}
         ${empEndereco ? `<p>${empEndereco}</p>` : ''}
+        ${contatoParts ? `<p>${contatoParts}</p>` : ''}
       </div>
       <div style="display:flex;justify-content:space-between;margin-bottom:15px;font-size:14px;">
         <div><strong>Nº da OS:</strong> ${os.numero}</div>
@@ -840,7 +962,7 @@ export default function OSLavanderiaPage() {
       <div class="section">
         <div class="section-title">Itens e Serviços</div>
         <table>
-          <thead><tr><th style="width:40px">Qtd</th><th>Descrição da Peça</th><th>Tipo de Serviço</th><th>Observações/Manchas/Danificações</th><th style="width:80px;text-align:right">Valor</th></tr></thead>
+          <thead><tr><th style="width:40px;text-align:center">QTD<div style="font-size:9px;font-weight:normal;line-height:1.2">m²</div></th><th>Descrição da Peça</th><th>Tipo de Serviço</th><th>Observações/Manchas/Danificações</th><th style="width:80px;text-align:right">Valor</th></tr></thead>
           <tbody>${(os.itens || []).map((item: ItemLavanderia) =>
             `<tr><td style="text-align:center">${item.quantidade}</td><td>${item.descricaoPeca}</td><td>${getTipoLabel(item.tipoServico)}</td><td style="font-size:10px;color:#666">${item.observacoes || '-'}</td><td style="text-align:right">${fmtCur(item.total)}</td></tr>`
           ).join('')}</tbody>
@@ -857,13 +979,17 @@ export default function OSLavanderiaPage() {
       </div>
       <div class="terms">
         <p><strong>Termos e Condições:</strong></p>
-        <p>1. As roupas não retiradas no prazo de 90 dias serão doadas (conforme CDC).</p>
-        <p>2. A lavanderia não se responsabiliza por peças sem etiqueta de instruções de lavagem ou itens esquecidos nos bolsos.</p>
-        <p>3. Peças com manchas pré-existentes ou danificações devem ser informadas no ato da entrega e registradas nesta OS.</p>
+        <p>1. O cliente tem até 30 dias corridos para retirar as peças a contar da data de prontidão. Após esse prazo será cobrada taxa de armazenagem. Peças não retiradas em 90 dias serão doadas a instituição beneficente, sem direito a reembolso (conforme art. 49 CDC).</p>
+        <p>2. Peças com risco sanitário, biológico ou químico poderão ser recusadas no ato do recebimento. A lavanderia reserva-se o direito de recusar qualquer peça que apresente risco evidente de dano ou para a qual não se julgue apta a realizar o serviço.</p>
+        <p>3. Peças sem etiqueta de instruções de lavagem do fabricante serão processadas conforme a melhor técnica disponível, isentando a lavanderia de responsabilidade por encolhimento, desbotamento, alteração de textura ou desgaste natural.</p>
+        <p>4. A lavanderia não se responsabiliza por objetos deixados nos bolsos. Itens encontrados serão armazenados por 30 dias e após esse período descartados ou doados.</p>
+        <p>5. Danos pré-existentes (manchas, rasgos, desfiados, ausência de botões, etc.) devem ser informados no ato da entrega e registrados nesta OS, isentando a lavanderia de responsabilidade pelos mesmos.</p>
+        <p>6. Peças especiais, de alta costura, couro, seda ou com pedrarias/bordados necessitam de avaliação prévia e poderão ter prazo e valor diferenciados, informados antes da execução.</p>
+        <p>7. Em caso de extravio ou dano comprovado, o ressarcimento seguirá a ABNT NBR 16.737/2019, considerando a depreciação pelo uso. O cliente deve apresentar comprovante de compra ou estimativa de valor de mercado. Reclamações devem ser feitas em até 48h após a entrega. O reembolso ocorrerá em até 30 dias.</p>
       </div>
       <div class="signatures">
         <div class="sig-block"><div class="sig-line">Assinatura do Cliente</div></div>
-        <div class="sig-block"><div class="sig-line">Responsável (Lavanderia) — ${os.responsavel || ''}</div></div>
+        <div class="sig-block"><div class="sig-line">Vendedor — ${os.vendedorNome || os.responsavel || ''}</div></div>
       </div>
     `;
   };
@@ -871,6 +997,13 @@ export default function OSLavanderiaPage() {
   // ============================================================
   // Helpers
   // ============================================================
+  const getTipoLabel = (v: string) => {
+    if (!v) return '-';
+    const catalogService = catalogoServicos.find((cs: any) => cs.id === v);
+    if (catalogService) return catalogService.nome;
+    return TIPOS_SERVICO.find(t => t.value === v)?.label || v;
+  };
+
   const getStatusBadge = (status: string) => {
     const opt = STATUS_OPTIONS.find(s => s.value === status);
     if (!opt) return <Badge>{status}</Badge>;
@@ -884,9 +1017,7 @@ export default function OSLavanderiaPage() {
   };
 
   const getTipoServicoBadge = (tipo: string) => {
-    // Check if it's a catalog service ID
-    const catalogService = catalogoServicos.find((cs: any) => cs.id === tipo);
-    const label = catalogService?.nome || TIPOS_SERVICO.find(s => s.value === tipo)?.label || tipo;
+    const label = getTipoLabel(tipo);
     return (
       <Badge variant="secondary" className="text-xs">
         {label}
@@ -1085,7 +1216,7 @@ export default function OSLavanderiaPage() {
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailOS(os)} title="Ver detalhes">
                                 <Eye className="h-4 w-4" />
                               </Button>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => { setPrintOS(os); setTimeout(() => handlePrint(), 100); }} title="Imprimir">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handlePrint(os)} title="Imprimir">
                                 <Printer className="h-4 w-4" />
                               </Button>
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => handleDeleteOS(os.id)} title="Excluir">
@@ -1284,7 +1415,7 @@ export default function OSLavanderiaPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-16 text-center">Qtd</TableHead>
+                          <TableHead className="w-20 text-center"><div>Qtd</div><div className="text-[10px] font-normal leading-tight">m²</div></TableHead>
                           <TableHead>Descrição da Peça</TableHead>
                           <TableHead className="w-44">Tipo de Serviço</TableHead>
                           <TableHead className="w-52">Observações</TableHead>
@@ -1297,26 +1428,23 @@ export default function OSLavanderiaPage() {
                         {itens.map((item, idx) => (
                           <TableRow key={idx}>
                             <TableCell>
-                              <Input type="number" min="1" className="h-8 text-center w-14" value={item.quantidade} onChange={(e) => atualizarItem(idx, 'quantidade', parseInt(e.target.value) || 1)} />
+                              <Input type="number" min="0.01" step="0.01" className="h-9 text-center w-20 text-sm font-medium" value={item.quantidade} onChange={(e) => atualizarItem(idx, 'quantidade', parseFloat(e.target.value) || 0)} />
                             </TableCell>
                             <TableCell>
                               <Popover
                                 open={openItemPopoverIdx === idx}
                                 onOpenChange={(open) => {
                                   setOpenItemPopoverIdx(open ? idx : null);
-                                  if (open) setItemSearch('');
+                                  setItemSearch('');
                                 }}
                               >
                                 <PopoverTrigger asChild>
-                                  <Input
-                                    className="h-8 text-xs cursor-pointer"
-                                    placeholder="Buscar item..."
-                                    value={item.descricaoPeca}
-                                    onChange={(e) => atualizarItem(idx, 'descricaoPeca', e.target.value)}
-                                  />
+                                  <Button variant="outline" className="h-9 w-full justify-start font-normal text-sm px-3">
+                                    {item.descricaoPeca || <span className="text-muted-foreground">Buscar item...</span>}
+                                  </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-72 p-0" align="start">
-                                  <Command shouldFilter={false}>
+                                <PopoverContent className="w-80 p-0" align="start">
+                                  <Command>
                                     <CommandInput
                                       placeholder="Filtrar itens..."
                                       value={itemSearch}
@@ -1325,9 +1453,7 @@ export default function OSLavanderiaPage() {
                                     <CommandList>
                                       <CommandEmpty>Nenhum item encontrado</CommandEmpty>
                                       <CommandGroup className="max-h-52 overflow-y-auto">
-                                        {catalogoItens
-                                          .filter((ci: any) => !itemSearch.trim() || ci.descricao.toLowerCase().includes(itemSearch.toLowerCase()))
-                                          .map((ci: any) => (
+                                        {catalogoItens.map((ci: any) => (
                                           <CommandItem
                                             key={ci.id}
                                             value={ci.descricao}
@@ -1364,19 +1490,16 @@ export default function OSLavanderiaPage() {
                                 open={openServicoPopoverIdx === idx}
                                 onOpenChange={(open) => {
                                   setOpenServicoPopoverIdx(open ? idx : null);
-                                  if (open) setServicoSearch('');
+                                  setServicoSearch('');
                                 }}
                               >
                                 <PopoverTrigger asChild>
-                                  <Input
-                                    className="h-8 text-xs cursor-pointer"
-                                    placeholder="Serviço..."
-                                    readOnly
-                                    value={item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : ''}
-                                  />
+                                  <Button variant="outline" className="h-9 w-full justify-start font-normal text-sm px-3">
+                                    {item.tipoServico ? (catalogoServicos.find((cs: any) => cs.id === item.tipoServico)?.nome || TIPOS_SERVICO.find(t => t.value === item.tipoServico)?.label) : <span className="text-muted-foreground">Serviço...</span>}
+                                  </Button>
                                 </PopoverTrigger>
-                                <PopoverContent className="w-72 p-0" align="start">
-                                  <Command shouldFilter={false}>
+                                <PopoverContent className="w-80 p-0" align="start">
+                                  <Command>
                                     <CommandInput
                                       placeholder="Filtrar serviços..."
                                       value={servicoSearch}
@@ -1385,9 +1508,7 @@ export default function OSLavanderiaPage() {
                                     <CommandList>
                                       <CommandEmpty>Nenhum serviço encontrado</CommandEmpty>
                                       <CommandGroup className="max-h-52 overflow-y-auto">
-                                        {catalogoServicos.length > 0 && catalogoServicos
-                                          .filter((cs: any) => !servicoSearch.trim() || cs.nome.toLowerCase().includes(servicoSearch.toLowerCase()))
-                                          .map((cs: any) => {
+                                        {catalogoServicos.length > 0 && catalogoServicos.map((cs: any) => {
                                           const precoEspecifico = item.itemCatalogoId ? lookupPreco(item.itemCatalogoId, cs.id) : -1;
                                           const hasPreco = precoEspecifico >= 0;
                                           const precoDisplay = hasPreco ? precoEspecifico : (parseFloat(cs.preco) || 0);
@@ -1423,9 +1544,7 @@ export default function OSLavanderiaPage() {
                                           </CommandItem>
                                           );
                                         })}
-                                        {catalogoServicos.length === 0 && TIPOS_SERVICO
-                                          .filter(ts => !servicoSearch.trim() || ts.label.toLowerCase().includes(servicoSearch.toLowerCase()))
-                                          .map(ts => (
+                                        {catalogoServicos.length === 0 && TIPOS_SERVICO.map(ts => (
                                           <CommandItem
                                             key={ts.value}
                                             value={ts.label}
@@ -1501,7 +1620,7 @@ export default function OSLavanderiaPage() {
                     <Input type="number" step="0.01" min="0" placeholder="0,00" value={formValorTotal || ''} onChange={(e) => setFormValorTotal(parseFloat(e.target.value) || 0)} className="font-semibold text-green-600" />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Forma de Pagamento</Label>
+                    <Label className="text-xs">Forma de Pagamento <span className="text-red-500">*</span></Label>
                     <Select value={formaPagamento} onValueChange={setFormaPagamento}>
                       <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Selecionar..." /></SelectTrigger>
                       <SelectContent>
@@ -1516,11 +1635,42 @@ export default function OSLavanderiaPage() {
 
               <Separator />
 
-              {/* Status e Responsável */}
+              {/* Status e Vendedor */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <Label className="text-xs">Responsável</Label>
-                  <Input placeholder="Nome do responsável pela lavanderia" value={formResponsavel} onChange={(e) => setFormResponsavel(e.target.value)} />
+                  <Label className="text-xs">Vendedor</Label>
+                  <Popover open={openVendedorSearch} onOpenChange={setOpenVendedorSearch}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" className="h-10 w-full justify-start font-normal text-sm">
+                        {formVendedorNome ? (
+                          <span>{formVendedorNome}</span>
+                        ) : (
+                          <span className="text-muted-foreground">Selecionar vendedor...</span>
+                        )}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0">
+                      <Command shouldFilter={false}>
+                        <CommandInput placeholder="Buscar vendedor..." value={vendedorSearch} onValueChange={setVendedorSearch} />
+                        <CommandList>
+                          <CommandEmpty>Nenhum vendedor encontrado</CommandEmpty>
+                          <CommandGroup className="max-h-48 overflow-y-auto">
+                            {vendedoresFiltrados.map(v => (
+                              <CommandItem key={v.id} value={v.nome} onSelect={() => {
+                                setFormVendedorId(v.id);
+                                setFormVendedorNome(v.nome);
+                                setOpenVendedorSearch(false);
+                                setVendedorSearch('');
+                              }}>
+                                <User className="mr-2 h-4 w-4" />
+                                {v.nome}
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
                 <div className="space-y-1">
                   <Label className="text-xs">Status</Label>
@@ -1683,17 +1833,17 @@ export default function OSLavanderiaPage() {
                     </div>
                   )}
 
-                  {detailOS.responsavel && (
+                  {detailOS.vendedorNome && (
                     <div className="bg-muted rounded-lg p-3">
-                      <p className="text-xs text-muted-foreground">Responsável</p>
-                      <p className="text-sm mt-1">{detailOS.responsavel}</p>
+                      <p className="text-xs text-muted-foreground">Vendedor</p>
+                      <p className="text-sm mt-1">{detailOS.vendedorNome}</p>
                     </div>
                   )}
                 </TabsContent>
 
                 <TabsContent value="imprimir" className="mt-4">
                   <div className="flex justify-end mb-4">
-                    <Button variant="outline" className="gap-2" onClick={() => { setPrintOS(detailOS); setTimeout(() => handlePrint(), 100); }}>
+                    <Button variant="outline" className="gap-2" onClick={() => handlePrint(detailOS)}>
                       <Printer className="h-4 w-4" />
                       Imprimir OS
                     </Button>
