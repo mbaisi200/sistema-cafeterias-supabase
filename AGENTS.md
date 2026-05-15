@@ -506,6 +506,14 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Botão "Excluir" adicionado para todos os status
 - Verificação de NF-e emitida antes de permitir exclusão
 - Dados fiscais (NCM, CFOP, CST) buscados automaticamente da tabela `produtos` ao emitir NFe
+- Corrigido nome das colunas no INSERT em vendas (`nome_cliente`, `total`, `observacao`, `tipo`)
+- Corrigido itens_venda (`nome` em vez de `produto_nome`, `total` em vez de `subtotal`)
+- Forma de pagamento do pedido pré-selecionada no dialog de conversão
+- Link "Emitir NFe" disponível também para pedidos convertidos
+- Adicionados `useState` faltantes na página de emissão NFe (`buscaCliente`, `buscandoCliente`, `clientesResult`, `clienteSelecionado`)
+- Mapeamento de forma de pagamento do pedido para código NFe
+- Parsing de `itens` como JSON (pode vir como string do Supabase)
+- Colunas fiscais corrigidas na query de produtos (`origem`, `cst`, `csosn`, `icms`, `pis_aliquota`, `cofins_aliquota`, `ipi_aliquota`, `unidade_tributavel`)
 
 ### Dispositivos — Correção de Duplicatas ✅
 - Prevenção de duplicatas por `usuario_id + user_agent` (localStorage limpo)

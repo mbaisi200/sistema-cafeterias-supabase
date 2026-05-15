@@ -554,12 +554,13 @@ export default function PedidosPage() {
             .from('vendas')
             .insert({
               empresa_id: empresaId,
+              tipo: 'balcao',
               cliente_id: converterPedido.clienteId,
-              cliente_nome: converterPedido.clienteNome,
-              valor_total: converterPedido.total,
+              nome_cliente: converterPedido.clienteNome,
+              total: converterPedido.total,
               forma_pagamento: converterFormaPagamento,
-              status: 'finalizada',
-              observacoes: `Convertido do Pedido #${converterPedido.numero}`,
+              status: 'fechada',
+              observacao: `Convertido do Pedido #${converterPedido.numero}`,
               criado_por: user?.id,
               criado_por_nome: user?.nome,
             })
@@ -574,10 +575,10 @@ export default function PedidosPage() {
           empresa_id: empresaId,
           venda_id: novaVenda.id,
           produto_id: item.produtoId,
-          produto_nome: item.produtoNome,
+          nome: item.produtoNome,
           quantidade: item.quantidade,
           preco_unitario: item.precoUnitario,
-          subtotal: item.total,
+          total: item.total,
         }));
 
         const { error: itensError } = await supabase
@@ -964,7 +965,7 @@ export default function PedidosPage() {
                                     variant="ghost"
                                     size="sm"
                                     className="h-8 gap-1 text-green-600 hover:text-green-700"
-                                    onClick={() => { setConverterPedido(p); setConverterFormaPagamento(''); setConverterDialogOpen(true); }}
+                                    onClick={() => { setConverterPedido(p); setConverterFormaPagamento(p.formaPagamento); setConverterDialogOpen(true); }}
                                     title="Converter em Venda"
                                   >
                                     <FileText className="h-4 w-4" />
@@ -980,6 +981,11 @@ export default function PedidosPage() {
                               )}
                               {(p.status === 'convertido' || p.status === 'cancelado') && (
                                 <>
+                                  <Link href={`/admin/nfe/emitir?pedido_id=${p.id}`}>
+                                    <Button variant="ghost" size="sm" className="h-8 gap-1 text-purple-600 hover:text-purple-700" title="Emitir NF-e">
+                                      <FileText className="h-4 w-4" />
+                                    </Button>
+                                  </Link>
                                   <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => handleDelete(p.id)} title="Excluir">
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
