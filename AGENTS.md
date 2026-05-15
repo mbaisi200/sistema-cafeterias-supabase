@@ -307,6 +307,7 @@ const darkMode = resolvedTheme === 'dark';
 7. **NFe parser** está em `src/lib/nfe-parser.ts` — não modifique sem entender a estrutura do XML fiscal
 8. **NF-e importação** — o fluxo é: upload XML → parser → matching → preview → confirmação → API
 9. **NÃO faça `git push` sem ser explicitamente requisitado** — o push manual expõe tokens no terminal
+10. **A partir de 30/10/2026**, novas tabelas no Supabase precisam de `GRANT` explícito: `grant select, insert, update, delete on public.nova_tabela to authenticated; grant ... to service_role;` — sem isso, a API não conseguirá acessar a tabela. Incluir em toda migration nova.
 
 ---
 
@@ -479,3 +480,34 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 ### OS Lavanderia — Cliente em Primeiro ✅
 - Cliente movido para antes das Datas no formulário do dialog
+
+### OS Lavanderia — Desconto na OS ✅
+- Campo "Desconto (R$)" adicionado no Resumo Financeiro
+- Valor total é calculado como soma dos itens menos desconto
+- `formDesconto` salvo no metadata JSON da OS e carregado ao editar
+
+### Notificações — Dispositivos Pendentes ✅
+- Badge vermelho na sidebar (item "Dispositivos") com contagem de pendentes
+- Atualização automática a cada 30s
+- Admin sempre aprovado automaticamente; funcionário precisa aprovação
+
+### Toast — Auto-dismiss ✅
+- `setTimeout(dismiss, 5000)` no hook `use-toast` para fechar toast automaticamente
+- `TOAST_REMOVE_DELAY` alterado de 1000000 para 5000
+
+### PDV Varejo — Atalhos de Teclado ✅
+- Handler refatorado com `useRef` para evitar stale closures
+- Event listener em `capture: true` para funcionar com diálogos abertos
+- Atalhos F2/F3/F4/⌃F5/F8/F10/⌃F12 exibidos nos botões
+
+### Pedidos — Correções ✅
+- Removido `condicao_pagamento` do INSERT em vendas (coluna inexistente)
+- Toast com ação "Emitir NFe" após converter pedido em venda
+- Botão "Excluir" adicionado para todos os status
+- Verificação de NF-e emitida antes de permitir exclusão
+- Dados fiscais (NCM, CFOP, CST) buscados automaticamente da tabela `produtos` ao emitir NFe
+
+### Dispositivos — Correção de Duplicatas ✅
+- Prevenção de duplicatas por `usuario_id + user_agent` (localStorage limpo)
+- Admin sempre bypassa bloqueio de dispositivo
+- Migration de limpeza: `supabase/migrations/cleanup_dispositivos_duplicados.sql`

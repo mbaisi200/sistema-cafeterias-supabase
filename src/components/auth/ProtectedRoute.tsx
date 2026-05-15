@@ -27,6 +27,7 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     '/admin/categorias',         // Sub-página de Produtos / Cadastros
     '/admin/configuracoes-cupom', // Sub-página de Cupons e NFEs
     '/admin/configuracoes/unidades', // Sub-página de Unidades
+    '/admin/dispositivos',       // Sub-página de Funcionários
     '/admin/logs',               // Logs do sistema
   ];
 

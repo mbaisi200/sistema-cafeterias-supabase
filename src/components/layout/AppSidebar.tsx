@@ -187,6 +187,23 @@ export function AppSidebar() {
   const [dynamicAtalhoItems, setDynamicAtalhoItems] = useState<MenuItem[]>([]);
   const [hasSegment, setHasSegment] = useState<boolean>(false);
   const [openSubmenus, setOpenSubmenus] = useState<string[]>(['pedidos-os']);
+  const [dispositivosPendentes, setDispositivosPendentes] = useState(0);
+
+
+  // Buscar dispositivos pendentes para admin
+  useEffect(() => {
+    if (role !== 'admin') return;
+    const fetchPendentes = async () => {
+      try {
+        const res = await fetch('/api/dispositivos/pendentes');
+        const data = await res.json();
+        if (data.pendentes !== undefined) setDispositivosPendentes(data.pendentes);
+      } catch {}
+    };
+    fetchPendentes();
+    const interval = setInterval(fetchPendentes, 30000);
+    return () => clearInterval(interval);
+  }, [role]);
 
 
   // Carregar seções dinâmicas do Supabase para admin e funcionário (com cache)
@@ -455,6 +472,11 @@ export function AppSidebar() {
                       <Link href={item.url}>
                         <item.icon className="h-4 w-4" />
                         <span>{item.title}</span>
+                        {item.title === 'Dispositivos' && dispositivosPendentes > 0 && (
+                          <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground px-1">
+                            {dispositivosPendentes}
+                          </span>
+                        )}
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

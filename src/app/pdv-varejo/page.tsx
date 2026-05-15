@@ -652,19 +652,23 @@ export default function PDVVarejoPage() {
     }
   };
 
+  // Refs para atalhos de teclado (evita stale closures + funciona com diálogos abertos)
+  const handleKeyRef = useRef<((e: KeyboardEvent) => void) | null>(null);
+  handleKeyRef.current = (e: KeyboardEvent) => {
+    if (e.key === 'F4') { e.preventDefault(); if (itensCarrinho.length > 0) setDialogPagamento(true); }
+    if (e.key === 'F2') { e.preventDefault(); handleremoveSelected(); }
+    if (e.key === 'F3') { e.preventDefault(); if (selectedItemId) { setDialogDesconto(selectedItemId); const item = itensCarrinho.find(i => i.id === selectedItemId); setValorDescontoInput((item?.descontoPercentual || 0).toString()); } else { setDialogDesconto('total'); setValorDescontoInput(descontoTotalPercentual.toString()); } }
+    if (e.key === 'F8') { e.preventDefault(); setDialogDevolucao(true); }
+    if (e.key === 'F10') { e.preventDefault(); setDialogAbrirPedido(true); }
+    if (e.ctrlKey && e.key === 'F12') { e.preventDefault(); setDialogObservacao(true); }
+    if (e.ctrlKey && e.key === 'F5') { e.preventDefault(); setDialogCliente(true); }
+  };
+
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'F4') { e.preventDefault(); if (itensCarrinho.length > 0) setDialogPagamento(true); }
-      if (e.key === 'F2') { e.preventDefault(); handleremoveSelected(); }
-      if (e.key === 'F3') { e.preventDefault(); if (selectedItemId) { setDialogDesconto(selectedItemId); const item = itensCarrinho.find(i => i.id === selectedItemId); setValorDescontoInput((item?.descontoPercentual || 0).toString()); } else { setDialogDesconto('total'); setValorDescontoInput(descontoTotalPercentual.toString()); } }
-      if (e.key === 'F8') { e.preventDefault(); setDialogDevolucao(true); }
-      if (e.key === 'F10') { e.preventDefault(); setDialogAbrirPedido(true); }
-      if (e.ctrlKey && e.key === 'F12') { e.preventDefault(); setDialogObservacao(true); }
-      if (e.ctrlKey && e.key === 'F5') { e.preventDefault(); setDialogCliente(true); }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [itensCarrinho.length, selectedItemId, descontoTotalPercentual]);
+    const handler = (e: KeyboardEvent) => handleKeyRef.current?.(e);
+    window.addEventListener('keydown', handler, { capture: true });
+    return () => window.removeEventListener('keydown', handler, { capture: true });
+  }, []);
 
   if (loading) {
     return (
@@ -1148,6 +1152,7 @@ export default function PDVVarejoPage() {
             >
               <Trash2 className="h-3.5 w-3.5 mr-1" />
               Remover
+              <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">F2</kbd>
             </Button>
             <Button
               className="h-10 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold rounded-xl shadow-lg shadow-orange-500/20 text-xs"
@@ -1165,6 +1170,7 @@ export default function PDVVarejoPage() {
             >
               <Percent className="h-3.5 w-3.5 mr-1" />
               Desc.
+              <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">F3</kbd>
             </Button>
             <Button
               className="h-10 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-bold rounded-xl shadow-lg shadow-green-500/20 text-xs"
@@ -1173,20 +1179,7 @@ export default function PDVVarejoPage() {
             >
               <Receipt className="h-3.5 w-3.5 mr-1" />
               Finalizar
-            </Button>
-            <Button
-              className="h-10 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 text-xs"
-              onClick={() => setDialogDevolucao(true)}
-            >
-              <Undo2 className="h-3.5 w-3.5 mr-1" />
-              Devolução
-            </Button>
-            <Button
-              className="h-10 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg shadow-purple-500/20 text-xs"
-              onClick={() => setDialogAbrirPedido(true)}
-            >
-              <FolderOpen className="h-3.5 w-3.5 mr-1" />
-              Pedido
+              <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">F4</kbd>
             </Button>
             <Button
               className="h-10 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 text-xs"
@@ -1194,6 +1187,23 @@ export default function PDVVarejoPage() {
             >
               <User className="h-3.5 w-3.5 mr-1" />
               Cliente
+              <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">⌃F5</kbd>
+            </Button>
+            <Button
+              className="h-10 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 text-xs"
+              onClick={() => setDialogDevolucao(true)}
+            >
+              <Undo2 className="h-3.5 w-3.5 mr-1" />
+              Devolução
+              <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">F8</kbd>
+            </Button>
+            <Button
+              className="h-10 bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white font-bold rounded-xl shadow-lg shadow-purple-500/20 text-xs"
+              onClick={() => setDialogAbrirPedido(true)}
+            >
+              <FolderOpen className="h-3.5 w-3.5 mr-1" />
+              Pedido
+              <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">F10</kbd>
             </Button>
             <Button
               className={`h-10 rounded-xl text-xs font-bold shadow-lg ${
@@ -1205,6 +1215,7 @@ export default function PDVVarejoPage() {
             >
               <FileText className="h-3.5 w-3.5 mr-1" />
               Obs.
+              <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">⌃F12</kbd>
             </Button>
           </div>
         </div>

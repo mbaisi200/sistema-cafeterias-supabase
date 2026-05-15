@@ -107,6 +107,7 @@ interface OSLavanderia {
   itens: ItemLavanderia[];
   totalPecas: number;
   pesoKg: number;
+  desconto: number;
   valorTotal: number;
   formaPagamento: string;
   status: string;
@@ -181,6 +182,7 @@ export default function OSLavanderiaPage() {
   const [itens, setItens] = useState<ItemLavanderia[]>([]);
   const [pesoKg, setPesoKg] = useState(0);
   const [formValorTotal, setFormValorTotal] = useState(0);
+  const [formDesconto, setFormDesconto] = useState(0);
   const [formaPagamento, setFormaPagamento] = useState('');
   const [formStatus, setFormStatus] = useState('recebida');
   const [formVendedorId, setFormVendedorId] = useState('');
@@ -279,6 +281,7 @@ export default function OSLavanderiaPage() {
             itens: parsedItens,
             totalPecas: parsedItens.reduce((acc: number, i: any) => acc + (i.quantidade || 0), 0),
             pesoKg: metadata.pesoKg || 0,
+            desconto: metadata.desconto || 0,
             valorTotal: parseFloat(o.valor_total) || 0,
             formaPagamento: metadata.formaPagamento || '',
             status: mapStatus(o.status),
@@ -452,8 +455,8 @@ export default function OSLavanderiaPage() {
   const totalItensCalc = itens.reduce((acc, item) => acc + item.total, 0);
 
   useEffect(() => {
-    setFormValorTotal(totalItensCalc);
-  }, [totalItensCalc]);
+    setFormValorTotal(Math.max(0, totalItensCalc - formDesconto));
+  }, [totalItensCalc, formDesconto]);
 
   // ============================================================
   // Filters
@@ -524,6 +527,7 @@ export default function OSLavanderiaPage() {
         horaPrevisao: formHoraPrevisao,
         pesoKg,
         formaPagamento,
+        desconto: formDesconto,
         vendedorId: formVendedorId,
         vendedorNome: formVendedorNome,
         observacoesTexto: formObservacoes,
@@ -828,6 +832,7 @@ export default function OSLavanderiaPage() {
     setFormHoraPrevisao(os.horaPrevisao || '');
     setItens(os.itens || []);
     setPesoKg(os.pesoKg || 0);
+    setFormDesconto(os.desconto || 0);
     setFormValorTotal(os.valorTotal || 0);
     setFormaPagamento(os.formaPagamento || '');
     setFormStatus(os.status || 'recebida');
@@ -848,6 +853,7 @@ export default function OSLavanderiaPage() {
     setItens([]);
     setPesoKg(0);
     setFormValorTotal(0);
+    setFormDesconto(0);
     setFormaPagamento('');
     setFormStatus('recebida');
     setFormVendedorId('');
@@ -1594,7 +1600,7 @@ export default function OSLavanderiaPage() {
               </div>
 
               {/* RESUMO FINANCEIRO */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div>
                   <Label className="text-xs">Peças</Label>
                   <div className="h-9 flex items-center px-3 bg-muted rounded text-sm font-semibold">
@@ -1604,6 +1610,14 @@ export default function OSLavanderiaPage() {
                 <div>
                   <Label className="text-xs">Peso (kg)</Label>
                   <Input type="number" step="0.1" min="0" placeholder="0" className="h-9 text-sm" value={pesoKg || ''} onChange={(e) => setPesoKg(parseFloat(e.target.value) || 0)} />
+                </div>
+                <div>
+                  <Label className="text-xs">Desconto (R$)</Label>
+                  <Input type="text" inputMode="decimal" className="h-9 text-sm" value={formDesconto === 0 ? '' : formDesconto.toFixed(2).replace('.', ',')} onChange={(e) => {
+                    const raw = e.target.value.replace(/[^0-9,]/g, '');
+                    const parsed = parseFloat(raw.replace(',', '.'));
+                    setFormDesconto(isNaN(parsed) ? 0 : parsed);
+                  }} />
                 </div>
                 <div>
                   <Label className="text-xs">Valor Total (R$)</Label>

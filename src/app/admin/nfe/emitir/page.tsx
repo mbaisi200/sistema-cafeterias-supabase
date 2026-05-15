@@ -163,29 +163,44 @@ function EmitirNFeContent() {
           }
 
           if (pedido.itens && Array.isArray(pedido.itens)) {
-            const prods = pedido.itens.map((item: any) => ({
+            // Buscar dados fiscais dos produtos no catálogo
+            const produtoIds = pedido.itens.map((i: any) => i.produtoId || i.produto_id).filter(Boolean);
+            let fiscaisMap: Record<string, any> = {};
+            if (produtoIds.length > 0) {
+              const { data: catalogo } = await supabase
+                .from('produtos')
+                .select('id, ncm, cest, cfop, unidade, icms_origem, icms_cst, icms_csosn, icms_aliquota, pis_cst, pis_aliquota, cofins_cst, cofins_aliquota, ipi_cst, ipi_aliquota')
+                .in('id', produtoIds);
+              if (catalogo) {
+                catalogo.forEach(p => { fiscaisMap[p.id] = p; });
+              }
+            }
+
+            const prods = pedido.itens.map((item: any) => {
+              const fiscal = fiscaisMap[item.produtoId || item.produto_id] || {};
+              return {
               codigo: item.codigo || '',
               codigo_barras: item.codigo_barras || '',
               descricao: item.produtoNome || '',
-              ncm: item.ncm || '00000000',
-              cest: item.cest || '',
-              cfop: item.cfop || '5102',
-              unidade_comercial: item.unidade || 'UN',
+              ncm: item.ncm || fiscal.ncm || '00000000',
+              cest: item.cest || fiscal.cest || '',
+              cfop: item.cfop || fiscal.cfop || '5102',
+              unidade_comercial: item.unidade || fiscal.unidade || 'UN',
               quantidade_comercial: item.quantidade || 1,
               valor_unitario_comercial: item.precoUnitario || 0,
               valor_total: item.total || (item.precoUnitario || 0) * (item.quantidade || 1),
               valor_desconto: item.desconto || 0,
-              icms_origem: '0',
-              icms_cst: '',
-              icms_csosn: '',
-              icms_aliquota: 0,
-              pis_cst: '',
-              pis_aliquota: 0,
-              cofins_cst: '',
-              cofins_aliquota: 0,
-              ipi_cst: '',
-              ipi_aliquota: 0,
-            }));
+              icms_origem: fiscal.icms_origem || '0',
+              icms_cst: fiscal.icms_cst || '',
+              icms_csosn: fiscal.icms_csosn || '',
+              icms_aliquota: fiscal.icms_aliquota || 0,
+              pis_cst: fiscal.pis_cst || '',
+              pis_aliquota: fiscal.pis_aliquota || 0,
+              cofins_cst: fiscal.cofins_cst || '',
+              cofins_aliquota: fiscal.cofins_aliquota || 0,
+              ipi_cst: fiscal.ipi_cst || '',
+              ipi_aliquota: fiscal.ipi_aliquota || 0,
+            }});
             setProdutos(prods);
           }
         }

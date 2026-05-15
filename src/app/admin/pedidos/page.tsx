@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { ToastAction } from '@/components/ui/toast';
 import { Separator } from '@/components/ui/separator';
 import {
   Dialog,
@@ -474,9 +475,23 @@ export default function PedidosPage() {
   // Actions
   // ============================================================
   const handleDelete = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este pedido?')) return;
     try {
       const supabase = getSupabase();
+
+      // Verificar se já foi emitida NF-e para este pedido
+      const { data: nfe } = await supabase
+        .from('nfe')
+        .select('id, status')
+        .eq('pedido_id', id)
+        .in('status', ['pendente', 'autorizada', 'rejeitada', 'denegada', 'contingencia'])
+        .maybeSingle();
+
+      if (nfe) {
+        toast({ variant: 'destructive', title: 'Pedido não pode ser excluído', description: 'Já possui NF-e vinculada. Cancele a NF-e antes de excluir o pedido.' });
+        return;
+      }
+
+      if (!confirm('Deseja realmente excluir este pedido?')) return;
       const { error } = await supabase.from('pedidos').delete().eq('id', id);
       if (error) throw error;
       toast({ title: 'Pedido excluído' });
@@ -535,20 +550,19 @@ export default function PedidosPage() {
         .limit(1)
         .single();
 
-      const { data: novaVenda, error: vendaError } = await supabase
-        .from('vendas')
-        .insert({
-          empresa_id: empresaId,
-          cliente_id: converterPedido.clienteId,
-          cliente_nome: converterPedido.clienteNome,
-          valor_total: converterPedido.total,
-          forma_pagamento: converterFormaPagamento,
-          condicao_pagamento: converterPedido.condicaoPagamento,
-          status: 'finalizada',
-          observacoes: `Convertido do Pedido #${converterPedido.numero}`,
-          criado_por: user?.id,
-          criado_por_nome: user?.nome,
-        })
+          const { data: novaVenda, error: vendaError } = await supabase
+            .from('vendas')
+            .insert({
+              empresa_id: empresaId,
+              cliente_id: converterPedido.clienteId,
+              cliente_nome: converterPedido.clienteNome,
+              valor_total: converterPedido.total,
+              forma_pagamento: converterFormaPagamento,
+              status: 'finalizada',
+              observacoes: `Convertido do Pedido #${converterPedido.numero}`,
+              criado_por: user?.id,
+              criado_por_nome: user?.nome,
+            })
         .select('id')
         .single();
 
@@ -587,6 +601,11 @@ export default function PedidosPage() {
       toast({
         title: 'Venda gerada com sucesso!',
         description: `Pedido #${converterPedido.numero} convertido em venda.`,
+        action: (
+          <ToastAction altText="Emitir NFe" onClick={() => window.open(`/admin/nfe/emitir?pedido_id=${converterPedido.id}`, '_blank')}>
+            Emitir NFe
+          </ToastAction>
+        ),
       });
       setConverterDialogOpen(false);
       setConverterPedido(null);
@@ -954,10 +973,17 @@ export default function PedidosPage() {
                                   <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(p)} title="Editar">
                                     <Edit className="h-4 w-4 text-blue-600" />
                                   </Button>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => handleDelete(p.id)} title="Excluir">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
                                 </>
                               )}
                               {(p.status === 'convertido' || p.status === 'cancelado') && (
-                                <span className="text-xs text-muted-foreground">Somente leitura</span>
+                                <>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => handleDelete(p.id)} title="Excluir">
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </>
                               )}
                             </div>
                           </TableCell>

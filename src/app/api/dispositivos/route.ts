@@ -103,8 +103,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Funcionários SEMPRE precisam de aprovação do admin para novos dispositivos
-    // Admins seguem a flag restringir_dispositivos da empresa
-    const restringir = isFuncionario ? true : (empresa?.restringir_dispositivos || false);
+    // Admins nunca são bloqueados (acesso livre em qualquer dispositivo)
+    const isAdminUser = !isFuncionario;
 
     // Check if device_id already exists for this empresa
     const { data: existingDevice, error: searchError } = await supabase
@@ -138,7 +138,24 @@ export async function POST(request: NextRequest) {
           message: 'Dispositivo reconhecido',
         });
       } else {
-        // Device is revoked
+        // Device is revoked - admins bypass this
+        if (isAdminUser) {
+          // Reactivate for admin
+          await supabase
+            .from('dispositivos_usuario')
+            .update({
+              ativo: true,
+              ultimo_acesso: new Date().toISOString(),
+              device_name: deviceName || existingDevice.device_name,
+            })
+            .eq('id', existingDevice.id);
+
+          return NextResponse.json({
+            allowed: true,
+            message: 'Dispositivo reativado para administrador',
+          });
+        }
+
         // Update last access attempt
         await supabase
           .from('dispositivos_usuario')
@@ -157,6 +174,41 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // New device - check for duplicate by user + agent before creating
+    if (usuarioId && userAgent) {
+      const { data: similarDevice } = await supabase
+        .from('dispositivos_usuario')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .eq('usuario_id', usuarioId)
+        .eq('user_agent', userAgent)
+        .maybeSingle();
+
+      if (similarDevice) {
+        // Same user+agent but different device_id (localStorage was cleared)
+        // Update the existing record with the new device_id
+        const similarAtivo = isAdminUser ? true : similarDevice.ativo;
+        await supabase
+          .from('dispositivos_usuario')
+          .update({
+            device_id: deviceId,
+            device_name: deviceName || similarDevice.device_name,
+            ultimo_acesso: new Date().toISOString(),
+            ativo: similarAtivo,
+          })
+          .eq('id', similarDevice.id);
+
+        if (similarAtivo) {
+          return NextResponse.json({ allowed: true, message: 'Dispositivo reconhecido' });
+        } else {
+          return NextResponse.json({
+            allowed: false,
+            message: 'Dispositivo revogado pelo administrador',
+          });
+        }
+      }
+    }
+
     // New device - register it
     const newDevice = {
       empresa_id: empresaId,
@@ -165,7 +217,7 @@ export async function POST(request: NextRequest) {
       device_id: deviceId,
       device_name: deviceName || null,
       user_agent: userAgent || null,
-      ativo: !restringir, // Funcionários sempre false; Admins dependem da flag
+      ativo: true, // Admin sempre ativo
       ultimo_acesso: new Date().toISOString(),
     };
 
@@ -177,18 +229,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erro ao registrar dispositivo' }, { status: 500 });
     }
 
-    if (restringir) {
+    if (isAdminUser) {
       return NextResponse.json({
-        allowed: false,
-        message: isFuncionario
-          ? 'Novo dispositivo detectado. Solicite ao administrador que autorize este equipamento para acesso como funcionário.'
-          : 'Novo dispositivo detectado. Aguardando aprovação do administrador.',
+        allowed: true,
+        message: 'Dispositivo registrado automaticamente',
       });
     }
 
+    // Funcionário: novo dispositivo precisa de aprovação
     return NextResponse.json({
-      allowed: true,
-      message: 'Dispositivo registrado automaticamente',
+      allowed: false,
+      message: 'Novo dispositivo detectado. Solicite ao administrador que autorize este equipamento para acesso como funcionário.',
     });
   } catch (error) {
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
