@@ -146,6 +146,9 @@ export default function PedidosPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('todos');
+  const [periodoFiltro, setPeriodoFiltro] = useState('este-mes');
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
 
   // Dialog states
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -338,12 +341,46 @@ export default function PedidosPage() {
     );
   };
 
+  const getDateRange = () => {
+    const now = new Date();
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    switch (periodoFiltro) {
+      case 'hoje': {
+        const s = startOfDay(now);
+        return { inicio: s, fim: new Date(s.getTime() + 86400000) };
+      }
+      case 'este-mes': {
+        const inicio = new Date(now.getFullYear(), now.getMonth(), 1);
+        const fim = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+        return { inicio, fim };
+      }
+      case 'ultimos-30-dias': {
+        const fim = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+        const inicio = new Date(fim.getTime() - 30 * 86400000);
+        return { inicio, fim };
+      }
+      case 'personalizado': {
+        if (!dataInicio && !dataFim) return null;
+        const inicio = dataInicio ? new Date(dataInicio + 'T00:00:00') : new Date(0);
+        const fim = dataFim ? new Date(dataFim + 'T23:59:59') : new Date(8640000000000000);
+        return { inicio, fim };
+      }
+      default:
+        return null;
+    }
+  };
+
   const pedidosFiltrados = pedidos.filter(p => {
     const matchStatus = statusFilter === 'todos' || p.status === statusFilter;
     const matchSearch = !search ||
       (p.clienteNome || '').toLowerCase().includes(search.toLowerCase()) ||
       String(p.numero).includes(search);
-    return matchStatus && matchSearch;
+    const range = getDateRange();
+    const matchDate = !range || (p.criadoEm && (() => {
+      const d = new Date(p.criadoEm);
+      return d >= range.inicio && d < range.fim;
+    })());
+    return matchStatus && matchSearch && matchDate;
   });
 
   // Stats
@@ -869,8 +906,27 @@ export default function PedidosPage() {
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input placeholder="Buscar por cliente ou nº pedido..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
                 </div>
+                <Select value={periodoFiltro} onValueChange={(val) => { setPeriodoFiltro(val); if (val !== 'personalizado') { setDataInicio(''); setDataFim(''); } }}>
+                  <SelectTrigger className="w-full md:w-[160px]">
+                    <SelectValue placeholder="Período" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos</SelectItem>
+                    <SelectItem value="hoje">Hoje</SelectItem>
+                    <SelectItem value="este-mes">Este Mês</SelectItem>
+                    <SelectItem value="ultimos-30-dias">Últimos 30 Dias</SelectItem>
+                    <SelectItem value="personalizado">Personalizado</SelectItem>
+                  </SelectContent>
+                </Select>
+                {periodoFiltro === 'personalizado' && (
+                  <div className="flex gap-2 items-center w-full md:w-auto">
+                    <Input type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)} className="h-9 w-[140px]" />
+                    <span className="text-muted-foreground text-sm">até</span>
+                    <Input type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} className="h-9 w-[140px]" />
+                  </div>
+                )}
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="w-full md:w-[180px]">
+                  <SelectTrigger className="w-full md:w-[160px]">
                     <SelectValue placeholder="Status" />
                   </SelectTrigger>
                   <SelectContent>

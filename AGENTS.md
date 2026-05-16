@@ -515,6 +515,10 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Parsing de `itens` como JSON (pode vir como string do Supabase)
 - Colunas fiscais corrigidas na query de produtos (`origem`, `cst`, `csosn`, `icms`, `pis_aliquota`, `cofins_aliquota`, `ipi_aliquota`, `unidade_tributavel`)
 
+### Pedidos — Filtro de Período ✅
+- Select de período com opções: Todos, Hoje, Este Mês (default), Últimos 30 Dias, Personalizado (com inputs date)
+- Filtro aplicado client-side via `criadoEm`
+
 ### Dispositivos — Correção de Duplicatas ✅
 - Prevenção de duplicatas por `usuario_id + user_agent` (localStorage limpo)
 - Admin sempre bypassa bloqueio de dispositivo
