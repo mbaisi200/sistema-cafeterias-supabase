@@ -64,8 +64,8 @@ INSERT INTO secoes_menu (chave, nome, descricao, icone, url, grupo, ordem, ativo
   ('funcionarios',     'Funcionários',      'Gestão de funcionários',       'UserCog',         '/admin/funcionarios',   'principal',      12, true,  false, ARRAY['admin']),
   ('relatorios',       'Relatórios',        'Relatórios e análises',        'BarChart3',       '/admin/relatorios',     'principal',      13, true,  false, ARRAY['admin']),
   ('integracoes',      'Integrações',       'Integrações externas',         'Plug',            '/admin/integracoes',    'principal',      14, true,  false, ARRAY['admin']),
-  ('cupons-nfes',      'Cupons e NFEs',     'Configuração de cupons e NF-e','FileText',        '/admin/cupons-nfes',    'principal',      15, true,  false, ARRAY['admin']),
-  ('nfe',              'Notas Fiscais',     'Emissão de notas fiscais',     'FileText',        '/admin/nfe',            'principal',      16, true,  false, ARRAY['admin']),
+  ('cupons-nfes',      'Cupons Fiscais',     'Configuração de cupons fiscais e emissão de NF-e','FileText',        '/admin/cupons-nfes',    'principal',      15, true,  false, ARRAY['admin']),
+  ('nfe',              'Notas Fiscais de Entrada',     'Importação e consulta de notas fiscais de entrada',     'FileText',        '/admin/nfe',            'principal',      16, true,  false, ARRAY['admin']),
   ('cardapio',         'Cardápio',          'Cardápio online',              'Menu',            '/cardapio',             'atalho_rapido',  1, true,  false, ARRAY['admin']),
   ('config-cardapio',  'Config. Cardápio',  'Configuração do cardápio online','Settings',       '/admin/delivery/config','atalho_rapido',  2, true,  false, ARRAY['admin'])
 ON CONFLICT (chave) DO NOTHING;

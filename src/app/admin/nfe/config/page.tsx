@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
@@ -30,6 +30,11 @@ import {
   Shield,
   AlertTriangle,
   CheckCircle2,
+  Plus,
+  Trash2,
+  Edit,
+  X,
+  Check,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -85,6 +90,65 @@ export default function NFeConfigPage() {
   const [tipoContingencia, setTipoContingencia] = useState('');
   const [informacoesAdicionais, setInformacoesAdicionais] = useState('');
   const [informacoesFisco, setInformacoesFisco] = useState('');
+
+  // Gerenciamento de múltiplas informações adicionais
+  const [infoTemplates, setInfoTemplates] = useState<any[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(false);
+  const [infoTab, setInfoTab] = useState<'complementares' | 'fisco'>('complementares');
+  const [editandoInfo, setEditandoInfo] = useState<any | null>(null);
+  const [infoTitulo, setInfoTitulo] = useState('');
+  const [infoConteudo, setInfoConteudo] = useState('');
+
+  const loadTemplates = useCallback(async () => {
+    if (!empresaId) return;
+    setLoadingTemplates(true);
+    try {
+      const res = await fetch(`/api/nfe/informacoes-padrao?empresa_id=${empresaId}`);
+      const data = await res.json();
+      if (data.sucesso) setInfoTemplates(data.dados || []);
+    } catch {} finally { setLoadingTemplates(false); }
+  }, [empresaId]);
+
+  useEffect(() => { loadTemplates(); }, [loadTemplates]);
+
+  const salvarTemplate = async () => {
+    if (!empresaId || !infoTitulo.trim() || !infoConteudo.trim()) return;
+    try {
+      const body = { empresa_id: empresaId, tipo: infoTab, titulo: infoTitulo.trim(), conteudo: infoConteudo.trim() };
+      const res = await fetch('/api/nfe/informacoes-padrao', {
+        method: editandoInfo ? 'PUT' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editandoInfo ? { id: editandoInfo.id, ...body } : body),
+      });
+      const data = await res.json();
+      if (data.sucesso) {
+        toast.success(editandoInfo ? 'Mensagem atualizada' : 'Mensagem cadastrada');
+        setEditandoInfo(null); setInfoTitulo(''); setInfoConteudo('');
+        loadTemplates();
+      }
+    } catch {}
+  };
+
+  const excluirTemplate = async (id: string) => {
+    if (!confirm('Excluir esta mensagem?')) return;
+    try {
+      const res = await fetch(`/api/nfe/informacoes-padrao?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.sucesso) { toast.success('Mensagem excluída'); loadTemplates(); }
+    } catch {}
+  };
+
+  const editarTemplate = (item: any) => {
+    setEditandoInfo(item);
+    setInfoTitulo(item.titulo);
+    setInfoConteudo(item.conteudo);
+  };
+
+  const cancelarEdicao = () => {
+    setEditandoInfo(null);
+    setInfoTitulo('');
+    setInfoConteudo('');
+  };
 
   useEffect(() => {
     if (empresaId) carregarConfig();
@@ -441,20 +505,78 @@ export default function NFeConfigPage() {
             </CardContent>
           </Card>
 
-          {/* Informações Adicionais */}
+          {/* Informações Adicionais Padrão */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Informações Adicionais Padrão</CardTitle>
+              <CardDescription>Cadastre mensagens padrão para reutilizar na emissão de NF-e. Os campos manuais na página de emitir continuam disponíveis.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <Label>Informações Complementares</Label>
-                <Textarea value={informacoesAdicionais} onChange={(e) => setInformacoesAdicionais(e.target.value)} rows={3} placeholder="Texto que aparecerá no campo de informações complementares de todas as NF-es" />
+              <div className="flex gap-2 border-b pb-3">
+                <Button variant={infoTab === 'complementares' ? 'default' : 'outline'} size="sm" onClick={() => { setInfoTab('complementares'); cancelarEdicao(); }}>
+                  Complementares
+                </Button>
+                <Button variant={infoTab === 'fisco' ? 'default' : 'outline'} size="sm" onClick={() => { setInfoTab('fisco'); cancelarEdicao(); }}>
+                  Fisco
+                </Button>
               </div>
-              <div>
-                <Label>Informações para o Fisco</Label>
-                <Textarea value={informacoesFisco} onChange={(e) => setInformacoesFisco(e.target.value)} rows={2} />
-              </div>
+
+              {loadingTemplates ? (
+                <p className="text-sm text-muted-foreground">Carregando...</p>
+              ) : (
+                <div className="space-y-2">
+                  {infoTemplates.filter(t => t.tipo === infoTab).length === 0 && !editandoInfo ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma mensagem cadastrada.</p>
+                  ) : (
+                    infoTemplates.filter(t => t.tipo === infoTab).map(item => (
+                      <div key={item.id} className="flex items-start justify-between gap-3 p-3 rounded-lg border bg-muted/30">
+                        <div className="flex-1 min-w-0">
+                          {editandoInfo?.id === item.id ? (
+                            <div className="space-y-2">
+                              <Input value={infoTitulo} onChange={e => setInfoTitulo(e.target.value)} placeholder="Título" className="h-8 text-sm" />
+                              <Textarea value={infoConteudo} onChange={e => setInfoConteudo(e.target.value)} rows={2} className="text-sm" />
+                              <div className="flex gap-2">
+                                <Button size="sm" onClick={salvarTemplate} disabled={!infoTitulo.trim() || !infoConteudo.trim()} className="h-7 gap-1">
+                                  <Check className="h-3 w-3" /> Salvar
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={cancelarEdicao} className="h-7">Cancelar</Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <p className="text-sm font-medium truncate">{item.titulo}</p>
+                              <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{item.conteudo}</p>
+                            </>
+                          )}
+                        </div>
+                        {editandoInfo?.id !== item.id && (
+                          <div className="flex gap-1 shrink-0">
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => editarTemplate(item)}>
+                              <Edit className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500 hover:text-red-700" onClick={() => excluirTemplate(item.id)}>
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {!editandoInfo && (
+                <div className="pt-2 border-t">
+                  <p className="text-sm font-medium mb-2">Nova mensagem</p>
+                  <div className="space-y-2">
+                    <Input value={infoTitulo} onChange={e => setInfoTitulo(e.target.value)} placeholder="Título (ex: Promoção Natal)" className="h-9 text-sm" />
+                    <Textarea value={infoConteudo} onChange={e => setInfoConteudo(e.target.value)} rows={2} placeholder="Conteúdo da mensagem..." className="text-sm" />
+                    <Button size="sm" onClick={salvarTemplate} disabled={!infoTitulo.trim() || !infoConteudo.trim()} className="gap-1">
+                      <Plus className="h-3.5 w-3.5" /> Cadastrar
+                    </Button>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 

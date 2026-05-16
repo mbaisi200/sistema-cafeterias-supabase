@@ -523,3 +523,33 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Prevenção de duplicatas por `usuario_id + user_agent` (localStorage limpo)
 - Admin sempre bypassa bloqueio de dispositivo
 - Migration de limpeza: `supabase/migrations/cleanup_dispositivos_duplicados.sql`
+
+### NF-e — Informações Adicionais Padrão ✅
+- Nova tabela `nfe_informacoes_padrao` para cadastro de múltiplas mensagens (Complementares e Fisco)
+- CRUD via `/api/nfe/informacoes-padrao` com RLS e GRANT explícito
+- Seção de gerenciamento em Config. NF-e com abas (Complementares / Fisco), lista, editar e excluir
+- Página de emitir NF-e carrega mensagens salvas e permite selecionar via dropdown + edição manual
+- Migration: `supabase/migrations/nfe_informacoes_padrao.sql`
+
+### Sidebar — Renomeado Itens ✅
+- "Notas Fiscais" → "Notas Fiscais de Entrada"
+- "Cupons e NFEs" → "Cupons Fiscais"
+- Elimina redundância de nomenclatura entre entradas e saídas
+
+### Relatórios — Layout Busca Produtos ✅
+- Input de busca maior (`h-11`) com gradiente de fundo
+- Contador "X produtos encontrados" visível
+- Botão X inline para limpar busca
+- Mesma melhoria aplicada no componente `VendasItensDia`
+
+### Consumo de Dados — Tabelas Expandidas ✅
+- `TABELAS_COM_EMPRESA` expandido de 19 para 38 tabelas
+- Adicionadas: `clientes`, `fornecedores`, `pedidos`, `ordens_servico`, `nfe`, `nfe_config`, `nfe_informacoes_padrao`, `dispositivos_usuario`, `unidades`, `servicos`, `condicoes_pagamento`, `uber_eats_*` (4), `lavanderia_*` (4)
+- Removido `.slice(0, 10)` que limitava a análise por empresa no modo "todos"
+
+### Configurações Master — Ações Funcionais ✅
+- Botão "Exportar Dados" baixa JSON completo do sistema
+- Botão "Backup do Sistema" inclui tabela `empresas` + todas as tabelas por empresa
+- Botão "Limpar Cache" limpa localStorage/sessionStorage
+- Loading states e toasts em todas as ações
+- API: `/api/master/exportar-dados` com suporte a `?tipo=backup` e `?empresaId=`

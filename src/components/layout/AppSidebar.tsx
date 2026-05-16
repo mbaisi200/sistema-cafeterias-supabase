@@ -144,8 +144,8 @@ const adminMenuItems: MenuItem[] = [
       { title: 'Pedidos', url: '/admin/integracoes/uber-eats/pedidos', icon: ShoppingBag },
     ],
   },
-  { title: 'Cupons e NFEs', url: '/admin/cupons-nfes', icon: FileText },
-  { title: 'Notas Fiscais', url: '/admin/nfe', icon: FileText },
+  { title: 'Cupons Fiscais', url: '/admin/cupons-nfes', icon: FileText },
+  { title: 'Notas Fiscais de Entrada', url: '/admin/nfe', icon: FileText },
   { title: 'Configurações', url: '/admin/configuracoes', icon: Settings },
 ];
 

@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { useEmitirNFe } from '@/hooks/useNFE';
+import { useEmitirNFe, useNFeConfig } from '@/hooks/useNFE';
 import { useProdutos } from '@/hooks/useSupabase';
 import { getSupabaseClient } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -78,6 +78,7 @@ export default function EmitirNFePage() {
 function EmitirNFeContent() {
   const { empresaId } = useAuth();
   const { emitir, emitindo, nfe, error } = useEmitirNFe();
+  const { config: nfeConfig, carregarConfig } = useNFeConfig(empresaId);
   const { produtos: allProducts, loading: loadingProdutos } = useProdutos();
   const router = useRouter();
 
@@ -300,6 +301,25 @@ function EmitirNFeContent() {
   // Informações adicionais
   const [informacoesAdicionais, setInformacoesAdicionais] = useState('');
   const [informacoesFisco, setInformacoesFisco] = useState('');
+  const [infoTemplates, setInfoTemplates] = useState<any[]>([]);
+
+  // Carregar defaults da config e templates
+  useEffect(() => {
+    if (empresaId) {
+      carregarConfig();
+      fetch(`/api/nfe/informacoes-padrao?empresa_id=${empresaId}`)
+        .then(r => r.json())
+        .then(d => { if (d.sucesso) setInfoTemplates(d.dados || []); })
+        .catch(() => {});
+    }
+  }, [empresaId, carregarConfig]);
+
+  useEffect(() => {
+    if (nfeConfig) {
+      if (nfeConfig.informacoes_adicionais) setInformacoesAdicionais(nfeConfig.informacoes_adicionais);
+      if (nfeConfig.informacoes_fisco) setInformacoesFisco(nfeConfig.informacoes_fisco);
+    }
+  }, [nfeConfig]);
 
   const addProduto = () => {
     setProdutos([...produtos, {
@@ -962,11 +982,45 @@ function EmitirNFeContent() {
             <CardContent className="space-y-4">
               <div>
                 <Label>Informações Complementares</Label>
-                <Textarea value={informacoesAdicionais} onChange={(e) => setInformacoesAdicionais(e.target.value)} rows={3} />
+                {infoTemplates.filter(t => t.tipo === 'complementares').length > 0 && (
+                  <div className="mb-2">
+                    <Select onValueChange={(val) => {
+                      const item = infoTemplates.find(t => t.id === val);
+                      if (item) setInformacoesAdicionais(item.conteudo);
+                    }}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Inserir mensagem salva..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {infoTemplates.filter(t => t.tipo === 'complementares').map(t => (
+                          <SelectItem key={t.id} value={t.id} className="text-xs">{t.titulo}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <Textarea value={informacoesAdicionais} onChange={(e) => setInformacoesAdicionais(e.target.value)} rows={3} placeholder="Digite ou selecione uma mensagem salva acima" />
               </div>
               <div>
                 <Label>Informações para o Fisco</Label>
-                <Textarea value={informacoesFisco} onChange={(e) => setInformacoesFisco(e.target.value)} rows={2} />
+                {infoTemplates.filter(t => t.tipo === 'fisco').length > 0 && (
+                  <div className="mb-2">
+                    <Select onValueChange={(val) => {
+                      const item = infoTemplates.find(t => t.id === val);
+                      if (item) setInformacoesFisco(item.conteudo);
+                    }}>
+                      <SelectTrigger className="h-8 text-xs">
+                        <SelectValue placeholder="Inserir mensagem salva..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {infoTemplates.filter(t => t.tipo === 'fisco').map(t => (
+                          <SelectItem key={t.id} value={t.id} className="text-xs">{t.titulo}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <Textarea value={informacoesFisco} onChange={(e) => setInformacoesFisco(e.target.value)} rows={2} placeholder="Digite ou selecione uma mensagem salva acima" />
               </div>
             </CardContent>
           </Card>

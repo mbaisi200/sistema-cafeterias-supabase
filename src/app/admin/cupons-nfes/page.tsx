@@ -149,7 +149,7 @@ export default function CuponsNFEsPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'master']}>
-      <MainLayout breadcrumbs={[{ title: 'Cupons e NFEs' }]}>
+      <MainLayout breadcrumbs={[{ title: 'Cupons Fiscais' }]}>
         <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -161,10 +161,10 @@ export default function CuponsNFEsPage() {
           <div>
           <h1 className="text-2xl font-bold flex items-center gap-2">
             <FileText className="h-7 w-7" />
-            Cupons e NFEs
+            Cupons Fiscais
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            Gerencie cupons fiscais (NFC-e) e Notas Fiscais Eletrônicas (NF-e)
+            Gerencie cupons fiscais (NFC-e) e emissão de Notas Fiscais Eletrônicas (NF-e)
           </p>
           </div>
         </div>

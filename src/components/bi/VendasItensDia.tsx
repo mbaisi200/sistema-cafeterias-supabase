@@ -11,7 +11,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Label } from '@/components/ui/label';
-import { Package, CalendarIcon, Search, ShoppingCart, DollarSign, TrendingUp, User } from 'lucide-react';
+import { Package, CalendarIcon, Search, ShoppingCart, DollarSign, TrendingUp, User, X } from 'lucide-react';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -434,13 +434,21 @@ export function VendasItensDia() {
 
         {/* Busca */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500" />
           <Input
-            placeholder="Buscar item..."
+            placeholder="Buscar item por nome..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
+            className="pl-10 h-11 text-base bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-600 focus-visible:ring-blue-500 shadow-sm"
           />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+            >
+              <X className="h-3 w-3 text-slate-500" />
+            </button>
+          )}
         </div>
 
         {/* Tabela */}

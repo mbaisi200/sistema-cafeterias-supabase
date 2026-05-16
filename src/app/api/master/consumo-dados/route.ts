@@ -4,10 +4,17 @@ import { createAdminClient } from '@/lib/supabase/server';
 // Tabelas que têm empresa_id e suas configurações
 const TABELAS_COM_EMPRESA = [
   { nome: 'usuarios', colunaEmpresa: 'empresa_id', descricao: 'Usuários' },
+  { nome: 'clientes', colunaEmpresa: 'empresa_id', descricao: 'Clientes' },
+  { nome: 'fornecedores', colunaEmpresa: 'empresa_id', descricao: 'Fornecedores' },
   { nome: 'categorias', colunaEmpresa: 'empresa_id', descricao: 'Categorias' },
   { nome: 'produtos', colunaEmpresa: 'empresa_id', descricao: 'Produtos' },
+  { nome: 'unidades', colunaEmpresa: 'empresa_id', descricao: 'Unidades' },
+  { nome: 'servicos', colunaEmpresa: 'empresa_id', descricao: 'Serviços' },
+  { nome: 'condicoes_pagamento', colunaEmpresa: 'empresa_id', descricao: 'Condições de Pagamento' },
   { nome: 'funcionarios', colunaEmpresa: 'empresa_id', descricao: 'Funcionários' },
   { nome: 'mesas', colunaEmpresa: 'empresa_id', descricao: 'Mesas' },
+  { nome: 'pedidos', colunaEmpresa: 'empresa_id', descricao: 'Pedidos' },
+  { nome: 'ordens_servico', colunaEmpresa: 'empresa_id', descricao: 'Ordens de Serviço' },
   { nome: 'vendas', colunaEmpresa: 'empresa_id', descricao: 'Vendas' },
   { nome: 'itens_venda', colunaEmpresa: 'empresa_id', descricao: 'Itens de Venda' },
   { nome: 'pagamentos', colunaEmpresa: 'empresa_id', descricao: 'Pagamentos' },
@@ -16,21 +23,40 @@ const TABELAS_COM_EMPRESA = [
   { nome: 'comandas', colunaEmpresa: 'empresa_id', descricao: 'Comandas' },
   { nome: 'contas', colunaEmpresa: 'empresa_id', descricao: 'Contas a Pagar/Receber' },
   { nome: 'estoque_movimentos', colunaEmpresa: 'empresa_id', descricao: 'Movimentos de Estoque' },
+  { nome: 'nfe', colunaEmpresa: 'empresa_id', descricao: 'NF-e' },
+  { nome: 'nfe_config', colunaEmpresa: 'empresa_id', descricao: 'Config NF-e' },
+  { nome: 'nfe_informacoes_padrao', colunaEmpresa: 'empresa_id', descricao: 'Info. Adicionais NF-e' },
   { nome: 'logs', colunaEmpresa: 'empresa_id', descricao: 'Logs' },
+  { nome: 'dispositivos_usuario', colunaEmpresa: 'empresa_id', descricao: 'Dispositivos' },
   { nome: 'ifood_config', colunaEmpresa: 'empresa_id', descricao: 'Config iFood' },
   { nome: 'ifood_logs', colunaEmpresa: 'empresa_id', descricao: 'Logs iFood' },
   { nome: 'ifood_produtos_sync', colunaEmpresa: 'empresa_id', descricao: 'Sync iFood' },
   { nome: 'ifood_pedidos', colunaEmpresa: 'empresa_id', descricao: 'Pedidos iFood' },
   { nome: 'empresa_delivery_config', colunaEmpresa: 'empresa_id', descricao: 'Config Delivery' },
+  { nome: 'uber_eats_config', colunaEmpresa: 'empresa_id', descricao: 'Config Uber Eats' },
+  { nome: 'uber_eats_logs', colunaEmpresa: 'empresa_id', descricao: 'Logs Uber Eats' },
+  { nome: 'uber_eats_pedidos', colunaEmpresa: 'empresa_id', descricao: 'Pedidos Uber Eats' },
+  { nome: 'uber_eats_produtos_sync', colunaEmpresa: 'empresa_id', descricao: 'Sync Uber Eats' },
+  { nome: 'lavanderia_itens_catalogo', colunaEmpresa: 'empresa_id', descricao: 'Catálogo Peças Lav.' },
+  { nome: 'lavanderia_servicos_catalogo', colunaEmpresa: 'empresa_id', descricao: 'Catálogo Serv. Lav.' },
+  { nome: 'lavanderia_precos', colunaEmpresa: 'empresa_id', descricao: 'Preços Lavanderia' },
+  { nome: 'lavanderia_categorias', colunaEmpresa: 'empresa_id', descricao: 'Categorias Lavanderia' },
 ];
 
 // Tamanho médio estimado por registro em bytes (valores aproximados)
 const TAMANHO_MEDIO_REGISTRO: Record<string, number> = {
   usuarios: 500,
+  clientes: 800,
+  fornecedores: 600,
   categorias: 200,
   produtos: 800,
+  unidades: 150,
+  servicos: 400,
+  condicoes_pagamento: 200,
   funcionarios: 600,
   mesas: 150,
+  pedidos: 1500,
+  ordens_servico: 2000,
   vendas: 1200,
   itens_venda: 400,
   pagamentos: 300,
@@ -39,12 +65,24 @@ const TAMANHO_MEDIO_REGISTRO: Record<string, number> = {
   comandas: 1000,
   contas: 500,
   estoque_movimentos: 400,
+  nfe: 2000,
+  nfe_config: 500,
+  nfe_informacoes_padrao: 300,
   logs: 800,
+  dispositivos_usuario: 300,
   ifood_config: 600,
   ifood_logs: 1000,
   ifood_produtos_sync: 500,
   ifood_pedidos: 1500,
   empresa_delivery_config: 400,
+  uber_eats_config: 600,
+  uber_eats_logs: 1000,
+  uber_eats_pedidos: 1500,
+  uber_eats_produtos_sync: 500,
+  lavanderia_itens_catalogo: 200,
+  lavanderia_servicos_catalogo: 200,
+  lavanderia_precos: 150,
+  lavanderia_categorias: 200,
 };
 
 const formatarTamanho = (bytes: number): string => {
@@ -110,7 +148,7 @@ export async function GET(request: NextRequest) {
           let registrosEmpresa = 0;
           let tamanhoEmpresa = 0;
 
-          for (const tabela of TABELAS_COM_EMPRESA.slice(0, 10)) { // Apenas principais tabelas
+          for (const tabela of TABELAS_COM_EMPRESA) {
             const { count } = await supabase
               .from(tabela.nome)
               .select('*', { count: 'exact', head: true })

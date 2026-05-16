@@ -465,35 +465,61 @@ export default function RelatoriosPage() {
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex flex-col md:flex-row gap-3 mb-4">
-                    <div className="flex items-center gap-2">
-                      <Label className="text-sm whitespace-nowrap">Categoria:</Label>
-                      <Select value={estoqueCategoria} onValueChange={(v) => setEstoqueCategoria(v === '__all__' ? '' : v)}>
-                        <SelectTrigger className="w-[180px]">
-                          <SelectValue placeholder="Todas" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__all__">Todas</SelectItem>
-                          {categorias.map((cat: any) => (
-                            <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                  <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl p-5 mb-6 border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-center gap-4 mb-4">
+                      <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
+                        <Search className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="flex-1 relative">
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500" />
+                        <Input
+                          placeholder="Buscar produto por nome..."
+                          value={estoqueSearch}
+                          onChange={(e) => setEstoqueSearch(e.target.value)}
+                          className="pl-10 h-11 text-base bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-600 focus-visible:ring-blue-500 shadow-sm"
+                        />
+                        {estoqueSearch && (
+                          <button
+                            onClick={() => setEstoqueSearch('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                          >
+                            <X className="h-3 w-3 text-slate-500" />
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div className="relative flex-1 max-w-xs">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Buscar produto..."
-                        value={estoqueSearch}
-                        onChange={(e) => setEstoqueSearch(e.target.value)}
-                        className="pl-9"
-                      />
+                    <div className="flex items-center justify-between gap-3 flex-wrap">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">Categoria</span>
+                        <Select value={estoqueCategoria} onValueChange={(v) => setEstoqueCategoria(v === '__all__' ? '' : v)}>
+                          <SelectTrigger className="w-[180px] h-9 bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-600">
+                            <SelectValue placeholder="Todas as categorias" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="__all__">Todas as categorias</SelectItem>
+                            {categorias.map((cat: any) => (
+                              <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm text-slate-500 dark:text-slate-400">
+                          <strong className="text-slate-700 dark:text-slate-200">{estoqueData.length}</strong> produto{estoqueData.length !== 1 ? 's' : ''} encontrado{estoqueData.length !== 1 ? 's' : ''}
+                        </span>
+                        {(estoqueCategoria || estoqueSearch) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => { setEstoqueCategoria(''); setEstoqueSearch(''); }}
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/50"
+                          >
+                            <X className="h-3.5 w-3.5 mr-1" />
+                            Limpar
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                    {(estoqueCategoria || estoqueSearch) && (
-                      <Button variant="ghost" size="sm" onClick={() => { setEstoqueCategoria(''); setEstoqueSearch(''); }}>
-                        Limpar filtros
-                      </Button>
-                    )}
                   </div>
 
                   <div className="overflow-x-auto">
