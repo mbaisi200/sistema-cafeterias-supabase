@@ -542,14 +542,36 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Botão X inline para limpar busca
 - Mesma melhoria aplicada no componente `VendasItensDia`
 
-### Consumo de Dados — Tabelas Expandidas ✅
-- `TABELAS_COM_EMPRESA` expandido de 19 para 38 tabelas
-- Adicionadas: `clientes`, `fornecedores`, `pedidos`, `ordens_servico`, `nfe`, `nfe_config`, `nfe_informacoes_padrao`, `dispositivos_usuario`, `unidades`, `servicos`, `condicoes_pagamento`, `uber_eats_*` (4), `lavanderia_*` (4)
-- Removido `.slice(0, 10)` que limitava a análise por empresa no modo "todos"
-
 ### Configurações Master — Ações Funcionais ✅
 - Botão "Exportar Dados" baixa JSON completo do sistema
 - Botão "Backup do Sistema" inclui tabela `empresas` + todas as tabelas por empresa
 - Botão "Limpar Cache" limpa localStorage/sessionStorage
 - Loading states e toasts em todas as ações
 - API: `/api/master/exportar-dados` com suporte a `?tipo=backup` e `?empresaId=`
+
+### Consumo de Dados — Tabelas Expandidas ✅
+- `TABELAS_COM_EMPRESA` expandido de 19 para 38 tabelas
+- Adicionadas: `clientes`, `fornecedores`, `pedidos`, `ordens_servico`, `nfe`, `nfe_config`, `nfe_informacoes_padrao`, `dispositivos_usuario`, `unidades`, `servicos`, `condicoes_pagamento`, `uber_eats_*` (4), `lavanderia_*` (4)
+- Removido `.slice(0, 10)` que limitava a análise por empresa no modo "todos"
+
+### Sidebar — Configurações como Collapsible ✅
+- "Configurações" convertido de link único para collapsible com submenus: Geral, Unidades, Fidelidade
+- Link "Unidades" removido do nível raiz (agora dentro de Configurações)
+
+### Programa de Fidelidade 🚧
+- **Novas tabelas** (migration: `supabase/migrations/add_fidelidade.sql`):
+  - `programas_fidelidade` — config por empresa (modelo: pontos/selos/visitas/cashback, regras JSONB)
+  - `fidelidade_clientes` — saldo do cliente (pontos, selos, cashback, visitas, total_gasto)
+  - `fidelidade_transacoes` — log de acúmulo/resgate
+  - `fidelidade_recompensas` — catálogo de recompensas (desconto ou produto grátis)
+- **APIs**:
+  - `/api/fidelidade/programa` (GET/PUT) — config do programa
+  - `/api/fidelidade/recompensas` (GET/POST) — lista/cria recompensas
+  - `/api/fidelidade/recompensas/[id]` (PUT/DELETE) — edita/exclui recompensa
+  - `/api/fidelidade/consulta` (GET) — consulta saldo do cliente
+  - `/api/fidelidade/extrato` (GET) — extrato de transações
+  - `/api/fidelidade/acumular` (POST) — acumula pontos/selos/cashback após venda
+  - `/api/fidelidade/resgatar` (POST) — resgata recompensa
+- **Página Admin**: `/admin/configuracoes/fidelidade` — config do programa + gestão de recompensas
+- **PDV**: acúmulo automático no PDV Restaurante e PDV Varejo via `fetch()` não-bloqueante após finalizar venda
+- RLS + GRANT explícito (Nota #10) em todas as tabelas

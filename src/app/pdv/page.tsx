@@ -971,6 +971,21 @@ export default function PDVPage() {
           tipo: 'venda',
         });
 
+        // Fidelidade - acumular pontos/selos/cashback
+        const clienteFidelidadeId = dadosCupom.clienteId || deliveryCliente?.id || null;
+        if (clienteFidelidadeId && empresaId) {
+          fetch('/api/fidelidade/acumular', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              empresa_id: empresaId,
+              cliente_id: clienteFidelidadeId,
+              venda_id: vendaData.id,
+              valor_compra: total,
+            }),
+          }).catch(() => {});
+        }
+
         // Imprimir cupom fiscal se solicitado
         if (dadosCupom.imprimirCupom) {
           imprimirCupomFiscal({

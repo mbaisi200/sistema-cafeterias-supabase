@@ -508,6 +508,21 @@ export default function PDVVarejoPage() {
         tipo: 'venda',
       });
 
+      // Fidelidade
+      const clienteFid = dadosCupom.clienteId || clienteSelecionado?.id || null;
+      if (clienteFid && empresaId) {
+        fetch('/api/fidelidade/acumular', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            empresa_id: empresaId,
+            cliente_id: clienteFid,
+            venda_id: vendaId,
+            valor_compra: totalFinal,
+          }),
+        }).catch(() => {});
+      }
+
       if (dadosCupom.imprimirCupom) {
         imprimirCupomFiscal({
           nomeEmpresa: empresa?.nome || 'PDV Varejo',

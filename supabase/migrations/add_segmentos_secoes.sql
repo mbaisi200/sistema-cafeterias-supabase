@@ -66,6 +66,8 @@ INSERT INTO secoes_menu (chave, nome, descricao, icone, url, grupo, ordem, ativo
   ('integracoes',      'Integrações',       'Integrações externas',         'Plug',            '/admin/integracoes',    'principal',      14, true,  false, ARRAY['admin']),
   ('cupons-nfes',      'Cupons Fiscais',     'Configuração de cupons fiscais e emissão de NF-e','FileText',        '/admin/cupons-nfes',    'principal',      15, true,  false, ARRAY['admin']),
   ('nfe',              'Notas Fiscais de Entrada',     'Importação e consulta de notas fiscais de entrada',     'FileText',        '/admin/nfe',            'principal',      16, true,  false, ARRAY['admin']),
+  ('configuracoes',     'Configurações',     'Configurações gerais',         'Settings',        '/admin/configuracoes',            'principal',      17, true,  false, ARRAY['admin']),
+  ('fidelidade',        'Fidelidade',        'Programa de fidelidade',       'Heart',           '/admin/configuracoes/fidelidade', 'principal',      18, true,  false, ARRAY['admin']),
   ('cardapio',         'Cardápio',          'Cardápio online',              'Menu',            '/cardapio',             'atalho_rapido',  1, true,  false, ARRAY['admin']),
   ('config-cardapio',  'Config. Cardápio',  'Configuração do cardápio online','Settings',       '/admin/delivery/config','atalho_rapido',  2, true,  false, ARRAY['admin'])
 ON CONFLICT (chave) DO NOTHING;

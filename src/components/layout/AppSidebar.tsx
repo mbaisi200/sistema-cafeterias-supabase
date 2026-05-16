@@ -113,7 +113,6 @@ const adminMenuItems: MenuItem[] = [
   { title: 'PDV Garçon', url: '/pdv-garcom', icon: UtensilsCrossed },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
   { title: 'Cadastros', url: '/admin/cadastros', icon: Users },
-  { title: 'Unidades', url: '/admin/configuracoes/unidades', icon: Ruler },
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
   {
     title: 'Pedidos e OS',
@@ -146,7 +145,16 @@ const adminMenuItems: MenuItem[] = [
   },
   { title: 'Cupons Fiscais', url: '/admin/cupons-nfes', icon: FileText },
   { title: 'Notas Fiscais de Entrada', url: '/admin/nfe', icon: FileText },
-  { title: 'Configurações', url: '/admin/configuracoes', icon: Settings },
+  {
+    title: 'Configurações',
+    url: '#',
+    icon: Settings,
+    submenu: [
+      { title: 'Geral', url: '/admin/configuracoes', icon: Settings },
+      { title: 'Unidades', url: '/admin/configuracoes/unidades', icon: Ruler },
+      { title: 'Fidelidade', url: '/admin/configuracoes/fidelidade', icon: Heart },
+    ],
+  },
 ];
 
 // Fallback hardcoded para atalho rápido
