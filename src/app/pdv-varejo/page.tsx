@@ -551,6 +551,81 @@ export default function PDVVarejoPage() {
         });
       }
 
+      // Emitir NFC-e se solicitado
+      if (dadosCupom.emitirNFCe && empresaId) {
+        try {
+          const pagtoForma = pagamentos.length > 0 ? pagamentos : [{ forma: formaPagamento, valor: totalFinal }];
+          const formaParaCodigo: Record<string, string> = {
+            dinheiro: '01', credito: '03', debito: '04', pix: '17',
+          };
+
+          // Buscar dados fiscais dos produtos
+          const produtoIds = [...new Set(itensCarrinho.map(i => i.produtoId))];
+          const { data: produtosData } = await supabase
+            .from('produtos')
+            .select('id, ncm, cfop, origem, cst, csosn, unidade_tributavel')
+            .in('id', produtoIds);
+
+          const fiscaisMap = new Map((produtosData || []).map(p => [p.id, p]));
+
+          const response = await fetch('/api/nfce/emitir', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              venda_id: vendaId,
+              destinatario: dadosCupom.cpfCliente ? {
+                cpf_cnpj: dadosCupom.cpfCliente,
+                nome: dadosCupom.nomeCliente || clienteSelecionado?.nome_razao_social || undefined,
+              } : undefined,
+              produtos: itensCarrinho.map(item => {
+                const fiscal = fiscaisMap.get(item.produtoId);
+                const valLiq = (item.preco * item.quantidade) * (1 - (item.descontoPercentual || 0) / 100);
+                return {
+                  codigo: item.codigo || item.codigoBarras || item.produtoId.slice(-6),
+                  descricao: item.nome,
+                  ncm: fiscal?.ncm || '00000000',
+                  cfop: fiscal?.cfop || '5102',
+                  unidade: item.unidade || fiscal?.unidade_tributavel || 'UN',
+                  quantidade: item.quantidade,
+                  valor_unitario: item.preco,
+                  valor_total: item.preco * item.quantidade,
+                  valor_desconto: item.descontoPercentual > 0 ? (item.preco * item.quantidade) * (item.descontoPercentual / 100) : 0,
+                  valor_liquido: valLiq,
+                  csosn: fiscal?.csosn || '400',
+                  icms_origem: fiscal?.origem || '0',
+                };
+              }),
+              pagamentos: pagtoForma.map(pg => ({
+                forma: formaParaCodigo[pg.forma] || '01',
+                valor: pg.valor,
+              })),
+            }),
+          });
+
+          const result = await response.json();
+          if (result.sucesso) {
+            toast({
+              title: 'NFC-e emitida com sucesso!',
+              description: `NFC-e nº ${result.nfce.numero} autorizada pela SEFAZ`,
+              className: "bg-green-500 text-white border-green-600",
+            });
+          } else {
+            toast({
+              variant: 'destructive',
+              title: 'Erro na emissão NFC-e',
+              description: result.erro?.mensagem || 'Falha ao emitir NFC-e',
+            });
+          }
+        } catch (nfceError) {
+          console.error('Erro ao emitir NFC-e:', nfceError);
+          toast({
+            variant: 'destructive',
+            title: 'Erro ao emitir NFC-e',
+            description: 'Verifique as configurações fiscais',
+          });
+        }
+      }
+
       toast({
         title: 'Venda finalizada com sucesso!',
         description: `R$ ${fmt(totalFinal)} - ${itensCarrinho.length} itens`,

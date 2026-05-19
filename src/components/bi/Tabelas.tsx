@@ -39,14 +39,14 @@ export function ProdutosMaisVendidos({ dados, categorias }: ProdutosMaisVendidos
         </CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="w-full table-fixed">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Produto</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead className="text-right">Qtd.</TableHead>
-                  <TableHead className="text-right">Valor Total</TableHead>
+                  <TableHead className="w-28">Categoria</TableHead>
+                  <TableHead className="text-right w-16">Qtd.</TableHead>
+                  <TableHead className="text-right w-28">Valor Total</TableHead>
                   <TableHead className="w-32">% Vendas</TableHead>
                 </TableRow>
               </TableHeader>
@@ -64,13 +64,13 @@ export function ProdutosMaisVendidos({ dados, categorias }: ProdutosMaisVendidos
                         {index < 3 ? <span className="text-lg">{medalhas[index]}</span> : <span className="text-muted-foreground">{index + 1}</span>}
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium group-hover:text-primary transition-colors">{produto.nome}</div>
+                        <div className="font-medium group-hover:text-primary transition-colors truncate" title={produto.nome}>{produto.nome}</div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline">{getNomeCategoria(produto.categoriaId)}</Badge>
+                        <Badge variant="outline" className="truncate max-w-full">{getNomeCategoria(produto.categoriaId)}</Badge>
                       </TableCell>
-                      <TableCell className="text-right font-medium">{produto.quantidadeTotal}</TableCell>
-                      <TableCell className="text-right font-medium text-emerald-600">
+                      <TableCell className="text-right font-medium whitespace-nowrap">{produto.quantidadeTotal}</TableCell>
+                      <TableCell className="text-right font-medium text-emerald-600 whitespace-nowrap">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.valorTotal)}
                       </TableCell>
                       <TableCell>
@@ -272,17 +272,17 @@ export function LucroBrutoPorProduto({ dados, resumo, categorias }: LucroBrutoPo
 
           {/* Tabela */}
           <div className="overflow-x-auto">
-            <Table>
+            <Table className="w-full table-fixed">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Produto</TableHead>
-                  <TableHead>Categoria</TableHead>
-                  <TableHead className="text-right">Qtd.</TableHead>
-                  <TableHead className="text-right">Receita</TableHead>
-                  <TableHead className="text-right">Custo</TableHead>
-                  <TableHead className="text-right">Lucro Bruto</TableHead>
-                  <TableHead className="text-right">Margem</TableHead>
+                  <TableHead className="w-28">Categoria</TableHead>
+                  <TableHead className="text-right w-16">Qtd.</TableHead>
+                  <TableHead className="text-right w-24">Receita</TableHead>
+                  <TableHead className="text-right w-24">Custo</TableHead>
+                  <TableHead className="text-right w-24">Lucro Bruto</TableHead>
+                  <TableHead className="text-right w-20">Margem</TableHead>
                   <TableHead className="w-24">Barra</TableHead>
                 </TableRow>
               </TableHeader>
@@ -310,29 +310,29 @@ export function LucroBrutoPorProduto({ dados, resumo, categorias }: LucroBrutoPo
                           )}
                         </TableCell>
                         <TableCell>
-                          <div className="font-medium group-hover:text-primary transition-colors">
+                          <div className="font-medium group-hover:text-primary transition-colors truncate" title={produto.nome}>
                             {produto.nome}
                           </div>
-                          <div className="text-xs text-muted-foreground">
+                          <div className="text-xs text-muted-foreground truncate">
                             Pç: {formatarMoeda(produto.precoUnitario)} • Custo: {formatarMoeda(produto.custoUnitario)}
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline">{getNomeCategoria(produto.categoriaId)}</Badge>
+                          <Badge variant="outline" className="truncate max-w-full">{getNomeCategoria(produto.categoriaId)}</Badge>
                         </TableCell>
-                        <TableCell className="text-right font-medium">{produto.quantidadeVendida}</TableCell>
-                        <TableCell className="text-right font-medium text-blue-600">
+                        <TableCell className="text-right font-medium whitespace-nowrap">{produto.quantidadeVendida}</TableCell>
+                        <TableCell className="text-right font-medium text-blue-600 whitespace-nowrap">
                           {formatarMoeda(produto.receitaTotal)}
                         </TableCell>
-                        <TableCell className="text-right font-medium text-orange-600">
+                        <TableCell className="text-right font-medium text-orange-600 whitespace-nowrap">
                           {formatarMoeda(produto.custoTotal)}
                         </TableCell>
-                        <TableCell className="text-right font-bold">
+                        <TableCell className="text-right font-bold whitespace-nowrap">
                           <span className={lucroPositivo ? 'text-emerald-600' : 'text-red-600'}>
                             {lucroPositivo ? '+' : ''}{formatarMoeda(produto.lucroBruto)}
                           </span>
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="text-right whitespace-nowrap">
                           <div className="flex items-center justify-end gap-1">
                             {lucroPositivo ? (
                               <ArrowUpRight className="h-4 w-4 text-emerald-500" />

@@ -1410,10 +1410,10 @@ export default function CatalogoLavanderiaPage() {
                     </CardHeader>
                     <CardContent className="p-0">
                       <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <table className="w-full text-sm table-fixed">
                             <thead>
                             <tr className="border-b bg-muted/50">
-                              <th className="sticky left-0 bg-muted/50 z-10 text-left px-4 py-3 font-semibold whitespace-nowrap">
+                              <th className="sticky left-0 bg-muted/50 z-10 text-left px-4 py-3 font-semibold w-[200px] min-w-[160px]">
                                 <button
                                   onClick={() => {
                                     if (matrixSortField === 'descricao') {
@@ -1471,7 +1471,7 @@ export default function CatalogoLavanderiaPage() {
                                   onDragEnd={handleDragEnd}
                                   onDragOver={handleDragOver}
                                   onDrop={(e) => handleDrop(e, servico.id)}
-                                  className={`text-center px-3 py-3 font-semibold whitespace-nowrap min-w-[120px] cursor-grab active:cursor-grabbing select-none transition-colors ${
+                                                  className={`text-center px-3 py-3 font-semibold whitespace-nowrap w-auto min-w-[95px] cursor-grab active:cursor-grabbing select-none transition-colors ${
                                     draggedServicoId === servico.id
                                       ? 'bg-violet-100 text-violet-700'
                                       : servico.ativo
@@ -1491,8 +1491,8 @@ export default function CatalogoLavanderiaPage() {
                           <tbody>
                             {matrixItens.map((item) => (
                               <tr key={item.id} className="border-b hover:bg-muted/30 transition-colors">
-                                <td className="sticky left-0 bg-background z-10 px-4 py-2.5 whitespace-nowrap">
-                                  <p className="font-medium">{item.descricao}</p>
+                                <td className="sticky left-0 bg-background z-10 px-4 py-2.5 w-[200px] min-w-[160px]">
+                                  <p className="font-medium truncate" title={item.descricao}>{item.descricao}</p>
                                   <Badge variant="secondary" className={`text-[10px] mt-0.5 ${CATEGORIA_ICONS[item.categoria] || 'bg-gray-100 text-gray-700'}`}>
                                     {item.categoria}
                                   </Badge>

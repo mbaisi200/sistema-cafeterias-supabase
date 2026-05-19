@@ -753,17 +753,16 @@ export default function NFePage() {
                       </Link>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
+                    <Table className="w-full table-fixed">
                         <TableHeader>
                           <TableRow>
                             <TableHead className="w-10"></TableHead>
-                            <TableHead>Data</TableHead>
-                            <TableHead>Fornecedor</TableHead>
-                            <TableHead>Documento Ref</TableHead>
-                            <TableHead className="text-center">Produtos</TableHead>
-                            <TableHead className="text-right">Valor Total</TableHead>
-                            <TableHead className="text-right">Ações</TableHead>
+                            <TableHead className="w-28 whitespace-nowrap">Data</TableHead>
+                            <TableHead className="w-48">Fornecedor</TableHead>
+                            <TableHead className="w-36 whitespace-nowrap">Documento Ref</TableHead>
+                            <TableHead className="w-24 text-center whitespace-nowrap">Produtos</TableHead>
+                            <TableHead className="w-28 text-right whitespace-nowrap">Valor Total</TableHead>
+                            <TableHead className="w-24 text-right whitespace-nowrap">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -788,7 +787,7 @@ export default function NFePage() {
                                   <TableCell>
                                     <div className="flex items-center gap-2">
                                       <Truck className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                                      <span className="text-sm truncate max-w-[200px]">
+                                      <span className="text-sm truncate max-w-[200px]" title={nfe.fornecedor}>
                                         {nfe.fornecedor}
                                       </span>
                                     </div>
@@ -883,7 +882,6 @@ export default function NFePage() {
                           })}
                         </TableBody>
                       </Table>
-                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -1030,17 +1028,16 @@ export default function NFePage() {
                       <p className="text-sm mt-1 max-w-md text-center">Vendas fechadas no PDV aparecerão aqui. Realize vendas e elas serão listadas automaticamente para emissão de NF-e</p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
+                    <Table className="w-full table-fixed">
                         <TableHeader>
                           <TableRow>
-                            <TableHead>Número</TableHead>
-                            <TableHead>Data</TableHead>
-                            <TableHead>Cliente</TableHead>
-                            <TableHead className="text-right">Total</TableHead>
-                            <TableHead>Pagamento</TableHead>
-                            <TableHead>Status NF-e</TableHead>
-                            <TableHead className="text-right">Ações</TableHead>
+                            <TableHead className="w-28 whitespace-nowrap">Número</TableHead>
+                            <TableHead className="w-28 whitespace-nowrap">Data</TableHead>
+                            <TableHead className="w-48">Cliente</TableHead>
+                            <TableHead className="w-28 text-right whitespace-nowrap">Total</TableHead>
+                            <TableHead className="w-32 whitespace-nowrap">Pagamento</TableHead>
+                            <TableHead className="w-28 whitespace-nowrap">Status NF-e</TableHead>
+                            <TableHead className="w-28 text-right whitespace-nowrap">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1055,7 +1052,7 @@ export default function NFePage() {
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   <User className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                                  <span className="text-sm truncate max-w-[180px]">
+                                  <span className="text-sm truncate max-w-[180px]" title={venda.cliente}>
                                     {venda.cliente}
                                   </span>
                                 </div>
@@ -1109,7 +1106,6 @@ export default function NFePage() {
                           ))}
                         </TableBody>
                       </Table>
-                    </div>
                   )}
                 </CardContent>
               </Card>

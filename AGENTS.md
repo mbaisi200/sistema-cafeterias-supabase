@@ -240,6 +240,36 @@ const darkMode = resolvedTheme === 'dark';
 <div className={`${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-gray-200'}`}>
 ```
 
+### Tabelas Responsivas (Regra Geral)
+Toda `<Table>` (shadcn/ui) deve usar `table-fixed w-full` para distribuir o espaço proporcionalmente ao monitor do usuário:
+
+```tsx
+<Table className="w-full table-fixed">
+  <TableHeader>
+    <TableRow>
+      <TableHead className="w-48">Nome</TableHead>       {/* text-heavy: sem whitespace-nowrap */}
+      <TableHead className="w-28 text-right">Valor</TableHead>  {/* curto: whitespace-nowrap */}
+      <TableHead className="w-24 text-center">Status</TableHead> {/* badge: whitespace-nowrap */}
+    </TableRow>
+  </TableHeader>
+  <TableBody>
+    <TableRow>
+      <TableCell className="truncate" title="Texto completo">Nome longo aqui...</TableCell>
+      <TableCell className="text-right whitespace-nowrap">R$ 100,00</TableCell>
+      <TableCell className="text-center whitespace-nowrap"><Badge>Ativo</Badge></TableCell>
+    </TableRow>
+  </TableBody>
+</Table>
+```
+
+**Regras:**
+1. **Sempre** `table-fixed w-full` no `<Table>` — colunas sem `w-*` explícita dividem igualmente o espaço restante
+2. **Colunas de texto** (nome, descrição, cliente): `truncate` + `title` com o valor completo no hover, **sem** `whitespace-nowrap`
+3. **Colunas curtas** (valor, data, status, ações): `whitespace-nowrap` para não quebrar
+4. **Não** usar `<div className="overflow-x-auto">` externo — o componente shadcn `<Table>` já tem `overflow-x-auto` embutido
+5. **Não** usar `min-w-max` ou `min-w-[...px]` na tabela — isso força scroll horizontal em telas pequenas. Prefira `min-w-[...px]` em colunas específicas se necessário
+6. **Monitores grandes**: `table-fixed` expande colunas para preencher a largura total; **monitores pequenos**: o `overflow-x-auto` nativo do shadcn permite scroll horizontal suave
+
 ---
 
 ## 📱 Módulos do Sistema

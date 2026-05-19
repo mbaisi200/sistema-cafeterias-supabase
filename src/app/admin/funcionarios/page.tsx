@@ -702,17 +702,16 @@ export default function FuncionariosPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
+                <Table className="w-full table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Funcionário</TableHead>
-                        <TableHead>Cargo</TableHead>
-                        <TableHead className="hidden md:table-cell">Contato</TableHead>
-                        <TableHead>Dispositivos</TableHead>
-                          <TableHead className="hidden md:table-cell">Permissões</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Ações</TableHead>
+                        <TableHead className="w-48">Funcionário</TableHead>
+                        <TableHead className="w-32">Cargo</TableHead>
+                        <TableHead className="w-36 hidden md:table-cell whitespace-nowrap">Contato</TableHead>
+                        <TableHead className="w-28 whitespace-nowrap">Dispositivos</TableHead>
+                          <TableHead className="hidden md:table-cell whitespace-nowrap">Permissões</TableHead>
+                        <TableHead className="w-24 whitespace-nowrap">Status</TableHead>
+                        <TableHead className="w-24 text-right whitespace-nowrap">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -724,15 +723,15 @@ export default function FuncionariosPage() {
                                 {func.nome.charAt(0)}
                               </div>
                               <div>
-                                <p className="font-medium">{func.nome}</p>
+                                <p className="font-medium truncate" title={func.nome}>{func.nome}</p>
                                 {func.email && (
-                                  <p className="text-sm text-muted-foreground">{func.email}</p>
+                                  <p className="text-sm text-muted-foreground truncate" title={func.email}>{func.email}</p>
                                 )}
                               </div>
                             </div>
                           </TableCell>
                           <TableCell>
-                            <Badge variant="outline">{func.cargo}</Badge>
+                            <Badge variant="outline" className="truncate max-w-[120px]" title={func.cargo}>{func.cargo}</Badge>
                           </TableCell>
                           <TableCell className="hidden md:table-cell">{formatPhone(func.telefone || '')}</TableCell>
                           <TableCell>
@@ -849,7 +848,6 @@ export default function FuncionariosPage() {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
               </CardContent>
             </Card>
           )}

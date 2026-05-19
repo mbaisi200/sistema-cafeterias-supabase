@@ -831,17 +831,16 @@ export default function FornecedoresPage() {
                 <CardTitle>Fornecedores ({filteredFornecedores.length})</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="overflow-x-auto">
-                  <Table>
+                <Table className="w-full table-fixed">
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[250px]">Nome/Razão Social</TableHead>
-                        <TableHead>CNPJ</TableHead>
-                        <TableHead className="hidden md:table-cell">Telefone</TableHead>
-                        <TableHead className="hidden lg:table-cell">Email</TableHead>
-                        <TableHead className="hidden xl:table-cell">Cidade/UF</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                        <TableHead className="w-[80px] text-center">Ações</TableHead>
+                        <TableHead className="w-36 whitespace-nowrap">CNPJ</TableHead>
+                        <TableHead className="w-36 hidden md:table-cell whitespace-nowrap">Telefone</TableHead>
+                        <TableHead className="w-48 hidden lg:table-cell">Email</TableHead>
+                        <TableHead className="w-36 hidden xl:table-cell">Cidade/UF</TableHead>
+                        <TableHead className="w-24 text-center whitespace-nowrap">Status</TableHead>
+                        <TableHead className="w-[80px] text-center whitespace-nowrap">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -853,9 +852,9 @@ export default function FornecedoresPage() {
                                 <Building2 className="h-5 w-5 text-blue-400" />
                               </div>
                               <div className="min-w-0">
-                                <p className="font-medium truncate">{fornecedor.nome}</p>
+                                <p className="font-medium truncate" title={fornecedor.nome}>{fornecedor.nome}</p>
                                 {fornecedor.razaoSocial && (
-                                  <p className="text-xs text-muted-foreground truncate">
+                                  <p className="text-xs text-muted-foreground truncate" title={fornecedor.razaoSocial}>
                                     {fornecedor.razaoSocial}
                                   </p>
                                 )}
@@ -871,7 +870,7 @@ export default function FornecedoresPage() {
                             <span className="text-sm">{formatarTelefone(fornecedor.telefone)}</span>
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">
-                            <span className="text-sm truncate block max-w-[180px]">
+                            <span className="text-sm truncate block max-w-[180px]" title={fornecedor.email || '-'}>
                               {fornecedor.email || '-'}
                             </span>
                           </TableCell>
@@ -914,7 +913,6 @@ export default function FornecedoresPage() {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
               </CardContent>
             </Card>
           )}

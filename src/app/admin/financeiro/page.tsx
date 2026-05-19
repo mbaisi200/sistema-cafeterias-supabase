@@ -1071,7 +1071,7 @@ export default function FinanceiroPage() {
                       <p className="text-sm">Clique em &quot;Nova Conta&quot; para adicionar</p>
                     </div>
                   ) : (
-                      <Table className="min-w-max md:min-w-full w-auto [&_td]:px-2 [&_td]:py-2.5 [&_th]:px-2 [&_th]:h-10">
+                      <Table className="w-full table-fixed [&_td]:px-2 [&_td]:py-2.5 [&_th]:px-2 [&_th]:h-10">
                           <TableHeader>
                             <TableRow>
                               <SortableHeader 
@@ -1107,6 +1107,7 @@ export default function FinanceiroPage() {
                               onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
                             />
                             <SortableHeader 
+
                               field="dataPagamento" 
                               label="Data Pagamento" 
                               currentSort={sortPagar}
@@ -1127,8 +1128,8 @@ export default function FinanceiroPage() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="whitespace-nowrap text-sm">{conta.vendedor_nome || '-'}</TableCell>
-                              <TableCell className="whitespace-nowrap">{conta.categoria || '-'}</TableCell>
+                              <TableCell className="text-sm">{conta.vendedor_nome || '-'}</TableCell>
+                              <TableCell>{conta.categoria || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">
                                 {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
                               </TableCell>
@@ -1277,7 +1278,7 @@ export default function FinanceiroPage() {
                       <p className="text-sm">Clique em &quot;Nova Conta&quot; para adicionar</p>
                     </div>
                   ) : (
-                      <Table className="min-w-max md:min-w-full w-auto [&_td]:px-2 [&_td]:py-2.5 [&_th]:px-2 [&_th]:h-10">
+                      <Table className="w-full table-fixed [&_td]:px-2 [&_td]:py-2.5 [&_th]:px-2 [&_th]:h-10">
                         <TableHeader>
                           <TableRow>
                             <SortableHeader 
@@ -1333,8 +1334,8 @@ export default function FinanceiroPage() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="whitespace-nowrap text-sm">{conta.vendedor_nome || '-'}</TableCell>
-                              <TableCell className="whitespace-nowrap">{conta.categoria || '-'}</TableCell>
+                              <TableCell className="text-sm">{conta.vendedor_nome || '-'}</TableCell>
+                              <TableCell>{conta.categoria || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">
                                 {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
                               </TableCell>

@@ -957,34 +957,33 @@ export default function PedidosPage() {
                   <p className="text-lg font-medium">Nenhum pedido encontrado</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="w-full table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Nº</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead className="text-center">Itens</TableHead>
-                        <TableHead className="text-right">Total</TableHead>
-                        <TableHead>Data</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                        <TableHead className="text-center">Ações</TableHead>
+                        <TableHead className="w-[80px] whitespace-nowrap">Nº</TableHead>
+                        <TableHead className="w-auto">Cliente</TableHead>
+                        <TableHead className="w-[80px] text-center whitespace-nowrap">Itens</TableHead>
+                        <TableHead className="w-[120px] text-right whitespace-nowrap">Total</TableHead>
+                        <TableHead className="w-[120px] whitespace-nowrap">Data</TableHead>
+                        <TableHead className="w-[100px] text-center whitespace-nowrap">Status</TableHead>
+                        <TableHead className="w-[200px] text-center whitespace-nowrap">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {pedidosFiltrados.map((p) => (
                         <TableRow key={p.id}>
-                          <TableCell className="font-mono font-semibold">#{p.numero}</TableCell>
-                          <TableCell>
-                            <div>
-                              <p className="font-medium">{p.clienteNome || '-'}</p>
-                              <p className="text-xs text-muted-foreground">{p.condicaoPagamento}</p>
+                          <TableCell className="font-mono font-semibold whitespace-nowrap">#{p.numero}</TableCell>
+                          <TableCell className="truncate max-w-[200px]" title={`${p.clienteNome || '-'}${p.condicaoPagamento ? ` (${p.condicaoPagamento})` : ''}`}>
+                            <div className="truncate">
+                              <p className="font-medium truncate">{p.clienteNome || '-'}</p>
+                              <p className="text-xs text-muted-foreground truncate">{p.condicaoPagamento}</p>
                             </div>
                           </TableCell>
-                          <TableCell className="text-center">{(p.itens || []).length}</TableCell>
-                          <TableCell className="text-right font-semibold text-green-600">{formatCurrency(p.total)}</TableCell>
-                          <TableCell className="text-sm">{formatDate(p.criadoEm)}</TableCell>
-                          <TableCell className="text-center">{getStatusBadge(p.status)}</TableCell>
-                          <TableCell>
+                          <TableCell className="text-center whitespace-nowrap">{(p.itens || []).length}</TableCell>
+                          <TableCell className="text-right font-semibold text-green-600 whitespace-nowrap">{formatCurrency(p.total)}</TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">{formatDate(p.criadoEm)}</TableCell>
+                          <TableCell className="text-center whitespace-nowrap">{getStatusBadge(p.status)}</TableCell>
+                          <TableCell className="whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1">
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailPedido(p)} title="Ver detalhes">
                                 <Eye className="h-4 w-4" />
@@ -1053,7 +1052,6 @@ export default function PedidosPage() {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
               )}
             </CardContent>
           </Card>

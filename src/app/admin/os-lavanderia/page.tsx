@@ -1172,44 +1172,43 @@ export default function OSLavanderiaPage() {
                   <p className="text-sm">Clique em &quot;Nova OS&quot; para criar uma ordem de serviço</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <Table>
+                  <Table className="w-full table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Nº</TableHead>
-                        <TableHead>Cliente</TableHead>
-                        <TableHead className="hidden md:table-cell">Peças</TableHead>
-                        <TableHead className="hidden md:table-cell">Entrada</TableHead>
-                        <TableHead className="hidden md:table-cell">Previsão</TableHead>
-                        <TableHead className="text-right">Valor</TableHead>
-                        <TableHead className="text-center">Status</TableHead>
-                        <TableHead className="text-center">Ações</TableHead>
+                        <TableHead className="w-[80px] whitespace-nowrap">Nº</TableHead>
+                        <TableHead className="w-auto">Cliente</TableHead>
+                        <TableHead className="w-[100px] hidden md:table-cell whitespace-nowrap">Peças</TableHead>
+                        <TableHead className="w-[120px] hidden md:table-cell whitespace-nowrap">Entrada</TableHead>
+                        <TableHead className="w-[120px] hidden md:table-cell whitespace-nowrap">Previsão</TableHead>
+                        <TableHead className="w-[120px] text-right whitespace-nowrap">Valor</TableHead>
+                        <TableHead className="w-[100px] text-center whitespace-nowrap">Status</TableHead>
+                        <TableHead className="w-[200px] text-center whitespace-nowrap">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {ordensFiltradas.map((os) => (
                         <TableRow key={os.id}>
-                          <TableCell className="font-mono font-semibold">#{os.numero}</TableCell>
-                          <TableCell>
-                            <p className="font-medium">{os.clienteNome || '-'}</p>
+                          <TableCell className="font-mono font-semibold whitespace-nowrap">#{os.numero}</TableCell>
+                          <TableCell className="truncate max-w-[200px]" title={`${os.clienteNome || '-'}${os.clienteTelefone ? ` - ${os.clienteTelefone}` : ''}`}>
+                            <p className="font-medium truncate">{os.clienteNome || '-'}</p>
                             {os.clienteTelefone && (
-                              <p className="text-xs text-muted-foreground">{os.clienteTelefone}</p>
+                              <p className="text-xs text-muted-foreground truncate">{os.clienteTelefone}</p>
                             )}
                           </TableCell>
-                          <TableCell className="hidden md:table-cell">
+                          <TableCell className="hidden md:table-cell whitespace-nowrap">
                             <Badge variant="secondary">{os.totalPecas} peça(s)</Badge>
                           </TableCell>
-                          <TableCell className="hidden md:table-cell text-sm">
+                          <TableCell className="hidden md:table-cell text-sm whitespace-nowrap">
                             {os.dataEntrada && formatDate(os.dataEntrada)}
                             {os.horaEntrada && <span className="text-muted-foreground"> {os.horaEntrada}</span>}
                           </TableCell>
-                          <TableCell className="hidden md:table-cell text-sm">
+                          <TableCell className="hidden md:table-cell text-sm whitespace-nowrap">
                             {os.dataPrevisao && formatDate(os.dataPrevisao)}
                             {os.horaPrevisao && <span className="text-muted-foreground"> {os.horaPrevisao}</span>}
                           </TableCell>
-                          <TableCell className="text-right font-semibold text-green-600">{formatCurrency(os.valorTotal)}</TableCell>
-                          <TableCell className="text-center">{getStatusBadge(os.status)}</TableCell>
-                          <TableCell>
+                          <TableCell className="text-right font-semibold text-green-600 whitespace-nowrap">{formatCurrency(os.valorTotal)}</TableCell>
+                          <TableCell className="text-center whitespace-nowrap">{getStatusBadge(os.status)}</TableCell>
+                          <TableCell className="whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1">
                               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(os)} title="Editar">
                                 <Edit className="h-4 w-4" />
@@ -1254,7 +1253,6 @@ export default function OSLavanderiaPage() {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
               )}
             </CardContent>
           </Card>
@@ -1775,30 +1773,28 @@ export default function OSLavanderiaPage() {
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="p-0">
-                        <div className="overflow-x-auto">
-                          <Table>
+                        <Table className="w-full table-fixed">
                             <TableHeader>
                               <TableRow>
-                                <TableHead className="text-center">Qtd</TableHead>
-                                <TableHead>Descrição da Peça</TableHead>
-                                <TableHead>Tipo de Serviço</TableHead>
-                                <TableHead>Observações</TableHead>
-                                <TableHead className="text-right">Valor</TableHead>
+                                <TableHead className="w-[60px] text-center whitespace-nowrap">Qtd</TableHead>
+                                <TableHead className="w-auto">Descrição da Peça</TableHead>
+                                <TableHead className="w-[150px] whitespace-nowrap">Tipo de Serviço</TableHead>
+                                <TableHead className="w-auto">Observações</TableHead>
+                                <TableHead className="w-[100px] text-right whitespace-nowrap">Valor</TableHead>
                               </TableRow>
                             </TableHeader>
                             <TableBody>
                               {detailOS.itens.map((item: ItemLavanderia, i: number) => (
                                 <TableRow key={i}>
-                                  <TableCell className="text-center">{item.quantidade}</TableCell>
-                                  <TableCell className="font-medium">{item.descricaoPeca}</TableCell>
-                                  <TableCell>{getTipoServicoBadge(item.tipoServico)}</TableCell>
-                                  <TableCell className="text-sm text-muted-foreground">{item.observacoes || '-'}</TableCell>
-                                  <TableCell className="text-right font-medium text-green-600">{formatCurrency(item.total)}</TableCell>
+                                  <TableCell className="text-center whitespace-nowrap">{item.quantidade}</TableCell>
+                                  <TableCell className="font-medium truncate max-w-[200px]" title={item.descricaoPeca}>{item.descricaoPeca}</TableCell>
+                                  <TableCell className="whitespace-nowrap">{getTipoServicoBadge(item.tipoServico)}</TableCell>
+                                  <TableCell className="text-sm text-muted-foreground truncate max-w-[150px]" title={item.observacoes || '-'}>{item.observacoes || '-'}</TableCell>
+                                  <TableCell className="text-right font-medium text-green-600 whitespace-nowrap">{formatCurrency(item.total)}</TableCell>
                                 </TableRow>
                               ))}
                             </TableBody>
                           </Table>
-                        </div>
                       </CardContent>
                     </Card>
                   )}

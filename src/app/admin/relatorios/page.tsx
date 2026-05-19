@@ -522,8 +522,7 @@ export default function RelatoriosPage() {
                     </div>
                   </div>
 
-                  <div className="overflow-x-auto">
-                    <Table className="min-w-max md:min-w-full w-auto [&_td]:px-1.5 [&_td]:py-2 [&_th]:px-1.5 [&_th]:h-9">
+                  <Table className="w-full table-fixed [&_td]:px-1.5 [&_td]:py-2 [&_th]:px-1.5 [&_th]:h-9">
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[180px]">Produto</TableHead>
@@ -546,8 +545,8 @@ export default function RelatoriosPage() {
                         ) : (
                           estoqueData.map((p) => (
                             <TableRow key={p.id}>
-                              <TableCell className="font-medium truncate max-w-[180px]" title={p.nome}>{p.nome}</TableCell>
-                              <TableCell className="truncate max-w-[100px]" title={categorias.find((c: any) => c.id === p.categoriaId)?.nome || ''}>{categorias.find((c: any) => c.id === p.categoriaId)?.nome || '-'}</TableCell>
+                              <TableCell className="font-medium truncate" title={p.nome}>{p.nome}</TableCell>
+                              <TableCell className="truncate" title={categorias.find((c: any) => c.id === p.categoriaId)?.nome || ''}>{categorias.find((c: any) => c.id === p.categoriaId)?.nome || '-'}</TableCell>
                               <TableCell className="text-right whitespace-nowrap">{fmtQtd(p.estoqueAtual || 0)}</TableCell>
                               <TableCell className={`text-right whitespace-nowrap ${p.custo > 0 ? '' : 'text-muted-foreground'}`}>{p.custo > 0 ? fmt(p.custo) : '-'}</TableCell>
                               <TableCell className={`text-right whitespace-nowrap ${p.preco > 0 ? '' : 'text-muted-foreground'}`}>{p.preco > 0 ? fmt(p.preco) : '-'}</TableCell>
@@ -561,7 +560,6 @@ export default function RelatoriosPage() {
                         )}
                       </TableBody>
                     </Table>
-                  </div>
 
                   {/* Totalizador */}
                   {estoqueData.length > 0 && (

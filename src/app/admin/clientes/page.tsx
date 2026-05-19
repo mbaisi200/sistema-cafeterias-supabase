@@ -457,7 +457,7 @@ export default function ClientesPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <Table>
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Tipo</TableHead>
@@ -485,16 +485,16 @@ export default function ClientesPage() {
                           ? c.cnpj_cpf.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
                           : c.cnpj_cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}
                       </TableCell>
-                      <TableCell className="font-medium max-w-[200px] truncate" title={c.nome_razao_social}>
+                      <TableCell className="font-medium max-w-[200px] truncate whitespace-normal" title={c.nome_razao_social}>
                         {c.nome_razao_social}
                         {c.nome_fantasia && <p className="text-xs text-muted-foreground">{c.nome_fantasia}</p>}
                       </TableCell>
                       <TableCell className="text-xs">
                         {c.indicador_ie === 1 ? c.inscricao_estadual || '-' : c.indicador_ie === 2 ? 'Isento' : '-'}
                       </TableCell>
-                      <TableCell className="text-sm">{c.municipio}/{c.uf}</TableCell>
+                      <TableCell className="text-sm truncate whitespace-normal" title={`${c.municipio}/${c.uf}`}>{c.municipio}/{c.uf}</TableCell>
                       <TableCell className="text-sm">{c.telefone || c.celular || '-'}</TableCell>
-                      <TableCell className="text-sm max-w-[150px] truncate">{c.email || '-'}</TableCell>
+                      <TableCell className="text-sm max-w-[150px] truncate whitespace-normal" title={c.email || '-'}>{c.email || '-'}</TableCell>
                       <TableCell>
                         <Badge variant={c.ativo ? 'default' : 'secondary'}>
                           {c.ativo ? 'Ativo' : 'Inativo'}

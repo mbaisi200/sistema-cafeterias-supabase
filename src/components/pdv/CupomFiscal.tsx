@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Printer, FileText, User, Settings, CreditCard, CheckCircle, UserPlus } from 'lucide-react';
+import { Printer, FileText, User, Settings, CreditCard, CheckCircle, UserPlus, Receipt, ScrollText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useConfiguracoesCupom, ConfiguracoesCupom, configuracoesCupomPadrao } from '@/hooks/useSupabase';
 import { BuscaCliente, ClienteEncontrado } from './BuscaCliente';
@@ -26,6 +26,7 @@ export interface DadosCupomFiscal {
   cpfCliente: string;
   nomeCliente: string;
   imprimirCupom: boolean;
+  emitirNFCe: boolean;
   tamanhoCupom: '58mm' | '80mm';
   configuracoes?: ConfiguracoesCupom;
   clienteId?: string;
@@ -108,6 +109,7 @@ export function CupomFiscalModal({
 
   const [modoEntradaManual, setModoEntradaManual] = useState(false);
 
+  const [emitirNFCe, setEmitirNFCe] = useState(false);
   const [imprimirCupom, setImprimirCupom] = useState(true);
   const [tamanhoCupom, setTamanhoCupom] = useState<'58mm' | '80mm'>('80mm');
   const [mostrarConfiguracoes, setMostrarConfiguracoes] = useState(false);
@@ -228,7 +230,8 @@ export function CupomFiscalModal({
     onConfirmar({
       cpfCliente: cpfLimpo,
       nomeCliente: (nomeCliente || '').trim(),
-      imprimirCupom,
+      imprimirCupom: emitirNFCe ? true : imprimirCupom,
+      emitirNFCe,
       tamanhoCupom,
       configuracoes: configuracoes || configuracoesCupomPadrao,
       clienteId: clienteSelecionado?.id,
@@ -383,21 +386,71 @@ export function CupomFiscalModal({
 
           <Separator />
 
-          {/* Opção de impressão */}
-          <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <Checkbox
-              id="imprimir"
-              checked={imprimirCupom}
-              onCheckedChange={(checked) => setImprimirCupom(checked as boolean)}
-            />
-            <label
-              htmlFor="imprimir"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
-            >
-              <Printer className="h-4 w-4 text-gray-600" />
-              Imprimir cupom fiscal
-            </label>
+          {/* Tipo de Cupom: Fiscal (NFC-e) vs Apenas Impressão */}
+          <div className="space-y-2">
+            <Label className="text-sm font-semibold text-gray-700">Tipo de Cupom</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => { setEmitirNFCe(false); setImprimirCupom(true); }}
+                className={`flex items-center gap-2 p-3 rounded-lg border text-left transition-all ${
+                  !emitirNFCe
+                    ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200'
+                    : 'bg-white border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <Printer className={`h-5 w-5 ${!emitirNFCe ? 'text-blue-600' : 'text-gray-400'}`} />
+                <div>
+                  <p className={`text-sm font-medium ${!emitirNFCe ? 'text-blue-700' : 'text-gray-700'}`}>
+                    Reimpressão do Cupom
+                  </p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setEmitirNFCe(true)}
+                className={`flex items-center gap-2 p-3 rounded-lg border text-left transition-all ${
+                  emitirNFCe
+                    ? 'bg-violet-50 border-violet-300 ring-2 ring-violet-200'
+                    : 'bg-white border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <ScrollText className={`h-5 w-5 ${emitirNFCe ? 'text-violet-600' : 'text-gray-400'}`} />
+                <div>
+                  <p className={`text-sm font-medium ${emitirNFCe ? 'text-violet-700' : 'text-gray-700'}`}>
+                    Cupom Fiscal
+                  </p>
+                  <p className="text-[10px] text-gray-500">NFC-e (SEFAZ)</p>
+                </div>
+              </button>
+            </div>
           </div>
+
+          {/* Opção de impressão (visível apenas quando não é NFC-e) */}
+          {!emitirNFCe && (
+            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+              <Checkbox
+                id="imprimir"
+                checked={imprimirCupom}
+                onCheckedChange={(checked) => setImprimirCupom(checked as boolean)}
+              />
+              <label
+                htmlFor="imprimir"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
+              >
+                <Printer className="h-4 w-4 text-gray-600" />
+                Imprimir cupom
+              </label>
+            </div>
+          )}
+          {emitirNFCe && (
+            <div className="flex items-center gap-2 p-3 bg-violet-50 rounded-lg border border-violet-200">
+              <Receipt className="h-4 w-4 text-violet-600" />
+              <span className="text-sm text-violet-700">
+                Cupom fiscal será emitido eletronicamente via NFC-e e impresso automaticamente.
+              </span>
+            </div>
+          )}
 
           {/* Configurações de tamanho */}
           <div className="space-y-3">
@@ -733,7 +786,7 @@ export function imprimirCupomFiscal(
   cupom += '\n';
 
   // === DADOS DO DOCUMENTO ===
-  cupom += centralizar('CUPOM NAO FISCAL') + '\n';
+  cupom += centralizar('COMPROVANTE') + '\n';
   cupom += '\n';
 
   const agora = new Date();
@@ -846,7 +899,7 @@ export function imprimirCupomFiscal(
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Cupom Não Fiscal</title>
+      <title>Comprovante</title>
       <style>
         @page {
           size: ${tamanhoPapel} auto;

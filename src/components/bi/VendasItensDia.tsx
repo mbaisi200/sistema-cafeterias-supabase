@@ -453,17 +453,17 @@ export function VendasItensDia() {
 
         {/* Tabela */}
         <div className="overflow-x-auto">
-          <Table>
+          <Table className="w-full table-fixed">
             <TableHeader>
               <TableRow>
                 <TableHead className="w-12">#</TableHead>
                 <TableHead>Item</TableHead>
                 <TableHead>Categoria</TableHead>
-                <TableHead className="text-right">Qtd.</TableHead>
-                <TableHead className="text-right">Vl. Unit.</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right w-16">Qtd.</TableHead>
+                <TableHead className="text-right w-24">Vl. Unit.</TableHead>
+                <TableHead className="text-right w-24">Total</TableHead>
                 <TableHead className="text-center w-24">Horário</TableHead>
-                <TableHead className="w-32">Operador</TableHead>
+                <TableHead className="w-28">Operador</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -477,18 +477,18 @@ export function VendasItensDia() {
                 dadosAgrupados.map((item, index) => (
                   <TableRow key={item.nome} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{index + 1}</TableCell>
-                    <TableCell className="font-medium">{item.nome}</TableCell>
+                    <TableCell className="font-medium truncate" title={item.nome}>{item.nome}</TableCell>
                     <TableCell>
-                      <Badge variant="outline">{item.categoriaNome}</Badge>
+                      <Badge variant="outline" className="truncate max-w-full">{item.categoriaNome}</Badge>
                     </TableCell>
-                    <TableCell className="text-right font-medium">{item.quantidade.toFixed(0)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right font-medium whitespace-nowrap">{item.quantidade.toFixed(0)}</TableCell>
+                    <TableCell className="text-right whitespace-nowrap">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.quantidade > 0 ? item.valor / item.quantidade : 0)}
                     </TableCell>
-                    <TableCell className="text-right font-medium text-emerald-600">
+                    <TableCell className="text-right font-medium text-emerald-600 whitespace-nowrap">
                       {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.valor)}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center whitespace-nowrap">
                       <div className="flex flex-col items-center gap-1">
                         {item.vendas.slice(0, 3).map((v, i) => (
                           <span key={i} className="text-xs text-muted-foreground">{v.horario}</span>
@@ -496,10 +496,10 @@ export function VendasItensDia() {
                         {item.vendas.length > 3 && <span className="text-xs text-muted-foreground">+{item.vendas.length - 3}</span>}
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="truncate">
                       <div className="flex items-center gap-1">
-                        <User className="h-3 w-3 text-muted-foreground" />
-                        <span className="text-xs text-muted-foreground">
+                        <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-xs text-muted-foreground truncate">
                           {item.vendas[0]?.operador || 'Admin'}
                         </span>
                       </div>

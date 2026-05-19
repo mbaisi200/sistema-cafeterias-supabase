@@ -377,41 +377,40 @@ export default function CuponsNFEsPage() {
                 </div>
               ) : (
                 <>
-                  <div className="overflow-x-auto">
-                    <Table>
+                  <Table className="w-full table-fixed">
                       <TableHeader>
                         <TableRow>
-                          <TableHead className="w-[80px]">Nº</TableHead>
-                          <TableHead className="w-[80px]">Tipo</TableHead>
-                          <TableHead className="w-[100px]">Série</TableHead>
-                          <TableHead className="w-[260px]">Chave de Acesso</TableHead>
-                          <TableHead className="w-[120px]">Destinatário</TableHead>
-                          <TableHead className="w-[120px]">Data Emissão</TableHead>
-                          <TableHead className="w-[120px]">Valor</TableHead>
-                          <TableHead className="w-[140px]">Status</TableHead>
-                          <TableHead className="w-[160px] text-right">Ações</TableHead>
+                          <TableHead className="w-[80px] whitespace-nowrap">Nº</TableHead>
+                          <TableHead className="w-[80px] whitespace-nowrap">Tipo</TableHead>
+                          <TableHead className="w-[100px] whitespace-nowrap">Série</TableHead>
+                          <TableHead className="w-[260px] whitespace-nowrap">Chave de Acesso</TableHead>
+                          <TableHead className="w-[120px] whitespace-nowrap">Destinatário</TableHead>
+                          <TableHead className="w-[120px] whitespace-nowrap">Data Emissão</TableHead>
+                          <TableHead className="w-[120px] whitespace-nowrap">Valor</TableHead>
+                          <TableHead className="w-[140px] whitespace-nowrap">Status</TableHead>
+                          <TableHead className="w-[160px] text-right whitespace-nowrap">Ações</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {nfes.map((nfe) => (
                           <TableRow key={nfe.id} className="cursor-pointer" onClick={() => handleVerDetalhes(nfe)}>
-                            <TableCell className="font-medium">{String(nfe.numero).padStart(9, '0')}</TableCell>
-                            <TableCell>
+                            <TableCell className="font-medium whitespace-nowrap">{String(nfe.numero).padStart(9, '0')}</TableCell>
+                            <TableCell className="whitespace-nowrap">
                               {nfe.tipo_operacao === 1 ? (
                                 <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200 text-xs">Saída</Badge>
                               ) : (
                                 <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 text-xs">Entrada</Badge>
                               )}
                             </TableCell>
-                            <TableCell>{nfe.serie}</TableCell>
-                            <TableCell className="font-mono text-xs">{nfe.chave}</TableCell>
-                            <TableCell className="text-sm truncate max-w-[120px]">
+                            <TableCell className="whitespace-nowrap">{nfe.serie}</TableCell>
+                            <TableCell className="font-mono text-xs truncate max-w-[260px]" title={nfe.chave}>{nfe.chave}</TableCell>
+                            <TableCell className="text-sm truncate max-w-[120px]" title={nfe.destinatario?.nome_razao_social || '-'}>
                               {nfe.destinatario?.nome_razao_social || '-'}
                             </TableCell>
-                            <TableCell>{new Date(nfe.data_emissao).toLocaleDateString('pt-BR')}</TableCell>
-                            <TableCell className="font-medium">R$ {(nfe.total_nota || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
-                            <TableCell><StatusBadge status={nfe.status} /></TableCell>
-                            <TableCell className="text-right">
+                            <TableCell className="whitespace-nowrap">{new Date(nfe.data_emissao).toLocaleDateString('pt-BR')}</TableCell>
+                            <TableCell className="font-medium whitespace-nowrap">R$ {(nfe.total_nota || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</TableCell>
+                            <TableCell className="whitespace-nowrap"><StatusBadge status={nfe.status} /></TableCell>
+                            <TableCell className="text-right whitespace-nowrap">
                               <div className="flex items-center justify-end gap-1" onClick={(e) => e.stopPropagation()}>
                                 <Button variant="ghost" size="icon" title="Ver detalhes" onClick={() => handleVerDetalhes(nfe)}>
                                   <Eye className="h-4 w-4" />
@@ -438,7 +437,6 @@ export default function CuponsNFEsPage() {
                         ))}
                       </TableBody>
                     </Table>
-                  </div>
 
                   {/* Paginação */}
                   <div className="flex items-center justify-between mt-4">
