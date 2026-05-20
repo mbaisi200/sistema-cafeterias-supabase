@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useFuncionarios } from '@/hooks/useSupabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { useState, useEffect } from 'react';
 import {
   Plus,
@@ -58,6 +59,15 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import Link from 'next/link';
 import { maskPhone, unmask } from '@/lib/masks';
 import { useAuth } from '@/contexts/AuthContext';
@@ -90,7 +100,7 @@ interface Dispositivo {
 }
 
 export default function FuncionariosPage() {
-  const { funcionarios, loading, adicionarFuncionario, atualizarFuncionario, excluirFuncionario } = useFuncionarios();
+  const { funcionarios, loading, adicionarFuncionario, atualizarFuncionario, excluirFuncionario, hardDeleteFuncionario } = useFuncionarios();
   const { user: currentUser, empresaId } = useAuth();
   const [search, setSearch] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -287,6 +297,48 @@ export default function FuncionariosPage() {
         title: 'Erro',
         description: 'Não foi possível atualizar o status.',
       });
+    }
+  };
+
+  const [excluirTarget, setExcluirTarget] = useState<Funcionario | null>(null);
+  const [vinculosCheckDialog, setVinculosCheckDialog] = useState(false);
+  const [checkingVinculosFunc, setCheckingVinculosFunc] = useState(false);
+  const [hasVinculosFunc, setHasVinculosFunc] = useState(false);
+
+  const handleExcluirClick = async (funcionario: Funcionario) => {
+    setExcluirTarget(funcionario);
+    setCheckingVinculosFunc(true);
+    setHasVinculosFunc(false);
+    setVinculosCheckDialog(true);
+    try {
+      const supabase = getSupabaseClient();
+      const { count } = await supabase
+        .from('vendas')
+        .select('*', { count: 'exact', head: true })
+        .eq('funcionario_id', funcionario.id)
+        .not('status', 'eq', 'cancelada');
+      setHasVinculosFunc((count || 0) > 0);
+    } catch {
+      setHasVinculosFunc(true);
+    } finally {
+      setCheckingVinculosFunc(false);
+    }
+  };
+
+  const confirmExcluirFuncionario = async () => {
+    if (!excluirTarget) return;
+    try {
+      if (hasVinculosFunc) {
+        await excluirFuncionario(excluirTarget.id);
+        toast({ title: 'Funcionário inativado', description: 'Possui vendas vinculadas. Registro inativado para preservar histórico.' });
+      } else {
+        await hardDeleteFuncionario(excluirTarget.id);
+        toast({ title: 'Funcionário excluído', description: 'Registro removido permanentemente.' });
+      }
+      setVinculosCheckDialog(false);
+      setExcluirTarget(null);
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível excluir.' });
     }
   };
 
@@ -836,7 +888,7 @@ export default function FuncionariosPage() {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                   className="text-red-600"
-                                  onClick={() => excluirFuncionario(func.id)}
+                                  onClick={() => handleExcluirClick(func)}
                                 >
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Excluir
@@ -852,6 +904,59 @@ export default function FuncionariosPage() {
             </Card>
           )}
         </div>
+
+        {/* Dialog Excluir Funcionário */}
+        <AlertDialog open={vinculosCheckDialog} onOpenChange={setVinculosCheckDialog}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {checkingVinculosFunc ? 'Verificando vínculos...' : hasVinculosFunc ? 'Funcionário possui vendas' : 'Excluir Funcionário'}
+              </AlertDialogTitle>
+            </AlertDialogHeader>
+            {checkingVinculosFunc ? (
+              <div className="flex items-center justify-center py-6">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : hasVinculosFunc ? (
+              <>
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                  <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="text-sm text-amber-800">
+                    <p className="font-medium">Funcionário possui vendas vinculadas</p>
+                    <p className="mt-1">
+                      O funcionário <strong>{excluirTarget?.nome}</strong> possui vendas registradas no sistema.
+                    </p>
+                    <p className="mt-2">
+                      Para <strong>preservar o histórico</strong>, ele será <strong>inativado</strong> — não poderá acessar o sistema, mas os relatórios continuarão exibindo os dados corretamente.
+                    </p>
+                  </div>
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={confirmExcluirFuncionario} className="bg-amber-600 hover:bg-amber-700">
+                    Inativar Funcionário
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </>
+            ) : (
+              <>
+                <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
+                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                  <div className="text-sm text-red-800">
+                    <p>Confirma a exclusão permanente de <strong>{excluirTarget?.nome}</strong>?</p>
+                    <p className="mt-1">Esta ação não pode ser desfeita.</p>
+                  </div>
+                </div>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={confirmExcluirFuncionario} className="bg-red-600 hover:bg-red-700">
+                    Excluir Permanentemente
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </>
+            )}
+          </AlertDialogContent>
+        </AlertDialog>
       </MainLayout>
     </ProtectedRoute>
   );

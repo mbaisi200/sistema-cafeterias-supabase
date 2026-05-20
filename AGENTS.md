@@ -605,3 +605,8 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - **Página Admin**: `/admin/configuracoes/fidelidade` — config do programa + gestão de recompensas
 - **PDV**: acúmulo automático no PDV Restaurante e PDV Varejo via `fetch()` não-bloqueante após finalizar venda
 - RLS + GRANT explícito (Nota #10) em todas as tabelas
+
+### Dashboard — Ranking Produtos (Ordem Decrescente) ✅
+- Ranking de Produtos e Serviços no Dashboard agora ordena do maior valor (topo) para o menor (base)
+- `src/components/bi/DashboardCharts.tsx`: dados ordenados decrescentemente com `type="category"` no eixo Y — o primeiro item do array (maior valor) aparece no topo do gráfico de barras horizontal
+- `src/app/admin/dashboard/page.tsx`: `sort` ascendente + `slice(-10)` mantém os 10 maiores valores

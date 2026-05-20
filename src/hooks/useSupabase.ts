@@ -504,7 +504,7 @@ export function useMesas() {
   const excluirMesa = async (id: string) => {
     const { error } = await supabase
       .from('mesas')
-      .delete()
+      .update({ ativo: false, atualizado_em: new Date().toISOString() })
       .eq('id', id);
 
     if (error) throw error;
@@ -642,7 +642,16 @@ export function useFuncionarios() {
     if (error) throw error;
   };
 
-  return { funcionarios, loading, adicionarFuncionario, atualizarFuncionario, excluirFuncionario };
+  const hardDeleteFuncionario = async (id: string) => {
+    const { error } = await supabase
+      .from('funcionarios')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  };
+
+  return { funcionarios, loading, adicionarFuncionario, atualizarFuncionario, excluirFuncionario, hardDeleteFuncionario };
 }
 
 // =====================================================
@@ -957,6 +966,7 @@ export function useContas() {
       setContas(data?.map(c => ({
         id: c.id,
         ...c,
+        ativo: c.ativo !== false,
         vencimento: new Date(c.vencimento),
         dataPagamento: c.data_pagamento ? new Date(c.data_pagamento) : null,
         criadoEm: new Date(c.criado_em),
@@ -1020,7 +1030,16 @@ export function useContas() {
   const excluirConta = async (id: string) => {
     const { error } = await supabase
       .from('contas')
-      .delete()
+      .update({ ativo: false, atualizado_em: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) throw error;
+  };
+
+  const toggleContaAtivo = async (id: string, ativo: boolean) => {
+    const { error } = await supabase
+      .from('contas')
+      .update({ ativo, atualizado_em: new Date().toISOString() })
       .eq('id', id);
 
     if (error) throw error;
@@ -1042,6 +1061,7 @@ export function useContas() {
     atualizarConta, 
     registrarPagamento, 
     excluirConta,
+    toggleContaAtivo,
     carregarDados,
     contasPagar,
     contasReceber,
@@ -2108,7 +2128,6 @@ export function useFornecedores() {
         .from('fornecedores')
         .select('*')
         .eq('empresa_id', empresaId)
-        .eq('ativo', true)
         .order('nome');
 
       if (error) throw error;
@@ -2243,7 +2262,16 @@ export function useFornecedores() {
     if (error) throw error;
   };
 
-  return { fornecedores, loading, adicionarFornecedor, atualizarFornecedor, excluirFornecedor, refetch: carregarDados };
+  const hardDeleteFornecedor = async (id: string) => {
+    const { error } = await supabase
+      .from('fornecedores')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+  };
+
+  return { fornecedores, loading, adicionarFornecedor, atualizarFornecedor, excluirFornecedor, hardDeleteFornecedor, refetch: carregarDados };
 }
 
 // Função standalone para buscar fornecedor por CNPJ

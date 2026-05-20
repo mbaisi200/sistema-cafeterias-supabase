@@ -49,6 +49,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useFornecedores } from '@/hooks/useSupabase';
+import { getSupabaseClient } from '@/lib/supabase';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus,
@@ -66,6 +67,10 @@ import {
   Hash,
   Globe,
   Tag,
+  EyeOff,
+  ToggleLeft,
+  ToggleRight,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -125,13 +130,18 @@ function formatarTelefone(telefone?: string) {
 }
 
 export function FornecedoresTab() {
-  const { fornecedores, loading, adicionarFornecedor, atualizarFornecedor, excluirFornecedor } = useFornecedores();
+  const { fornecedores, loading, adicionarFornecedor, atualizarFornecedor, excluirFornecedor, hardDeleteFornecedor } = useFornecedores();
   const [search, setSearch] = useState('');
+  const [filtroAtivo, setFiltroAtivo] = useState<'todos' | 'ativos' | 'inativos'>('ativos');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editandoFornecedor, setEditandoFornecedor] = useState<Fornecedor | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Fornecedor | null>(null);
+  const [checkingVinculos, setCheckingVinculos] = useState(false);
+  const [hasVinculos, setHasVinculos] = useState(false);
+  const [inativarDialogOpen, setInativarDialogOpen] = useState(false);
+  const [inativarTarget, setInativarTarget] = useState<Fornecedor | null>(null);
   const [categoriaInput, setCategoriaInput] = useState('');
   const [categoriasSelecionadas, setCategoriasSelecionadas] = useState<string[]>([]);
   const [activeTab, setActiveTab] = useState('dados');
@@ -181,6 +191,8 @@ export function FornecedoresTab() {
 
   // Filtrar fornecedores
   const filteredFornecedores = fornecedores.filter(f => {
+    if (filtroAtivo === 'ativos' && !f.ativo) return false;
+    if (filtroAtivo === 'inativos' && f.ativo) return false;
     const searchLower = search.toLowerCase();
     return (
       f.nome.toLowerCase().includes(searchLower) ||
@@ -287,16 +299,54 @@ export function FornecedoresTab() {
     setDialogOpen(true);
   };
 
-  const handleDeleteClick = (fornecedor: Fornecedor) => {
+  const handleInativarClick = (fornecedor: Fornecedor) => {
+    setInativarTarget(fornecedor);
+    setInativarDialogOpen(true);
+  };
+
+  const handleToggleAtivo = async () => {
+    if (!inativarTarget) return;
+    try {
+      await atualizarFornecedor(inativarTarget.id, { ativo: !inativarTarget.ativo });
+      toast.success(`${inativarTarget.nome} ${inativarTarget.ativo ? 'inativado' : 'ativado'} com sucesso.`);
+    } catch (error) {
+      toast.error('Erro ao alterar status do fornecedor.');
+    } finally {
+      setInativarDialogOpen(false);
+      setInativarTarget(null);
+    }
+  };
+
+  const handleDeleteClick = async (fornecedor: Fornecedor) => {
     setDeleteTarget(fornecedor);
+    setCheckingVinculos(true);
+    setHasVinculos(false);
     setDeleteDialogOpen(true);
+    try {
+      const supabase = getSupabaseClient();
+      const [{ count: pedidos }, { count: nfes }, { count: movimentos }] = await Promise.all([
+        supabase.from('pedidos').select('*', { count: 'exact', head: true }).eq('fornecedor_id', fornecedor.id),
+        supabase.from('nfe').select('*', { count: 'exact', head: true }).eq('fornecedor_id', fornecedor.id),
+        supabase.from('estoque_movimentos').select('*', { count: 'exact', head: true }).eq('fornecedor_ref', fornecedor.id),
+      ]);
+      setHasVinculos((pedidos || 0) + (nfes || 0) + (movimentos || 0) > 0);
+    } catch {
+      setHasVinculos(true);
+    } finally {
+      setCheckingVinculos(false);
+    }
   };
 
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await excluirFornecedor(deleteTarget.id);
-      toast.success(`${deleteTarget.nome} foi removido com sucesso.`);
+      if (hasVinculos) {
+        await excluirFornecedor(deleteTarget.id);
+        toast.success(`${deleteTarget.nome} foi inativado (possui vínculos com lançamentos).`);
+      } else {
+        await hardDeleteFornecedor(deleteTarget.id);
+        toast.success(`${deleteTarget.nome} foi excluído permanentemente.`);
+      }
     } catch (error) {
       toast.error('Não foi possível excluir o fornecedor.');
     } finally {
@@ -752,39 +802,120 @@ export function FornecedoresTab() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      {/* Inativar/Ativar Confirmation Dialog */}
+      <AlertDialog open={inativarDialogOpen} onOpenChange={setInativarDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Fornecedor</AlertDialogTitle>
+            <AlertDialogTitle>
+              {inativarTarget?.ativo ? 'Inativar Fornecedor' : 'Ativar Fornecedor'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir <strong>{deleteTarget?.nome}</strong>?
-              Esta ação não pode ser desfeita.
+              {inativarTarget?.ativo
+                ? `Tem certeza que deseja inativar ${inativarTarget?.nome}? Ele não aparecerá nas listas padrão.`
+                : `Tem certeza que deseja ativar ${inativarTarget?.nome}?`
+              }
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleConfirmDelete}
-              className="bg-red-600 hover:bg-red-700"
+              onClick={handleToggleAtivo}
+              className={inativarTarget?.ativo ? 'bg-orange-600 hover:bg-orange-700' : 'bg-green-600 hover:bg-green-700'}
             >
-              Excluir
+              {inativarTarget?.ativo ? 'Inativar' : 'Ativar'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Search */}
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {checkingVinculos ? 'Verificando vínculos...' : hasVinculos ? 'Fornecedor possui vínculos' : 'Excluir Fornecedor'}
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          {checkingVinculos ? (
+            <div className="flex items-center justify-center py-6">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          ) : hasVinculos ? (
+            <>
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200">
+                <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+                <div className="text-sm text-amber-800">
+                  <p className="font-medium">Fornecedor possui lançamentos registrados</p>
+                  <p className="mt-1">
+                    O fornecedor <strong>{deleteTarget?.nome}</strong> está vinculado a pedidos, notas fiscais ou movimentações de estoque.
+                  </p>
+                  <p className="mt-2">
+                    Para <strong>preservar o histórico</strong>, ele será <strong>inativado</strong> — ficará oculto da listagem, mas os relatórios continuarão exibindo os dados corretamente.
+                  </p>
+                </div>
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmDelete} className="bg-amber-600 hover:bg-amber-700">
+                  Inativar Fornecedor
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          ) : (
+            <>
+              <div className="flex items-start gap-3 p-4 rounded-lg bg-red-50 border border-red-200">
+                <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                <div className="text-sm text-red-800">
+                  <p>Confirma a exclusão permanente de <strong>{deleteTarget?.nome}</strong>?</p>
+                  <p className="mt-1">Esta ação não pode ser desfeita.</p>
+                </div>
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleConfirmDelete} className="bg-red-600 hover:bg-red-700">
+                  Excluir Permanentemente
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Search + Filtro */}
       <Card>
         <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Buscar por nome, CNPJ ou telefone..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Buscar por nome, CNPJ ou telefone..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex gap-1 bg-muted rounded-lg p-1">
+              <button
+                onClick={() => setFiltroAtivo('ativos')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${filtroAtivo === 'ativos' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <ToggleRight className="h-4 w-4 inline mr-1" />
+                Ativos
+              </button>
+              <button
+                onClick={() => setFiltroAtivo('inativos')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${filtroAtivo === 'inativos' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                <EyeOff className="h-4 w-4 inline mr-1" />
+                Inativos
+              </button>
+              <button
+                onClick={() => setFiltroAtivo('todos')}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${filtroAtivo === 'todos' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+              >
+                Todos
+              </button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -809,12 +940,12 @@ export function FornecedoresTab() {
             <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[250px]">Nome/Razão Social</TableHead>
-                    <TableHead className="w-36 whitespace-nowrap">CNPJ</TableHead>
-                    <TableHead className="w-36 hidden md:table-cell whitespace-nowrap">Telefone</TableHead>
-                    <TableHead className="w-48 hidden lg:table-cell">Email</TableHead>
-                    <TableHead className="w-36 hidden xl:table-cell">Cidade/UF</TableHead>
-                    <TableHead className="w-24 text-center whitespace-nowrap">Status</TableHead>
+                    <TableHead className="w-[35%] min-w-[180px]">Nome/Razão Social</TableHead>
+                    <TableHead className="w-[15%] min-w-[120px] whitespace-nowrap">CNPJ</TableHead>
+                    <TableHead className="w-[12%] min-w-[100px] hidden md:table-cell whitespace-nowrap">Telefone</TableHead>
+                    <TableHead className="w-[20%] min-w-[140px] hidden lg:table-cell">Email</TableHead>
+                    <TableHead className="w-[13%] min-w-[100px] hidden xl:table-cell">Cidade/UF</TableHead>
+                    <TableHead className="w-[80px] text-center whitespace-nowrap">Status</TableHead>
                     <TableHead className="w-[80px] text-center whitespace-nowrap">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -826,7 +957,7 @@ export function FornecedoresTab() {
                           <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center flex-shrink-0">
                             <Building2 className="h-5 w-5 text-blue-400" />
                           </div>
-                          <div className="min-w-0">
+                          <div className="min-w-0 flex-1">
                             <p className="font-medium truncate" title={fornecedor.nome}>{fornecedor.nome}</p>
                             {fornecedor.razaoSocial && (
                               <p className="text-xs text-muted-foreground truncate" title={fornecedor.razaoSocial}>
@@ -837,29 +968,29 @@ export function FornecedoresTab() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <span className="text-sm font-mono">
+                        <span className="text-sm font-mono truncate block" title={formatarCNPJ(fornecedor.cnpj)}>
                           {formatarCNPJ(fornecedor.cnpj)}
                         </span>
                       </TableCell>
-                      <TableCell className="hidden md:table-cell">
+                      <TableCell className="hidden md:table-cell whitespace-nowrap">
                         <span className="text-sm">{formatarTelefone(fornecedor.telefone)}</span>
                       </TableCell>
                       <TableCell className="hidden lg:table-cell">
-                          <span className="text-sm truncate block max-w-[180px]" title={fornecedor.email || '-'}>
+                          <span className="text-sm truncate block" title={fornecedor.email || '-'}>
                             {fornecedor.email || '-'}
                           </span>
                       </TableCell>
                       <TableCell className="hidden xl:table-cell">
-                        <span className="text-sm">
+                        <span className="text-sm truncate block" title={[fornecedor.cidade, fornecedor.estado].filter(Boolean).join('/') || '-'}>
                           {[fornecedor.cidade, fornecedor.estado].filter(Boolean).join('/') || '-'}
                         </span>
                       </TableCell>
-                      <TableCell className="text-center">
-                        <Badge className={fornecedor.ativo ? 'bg-green-500' : 'bg-gray-500'}>
+                      <TableCell className="text-center whitespace-nowrap">
+                        <Badge variant="outline" className={fornecedor.ativo ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}>
                           {fornecedor.ativo ? 'Ativo' : 'Inativo'}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-center">
+                      <TableCell className="text-center whitespace-nowrap">
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="icon">
@@ -872,6 +1003,13 @@ export function FornecedoresTab() {
                             <DropdownMenuItem onClick={() => handleEditar(fornecedor)}>
                               <Edit className="mr-2 h-4 w-4" />
                               Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleInativarClick(fornecedor)}>
+                              {fornecedor.ativo ? (
+                                <><EyeOff className="mr-2 h-4 w-4 text-orange-500" /> Inativar</>
+                              ) : (
+                                <><ToggleRight className="mr-2 h-4 w-4 text-green-500" /> Ativar</>
+                              )}
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem

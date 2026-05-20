@@ -834,12 +834,12 @@ export default function FornecedoresPage() {
                 <Table className="w-full table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[250px]">Nome/Razão Social</TableHead>
-                        <TableHead className="w-36 whitespace-nowrap">CNPJ</TableHead>
-                        <TableHead className="w-36 hidden md:table-cell whitespace-nowrap">Telefone</TableHead>
-                        <TableHead className="w-48 hidden lg:table-cell">Email</TableHead>
-                        <TableHead className="w-36 hidden xl:table-cell">Cidade/UF</TableHead>
-                        <TableHead className="w-24 text-center whitespace-nowrap">Status</TableHead>
+                        <TableHead className="w-[35%] min-w-[180px]">Nome/Razão Social</TableHead>
+                        <TableHead className="w-[15%] min-w-[120px] whitespace-nowrap">CNPJ</TableHead>
+                        <TableHead className="w-[12%] min-w-[100px] hidden md:table-cell whitespace-nowrap">Telefone</TableHead>
+                        <TableHead className="w-[20%] min-w-[140px] hidden lg:table-cell">Email</TableHead>
+                        <TableHead className="w-[13%] min-w-[100px] hidden xl:table-cell">Cidade/UF</TableHead>
+                        <TableHead className="w-[80px] text-center whitespace-nowrap">Status</TableHead>
                         <TableHead className="w-[80px] text-center whitespace-nowrap">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -851,7 +851,7 @@ export default function FornecedoresPage() {
                               <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center flex-shrink-0">
                                 <Building2 className="h-5 w-5 text-blue-400" />
                               </div>
-                              <div className="min-w-0">
+                              <div className="min-w-0 flex-1">
                                 <p className="font-medium truncate" title={fornecedor.nome}>{fornecedor.nome}</p>
                                 {fornecedor.razaoSocial && (
                                   <p className="text-xs text-muted-foreground truncate" title={fornecedor.razaoSocial}>
@@ -862,32 +862,28 @@ export default function FornecedoresPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm font-mono">
-                              {formatarCNPJ(fornecedor.cnpj)}
-                            </span>
+                            <span className="font-mono text-sm truncate block" title={formatarCNPJ(fornecedor.cnpj)}>{formatarCNPJ(fornecedor.cnpj)}</span>
                           </TableCell>
-                          <TableCell className="hidden md:table-cell">
-                            <span className="text-sm">{formatarTelefone(fornecedor.telefone)}</span>
-                          </TableCell>
+                          <TableCell className="hidden md:table-cell whitespace-nowrap">{formatarTelefone(fornecedor.telefone)}</TableCell>
                           <TableCell className="hidden lg:table-cell">
-                            <span className="text-sm truncate block max-w-[180px]" title={fornecedor.email || '-'}>
+                            <span className="truncate block" title={fornecedor.email || '-'}>
                               {fornecedor.email || '-'}
                             </span>
                           </TableCell>
                           <TableCell className="hidden xl:table-cell">
-                            <span className="text-sm">
+                            <span className="truncate block" title={[fornecedor.cidade, fornecedor.estado].filter(Boolean).join('/') || '-'}>
                               {[fornecedor.cidade, fornecedor.estado].filter(Boolean).join('/') || '-'}
                             </span>
                           </TableCell>
-                          <TableCell className="text-center">
-                            <Badge className={fornecedor.ativo ? 'bg-green-500' : 'bg-gray-500'}>
+                          <TableCell className="text-center whitespace-nowrap">
+                            <Badge variant="outline" className={fornecedor.ativo ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200'}>
                               {fornecedor.ativo ? 'Ativo' : 'Inativo'}
                             </Badge>
                           </TableCell>
-                          <TableCell className="text-center">
+                          <TableCell className="text-center whitespace-nowrap">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
                                   <MoreHorizontal className="h-4 w-4" />
                                 </Button>
                               </DropdownMenuTrigger>
@@ -901,7 +897,7 @@ export default function FornecedoresPage() {
                                 <DropdownMenuSeparator />
                                 <DropdownMenuItem
                                   className="text-red-600"
-                                  onClick={() => handleDeleteClick(fornecedor)}
+                                  onClick={() => handleConfirmDelete(fornecedor)}
                                 >
                                   <Trash2 className="mr-2 h-4 w-4" />
                                   Excluir

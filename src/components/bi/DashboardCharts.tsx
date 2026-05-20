@@ -95,8 +95,8 @@ interface ProductRankingChartProps {
 }
 
 export function ProductRankingChart({ dados }: ProductRankingChartProps) {
-  // Reverse for horizontal bar (top at the top)
-  const reversedData = [...dados].reverse();
+  // Sort descending: highest value first → rendered at top of chart
+  const sorted = [...dados].sort((a, b) => b.valor - a.valor);
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
@@ -106,7 +106,7 @@ export function ProductRankingChart({ dados }: ProductRankingChartProps) {
         </CardHeader>
         <CardContent>
           <ChartContainer config={chartConfigTeal} className="h-[280px] w-full">
-            <BarChart data={reversedData} layout="vertical" margin={{ top: 5, right: 20, left: 100, bottom: 5 }}>
+            <BarChart data={sorted} layout="vertical" margin={{ top: 5, right: 20, left: 140, bottom: 5 }}>
               <defs>
                 <linearGradient id="barGradH" x1="0" y1="0" x2="1" y2="0">
                   <stop offset="0%" stopColor={TEAL} stopOpacity={0.9} />
@@ -130,7 +130,8 @@ export function ProductRankingChart({ dados }: ProductRankingChartProps) {
                 tick={{ fill: '#6B7280', fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
-                width={95}
+                width={135}
+                tickFormatter={(v: string) => v.length > 22 ? v.slice(0, 20) + '...' : v}
               />
               <ChartTooltip
                 content={<ChartTooltipContent />}

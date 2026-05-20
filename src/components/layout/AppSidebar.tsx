@@ -336,6 +336,11 @@ export function AppSidebar() {
     loadSections();
   }, [role, empresaId]);
 
+  // Filtra itens que não devem mais aparecer no menu
+  const filterRemovedSections = (items: MenuItem[]): MenuItem[] => {
+    return items.filter(i => i.url !== '/admin/categorias');
+  };
+
   // Agrupa pedidos e ordens-servico em submenu "Pedidos e OS" quando vem do banco
   const groupDynamicMenus = (items: MenuItem[]): MenuItem[] => {
     const pedidosItem = items.find(i => i.url === '/admin/pedidos');
@@ -365,11 +370,15 @@ export function AppSidebar() {
     switch (role) {
       case 'master':
         return masterMenuItems;
-      case 'admin':
-        if (hasSegment) return groupDynamicMenus(dynamicMenuItems);
-        return dynamicMenuItems.length > 0 ? groupDynamicMenus(dynamicMenuItems) : adminMenuItems;
-      case 'funcionario':
-        return dynamicMenuItems.length > 0 ? groupDynamicMenus(dynamicMenuItems) : funcionarioMenuItems;
+      case 'admin': {
+        const filtered = filterRemovedSections(dynamicMenuItems);
+        if (hasSegment) return groupDynamicMenus(filtered);
+        return filtered.length > 0 ? groupDynamicMenus(filtered) : adminMenuItems;
+      }
+      case 'funcionario': {
+        const filtered = filterRemovedSections(dynamicMenuItems);
+        return filtered.length > 0 ? groupDynamicMenus(filtered) : funcionarioMenuItems;
+      }
       default:
         return [];
     }

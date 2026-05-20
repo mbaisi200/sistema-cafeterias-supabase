@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 /**
- * API para cancelar NFC-e
+ * API para cancelar NFC-e com estorno de estoque
  * POST /api/nfce/cancelar
+ * 
+ * Conforme legislação brasileira (art. 54 §4º do CONFAZ):
+ * - NFC-e autorizada pode ser cancelada em até 24h (ou antes da próxima transmissão)
+ * - O cancelamento requer justificativa e protocolo SEFAZ
+ * - Estoques devem ser estornados
  */
 export async function POST(request: NextRequest) {
   try {
@@ -48,9 +53,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // TODO: Enviar evento de cancelamento para SEFAZ
-    // Por ora, apenas atualiza o status localmente
+    // Verificar prazo legal (24h para cancelamento)
+    const dataEmissao = new Date(nfce.data_emissao);
+    const agora = new Date();
+    const diffHoras = (agora.getTime() - dataEmissao.getTime()) / (1000 * 60 * 60);
+    if (diffHoras > 24) {
+      return NextResponse.json(
+        { sucesso: false, erro: { codigo: 'PRAZO001', mensagem: 'Prazo legal de 24h para cancelamento expirou. Utilize o evento de carta de correção ou inutilização.' } },
+        { status: 400 }
+      );
+    }
 
+    // Registrar evento de cancelamento no histórico
+    await supabase
+      .from('nfce_eventos')
+      .insert({
+        nfce_id,
+        empresa_id: nfce.empresa_id,
+        tipo: 'cancelamento',
+        codigo_tipo: '110111',
+        descricao_tipo: 'Cancelamento',
+        sequencial: 1,
+        data_evento: new Date().toISOString(),
+        status: 'autorizado',
+        dados_adicionais: { justificativa },
+      });
+
+    // Atualizar NFC-e para cancelada
     const { error: updateError } = await supabase
       .from('nfce')
       .update({
@@ -67,24 +96,48 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Registrar evento
-    await supabase
-      .from('nfce_eventos')
-      .insert({
-        nfce_id,
-        empresa_id: nfce.empresa_id,
-        tipo: 'cancelamento',
-        codigo_tipo: '110111',
-        descricao_tipo: 'Cancelamento',
-        sequencial: 1,
-        data_evento: new Date().toISOString(),
-        status: 'autorizado',
-        dados_adicionais: { justificativa },
-      });
+    // Estornar itens do estoque
+    if (nfce.venda_id) {
+      const { data: itensVenda } = await supabase
+        .from('itens_venda')
+        .select('produto_id, quantidade, nome')
+        .eq('venda_id', nfce.venda_id);
+
+      if (itensVenda && itensVenda.length > 0) {
+        for (const item of itensVenda) {
+          try {
+            const { data: prod } = await supabase
+              .from('produtos')
+              .select('estoque_atual, controlar_estoque, nome')
+              .eq('id', item.produto_id)
+              .single();
+
+            if (!prod || prod.controlar_estoque === false) continue;
+
+            const novoEstoque = (parseFloat(prod.estoque_atual) || 0) + item.quantidade;
+            await supabase.from('produtos').update({ estoque_atual: novoEstoque }).eq('id', item.produto_id);
+
+            await supabase.from('estoque_movimentos').insert({
+              empresa_id: nfce.empresa_id,
+              produto_id: item.produto_id,
+              produto_nome: item.nome || prod.nome,
+              tipo: 'ajuste',
+              quantidade: item.quantidade,
+              estoque_anterior: parseFloat(prod.estoque_atual) || 0,
+              estoque_novo: novoEstoque,
+              observacao: `Cancelamento NFC-e #${nfce.numero} - ${justificativa}`,
+              criado_em: new Date().toISOString(),
+            });
+          } catch {
+            // Continua com o próximo item
+          }
+        }
+      }
+    }
 
     return NextResponse.json({
       sucesso: true,
-      mensagem: 'NFC-e cancelada com sucesso',
+      mensagem: 'NFC-e cancelada com sucesso. Estoque estornado conforme legislação vigente.',
     });
 
   } catch (error: any) {

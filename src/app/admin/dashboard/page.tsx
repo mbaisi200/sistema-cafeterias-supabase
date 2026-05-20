@@ -801,8 +801,8 @@ export default function AdminDashboardPage() {
       });
 
     return Object.values(porProduto)
-      .sort((a, b) => b.valor - a.valor)
-      .slice(0, 10)
+      .sort((a, b) => a.valor - b.valor)
+      .slice(-10)
       .map(p => ({
         nome: p.nome.length > 22 ? p.nome.substring(0, 20) + '…' : p.nome,
         valor: p.valor,

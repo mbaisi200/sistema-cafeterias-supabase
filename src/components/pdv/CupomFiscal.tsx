@@ -16,7 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Printer, FileText, User, Settings, CreditCard, CheckCircle, UserPlus, Receipt, ScrollText } from 'lucide-react';
+import { Printer, FileText, User, Settings, CreditCard, CheckCircle, UserPlus, ScrollText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useConfiguracoesCupom, ConfiguracoesCupom, configuracoesCupomPadrao } from '@/hooks/useSupabase';
 import { BuscaCliente, ClienteEncontrado } from './BuscaCliente';
@@ -109,7 +109,7 @@ export function CupomFiscalModal({
 
   const [modoEntradaManual, setModoEntradaManual] = useState(false);
 
-  const [emitirNFCe, setEmitirNFCe] = useState(false);
+  const [emitirNFCe, setEmitirNFCe] = useState(true);
   const [imprimirCupom, setImprimirCupom] = useState(true);
   const [tamanhoCupom, setTamanhoCupom] = useState<'58mm' | '80mm'>('80mm');
   const [mostrarConfiguracoes, setMostrarConfiguracoes] = useState(false);
@@ -256,7 +256,7 @@ export function CupomFiscalModal({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg border border-blue-200 bg-white">
-        <DialogHeader>
+        <DialogHeader className="pb-0">
           <DialogTitle className="text-xl font-bold text-gray-800 flex items-center gap-2">
             <FileText className="h-5 w-5 text-blue-600" />
             Finalizar Venda
@@ -266,7 +266,7 @@ export function CupomFiscalModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-3 py-2">
           {/* Total e forma de pagamento */}
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
             <div className="flex items-center justify-between mb-2">
@@ -386,71 +386,71 @@ export function CupomFiscalModal({
 
           <Separator />
 
-          {/* Tipo de Cupom: Fiscal (NFC-e) vs Apenas Impressão */}
+          {/* Tipo de Cupom: NFC-e vs Reimpressão */}
           <div className="space-y-2">
             <Label className="text-sm font-semibold text-gray-700">Tipo de Cupom</Label>
             <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => { setEmitirNFCe(false); setImprimirCupom(true); }}
-                className={`flex items-center gap-2 p-3 rounded-lg border text-left transition-all ${
-                  !emitirNFCe
-                    ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200'
-                    : 'bg-white border-gray-200 hover:border-gray-300'
-                }`}
-              >
-                <Printer className={`h-5 w-5 ${!emitirNFCe ? 'text-blue-600' : 'text-gray-400'}`} />
-                <div>
-                  <p className={`text-sm font-medium ${!emitirNFCe ? 'text-blue-700' : 'text-gray-700'}`}>
-                    Reimpressão do Cupom
-                  </p>
-                </div>
-              </button>
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => setEmitirNFCe(true)}
-                className={`flex items-center gap-2 p-3 rounded-lg border text-left transition-all ${
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setEmitirNFCe(true); }}
+                className={`flex flex-col items-start gap-1 p-3 rounded-lg border text-left transition-all cursor-pointer ${
                   emitirNFCe
                     ? 'bg-violet-50 border-violet-300 ring-2 ring-violet-200'
                     : 'bg-white border-gray-200 hover:border-gray-300'
                 }`}
               >
-                <ScrollText className={`h-5 w-5 ${emitirNFCe ? 'text-violet-600' : 'text-gray-400'}`} />
-                <div>
-                  <p className={`text-sm font-medium ${emitirNFCe ? 'text-violet-700' : 'text-gray-700'}`}>
-                    Cupom Fiscal
-                  </p>
-                  <p className="text-[10px] text-gray-500">NFC-e (SEFAZ)</p>
+                <div className="flex items-center gap-2">
+                  <ScrollText className={`h-5 w-5 ${emitirNFCe ? 'text-violet-600' : 'text-gray-400'}`} />
+                  <div>
+                    <p className={`text-sm font-medium ${emitirNFCe ? 'text-violet-700' : 'text-gray-700'}`}>
+                      Cupom Fiscal
+                    </p>
+                    <p className="text-[10px] text-gray-500">NFC-e (SEFAZ)</p>
+                  </div>
                 </div>
-              </button>
+                {emitirNFCe && (
+                  <p className="text-[10px] text-violet-500 leading-tight ml-7">
+                    Emitido via NFC-e e impresso automaticamente
+                  </p>
+                )}
+              </div>
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => { setEmitirNFCe(false); setImprimirCupom(true); }}
+                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { setEmitirNFCe(false); setImprimirCupom(true); }}}
+                className={`flex flex-col items-start gap-2 p-3 rounded-lg border text-left transition-all cursor-pointer ${
+                  !emitirNFCe
+                    ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200'
+                    : 'bg-white border-gray-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Printer className={`h-5 w-5 ${!emitirNFCe ? 'text-blue-600' : 'text-gray-400'}`} />
+                  <div>
+                    <p className={`text-sm font-medium ${!emitirNFCe ? 'text-blue-700' : 'text-gray-700'}`}>
+                      Reimprimir
+                    </p>
+                  </div>
+                </div>
+                <label
+                  onClick={(e) => e.stopPropagation()}
+                  className={`flex items-center gap-2 text-xs ml-7 ${
+                    emitirNFCe ? 'text-gray-400' : 'text-gray-500 cursor-pointer'
+                  }`}
+                >
+                  <Checkbox
+                    checked={imprimirCupom}
+                    disabled={emitirNFCe}
+                    onCheckedChange={(checked) => setImprimirCupom(checked as boolean)}
+                  />
+                  Imprimir cupom
+                </label>
+              </div>
             </div>
           </div>
-
-          {/* Opção de impressão (visível apenas quando não é NFC-e) */}
-          {!emitirNFCe && (
-            <div className="flex items-center space-x-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-              <Checkbox
-                id="imprimir"
-                checked={imprimirCupom}
-                onCheckedChange={(checked) => setImprimirCupom(checked as boolean)}
-              />
-              <label
-                htmlFor="imprimir"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer flex items-center gap-2"
-              >
-                <Printer className="h-4 w-4 text-gray-600" />
-                Imprimir cupom
-              </label>
-            </div>
-          )}
-          {emitirNFCe && (
-            <div className="flex items-center gap-2 p-3 bg-violet-50 rounded-lg border border-violet-200">
-              <Receipt className="h-4 w-4 text-violet-600" />
-              <span className="text-sm text-violet-700">
-                Cupom fiscal será emitido eletronicamente via NFC-e e impresso automaticamente.
-              </span>
-            </div>
-          )}
 
           {/* Configurações de tamanho */}
           <div className="space-y-3">

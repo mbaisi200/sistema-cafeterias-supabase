@@ -23,6 +23,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import { ToastAction } from '@/components/ui/toast';
 import { getSupabaseClient, debitarEstoqueVenda } from '@/lib/supabase';
 import {
   Search,
@@ -544,7 +545,7 @@ export default function PDVPage() {
       }
     }
 
-    toast({ title: `✓ ${produto.nome} adicionado` });
+    toast({ title: `✓ ${produto.nome} adicionado`, duration: 1000 });
   };
 
   // Busca por código de barras - adiciona automaticamente quando encontra
@@ -1066,10 +1067,37 @@ export default function PDVPage() {
 
             const result = await response.json();
             if (result.sucesso) {
+              const nfceId = result.nfce.id;
               toast({
                 title: 'NFC-e emitida com sucesso!',
                 description: `NFC-e nº ${result.nfce.numero} autorizada pela SEFAZ`,
                 className: "bg-green-500 text-white border-green-600",
+                duration: 30000,
+                action: (
+                  <ToastAction
+                    altText="Cancelar NFC-e"
+                    onClick={async () => {
+                      const justificativa = prompt('Motivo do cancelamento:');
+                      if (!justificativa) return;
+                      const cancelRes = await fetch('/api/nfce/cancelar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ nfce_id: nfceId, justificativa }),
+                      });
+                      const cancelData = await cancelRes.json();
+                      toast(cancelData.sucesso ? {
+                        title: 'NFC-e cancelada',
+                        description: justificativa,
+                      } : {
+                        variant: 'destructive',
+                        title: 'Erro ao cancelar',
+                        description: cancelData.erro?.mensagem || 'Erro desconhecido',
+                      });
+                    }}
+                  >
+                    Cancelar NFC-e
+                  </ToastAction>
+                ),
               });
             } else {
               toast({

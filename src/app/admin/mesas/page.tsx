@@ -41,6 +41,8 @@ import {
   Trash2,
   Unlock,
   ChevronLeft,
+  EyeOff,
+  ToggleRight,
 } from 'lucide-react';
 
 type StatusMesa = 'livre' | 'ocupada' | 'reservada' | 'manutencao';
@@ -66,11 +68,14 @@ export default function MesasPage() {
   const [editandoMesa, setEditandoMesa] = useState<Mesa | null>(null);
   const [excluindoMesa, setExcluindoMesa] = useState<Mesa | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [filtroAtivo, setFiltroAtivo] = useState<'todos' | 'ativos' | 'inativos'>('ativos');
   const [saving, setSaving] = useState(false);
 
-  const filteredMesas = mesas.filter(mesa => 
-    statusFilter === 'all' || mesa.status === statusFilter
-  );
+  const filteredMesas = mesas.filter(mesa => {
+    if (filtroAtivo === 'ativos' && mesa.ativo === false) return false;
+    if (filtroAtivo === 'inativos' && mesa.ativo !== false) return false;
+    return statusFilter === 'all' || mesa.status === statusFilter;
+  });
 
   const stats = {
     total: mesas.length,
@@ -310,7 +315,7 @@ export default function MesasPage() {
           {/* Filter */}
           <Card>
             <CardContent className="pt-6">
-              <div className="flex gap-4">
+              <div className="flex flex-col md:flex-row gap-3">
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
                   <SelectTrigger className="w-48">
                     <SelectValue placeholder="Filtrar por status" />
@@ -323,6 +328,28 @@ export default function MesasPage() {
                     <SelectItem value="manutencao">Manutenção</SelectItem>
                   </SelectContent>
                 </Select>
+                <div className="flex gap-1 bg-muted rounded-lg p-1">
+                  <button
+                    onClick={() => setFiltroAtivo('ativos')}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${filtroAtivo === 'ativos' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <ToggleRight className="h-4 w-4 inline mr-1" />
+                    Ativas
+                  </button>
+                  <button
+                    onClick={() => setFiltroAtivo('inativos')}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${filtroAtivo === 'inativos' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    <EyeOff className="h-4 w-4 inline mr-1" />
+                    Inativas
+                  </button>
+                  <button
+                    onClick={() => setFiltroAtivo('todos')}
+                    className={`px-3 py-1.5 text-sm rounded-md transition-colors ${filtroAtivo === 'todos' ? 'bg-background shadow-sm font-medium' : 'text-muted-foreground hover:text-foreground'}`}
+                  >
+                    Todas
+                  </button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -341,7 +368,7 @@ export default function MesasPage() {
               {filteredMesas.map((mesa) => (
                 <Card
                   key={mesa.id}
-                  className={`transition-all hover:shadow-md ${statusConfig[mesa.status as StatusMesa]?.bgColor || ''}`}
+                  className={`transition-all hover:shadow-md ${mesa.ativo === false ? 'opacity-50 grayscale' : statusConfig[mesa.status as StatusMesa]?.bgColor || ''}`}
                 >
                   <CardContent className="pt-6">
                     <div className="flex flex-col items-center text-center">
@@ -383,15 +410,33 @@ export default function MesasPage() {
                         >
                           <Edit className="h-4 w-4" />
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setExcluindoMesa(mesa)}
-                          className="border-red-300 text-red-600 hover:bg-red-50"
-                          title="Excluir mesa"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                        {mesa.ativo !== false ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              await atualizarMesa(mesa.id, { ativo: false });
+                              toast({ title: `Mesa ${mesa.numero} inativada` });
+                            }}
+                            className="border-orange-300 text-orange-600 hover:bg-orange-50"
+                            title="Inativar mesa"
+                          >
+                            <EyeOff className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={async () => {
+                              await atualizarMesa(mesa.id, { ativo: true, status: 'livre' });
+                              toast({ title: `Mesa ${mesa.numero} ativada` });
+                            }}
+                            className="border-green-300 text-green-600 hover:bg-green-50"
+                            title="Ativar mesa"
+                          >
+                            <ToggleRight className="h-4 w-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                   </CardContent>
@@ -401,23 +446,23 @@ export default function MesasPage() {
           )}
         </div>
 
-        {/* Dialog de Confirmação de Exclusão */}
+        {/* Dialog de Confirmação de Exclusão (via soft-delete) */}
         <AlertDialog open={!!excluindoMesa} onOpenChange={() => setExcluindoMesa(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Excluir Mesa</AlertDialogTitle>
+              <AlertDialogTitle>Inativar Mesa</AlertDialogTitle>
               <AlertDialogDescription>
-                Tem certeza que deseja excluir a <strong>Mesa {excluindoMesa?.numero}</strong>?
-                Esta ação não pode ser desfeita.
+                Tem certeza que deseja inativar a <strong>Mesa {excluindoMesa?.numero}</strong>?
+                Ela ficará oculta nas listas padrão, mas os dados serão preservados.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={handleExcluir}
-                className="bg-red-600 hover:bg-red-700"
+                className="bg-orange-600 hover:bg-orange-700"
               >
-                Excluir
+                Inativar
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

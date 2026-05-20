@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { useNFEs, useCancelarNFe, useConsultarNFe } from '@/hooks/useNFE';
+import { useNFCes, useCancelarNFCe } from '@/hooks/useNFCe';
 import { NFeService } from '@/services/nfe/nfe-service';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -64,6 +65,8 @@ export default function CuponsNFEsPage() {
   const { nfes, loading, total, carregar } = useNFEs(empresaId);
   const { cancelar, cancelando } = useCancelarNFe();
   const { consultar, consultando } = useConsultarNFe();
+  const { nfces, loading: loadingNFCe, carregar: carregarNFCe } = useNFCes(empresaId);
+  const { cancelar: cancelarNFCe, cancelando: cancelandoNFCe } = useCancelarNFCe();
 
   // Filtros
   const [filtroStatus, setFiltroStatus] = useState<string>('todos');
@@ -80,11 +83,22 @@ export default function CuponsNFEsPage() {
   const [justificativa, setJustificativa] = useState('');
   const [ativoTab, setAtivoTab] = useState('nfes');
 
+  // NFC-e state
+  const [nfceSelecionada, setNfceSelecionada] = useState<any>(null);
+  const [dialogCancelarNFCe, setDialogCancelarNFCe] = useState(false);
+  const [justificativaNFCe, setJustificativaNFCe] = useState('');
+
   useEffect(() => {
     if (empresaId) {
       carregar({ status: filtroStatus === 'todos' ? undefined : filtroStatus, dataInicio, dataFim, numero: filtroNumero, pagina, limite });
     }
   }, [empresaId, filtroStatus, dataInicio, dataFim, filtroNumero, pagina, carregar]);
+
+  useEffect(() => {
+    if (empresaId) {
+      carregarNFCe();
+    }
+  }, [empresaId, carregarNFCe]);
 
   // Estatísticas
   const stats = useMemo(() => {
@@ -104,6 +118,17 @@ export default function CuponsNFEsPage() {
       setJustificativa('');
       setNfeSelecionada(null);
       carregar({ status: filtroStatus === 'todos' ? undefined : filtroStatus, dataInicio, dataFim, numero: filtroNumero, pagina, limite });
+    }
+  };
+
+  const handleCancelarNFCe = async () => {
+    if (!nfceSelecionada || justificativaNFCe.length < 15) return;
+    const resultado = await cancelarNFCe({ nfce_id: nfceSelecionada.id, justificativa: justificativaNFCe });
+    if (resultado.sucesso) {
+      setDialogCancelarNFCe(false);
+      setJustificativaNFCe('');
+      setNfceSelecionada(null);
+      carregarNFCe();
     }
   };
 
@@ -470,51 +495,103 @@ export default function CuponsNFEsPage() {
         </TabsContent>
 
         <TabsContent value="cupons" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Card 1: About NFC-e */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg flex items-center gap-2">
                   <Receipt className="h-5 w-5 text-green-600" />
                   Cupons Fiscais (NFC-e)
                 </CardTitle>
-              </CardHeader>
-              <CardContent className="text-sm text-muted-foreground space-y-2">
-                <p>A NFC-e (Modelo 65) é usada para documentar vendas ao consumidor final em operações presenciais.</p>
-                <p>Configure a emissão de cupons fiscais para imprimir via impressora térmica.</p>
-              </CardContent>
-            </Card>
-            {/* Card 2: Configurar */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Configuração</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">Configure impressora e layout do cupom fiscal</p>
-                <Link href="/admin/configuracoes-cupom">
-                  <Button className="w-full bg-green-600 hover:bg-green-700 gap-2">
-                    <Settings className="h-4 w-4" />
-                    Configurar Cupons Fiscais
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-            {/* Card 3: Emitir */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Emitir NFC-e</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">Emita cupons fiscais a partir de vendas realizadas</p>
-                <Link href="/admin/nfce/emitir">
-                  <Button variant="outline" className="w-full gap-2">
-                    <Plus className="h-4 w-4" />
-                    Emitir NFC-e
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          </div>
+                <div className="flex gap-2">
+                  <Link href="/admin/configuracoes-cupom">
+                    <Button variant="outline" size="sm" className="gap-2">
+                      <Settings className="h-4 w-4" />
+                      Configurar
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingNFCe ? (
+                <div className="flex items-center justify-center py-12">
+                  <RefreshCw className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Carregando NFC-e...</span>
+                </div>
+              ) : nfces.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+                  <Receipt className="h-12 w-12 mb-4" />
+                  <p className="text-lg font-medium">Nenhuma NFC-e encontrada</p>
+                  <p className="text-sm">As NFC-es emitidas nos PDVs aparecerão aqui</p>
+                </div>
+              ) : (
+                <Table className="w-full table-fixed">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[80px] whitespace-nowrap">Nº</TableHead>
+                      <TableHead className="w-[80px] whitespace-nowrap">Série</TableHead>
+                      <TableHead className="w-[260px]">Destinatário</TableHead>
+                      <TableHead className="w-[120px] whitespace-nowrap">Data</TableHead>
+                      <TableHead className="w-[120px] whitespace-nowrap">Valor</TableHead>
+                      <TableHead className="w-[120px] whitespace-nowrap">Status</TableHead>
+                      <TableHead className="w-[120px] text-right whitespace-nowrap">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {nfces.map((nfce: any) => {
+                      const nfceStatus = nfce.status || 'pendente';
+                      const nfceStatusMap: Record<string, { label: string; class: string; icon: any }> = {
+                        autorizada: { label: 'Autorizada', class: 'bg-green-50 text-green-700 border-green-200', icon: CheckCircle2 },
+                        cancelada: { label: 'Cancelada', class: 'bg-red-50 text-red-700 border-red-200', icon: XCircle },
+                        rejeitada: { label: 'Rejeitada', class: 'bg-red-50 text-red-700 border-red-200', icon: XCircle },
+                        pendente: { label: 'Pendente', class: 'bg-yellow-50 text-yellow-700 border-yellow-200', icon: Clock },
+                        inutilizada: { label: 'Inutilizada', class: 'bg-gray-50 text-gray-700 border-gray-200', icon: Ban },
+                      };
+                      const st = nfceStatusMap[nfceStatus] || nfceStatusMap.pendente;
+                      const StIcon = st.icon;
+                      return (
+                        <TableRow key={nfce.id}>
+                          <TableCell className="font-medium whitespace-nowrap">{String(nfce.numero || '').padStart(9, '0')}</TableCell>
+                          <TableCell className="whitespace-nowrap">{nfce.serie}</TableCell>
+                          <TableCell className="truncate max-w-[260px]" title={nfce.destinatario?.nome || nfce.destinatario?.cpf_cnpj || 'Consumidor'}>
+                            {nfce.destinatario?.nome || nfce.destinatario?.cpf_cnpj || 'Consumidor'}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            {nfce.data_emissao ? new Date(nfce.data_emissao).toLocaleDateString('pt-BR') : '-'}
+                          </TableCell>
+                          <TableCell className="font-medium whitespace-nowrap">
+                            R$ {(nfce.total_liquido || nfce.total_produtos || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
+                            <Badge variant="outline" className={st.class}>
+                              <span className="flex items-center gap-1">
+                                <StIcon className="h-3 w-3" />
+                                {st.label}
+                              </span>
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-right whitespace-nowrap">
+                            <div className="flex items-center justify-end gap-1">
+                              {nfceStatus === 'autorizada' && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  title="Cancelar NFC-e"
+                                  onClick={() => { setNfceSelecionada(nfce); setDialogCancelarNFCe(true); }}
+                                >
+                                  <X className="h-4 w-4 text-red-600" />
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
       </Tabs>
 
@@ -615,6 +692,43 @@ export default function CuponsNFEsPage() {
                 </Button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Cancelar NFC-e */}
+      <Dialog open={dialogCancelarNFCe} onOpenChange={setDialogCancelarNFCe}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <XCircle className="h-5 w-5" />
+              Cancelar NFC-e Nº {String(nfceSelecionada?.numero || '').padStart(9, '0')}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Atenção: Esta ação não pode ser desfeita. O estoque será estornado automaticamente. Informe uma justificativa com no mínimo 15 caracteres.
+            </p>
+            <Textarea
+              placeholder="Ex: Venda cancelada pelo cliente..."
+              value={justificativaNFCe}
+              onChange={(e) => setJustificativaNFCe(e.target.value)}
+              rows={4}
+              maxLength={255}
+            />
+            <p className="text-xs text-muted-foreground text-right">{justificativaNFCe.length}/255 caracteres</p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogCancelarNFCe(false)}>Voltar</Button>
+            <Button
+              variant="destructive"
+              onClick={handleCancelarNFCe}
+              disabled={justificativaNFCe.length < 15 || cancelandoNFCe}
+              className="gap-2"
+            >
+              {cancelandoNFCe ? <RefreshCw className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+              Confirmar Cancelamento
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

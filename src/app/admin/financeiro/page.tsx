@@ -61,6 +61,7 @@ import {
   RefreshCw,
   Pencil,
   Trash2,
+  EyeOff,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -369,8 +370,8 @@ export default function FinanceiroPage() {
       await excluirConta(contaExcluir.id);
       await carregarDados();
       toast({
-        title: 'Conta excluída!',
-        description: 'A conta foi removida com sucesso.',
+        title: 'Conta inativada!',
+        description: 'A conta foi inativada e seus dados foram preservados.',
       });
       setDialogExcluirOpen(false);
       setContaExcluir(null);
@@ -1171,11 +1172,11 @@ export default function FinanceiroPage() {
                                   <Button
                                     size="icon"
                                     variant="ghost"
-                                    className="h-7 w-7 text-red-500"
+                                    className="h-7 w-7 text-orange-500"
                                     onClick={() => abrirExclusao(conta)}
-                                    title="Excluir"
+                                    title="Inativar"
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <EyeOff className="h-3.5 w-3.5" />
                                   </Button>
                                 </div>
                               </TableCell>
@@ -1377,11 +1378,11 @@ export default function FinanceiroPage() {
                                   <Button
                                     size="icon"
                                     variant="ghost"
-                                    className="h-7 w-7 text-red-500"
+                                    className="h-7 w-7 text-orange-500"
                                     onClick={() => abrirExclusao(conta)}
-                                    title="Excluir"
+                                    title="Inativar"
                                   >
-                                    <Trash2 className="h-3.5 w-3.5" />
+                                    <EyeOff className="h-3.5 w-3.5" />
                                   </Button>
                                 </div>
                               </TableCell>
@@ -1395,21 +1396,21 @@ export default function FinanceiroPage() {
             </TabsContent>
           </Tabs>
 
-          {/* Dialog Excluir Conta */}
+          {/* Dialog Inativar Conta */}
           <AlertDialog open={dialogExcluirOpen} onOpenChange={(open) => { setDialogExcluirOpen(open); if (!open) setContaExcluir(null); }}>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Excluir Conta</AlertDialogTitle>
+                <AlertDialogTitle>Inativar Conta</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Tem certeza que deseja excluir a conta &ldquo;{contaExcluir?.descricao}&rdquo; no valor de {contaExcluir ? formatCurrency(contaExcluir.valor) : ''}?
-                  Esta ação não pode ser desfeita.
+                  Tem certeza que deseja inativar a conta &ldquo;{contaExcluir?.descricao}&rdquo; no valor de {contaExcluir ? formatCurrency(contaExcluir.valor) : ''}?
+                  Ela ficará oculta nas listas padrão, mas os dados serão preservados para relatórios.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleExcluirConta} disabled={saving} className="bg-red-500 hover:bg-red-600">
+                <AlertDialogAction onClick={handleExcluirConta} disabled={saving} className="bg-orange-600 hover:bg-orange-700">
                   {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  Excluir
+                  Inativar
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

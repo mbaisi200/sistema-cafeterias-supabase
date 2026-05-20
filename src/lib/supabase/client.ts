@@ -218,6 +218,52 @@ export async function isSessionValid(): Promise<boolean> {
 }
 
 // ── Movimentação de Estoque ──
+export async function reporEstoqueVenda(
+  supabase: any,
+  empresaId: string,
+  produtoId: string,
+  quantidade: number,
+  usuarioId?: string,
+  usuarioNome?: string,
+  vendaId?: string,
+  observacao?: string,
+): Promise<void> {
+  const { data: prod } = await supabase
+    .from('produtos')
+    .select('estoque_atual, controlar_estoque, nome')
+    .eq('id', produtoId)
+    .single();
+
+  if (!prod) return;
+  if (prod.controlar_estoque === false) return;
+
+  try {
+    const { error: rpcError } = await supabase.rpc('decrementar_estoque_produto', {
+      p_produto_id: produtoId,
+      p_quantidade: -quantidade,
+    });
+    if (rpcError) throw rpcError;
+  } catch {
+    const novoEstoque = (parseFloat(prod.estoque_atual) || 0) + quantidade;
+    await supabase.from('produtos').update({ estoque_atual: novoEstoque }).eq('id', produtoId);
+  }
+
+  await supabase.from('estoque_movimentos').insert({
+    empresa_id: empresaId,
+    produto_id: produtoId,
+    produto_nome: prod.nome,
+    tipo: 'ajuste',
+    quantidade,
+    estoque_anterior: parseFloat(prod.estoque_atual) || 0,
+    estoque_novo: (parseFloat(prod.estoque_atual) || 0) + quantidade,
+    usuario_id: usuarioId,
+    usuario_nome: usuarioNome,
+    observacao: observacao || `Cancelamento NFC-e ${vendaId ? vendaId.slice(-8) : ''}`,
+    venda_id: vendaId,
+    criado_em: new Date().toISOString(),
+  });
+}
+
 export async function debitarEstoqueVenda(
   supabase: any,
   empresaId: string,
