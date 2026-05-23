@@ -39,6 +39,7 @@ import {
 import Link from 'next/link';
 import { useCategorias, useProdutos } from '@/hooks/useSupabase';
 import { useState } from 'react';
+import { getSupabaseClient } from '@/lib/supabase';
 import {
   Plus,
   MoreHorizontal,
@@ -86,24 +87,33 @@ export default function CategoriasPage() {
     }
   };
 
+  const getProdutosPorCategoria = (categoriaId: string) => {
+    return produtos.filter(p => p.categoriaId === categoriaId && p.ativo).length;
+  };
+
   const handleExcluirCategoria = async () => {
     if (!categoriaExcluir) return;
     setExcluindo(true);
     try {
-      await excluirCategoria(categoriaExcluir);
-      toast({ title: 'Categoria inativada!' });
+      const supabase = getSupabaseClient();
+      const { count } = await supabase
+        .from('produtos')
+        .select('*', { count: 'exact', head: true })
+        .eq('categoria_id', categoriaExcluir)
+        .eq('ativo', true);
+      if ((count || 0) > 0) {
+        await excluirCategoria(categoriaExcluir);
+        toast({ title: 'Categoria inativada!' });
+      } else {
+        await supabase.from('categorias').delete().eq('id', categoriaExcluir);
+        toast({ title: 'Categoria excluída!' });
+      }
     } catch {
-      toast({ variant: 'destructive', title: 'Erro ao inativar categoria' });
+      toast({ variant: 'destructive', title: 'Erro ao excluir categoria' });
     } finally {
       setExcluindo(false);
       setCategoriaExcluir(null);
     }
-  };
-
-
-
-  const getProdutosPorCategoria = (categoriaId: string) => {
-    return produtos.filter(p => p.categoriaId === categoriaId && p.ativo).length;
   };
 
   if (loading) {

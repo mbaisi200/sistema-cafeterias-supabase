@@ -378,17 +378,40 @@ export default function SegmentosPage() {
     setDeleting(true);
     try {
       const supabase = getSupabaseClient();
-      const { error } = await supabase
-        .from('segmentos')
-        .update({ ativo: false })
-        .eq('id', selectedSegmento.id);
 
-      if (error) throw error;
+      // Check if any empresa uses this segmento
+      const { count } = await supabase
+        .from('empresas')
+        .select('*', { count: 'exact', head: true })
+        .eq('segmento_id', selectedSegmento.id);
 
-      toast({
-        title: 'Segmento inativado!',
-        description: `"${selectedSegmento.nome}" foi inativado com sucesso.`,
-      });
+      if (count && count > 0) {
+        // Has vinculated empresas → soft-delete
+        const { error } = await supabase
+          .from('segmentos')
+          .update({ ativo: false })
+          .eq('id', selectedSegmento.id);
+
+        if (error) throw error;
+
+        toast({
+          title: 'Segmento inativado!',
+          description: `"${selectedSegmento.nome}" foi inativado (${count} empresa(s) vinculada(s)).`,
+        });
+      } else {
+        // No vinculated empresas → hard-delete
+        const { error } = await supabase
+          .from('segmentos')
+          .delete()
+          .eq('id', selectedSegmento.id);
+
+        if (error) throw error;
+
+        toast({
+          title: 'Segmento excluído!',
+          description: `"${selectedSegmento.nome}" foi excluído permanentemente.`,
+        });
+      }
 
       setDeleteDialogOpen(false);
       setSelectedSegmento(null);
@@ -396,7 +419,7 @@ export default function SegmentosPage() {
     } catch (error: unknown) {
       toast({
         variant: 'destructive',
-        title: 'Erro ao inativar',
+        title: 'Erro ao excluir',
         description: error instanceof Error ? error.message : 'Erro desconhecido',
       });
     } finally {
@@ -488,7 +511,7 @@ export default function SegmentosPage() {
                     <Label htmlFor="seg-marca">Nome da Marca *</Label>
                     <Input
                       id="seg-marca"
-                      placeholder="Ex: Gestão Café"
+                      placeholder="Ex: MB Sistemas"
                       value={form.nome_marca}
                       onChange={(e) => setForm({ ...form, nome_marca: e.target.value })}
                     />

@@ -88,6 +88,7 @@ interface Funcionario {
   perm_cancelar_venda?: boolean;
   perm_dar_desconto?: boolean;
   ativo: boolean;
+  usuario_id?: string;
 }
 
 interface Dispositivo {
@@ -312,12 +313,21 @@ export default function FuncionariosPage() {
     setVinculosCheckDialog(true);
     try {
       const supabase = getSupabaseClient();
-      const { count } = await supabase
-        .from('vendas')
-        .select('*', { count: 'exact', head: true })
-        .eq('funcionario_id', funcionario.id)
-        .not('status', 'eq', 'cancelada');
-      setHasVinculosFunc((count || 0) > 0);
+      const atendenteId = funcionario.usuario_id;
+
+      const [{ count: countVendas }, { count: countPedidosTemp }] = await Promise.all([
+        supabase
+          .from('vendas')
+          .select('*', { count: 'exact', head: true })
+          .eq('funcionario_id', funcionario.id)
+          .not('status', 'eq', 'cancelada'),
+        ...(atendenteId ? [supabase
+          .from('pedidos_temp')
+          .select('*', { count: 'exact', head: true })
+          .eq('atendente_id', atendenteId)] : [{ count: 0 }]),
+      ]);
+
+      setHasVinculosFunc((countVendas || 0) > 0 || (countPedidosTemp || 0) > 0);
     } catch {
       setHasVinculosFunc(true);
     } finally {
@@ -330,7 +340,7 @@ export default function FuncionariosPage() {
     try {
       if (hasVinculosFunc) {
         await excluirFuncionario(excluirTarget.id);
-        toast({ title: 'Funcionário inativado', description: 'Possui vendas vinculadas. Registro inativado para preservar histórico.' });
+        toast({ title: 'Funcionário inativado', description: 'Funcionário possui registros vinculados. Inativado para preservar histórico.' });
       } else {
         await hardDeleteFuncionario(excluirTarget.id);
         toast({ title: 'Funcionário excluído', description: 'Registro removido permanentemente.' });
@@ -363,7 +373,7 @@ export default function FuncionariosPage() {
   const getPermissoes = (func: Funcionario) => {
     const permissoes: string[] = [];
     if (func.perm_pdv) permissoes.push('PDV');
-    if (func.perm_pdv_garcom) permissoes.push('PDV Garçon');
+    if (func.perm_pdv_garcom) permissoes.push('PDV Garçom');
     if (func.perm_estoque) permissoes.push('Estoque');
     if (func.perm_financeiro) permissoes.push('Financeiro');
     if (func.perm_relatorios) permissoes.push('Relatórios');
@@ -575,7 +585,7 @@ export default function FuncionariosPage() {
                       </div>
                       <div className="flex items-center justify-between">
                         <div>
-                          <Label htmlFor="perm_pdv_garcom" className="text-sm font-medium">PDV Garçon (Mobile)</Label>
+                          <Label htmlFor="perm_pdv_garcom" className="text-sm font-medium">PDV Garçom (Mobile)</Label>
                           <p className="text-[11px] text-muted-foreground">App mobile para garçons tirarem pedidos</p>
                         </div>
                         <Switch 

@@ -20,9 +20,10 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartConfig } from '@/components/ui/chart';
 import { Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis, Area, AreaChart } from 'recharts';
-import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign, PiggyBank, Download, ChevronLeft, WashingMachine, Package, Database, Search } from 'lucide-react';
+import { BarChart3, TrendingUp, PieChart as PieChartIcon, DollarSign, PiggyBank, Download, ChevronLeft, WashingMachine, Package, Database, Search, X } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { exportToPDF, formatCurrencyPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
@@ -76,7 +77,21 @@ export default function RelatoriosPage() {
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
   const { movimentacoes, loading: loadingCaixa } = useMovimentacoesBI();
-  const { empresaId } = useAuth();
+  const { empresaId, secoesPermitidas, nomeMarca } = useAuth();
+
+  const [fornecedores, setFornecedores] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!empresaId) return;
+    const loadFornecedores = async () => {
+      const supabase = getSupabaseClient();
+      const { data } = await supabase.from('fornecedores').select('id, nome').eq('empresa_id', empresaId).eq('ativo', true);
+      setFornecedores(data || []);
+    };
+    loadFornecedores();
+  }, [empresaId]);
+
+  const hasLavanderia = secoesPermitidas.some(s => s.startsWith('/admin/os-lavanderia'));
 
   // ── OS Lavanderia data for BI ──
   const [osLavanderia, setOsLavanderia] = useState<any[]>([]);
@@ -202,7 +217,7 @@ export default function RelatoriosPage() {
 
   const loading = loadingVendas || loadingProdutos || loadingCategorias || loadingCaixa || loadingOS;
 
-  const bi = useBIData(vendas, produtos, categorias, movimentacoes);
+  const bi = useBIData(vendas, produtos, categorias, movimentacoes, fornecedores);
 
   // ── Estoque Tab state ──
   const [estoqueCategoria, setEstoqueCategoria] = useState('');
@@ -210,6 +225,15 @@ export default function RelatoriosPage() {
 
   const estoqueData = useMemo(() => {
     let filtered = [...produtos];
+
+    // Filtro global BI: fornecedores
+    if (bi.filtros.fornecedores.length > 0) {
+      filtered = filtered.filter(p => p.fornecedorId && bi.filtros.fornecedores.includes(p.fornecedorId));
+    }
+    // Filtro global BI: categorias
+    if (bi.filtros.categorias.length > 0) {
+      filtered = filtered.filter(p => p.categoriaId && bi.filtros.categorias.includes(p.categoriaId));
+    }
 
     if (estoqueCategoria) {
       filtered = filtered.filter(p => p.categoriaId === estoqueCategoria);
@@ -232,7 +256,7 @@ export default function RelatoriosPage() {
         resultado: totalVenda - totalCusto,
       };
     });
-  }, [produtos, estoqueCategoria, estoqueSearch]);
+  }, [produtos, estoqueCategoria, estoqueSearch, bi.filtros.fornecedores, bi.filtros.categorias]);
 
   const estoqueTotais = useMemo(() => {
     const totalCusto = estoqueData.reduce((acc, p) => acc + p.totalCusto, 0);
@@ -242,6 +266,33 @@ export default function RelatoriosPage() {
 
   const fmt = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, style: 'currency', currency: 'BRL' });
   const fmtQtd = (v: number) => v.toLocaleString('pt-BR', { minimumFractionDigits: 0 });
+
+  const fetchEmpresaInfo = async () => {
+    if (!empresaId) return {};
+    const { getSupabaseClient } = await import('@/lib/supabase');
+    const supabase = getSupabaseClient();
+    const { data } = await supabase.from('empresas').select('nome_marca, nome, cnpj, telefone, email, logradouro, numero, complemento, bairro, cidade, estado, cep, logo_url').eq('id', empresaId).single();
+    if (!data) return {};
+    const { maskCNPJ, maskPhone } = await import('@/lib/masks');
+    const nomeExibicao = data.nome || '';
+    const enderecoPartes = [data.logradouro, data.numero, data.complemento, data.bairro, data.cidade, data.estado].filter(Boolean);
+    return {
+      logo: data.logo_url || undefined,
+      companyInfo: { name: nomeExibicao, cnpj: data.cnpj ? `CNPJ: ${maskCNPJ(data.cnpj)}` : undefined, phone: data.telefone ? maskPhone(data.telefone) : undefined, email: data.email },
+      footerText: enderecoPartes.length ? `${nomeExibicao} — ${enderecoPartes.join(', ')}` : undefined,
+    };
+  };
+
+  const downloadXLS = (headers: string[], rows: any[][], filename: string) => {
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Dados</x:Name></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head><body><table>${[headers, ...rows].map(row => `<tr>${row.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</table></body></html>`;
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${filename}-${new Date().toISOString().split('T')[0]}.xls`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (loading) {
     return (
@@ -258,8 +309,7 @@ export default function RelatoriosPage() {
       <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Relatórios' }]}>
         <div className="space-y-6">
           {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3">
               <Link href="/admin/dashboard">
                 <Button variant="ghost" size="icon" className="h-8 w-8">
                   <ChevronLeft className="h-5 w-5" />
@@ -270,41 +320,6 @@ export default function RelatoriosPage() {
                 <p className="text-muted-foreground">Análises e métricas do seu estabelecimento</p>
               </div>
             </div>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={async () => {
-                const empresaInfo = await fetchEmpresaPDFData(empresaId);
-                exportToPDF({
-                  title: 'Relatório BI - Produtos Mais Vendidos',
-                  subtitle: bi.periodoFormatado,
-                  columns: [
-                    { header: 'Produto', accessor: (row: any) => row.nome },
-                    { header: 'Categoria', accessor: (row: any) => {
-                      const cat = categorias.find((c: any) => c.id === row.categoriaId);
-                      return cat?.nome || '-';
-                    }},
-                    { header: 'Qtd. Vendida', accessor: (row: any) => row.quantidadeTotal },
-                    { header: 'Valor Total', accessor: (row: any) => formatCurrencyPDF(row.valorTotal) },
-                    { header: 'Ticket Médio', accessor: (row: any) => formatCurrencyPDF(row.ticketMedio) },
-                    { header: '% Vendas', accessor: (row: any) => `${row.percentualVendas?.toFixed(1)}%` },
-                  ],
-                  data: bi.produtosMaisVendidos,
-                  filename: 'relatorio-bi-produtos',
-                  orientation: 'landscape',
-                  summary: [
-                    { label: 'Total de Produtos', value: bi.produtosMaisVendidos.length },
-                    { label: 'Receita Total', value: formatCurrencyPDF(bi.produtosMaisVendidos.reduce((acc: number, p: any) => acc + (p.valorTotal || 0), 0)) },
-                    { label: 'Unidades Vendidas', value: bi.produtosMaisVendidos.reduce((acc: number, p: any) => acc + (p.quantidadeTotal || 0), 0) },
-                  ],
-                  ...empresaInfo,
-                });
-              }}
-            >
-              <Download className="h-4 w-4" />
-              Exportar PDF
-            </Button>
-          </div>
 
           {/* Filtros */}
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
@@ -325,7 +340,7 @@ export default function RelatoriosPage() {
           {/* Tabs de navegação */}
           <Tabs defaultValue="visao-geral" className="space-y-6">
             <div className="overflow-x-auto -mx-1 px-1">
-              <TabsList className="grid w-min md:w-auto md:inline-grid grid-cols-8 min-w-full md:min-w-0">
+              <TabsList className={`grid w-min md:w-auto md:inline-grid min-w-full md:min-w-0 ${hasLavanderia ? 'grid-cols-8' : 'grid-cols-7'}`}>
               <TabsTrigger value="visao-geral" className="flex items-center gap-2">
                 <BarChart3 className="h-4 w-4" />
                 <span className="hidden sm:inline">Visão Geral</span>
@@ -354,15 +369,60 @@ export default function RelatoriosPage() {
                 <DollarSign className="h-4 w-4" />
                 <span className="hidden sm:inline">Financeiro</span>
               </TabsTrigger>
+              {hasLavanderia && (
               <TabsTrigger value="lavanderia" className="flex items-center gap-2">
                 <WashingMachine className="h-4 w-4" />
                 <span className="hidden sm:inline">Lavanderia</span>
               </TabsTrigger>
+              )}
             </TabsList>
             </div>
 
             {/* Tab: Visão Geral */}
             <TabsContent value="visao-geral" className="space-y-6">
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={async () => {
+                  const empresaInfo = await fetchEmpresaInfo();
+                  exportToPDF({
+                    title: 'Visão Geral',
+                    subtitle: bi.periodoFormatado,
+                    columns: [
+                      { header: 'Produto', accessor: (r: any) => r.nome },
+                      { header: 'Categoria', accessor: (r: any) => { const cat = categorias.find((c: any) => c.id === r.categoriaId); return cat?.nome || '-'; }},
+                      { header: 'Qtd. Vendida', accessor: (r: any) => r.quantidadeTotal },
+                      { header: 'Valor Total', accessor: (r: any) => formatCurrencyPDF(r.valorTotal) },
+                      { header: 'Ticket Médio', accessor: (r: any) => formatCurrencyPDF(r.ticketMedio) },
+                      { header: '% Vendas', accessor: (r: any) => `${r.percentualVendas?.toFixed(1)}%` },
+                    ],
+                    data: bi.produtosMaisVendidos,
+                    filename: 'relatorio-visao-geral',
+                    orientation: 'landscape',
+                    summary: [
+                      { label: 'Faturamento Total', value: formatCurrencyPDF(bi.kpis[0]?.valor || 0) },
+                      { label: 'Quantidade de Vendas', value: String(bi.kpis[1]?.valor || 0) },
+                      { label: 'Ticket Médio', value: formatCurrencyPDF(bi.kpis[2]?.valor || 0) },
+                      { label: 'Produtos Ativos', value: String(bi.kpis[3]?.valor || 0) },
+                    ],
+                    ...empresaInfo,
+                  });
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const headers = ['Produto', 'Categoria', 'Qtd. Vendida', 'Valor Total', 'Ticket Médio', '% Vendas'];
+                  const rows = bi.produtosMaisVendidos.map((p: any) => [
+                    p.nome,
+                    categorias.find((c: any) => c.id === p.categoriaId)?.nome || '-',
+                    String(p.quantidadeTotal),
+                    fmt(p.valorTotal),
+                    fmt(p.ticketMedio),
+                    `${p.percentualVendas?.toFixed(1)}%`,
+                  ]);
+                  downloadXLS(headers, rows, 'visao-geral');
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> XLS
+                </Button>
+              </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <VendasPorDiaChart dados={bi.vendasPorDia} />
                 <VendasPorFormaChart dados={bi.vendasPorFormaPagamento} />
@@ -376,6 +436,42 @@ export default function RelatoriosPage() {
 
             {/* Tab: Vendas */}
             <TabsContent value="vendas" className="space-y-6">
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={async () => {
+                  const empresaInfo = await fetchEmpresaInfo();
+                  exportToPDF({
+                    title: 'Relatório de Vendas',
+                    subtitle: bi.periodoFormatado,
+                    columns: [
+                      { header: 'Operador', accessor: (r: any) => r.nome },
+                      { header: 'Qtd. Vendas', accessor: (r: any) => r.quantidade },
+                      { header: 'Valor Total', accessor: (r: any) => formatCurrencyPDF(r.valor) },
+                    ],
+                    data: bi.vendasPorOperador,
+                    filename: 'relatorio-vendas',
+                    orientation: 'landscape',
+                    summary: [
+                      { label: 'Faturamento Total', value: formatCurrencyPDF(bi.kpis[0]?.valor || 0) },
+                      { label: 'Quantidade de Vendas', value: String(bi.kpis[1]?.valor || 0) },
+                      { label: 'Ticket Médio', value: formatCurrencyPDF(bi.kpis[2]?.valor || 0) },
+                    ],
+                    ...empresaInfo,
+                  });
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const headers = ['Operador', 'Qtd. Vendas', 'Valor Total'];
+                  const rows = bi.vendasPorOperador.map((r: any) => [
+                    r.nome,
+                    String(r.quantidade),
+                    fmt(r.valor),
+                  ]);
+                  downloadXLS(headers, rows, 'vendas');
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> XLS
+                </Button>
+              </div>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <VendasPorDiaChart dados={bi.vendasPorDia} />
                 <VendasPorTipoChart dados={bi.vendasPorTipo} />
@@ -389,19 +485,21 @@ export default function RelatoriosPage() {
 
             {/* Tab: Estoque */}
             <TabsContent value="estoque" className="space-y-6">
-              <Card>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Relatório de Estoque</CardTitle>
-                      <CardDescription>Quantidades, custos e valores de venda por produto</CardDescription>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={async () => {
-                          const empresaInfo = await fetchEmpresaPDFData(empresaId);
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+                <Card className="border-2 border-primary/10 hover:shadow-lg transition-shadow">
+                  <CardHeader>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Database className="h-5 w-5 text-blue-500" />
+                          Relatório de Estoque
+                        </CardTitle>
+                        <CardDescription>Quantidades, custos e valores de venda por produto</CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary">{estoqueData.length} produtos</Badge>
+                        <Button variant="outline" size="sm" onClick={async () => {
+                          const empresaInfo = await fetchEmpresaInfo();
                           exportToPDF({
                             title: 'Relatório de Estoque',
                             subtitle: `${estoqueData.length} produtos`,
@@ -426,15 +524,11 @@ export default function RelatoriosPage() {
                             ],
                             ...empresaInfo,
                           });
-                        }}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        PDF
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
+                        }}>
+                          <Download className="h-4 w-4 mr-1" />
+                          PDF
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => {
                           const headers = ['Produto', 'Categoria', 'Qtd', 'Custo Unit.', 'Venda Unit.', 'Total Custo', 'Total Venda', 'Resultado'];
                           const rows = estoqueData.map((p: any) => [
                             p.nome,
@@ -456,73 +550,100 @@ export default function RelatoriosPage() {
                           a.download = `estoque-${new Date().toISOString().split('T')[0]}.xls`;
                           a.click();
                           URL.revokeObjectURL(url);
-                        }}
-                      >
-                        <Download className="h-4 w-4 mr-1" />
-                        XLS
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl p-5 mb-6 border border-slate-200 dark:border-slate-700">
-                    <div className="flex items-center gap-4 mb-4">
-                      <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
-                        <Search className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                      </div>
-                      <div className="flex-1 relative">
-                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500" />
-                        <Input
-                          placeholder="Buscar produto por nome..."
-                          value={estoqueSearch}
-                          onChange={(e) => setEstoqueSearch(e.target.value)}
-                          className="pl-10 h-11 text-base bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-600 focus-visible:ring-blue-500 shadow-sm"
-                        />
-                        {estoqueSearch && (
-                          <button
-                            onClick={() => setEstoqueSearch('')}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
-                          >
-                            <X className="h-3 w-3 text-slate-500" />
-                          </button>
-                        )}
+                        }}>
+                          <Download className="h-4 w-4 mr-1" />
+                          XLS
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between gap-3 flex-wrap">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">Categoria</span>
-                        <Select value={estoqueCategoria} onValueChange={(v) => setEstoqueCategoria(v === '__all__' ? '' : v)}>
-                          <SelectTrigger className="w-[180px] h-9 bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-600">
-                            <SelectValue placeholder="Todas as categorias" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="__all__">Todas as categorias</SelectItem>
-                            {categorias.map((cat: any) => (
-                              <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                  </CardHeader>
+                  <CardContent>
+                    {/* Resumo */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                      <div className="text-center p-4 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950/30 dark:to-blue-900/30 border border-blue-200 dark:border-blue-800">
+                        <Database className="h-5 w-5 mx-auto mb-2 text-blue-600" />
+                        <p className="text-xs text-muted-foreground mb-1">Produtos</p>
+                        <p className="text-lg font-bold text-blue-600">{estoqueData.length}</p>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm text-slate-500 dark:text-slate-400">
-                          <strong className="text-slate-700 dark:text-slate-200">{estoqueData.length}</strong> produto{estoqueData.length !== 1 ? 's' : ''} encontrado{estoqueData.length !== 1 ? 's' : ''}
-                        </span>
-                        {(estoqueCategoria || estoqueSearch) && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => { setEstoqueCategoria(''); setEstoqueSearch(''); }}
-                            className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/50"
-                          >
-                            <X className="h-3.5 w-3.5 mr-1" />
-                            Limpar
-                          </Button>
-                        )}
+                      <div className="text-center p-4 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950/30 dark:to-orange-900/30 border border-orange-200 dark:border-orange-800">
+                        <TrendingUp className="h-5 w-5 mx-auto mb-2 text-orange-600" />
+                        <p className="text-xs text-muted-foreground mb-1">Total Custo</p>
+                        <p className="text-lg font-bold text-orange-600">{fmt(estoqueTotais.totalCusto)}</p>
+                      </div>
+                      <div className="text-center p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/30 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-800">
+                        <DollarSign className="h-5 w-5 mx-auto mb-2 text-emerald-600" />
+                        <p className="text-xs text-muted-foreground mb-1">Total Venda</p>
+                        <p className="text-lg font-bold text-emerald-600">{fmt(estoqueTotais.totalVenda)}</p>
+                      </div>
+                      <div className={`text-center p-4 rounded-xl border ${estoqueTotais.resultado >= 0 ? 'bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-950/30 dark:to-emerald-900/30 border-emerald-200 dark:border-emerald-800' : 'bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950/30 dark:to-red-900/30 border-red-200 dark:border-red-800'}`}>
+                        <PiggyBank className={`h-5 w-5 mx-auto mb-2 ${estoqueTotais.resultado >= 0 ? 'text-emerald-600' : 'text-red-600'}`} />
+                        <p className="text-xs text-muted-foreground mb-1">Resultado</p>
+                        <p className={`text-lg font-bold ${estoqueTotais.resultado >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                          {fmt(estoqueTotais.resultado)}
+                        </p>
                       </div>
                     </div>
-                  </div>
 
-                  <Table className="w-full table-fixed [&_td]:px-1.5 [&_td]:py-2 [&_th]:px-1.5 [&_th]:h-9">
+                    {/* Busca e Filtros */}
+                    <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800 rounded-xl p-5 mb-6 border border-slate-200 dark:border-slate-700">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="h-10 w-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center shrink-0">
+                          <Search className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="flex-1 relative">
+                          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-blue-500" />
+                          <Input
+                            placeholder="Buscar produto por nome..."
+                            value={estoqueSearch}
+                            onChange={(e) => setEstoqueSearch(e.target.value)}
+                            className="pl-10 h-11 text-base bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-600 focus-visible:ring-blue-500 shadow-sm"
+                          />
+                          {estoqueSearch && (
+                            <button
+                              onClick={() => setEstoqueSearch('')}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center hover:bg-slate-300 dark:hover:bg-slate-600 transition-colors"
+                            >
+                              <X className="h-3 w-3 text-slate-500" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-medium text-slate-600 dark:text-slate-300 whitespace-nowrap">Categoria</span>
+                          <Select value={estoqueCategoria} onValueChange={(v) => setEstoqueCategoria(v === '__all__' ? '' : v)}>
+                            <SelectTrigger className="w-[180px] h-9 bg-white dark:bg-slate-950 border-slate-300 dark:border-slate-600">
+                              <SelectValue placeholder="Todas as categorias" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="__all__">Todas as categorias</SelectItem>
+                              {categorias.map((cat: any) => (
+                                <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-slate-500 dark:text-slate-400">
+                            <strong className="text-slate-700 dark:text-slate-200">{estoqueData.length}</strong> produto{estoqueData.length !== 1 ? 's' : ''} encontrado{estoqueData.length !== 1 ? 's' : ''}
+                          </span>
+                          {(estoqueCategoria || estoqueSearch) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => { setEstoqueCategoria(''); setEstoqueSearch(''); }}
+                              className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-950/50"
+                            >
+                              <X className="h-3.5 w-3.5 mr-1" />
+                              Limpar
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Tabela */}
+                    <Table className="w-full table-fixed [&_td]:px-1.5 [&_td]:py-2 [&_th]:px-1.5 [&_th]:h-9">
                       <TableHeader>
                         <TableRow>
                           <TableHead className="w-[180px]">Produto</TableHead>
@@ -560,43 +681,110 @@ export default function RelatoriosPage() {
                         )}
                       </TableBody>
                     </Table>
-
-                  {/* Totalizador */}
-                  {estoqueData.length > 0 && (
-                    <div className="mt-4 p-4 rounded-lg border bg-muted/30">
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Produtos</p>
-                          <p className="text-lg font-bold">{estoqueData.length}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Total Custo</p>
-                          <p className="text-lg font-bold">{fmt(estoqueTotais.totalCusto)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Total Venda</p>
-                          <p className="text-lg font-bold">{fmt(estoqueTotais.totalVenda)}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Resultado</p>
-                          <p className={`text-lg font-bold ${estoqueTotais.resultado >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {fmt(estoqueTotais.resultado)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </motion.div>
             </TabsContent>
 
             {/* Tab: Itens */}
             <TabsContent value="itens" className="space-y-6">
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={async () => {
+                  const empresaInfo = await fetchEmpresaInfo();
+                  const itensAgrupados = vendas.reduce((acc: any, v: any) => {
+                    (v.itens || []).forEach((item: any) => {
+                      const nome = item.nome || produtos.find((p: any) => p.id === item.produtoId)?.nome || 'Item';
+                      if (!acc[nome]) acc[nome] = { nome, quantidade: 0, valor: 0 };
+                      acc[nome].quantidade += item.quantidade || 0;
+                      acc[nome].valor += (item.preco || item.precoUnitario || 0) * (item.quantidade || 0);
+                    });
+                    return acc;
+                  }, {} as Record<string, any>);
+                  const dados = Object.values(itensAgrupados).sort((a: any, b: any) => b.valor - a.valor);
+                  exportToPDF({
+                    title: 'Relatório de Itens Vendidos',
+                    subtitle: bi.periodoFormatado,
+                    columns: [
+                      { header: 'Item', accessor: (r: any) => r.nome },
+                      { header: 'Qtd. Vendida', accessor: (r: any) => r.quantidade },
+                      { header: 'Valor Total', accessor: (r: any) => formatCurrencyPDF(r.valor) },
+                    ],
+                    data: dados,
+                    filename: 'relatorio-itens',
+                    orientation: 'landscape',
+                    summary: [
+                      { label: 'Total de Itens', value: String(dados.length) },
+                      { label: 'Qtd. Vendida', value: String(dados.reduce((a: number, i: any) => a + i.quantidade, 0)) },
+                      { label: 'Valor Total', value: formatCurrencyPDF(dados.reduce((a: number, i: any) => a + i.valor, 0)) },
+                    ],
+                    ...empresaInfo,
+                  });
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const itensAgrupados = vendas.reduce((acc: any, v: any) => {
+                    (v.itens || []).forEach((item: any) => {
+                      const nome = item.nome || produtos.find((p: any) => p.id === item.produtoId)?.nome || 'Item';
+                      if (!acc[nome]) acc[nome] = { nome, quantidade: 0, valor: 0 };
+                      acc[nome].quantidade += item.quantidade || 0;
+                      acc[nome].valor += (item.preco || item.precoUnitario || 0) * (item.quantidade || 0);
+                    });
+                    return acc;
+                  }, {} as Record<string, any>);
+                  const dados = Object.values(itensAgrupados).sort((a: any, b: any) => b.valor - a.valor);
+                  const headers = ['Item', 'Qtd. Vendida', 'Valor Total'];
+                  const rows = dados.map((r: any) => [r.nome, String(r.quantidade), fmt(r.valor)]);
+                  downloadXLS(headers, rows, 'itens');
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> XLS
+                </Button>
+              </div>
               <VendasItensDia />
             </TabsContent>
 
             {/* Tab: Produtos */}
             <TabsContent value="produtos" className="space-y-6">
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={async () => {
+                  const empresaInfo = await fetchEmpresaInfo();
+                  exportToPDF({
+                    title: 'Relatório de Produtos',
+                    subtitle: bi.periodoFormatado,
+                    columns: [
+                      { header: 'Produto', accessor: (r: any) => r.nome },
+                      { header: 'Categoria', accessor: (r: any) => { const cat = categorias.find((c: any) => c.id === r.categoriaId); return cat?.nome || '-'; }},
+                      { header: 'Qtd. Vendida', accessor: (r: any) => r.quantidadeTotal },
+                      { header: 'Valor Total', accessor: (r: any) => formatCurrencyPDF(r.valorTotal) },
+                      { header: '% Vendas', accessor: (r: any) => `${r.percentualVendas?.toFixed(1)}%` },
+                    ],
+                    data: bi.produtosMaisVendidos,
+                    filename: 'relatorio-produtos',
+                    orientation: 'landscape',
+                    summary: [
+                      { label: 'Total de Produtos', value: String(bi.produtosMaisVendidos.length) },
+                      { label: 'Total de Unidades', value: String(bi.produtosMaisVendidos.reduce((a: number, p: any) => a + p.quantidadeTotal, 0)) },
+                      { label: 'Receita Total', value: formatCurrencyPDF(bi.produtosMaisVendidos.reduce((a: number, p: any) => a + p.valorTotal, 0)) },
+                    ],
+                    ...empresaInfo,
+                  });
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const headers = ['Produto', 'Categoria', 'Qtd. Vendida', 'Valor Total', '% Vendas'];
+                  const rows = bi.produtosMaisVendidos.map((p: any) => [
+                    p.nome,
+                    categorias.find((c: any) => c.id === p.categoriaId)?.nome || '-',
+                    String(p.quantidadeTotal),
+                    fmt(p.valorTotal),
+                    `${p.percentualVendas?.toFixed(1)}%`,
+                  ]);
+                  downloadXLS(headers, rows, 'produtos');
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> XLS
+                </Button>
+              </div>
               <ProdutosMaisVendidos dados={bi.produtosMaisVendidos} categorias={categorias} />
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <VendasPorCategoriaChart dados={bi.vendasPorCategoria} />
@@ -606,6 +794,51 @@ export default function RelatoriosPage() {
 
             {/* Tab: Lucro Bruto */}
             <TabsContent value="lucro-bruto" className="space-y-6">
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={async () => {
+                  const empresaInfo = await fetchEmpresaInfo();
+                  exportToPDF({
+                    title: 'Relatório de Lucro Bruto',
+                    subtitle: bi.periodoFormatado,
+                    columns: [
+                      { header: 'Produto', accessor: (r: any) => r.nome },
+                      { header: 'Categoria', accessor: (r: any) => { const cat = categorias.find((c: any) => c.id === r.categoriaId); return cat?.nome || '-'; }},
+                      { header: 'Qtd.', accessor: (r: any) => r.quantidadeVendida },
+                      { header: 'Receita', accessor: (r: any) => formatCurrencyPDF(r.receitaTotal) },
+                      { header: 'Custo', accessor: (r: any) => formatCurrencyPDF(r.custoTotal) },
+                      { header: 'Lucro Bruto', accessor: (r: any) => formatCurrencyPDF(r.lucroBruto) },
+                      { header: 'Margem', accessor: (r: any) => `${r.margemLucro.toFixed(1)}%` },
+                    ],
+                    data: bi.lucroBrutoPorProduto,
+                    filename: 'relatorio-lucro-bruto',
+                    orientation: 'landscape',
+                    summary: [
+                      { label: 'Receita Total', value: formatCurrencyPDF(bi.resumoLucroBruto?.receitaTotal || 0) },
+                      { label: 'Custo Total', value: formatCurrencyPDF(bi.resumoLucroBruto?.custoTotal || 0) },
+                      { label: 'Lucro Bruto', value: formatCurrencyPDF(bi.resumoLucroBruto?.lucroBrutoTotal || 0) },
+                      { label: 'Margem Média', value: `${(bi.resumoLucroBruto?.margemMedia || 0).toFixed(1)}%` },
+                    ],
+                    ...empresaInfo,
+                  });
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const headers = ['Produto', 'Categoria', 'Qtd.', 'Receita', 'Custo', 'Lucro Bruto', 'Margem'];
+                  const rows = bi.lucroBrutoPorProduto.map((p: any) => [
+                    p.nome,
+                    categorias.find((c: any) => c.id === p.categoriaId)?.nome || '-',
+                    String(p.quantidadeVendida),
+                    fmt(p.receitaTotal),
+                    fmt(p.custoTotal),
+                    fmt(p.lucroBruto),
+                    `${p.margemLucro.toFixed(1)}%`,
+                  ]);
+                  downloadXLS(headers, rows, 'lucro-bruto');
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> XLS
+                </Button>
+              </div>
               <LucroBrutoPorProduto 
                 dados={bi.lucroBrutoPorProduto} 
                 resumo={bi.resumoLucroBruto}
@@ -615,6 +848,39 @@ export default function RelatoriosPage() {
 
             {/* Tab: Financeiro */}
             <TabsContent value="financeiro" className="space-y-6">
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={async () => {
+                  const empresaInfo = await fetchEmpresaInfo();
+                  exportToPDF({
+                    title: 'Relatório Financeiro',
+                    subtitle: bi.periodoFormatado,
+                    columns: [
+                      { header: 'Operador', accessor: (r: any) => r.nome },
+                      { header: 'Qtd. Vendas', accessor: (r: any) => r.quantidade },
+                      { header: 'Valor Total', accessor: (r: any) => formatCurrencyPDF(r.valor) },
+                    ],
+                    data: bi.vendasPorOperador,
+                    filename: 'relatorio-financeiro',
+                    orientation: 'landscape',
+                    summary: [
+                      { label: 'Faturamento Total', value: formatCurrencyPDF(bi.kpis[0]?.valor || 0) },
+                      { label: 'Entradas (Caixa)', value: formatCurrencyPDF(bi.fluxoCaixa.entradas || 0) },
+                      { label: 'Saídas (Caixa)', value: formatCurrencyPDF(bi.fluxoCaixa.saidas || 0) },
+                      { label: 'Saldo (Caixa)', value: formatCurrencyPDF(bi.fluxoCaixa.saldo || 0) },
+                    ],
+                    ...empresaInfo,
+                  });
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const headers = ['Operador', 'Qtd. Vendas', 'Valor Total'];
+                  const rows = bi.vendasPorOperador.map((r: any) => [r.nome, String(r.quantidade), fmt(r.valor)]);
+                  downloadXLS(headers, rows, 'financeiro');
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> XLS
+                </Button>
+              </div>
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2">
                   <VendasPorDiaChart dados={bi.vendasPorDia} />
@@ -627,8 +893,40 @@ export default function RelatoriosPage() {
               </div>
             </TabsContent>
 
-            {/* Tab: Lavanderia */}
+            {hasLavanderia && (
             <TabsContent value="lavanderia" className="space-y-6">
+              <div className="flex items-center justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={async () => {
+                  const empresaInfo = await fetchEmpresaInfo();
+                  exportToPDF({
+                    title: 'Relatório Lavanderia',
+                    subtitle: 'Geral',
+                    columns: [
+                      { header: 'Status', accessor: (r: any) => r.status },
+                      { header: 'Quantidade', accessor: (r: any) => r.quantidade },
+                    ],
+                    data: osByStatus,
+                    filename: 'relatorio-lavanderia',
+                    orientation: 'landscape',
+                    summary: [
+                      { label: 'Total de OS', value: String(lavanderiaRevenue.totalOS) },
+                      { label: 'Receita Total', value: formatCurrencyPDF(lavanderiaRevenue.totalRevenue) },
+                      { label: 'Ticket Médio', value: formatCurrencyPDF(lavanderiaRevenue.ticketMedio) },
+                      { label: 'Total Peças', value: String(lavanderiaRevenue.totalPecas) },
+                    ],
+                    ...empresaInfo,
+                  });
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const headers = ['Status', 'Quantidade'];
+                  const rows = osByStatus.map((r: any) => [r.status, String(r.quantidade)]);
+                  downloadXLS(headers, rows, 'lavanderia');
+                }}>
+                  <Download className="h-4 w-4 mr-1" /> XLS
+                </Button>
+              </div>
               {/* Lavanderia Summary KPIs */}
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -816,6 +1114,7 @@ export default function RelatoriosPage() {
                 </Card>
               </motion.div>
             </TabsContent>
+            )}
           </Tabs>
         </div>
       </MainLayout>

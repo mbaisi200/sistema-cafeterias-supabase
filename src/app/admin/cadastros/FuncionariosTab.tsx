@@ -74,6 +74,7 @@ interface Funcionario {
   perm_cancelar_venda?: boolean;
   perm_dar_desconto?: boolean;
   ativo: boolean;
+  usuario_id?: string;
 }
 
 export function FuncionariosTab() {
@@ -237,22 +238,62 @@ export function FuncionariosTab() {
     }
   };
 
-  const handleDeleteClick = (func: Funcionario) => {
+  const [checkingVinculos, setCheckingVinculos] = useState(false);
+  const [hasVinculos, setHasVinculos] = useState(false);
+  const [podeExcluir, setPodeExcluir] = useState(false);
+
+  const handleDeleteClick = async (func: Funcionario) => {
     setDeleteTarget(func);
+    setCheckingVinculos(true);
     setDeleteDialogOpen(true);
+    try {
+      const atendenteId = func.usuario_id;
+      const [{ count: countVendas }, { count: countPedidosTemp }] = await Promise.all([
+        supabase!
+          .from('vendas')
+          .select('*', { count: 'exact', head: true })
+          .eq('funcionario_id', func.id)
+          .not('status', 'eq', 'cancelada'),
+        ...(atendenteId ? [supabase!
+          .from('pedidos_temp')
+          .select('*', { count: 'exact', head: true })
+          .eq('atendente_id', atendenteId)] : [{ count: 0 }]),
+      ]);
+      const temVinculos = (countVendas || 0) > 0 || (countPedidosTemp || 0) > 0;
+      setHasVinculos(temVinculos);
+      setPodeExcluir(!temVinculos);
+    } catch {
+      setHasVinculos(true);
+      setPodeExcluir(false);
+    } finally {
+      setCheckingVinculos(false);
+    }
   };
 
-  const handleConfirmInativar = async () => {
+  const handleConfirmExcluir = async () => {
     if (!deleteTarget || !supabase) return;
-    const { error } = await supabase
-      .from('funcionarios')
-      .update({ ativo: false })
-      .eq('id', deleteTarget.id);
-    if (error) {
-      toast.error('Erro ao inativar funcionário');
+    if (hasVinculos) {
+      const { error } = await supabase
+        .from('funcionarios')
+        .update({ ativo: false })
+        .eq('id', deleteTarget.id);
+      if (error) {
+        toast.error('Erro ao inativar funcionário');
+      } else {
+        toast.success(`"${deleteTarget.nome}" inativado`);
+        loadFuncionarios();
+      }
     } else {
-      toast.success(`"${deleteTarget.nome}" inativado`);
-      loadFuncionarios();
+      const { error } = await supabase
+        .from('funcionarios')
+        .delete()
+        .eq('id', deleteTarget.id);
+      if (error) {
+        toast.error('Erro ao excluir funcionário');
+      } else {
+        toast.success(`"${deleteTarget.nome}" excluído permanentemente`);
+        loadFuncionarios();
+      }
     }
     setDeleteDialogOpen(false);
     setDeleteTarget(null);
@@ -471,7 +512,7 @@ export function FuncionariosTab() {
                   />
                 </div>
                 <div className="flex items-center justify-between space-x-2">
-                  <Label htmlFor="perm_pdv_garcom" className="cursor-pointer">PDV Garçon</Label>
+                  <Label htmlFor="perm_pdv_garcom" className="cursor-pointer">PDV Garçom</Label>
                   <Switch
                     id="perm_pdv_garcom"
                     checked={formData.perm_pdv_garcom}
@@ -545,19 +586,27 @@ export function FuncionariosTab() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => { setDeleteDialogOpen(open); if (!open) { setDeleteTarget(null); }}}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Inativar Funcionário</AlertDialogTitle>
+            <AlertDialogTitle>{podeExcluir ? 'Excluir Funcionário' : 'Inativar Funcionário'}</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja inativar <strong>{deleteTarget?.nome}</strong>? O funcionário não poderá mais acessar o sistema, mas poderá ser reativado depois.
+              {checkingVinculos ? (
+                <span className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Verificando registros vinculados...</span>
+              ) : podeExcluir ? (
+                <>Deseja realmente excluir permanentemente <strong>{deleteTarget?.nome}</strong>? Esta ação não pode ser desfeita.</>
+              ) : (
+                <>Deseja inativar <strong>{deleteTarget?.nome}</strong>? O funcionário possui registros no sistema e não pode ser excluído permanentemente. Após inativado, não poderá mais acessar o sistema, mas poderá ser reativado depois.</>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2">
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleConfirmInativar}
-              className="bg-orange-500 hover:bg-orange-600"
-            >
-              Inativar
-            </AlertDialogAction>
+            {!checkingVinculos && (
+              <AlertDialogAction
+                onClick={handleConfirmExcluir}
+                className={podeExcluir ? 'bg-red-500 hover:bg-red-600' : 'bg-orange-500 hover:bg-orange-600'}
+              >
+                {podeExcluir ? 'Excluir' : 'Inativar'}
+              </AlertDialogAction>
+            )}
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

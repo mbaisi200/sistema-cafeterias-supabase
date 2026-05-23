@@ -33,15 +33,19 @@ import {
   Timer,
   DollarSign,
   AlertCircle,
-  ChevronLeft
+  ChevronLeft,
+  Store,
+  Globe,
+  ExternalLink
 } from 'lucide-react';
-import type { PedidoDeliveryStatus } from '@/types/delivery';
+
+type Origem = 'cardapio' | 'ifood' | 'uber_eats';
 
 interface Pedido {
   id: string;
   codigo: string;
   tipo: 'delivery' | 'retirada' | 'consumo_local';
-  status: PedidoDeliveryStatus;
+  status: string;
   subtotal: number;
   taxa_entrega: number;
   total: number;
@@ -53,7 +57,15 @@ interface Pedido {
   endereco_entrega?: any;
   cliente?: { nome: string; telefone: string };
   itens?: any[];
+  origem: Origem;
+  venda_id?: string;
 }
+
+const ORIGEM_CONFIG: Record<Origem, { label: string; color: string; icon: React.ReactNode }> = {
+  cardapio: { label: 'Cardápio', color: 'bg-blue-500', icon: <Store className="h-3 w-3" /> },
+  ifood: { label: 'iFood', color: 'bg-red-500', icon: <Globe className="h-3 w-3" /> },
+  uber_eats: { label: 'Uber Eats', color: 'bg-green-600', icon: <Globe className="h-3 w-3" /> },
+};
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -72,7 +84,7 @@ function getTimeAgo(date: string): string {
   return `${hours}h ${minutes % 60}m`;
 }
 
-const STATUS_CONFIG: Record<PedidoDeliveryStatus, { label: string; color: string; icon: React.ReactNode }> = {
+const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   'pendente': { label: 'Pendente', color: 'bg-yellow-500', icon: <Clock className="h-4 w-4" /> },
   'confirmado': { label: 'Confirmado', color: 'bg-blue-500', icon: <CheckCircle className="h-4 w-4" /> },
   'em_preparacao': { label: 'Em Preparação', color: 'bg-orange-500', icon: <ChefHat className="h-4 w-4" /> },
@@ -81,6 +93,9 @@ const STATUS_CONFIG: Record<PedidoDeliveryStatus, { label: string; color: string
   'entregue': { label: 'Entregue', color: 'bg-green-600', icon: <Home className="h-4 w-4" /> },
   'cancelado': { label: 'Cancelado', color: 'bg-red-500', icon: <XCircle className="h-4 w-4" /> },
   'rejeitado': { label: 'Rejeitado', color: 'bg-red-600', icon: <XCircle className="h-4 w-4" /> },
+  'aberta': { label: 'Aguardando', color: 'bg-yellow-500', icon: <Clock className="h-4 w-4" /> },
+  'em_preparo': { label: 'Em Preparo', color: 'bg-orange-500', icon: <ChefHat className="h-4 w-4" /> },
+  'pronta': { label: 'Pronta', color: 'bg-green-500', icon: <Package className="h-4 w-4" /> },
 };
 
 export default function DeliveryAdminPage() {
@@ -110,15 +125,60 @@ export default function DeliveryAdminPage() {
 
   const loadPedidos = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch pedido_delivery (cardápio online)
+      const { data: pedidosDelivery, error: err1 } = await supabase
         .from('pedido_delivery')
         .select('*')
         .eq('empresa_id', empresaId)
         .in('status', ['pendente', 'confirmado', 'em_preparacao', 'pronto', 'saiu_para_entrega'])
         .order('criado_em', { ascending: false });
 
-      if (error) throw error;
-      setPedidos(data || []);
+      if (err1) throw err1;
+
+      // Fetch vendas de integrações (iFood, Uber Eats)
+      const { data: vendas, error: err2 } = await supabase
+        .from('vendas')
+        .select('id, tipo, canal, status, subtotal, taxa_entrega, total, forma_pagamento, pedido_externo_id, nome_cliente, telefone_cliente, entrega_logradouro, entrega_numero, entrega_complemento, entrega_bairro, entrega_cidade, entrega_estado, entrega_cep, observacao, criado_em')
+        .eq('empresa_id', empresaId)
+        .in('canal', ['ifood', 'uber_eats'])
+        .not('status', 'in', '("fechada","cancelada","finalizada")')
+        .order('criado_em', { ascending: false });
+
+      if (err2) throw err2;
+
+      const integrados: Pedido[] = (vendas || []).map(v => ({
+        id: v.id,
+        codigo: v.pedido_externo_id || v.id.slice(0, 8),
+        tipo: 'delivery' as const,
+        status: v.status === 'aberta' ? 'pendente' : v.status,
+        subtotal: v.subtotal || 0,
+        taxa_entrega: v.taxa_entrega || 0,
+        total: v.total || 0,
+        forma_pagamento: v.forma_pagamento || 'online',
+        observacoes: v.observacao || '',
+        criado_em: v.criado_em,
+        endereco_entrega: v.entrega_logradouro ? {
+          logradouro: v.entrega_logradouro,
+          numero: v.entrega_numero,
+          complemento: v.entrega_complemento,
+          bairro: v.entrega_bairro,
+          cidade: v.entrega_cidade,
+          estado: v.entrega_estado,
+          cep: v.entrega_cep,
+        } : null,
+        cliente: v.nome_cliente ? { nome: v.nome_cliente, telefone: v.telefone_cliente || '' } : undefined,
+        origem: v.canal as Origem,
+        venda_id: v.id,
+      }));
+
+      const todos = [
+        ...(pedidosDelivery || []).map((p: any) => ({ ...p, origem: 'cardapio' as Origem })),
+        ...integrados,
+      ];
+
+      todos.sort((a, b) => new Date(b.criado_em).getTime() - new Date(a.criado_em).getTime());
+
+      setPedidos(todos);
     } catch (error) {
       console.error('Erro ao carregar pedidos:', error);
     } finally {
@@ -126,21 +186,33 @@ export default function DeliveryAdminPage() {
     }
   };
 
-  const loadPedidoDetalhes = async (pedidoId: string) => {
-    const { data: itens } = await supabase
-      .from('pedido_delivery_itens')
-      .select('*')
-      .eq('pedido_id', pedidoId);
-    return itens || [];
+  const loadPedidoDetalhes = async (pedido: Pedido) => {
+    if (pedido.origem === 'cardapio') {
+      const { data: itens } = await supabase
+        .from('pedido_delivery_itens')
+        .select('*')
+        .eq('pedido_id', pedido.id);
+      return itens || [];
+    } else {
+      const { data: itens } = await supabase
+        .from('itens_venda')
+        .select('*')
+        .eq('venda_id', pedido.venda_id || pedido.id);
+      return (itens || []).map((i: any) => ({
+        quantidade: i.quantidade,
+        produto_nome: i.nome || i.produto_nome,
+        total: i.total,
+      }));
+    }
   };
 
   const handleVerPedido = async (pedido: Pedido) => {
-    const itens = await loadPedidoDetalhes(pedido.id);
+    const itens = await loadPedidoDetalhes(pedido);
     setPedidoSelecionado({ ...pedido, itens });
     setModalOpen(true);
   };
 
-  const atualizarStatus = async (pedido: Pedido, novoStatus: PedidoDeliveryStatus) => {
+  const atualizarStatus = async (pedido: Pedido, novoStatus: string) => {
     setProcessando(true);
     try {
       const now = new Date().toISOString();
@@ -224,8 +296,14 @@ export default function DeliveryAdminPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-bold text-lg">{pedido.codigo}</span>
-              <Badge className={STATUS_CONFIG[pedido.status].color}>
-                {STATUS_CONFIG[pedido.status].label}
+              <Badge className={ORIGEM_CONFIG[pedido.origem].color}>
+                <span className="flex items-center gap-1">
+                  {ORIGEM_CONFIG[pedido.origem].icon}
+                  {ORIGEM_CONFIG[pedido.origem].label}
+                </span>
+              </Badge>
+              <Badge className={STATUS_CONFIG[pedido.status]?.color || 'bg-gray-500'}>
+                {STATUS_CONFIG[pedido.status]?.label || pedido.status}
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">{getTimeAgo(pedido.criado_em)}</p>
@@ -266,7 +344,7 @@ export default function DeliveryAdminPage() {
                   <h1 className="text-3xl font-bold">Pedidos de Delivery</h1>
                 <Badge className="bg-green-500 animate-pulse">NOVO</Badge>
               </div>
-              <p className="text-muted-foreground">Gerencie os pedidos recebidos pelo cardápio online</p>
+              <p className="text-muted-foreground">Gerencie todos os pedidos de delivery (cardápio online, iFood, Uber Eats)</p>
             </div>
           </div>
           <Button variant="outline" onClick={loadPedidos}>
@@ -355,11 +433,17 @@ export default function DeliveryAdminPage() {
 
             {pedidoSelecionado && (
               <div className="space-y-4">
-                {/* Status atual */}
-                <div className="flex items-center gap-2">
-                  <Badge className={STATUS_CONFIG[pedidoSelecionado.status].color}>
-                    {STATUS_CONFIG[pedidoSelecionado.status].icon}
-                    <span className="ml-1">{STATUS_CONFIG[pedidoSelecionado.status].label}</span>
+                {/* Origem + Status atual */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge className={ORIGEM_CONFIG[pedidoSelecionado.origem].color}>
+                    <span className="flex items-center gap-1">
+                      {ORIGEM_CONFIG[pedidoSelecionado.origem].icon}
+                      {ORIGEM_CONFIG[pedidoSelecionado.origem].label}
+                    </span>
+                  </Badge>
+                  <Badge className={STATUS_CONFIG[pedidoSelecionado.status]?.color || 'bg-gray-500'}>
+                    {STATUS_CONFIG[pedidoSelecionado.status]?.icon}
+                    <span className="ml-1">{STATUS_CONFIG[pedidoSelecionado.status]?.label || pedidoSelecionado.status}</span>
                   </Badge>
                   <span className="text-sm text-muted-foreground">
                     {formatTime(pedidoSelecionado.criado_em)}
@@ -417,6 +501,7 @@ export default function DeliveryAdminPage() {
 
                 {/* Ações */}
                 <Separator />
+                {pedidoSelecionado.origem === 'cardapio' ? (
                 <div className="flex flex-wrap gap-2">
                   {pedidoSelecionado.status === 'pendente' && (
                     <>
@@ -454,6 +539,23 @@ export default function DeliveryAdminPage() {
                     </Button>
                   )}
                 </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-sm text-muted-foreground">
+                      Pedido de {ORIGEM_CONFIG[pedidoSelecionado.origem].label}. Gerencie o status diretamente na página da integração.
+                    </p>
+                    <a
+                      href={pedidoSelecionado.origem === 'uber_eats' ? '/admin/integracoes/uber-eats/pedidos' : '/admin/integracoes/ifood'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <Button variant="outline" className="w-full">
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Abrir {ORIGEM_CONFIG[pedidoSelecionado.origem].label}
+                      </Button>
+                    </a>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>

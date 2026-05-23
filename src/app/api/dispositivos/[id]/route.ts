@@ -61,13 +61,16 @@ export async function PATCH(
   }
 }
 
-// DELETE: Remove device record
+// DELETE: Remove device record (with force support for hard-delete)
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
+
+    const { searchParams } = new URL(request.url);
+    const force = searchParams.get('force') === 'true';
 
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -90,13 +93,30 @@ export async function DELETE(
       );
     }
 
-    // Inactivate device
-    const { error: deleteError } = await supabase
+    if (force) {
+      // Hard delete
+      const { error: deleteError } = await supabase
+        .from('dispositivos_usuario')
+        .delete()
+        .eq('id', id);
+
+      if (deleteError) {
+        return NextResponse.json({ error: 'Erro ao excluir dispositivo' }, { status: 500 });
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Dispositivo excluído com sucesso',
+      });
+    }
+
+    // Soft delete (inactivate)
+    const { error: updateError } = await supabase
       .from('dispositivos_usuario')
       .update({ ativo: false })
       .eq('id', id);
 
-    if (deleteError) {
+    if (updateError) {
       return NextResponse.json({ error: 'Erro ao inativar dispositivo' }, { status: 500 });
     }
 

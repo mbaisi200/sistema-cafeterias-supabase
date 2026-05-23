@@ -276,24 +276,46 @@ export default function ServicosPage() {
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
     try {
-      const { error } = await supabase
-        .from('servicos')
-        .update({ ativo: false })
-        .eq('id', deleteTarget.id);
+      // Check if any ordens_servico reference this servico by name in JSONB
+      const { count } = await supabase
+        .from('ordens_servico')
+        .select('id', { count: 'exact', head: true })
+        .contains('servicos', [{ descricao: deleteTarget.nome }]);
 
-      if (error) throw error;
+      if (count && count > 0) {
+        // Has OS vinculadas → soft-delete
+        const { error } = await supabase
+          .from('servicos')
+          .update({ ativo: false })
+          .eq('id', deleteTarget.id);
 
-      toast({
-        title: 'Serviço inativado!',
-        description: `${deleteTarget.nome} foi inativado com sucesso.`,
-      });
+        if (error) throw error;
+
+        toast({
+          title: 'Serviço inativado!',
+          description: `${deleteTarget.nome} foi inativado (${count} OS(s) vinculada(s)).`,
+        });
+      } else {
+        // Sem OS vinculadas → hard-delete
+        const { error } = await supabase
+          .from('servicos')
+          .delete()
+          .eq('id', deleteTarget.id);
+
+        if (error) throw error;
+
+        toast({
+          title: 'Serviço excluído!',
+          description: `${deleteTarget.nome} foi excluído permanentemente.`,
+        });
+      }
 
       await carregarServicos();
     } catch (error) {
       toast({
         variant: 'destructive',
-        title: 'Erro ao inativar',
-        description: 'Não foi possível inativar o serviço.',
+        title: 'Erro ao excluir',
+        description: 'Não foi possível excluir o serviço.',
       });
     } finally {
       setDeleteDialogOpen(false);

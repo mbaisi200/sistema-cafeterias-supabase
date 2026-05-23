@@ -31,6 +31,7 @@ import Link from 'next/link';
 import { useMesas } from '@/hooks/useSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
+import { getSupabaseClient } from '@/lib/supabase';
 import {
   Plus,
   UtensilsCrossed,
@@ -128,8 +129,27 @@ export default function MesasPage() {
     if (!excluindoMesa) return;
     
     try {
-      await excluirMesa(excluindoMesa.id);
-      toast({ title: 'Mesa excluída!' });
+      const supabase = getSupabaseClient();
+      const [{ count: vendasCount }, { count: pedidosCount }] = await Promise.all([
+        supabase
+          .from('vendas')
+          .select('*', { count: 'exact', head: true })
+          .eq('mesa_id', excluindoMesa.id)
+          .neq('status', 'cancelado'),
+        supabase
+          .from('pedidos_temp')
+          .select('*', { count: 'exact', head: true })
+          .eq('mesa_id', excluindoMesa.id),
+      ]);
+      
+      if ((vendasCount || 0) > 0 || (pedidosCount || 0) > 0) {
+        await excluirMesa(excluindoMesa.id);
+        toast({ title: 'Mesa inativada!' });
+      } else {
+        const { error } = await supabase.from('mesas').delete().eq('id', excluindoMesa.id);
+        if (error) throw error;
+        toast({ title: 'Mesa excluída!' });
+      }
       setExcluindoMesa(null);
     } catch (error) {
       console.error('Erro ao excluir mesa:', error);

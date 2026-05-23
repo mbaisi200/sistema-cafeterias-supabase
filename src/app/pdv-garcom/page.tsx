@@ -42,6 +42,7 @@ import {
   Eraser,
   Lock,
   Menu,
+  ShoppingBag,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -98,7 +99,7 @@ function normalizeText(text: string): string {
 // Main Component
 // ============================================================
 export default function PDVGarcomPage() {
-  const { user, empresaId, logout } = useAuth();
+  const { user, empresaId, logout, permitirFotoProduto } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
   const { resolvedTheme } = useTheme();
@@ -1239,6 +1240,7 @@ export default function PDVGarcomPage() {
               adicionandoIds={adicionandoIds}
               bounceProdutoId={bounceProdutoId}
               darkMode={darkMode}
+              permitirFotoProduto={permitirFotoProduto}
             />
           )}
         </div>
@@ -1569,6 +1571,7 @@ function ProdutoView({
   adicionandoIds,
   bounceProdutoId,
   darkMode,
+  permitirFotoProduto,
 }: {
   categorias: any[];
   categoriaAtiva: string;
@@ -1581,6 +1584,7 @@ function ProdutoView({
   adicionandoIds: Set<string>;
   bounceProdutoId: string | null;
   darkMode?: boolean;
+  permitirFotoProduto?: boolean;
 }) {
   return (
     <div className="flex-1 overflow-hidden flex flex-col">
@@ -1652,36 +1656,74 @@ function ProdutoView({
             {produtos.map((produto) => {
               const corCat = getCorCategoria(produto.categoriaId);
               const isBouncing = bounceProdutoId === produto.id;
+              const hasImagem = permitirFotoProduto && produto.foto;
               return (
                 <button
                   key={produto.id}
                   onClick={() => onAddProduto(produto)}
-                  className={`bg-white rounded-2xl p-3 text-left shadow-sm border border-gray-100 hover:shadow-md transition-all relative overflow-hidden group ${
-                    isBouncing
-                      ? 'animate-[bounce_0.3s_ease-in-out]'
-                      : 'active:scale-[0.97]'
+                  className={`rounded-2xl text-left shadow-sm transition-all relative overflow-hidden group active:scale-[0.95] ${
+                    darkMode
+                      ? 'bg-[#1e1e32] border-white/10 hover:border-white/20'
+                      : 'bg-white hover:border-green-300'
+                  } border-2 ${
+                    isBouncing ? 'animate-[bounce_0.3s_ease-in-out]' : ''
                   }`}
-                  style={{ borderLeftWidth: '4px', borderLeftColor: corCat }}
+                  style={hasImagem ? {} : { borderColor: corCat + '40' }}
                 >
-                  <div className="flex-1 min-h-0">
-                    <p className="font-bold text-sm text-gray-800 leading-tight line-clamp-2 mb-2">{produto.nome}</p>
-                    <div className="flex items-end justify-between">
-                      <div>
-                        <span className="text-lg font-extrabold text-green-600">
+                  {hasImagem ? (
+                    <>
+                      <div className="w-full overflow-hidden bg-gradient-to-b from-gray-50 to-gray-100" style={{ height: 140 }}>
+                        <img
+                          src={produto.foto}
+                          alt={produto.nome}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          loading="lazy"
+                        />
+                      </div>
+                      <div
+                        className="absolute top-2 left-2 h-5 px-2 rounded-full flex items-center shadow-sm border border-white/80"
+                        style={{ backgroundColor: corCat }}
+                      >
+                        <span className="text-[9px] font-bold text-white leading-none">
+                          {categorias.find((c: any) => c.id === produto.categoriaId)?.nome || ''}
+                        </span>
+                      </div>
+                      <div className="p-3">
+                        <p className="font-bold text-sm text-gray-800 leading-tight line-clamp-2 mb-2">
+                          {produto.nome}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-base font-extrabold text-green-600">
+                            R$ {produto.preco?.toFixed(2)}
+                          </span>
+                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center group-hover:bg-green-200 group-hover:scale-110 transition-all">
+                            <Plus className="h-4 w-4 text-green-600" />
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="p-3 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-sm text-gray-800 leading-tight line-clamp-2 mb-1">
+                          {produto.nome}
+                        </p>
+                        <span className="text-base font-extrabold text-green-600">
                           R$ {produto.preco?.toFixed(2)}
                         </span>
                       </div>
-                      <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center opacity-0 group-hover:opacity-100 group-active:opacity-100 transition-opacity">
+                      <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center shrink-0 group-hover:bg-green-200 group-hover:scale-110 transition-all">
                         <Plus className="h-4 w-4 text-green-600" />
                       </div>
                     </div>
-                  </div>
-                  {/* Adicionando overlay indicator */}
+                  )}
+
+                  {/* Adicionando overlay */}
                   {isBouncing && (
-                    <div className="absolute inset-0 bg-green-50/60 flex items-center justify-center rounded-2xl pointer-events-none">
-                      <div className="bg-white/90 rounded-lg px-3 py-1.5 shadow-sm flex items-center gap-1.5">
-                        <Loader2 className="h-3 w-3 animate-spin text-green-600" />
-                        <span className="text-[10px] font-bold text-green-700">adicionando...</span>
+                    <div className="absolute inset-0 bg-green-500/10 flex items-center justify-center rounded-2xl backdrop-blur-[1px]">
+                      <div className="bg-white/95 rounded-xl px-3 py-2 shadow-lg flex items-center gap-1.5 border border-green-200">
+                        <Loader2 className="h-3.5 w-3.5 animate-spin text-green-600" />
+                        <span className="text-[10px] font-bold text-green-700">adicionando</span>
                       </div>
                     </div>
                   )}

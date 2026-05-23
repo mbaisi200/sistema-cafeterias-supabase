@@ -397,12 +397,32 @@ export default function OrdensServicoPage() {
     if (!confirm('Tem certeza que deseja excluir esta OS?')) return;
     try {
       const supabase = getSupabase();
-      const { error } = await supabase
+
+      // Check if OS was faturada (has vendaId)
+      const { data: os } = await supabase
         .from('ordens_servico')
-        .update({ ativo: false })
-        .eq('id', id);
-      if (error) throw error;
-      toast({ title: 'OS excluída!', description: 'Ordem de serviço removida.' });
+        .select('venda_id')
+        .eq('id', id)
+        .single();
+
+      if (os?.venda_id) {
+        // Faturada → soft-delete (preserve history)
+        const { error } = await supabase
+          .from('ordens_servico')
+          .update({ ativo: false })
+          .eq('id', id);
+        if (error) throw error;
+        toast({ title: 'OS excluída!', description: 'Ordem de serviço removida (histórico preservado).' });
+      } else {
+        // Não faturada → hard-delete
+        const { error } = await supabase
+          .from('ordens_servico')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+        toast({ title: 'OS excluída!', description: 'Ordem de serviço excluída permanentemente.' });
+      }
+
       loadOrdens();
     } catch (err: any) {
       toast({ variant: 'destructive', title: 'Erro ao excluir', description: err.message });

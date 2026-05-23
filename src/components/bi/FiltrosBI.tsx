@@ -27,6 +27,7 @@ interface FiltrosBIProps {
     formasPagamento: { valor: string; label: string }[];
     tiposVenda: { valor: string; label: string }[];
     produtos: { valor: string; label: string }[];
+    fornecedores: { valor: string; label: string }[];
   };
   onAtualizarFiltros: (filtros: Partial<FiltrosBI>) => void;
   onResetarFiltros: () => void;
@@ -153,7 +154,7 @@ function ProdutoSelect({ opcoes, valores, onChange }: {
 }
 
 function FiltrosContent({ filtros, opcoesFiltros, onAtualizarFiltros, onResetarFiltros }: { filtros: FiltrosBI; opcoesFiltros: FiltrosBIProps['opcoesFiltros']; onAtualizarFiltros: FiltrosBIProps['onAtualizarFiltros']; onResetarFiltros: FiltrosBIProps['onResetarFiltros'] }) {
-  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos].length + (filtros.filtroCategoria !== 'todos' ? 1 : 0);
+  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos, ...filtros.fornecedores].length;
 
   return (
     <div className="space-y-4">
@@ -163,14 +164,6 @@ function FiltrosContent({ filtros, opcoesFiltros, onAtualizarFiltros, onResetarF
           <SelectTrigger><SelectValue placeholder="Selecione o período" /></SelectTrigger>
           <SelectContent>
             {periodos.map((p) => (<SelectItem key={p.valor} value={p.valor}>{p.label}</SelectItem>))}
-          </SelectContent>
-        </Select>
-        <Label className="text-sm font-medium whitespace-nowrap">Categoria</Label>
-        <Select value={filtros.filtroCategoria} onValueChange={(valor) => { onAtualizarFiltros({ filtroCategoria: valor }); }}>
-          <SelectTrigger><SelectValue placeholder="Todas as categorias" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="todos">Todas as categorias</SelectItem>
-            {opcoesFiltros.categorias.map((c) => (<SelectItem key={c.valor} value={c.valor}>{c.label}</SelectItem>))}
           </SelectContent>
         </Select>
         {filtros.periodo === 'personalizado' && (
@@ -207,6 +200,9 @@ function FiltrosContent({ filtros, opcoesFiltros, onAtualizarFiltros, onResetarF
         <MultiSelect titulo="Tipo de Venda" opcoes={opcoesFiltros.tiposVenda} valores={filtros.tiposVenda} onChange={(valores) => onAtualizarFiltros({ tiposVenda: valores })} />
         <ProdutoSelect opcoes={opcoesFiltros.produtos} valores={filtros.produtos} onChange={(valores) => onAtualizarFiltros({ produtos: valores })} />
       </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <MultiSelect titulo="Fornecedores" opcoes={opcoesFiltros.fornecedores} valores={filtros.fornecedores} onChange={(valores) => onAtualizarFiltros({ fornecedores: valores })} />
+      </div>
       <Separator />
       <div className="flex items-center justify-between gap-4">
         <div className="text-sm text-muted-foreground">
@@ -222,7 +218,7 @@ function FiltrosContent({ filtros, opcoesFiltros, onAtualizarFiltros, onResetarF
 
 export function FiltrosBI({ filtros, periodoFormatado, opcoesFiltros, onAtualizarFiltros, onResetarFiltros }: FiltrosBIProps) {
   const isMobile = useIsMobile();
-  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos].length + (filtros.filtroCategoria !== 'todos' ? 1 : 0);
+  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos, ...filtros.fornecedores].length;
 
   if (isMobile) {
     return (

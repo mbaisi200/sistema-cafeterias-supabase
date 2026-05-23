@@ -494,7 +494,7 @@ const SECOES_NOMES: Record<string, string> = {
   'relatorios': 'Relatórios',
   'pdv': 'PDV',
   'pdv-varejo': 'PDV Varejo',
-  'pdv-garcom': 'PDV Garçon',
+  'pdv-garcom': 'PDV Garçom',
   'cardapio': 'Cardápio',
 };
 

@@ -674,16 +674,35 @@ export default function CatalogoLavanderiaPage() {
   const handleDeleteItem = async () => {
     try {
       const supabase = getSupabase();
-      const { error } = await supabase
-        .from('lavanderia_itens_catalogo')
-        .update({ ativo: false })
-        .eq('id', deleteDialog.id);
-      if (error) throw error;
-      toast({ title: 'Item inativado!', description: `"${deleteDialog.nome}" foi inativado do catálogo.` });
+
+      // Check if any precos reference this item
+      const { count } = await supabase
+        .from('lavanderia_precos')
+        .select('*', { count: 'exact', head: true })
+        .eq('item_id', deleteDialog.id);
+
+      if (count && count > 0) {
+        // Has precos vinculados → soft-delete
+        const { error } = await supabase
+          .from('lavanderia_itens_catalogo')
+          .update({ ativo: false })
+          .eq('id', deleteDialog.id);
+        if (error) throw error;
+        toast({ title: 'Item inativado!', description: `"${deleteDialog.nome}" foi inativado (${count} preço(s) vinculado(s)).` });
+      } else {
+        // Sem precos → hard-delete
+        const { error } = await supabase
+          .from('lavanderia_itens_catalogo')
+          .delete()
+          .eq('id', deleteDialog.id);
+        if (error) throw error;
+        toast({ title: 'Item excluído!', description: `"${deleteDialog.nome}" foi excluído permanentemente.` });
+      }
+
       setDeleteDialog({ open: false, type: 'item', id: '', nome: '' });
       loadItens();
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro ao inativar item', description: err.message });
+      toast({ variant: 'destructive', title: 'Erro ao excluir item', description: err.message });
     }
   };
 
@@ -763,16 +782,35 @@ export default function CatalogoLavanderiaPage() {
   const handleDeleteServico = async () => {
     try {
       const supabase = getSupabase();
-      const { error } = await supabase
-        .from('lavanderia_servicos_catalogo')
-        .update({ ativo: false })
-        .eq('id', deleteDialog.id);
-      if (error) throw error;
-      toast({ title: 'Serviço inativado!', description: `"${deleteDialog.nome}" foi inativado do catálogo.` });
+
+      // Check if any precos reference this servico
+      const { count } = await supabase
+        .from('lavanderia_precos')
+        .select('*', { count: 'exact', head: true })
+        .eq('servico_id', deleteDialog.id);
+
+      if (count && count > 0) {
+        // Has precos vinculados → soft-delete
+        const { error } = await supabase
+          .from('lavanderia_servicos_catalogo')
+          .update({ ativo: false })
+          .eq('id', deleteDialog.id);
+        if (error) throw error;
+        toast({ title: 'Serviço inativado!', description: `"${deleteDialog.nome}" foi inativado (${count} preço(s) vinculado(s)).` });
+      } else {
+        // Sem precos → hard-delete
+        const { error } = await supabase
+          .from('lavanderia_servicos_catalogo')
+          .delete()
+          .eq('id', deleteDialog.id);
+        if (error) throw error;
+        toast({ title: 'Serviço excluído!', description: `"${deleteDialog.nome}" foi excluído permanentemente.` });
+      }
+
       setDeleteDialog({ open: false, type: 'servico', id: '', nome: '' });
       loadServicos();
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro ao inativar serviço', description: err.message });
+      toast({ variant: 'destructive', title: 'Erro ao excluir serviço', description: err.message });
     }
   };
 
@@ -983,17 +1021,36 @@ export default function CatalogoLavanderiaPage() {
   const handleDeleteCategoria = async () => {
     try {
       const supabase = getSupabase();
-      const { error } = await supabase
-        .from('lavanderia_categorias')
-        .update({ ativo: false })
-        .eq('id', deleteDialog.id);
-      if (error) throw error;
-      toast({ title: 'Categoria inativada!', description: `"${deleteDialog.nome}" foi inativada.` });
+
+      // Check if any itens reference this categoria (by name)
+      const { count } = await supabase
+        .from('lavanderia_itens_catalogo')
+        .select('*', { count: 'exact', head: true })
+        .eq('categoria', deleteDialog.nome);
+
+      if (count && count > 0) {
+        // Has itens vinculados → soft-delete
+        const { error } = await supabase
+          .from('lavanderia_categorias')
+          .update({ ativo: false })
+          .eq('id', deleteDialog.id);
+        if (error) throw error;
+        toast({ title: 'Categoria inativada!', description: `"${deleteDialog.nome}" foi inativada (${count} item(ns) vinculado(s)).` });
+      } else {
+        // Sem itens → hard-delete
+        const { error } = await supabase
+          .from('lavanderia_categorias')
+          .delete()
+          .eq('id', deleteDialog.id);
+        if (error) throw error;
+        toast({ title: 'Categoria excluída!', description: `"${deleteDialog.nome}" foi excluída permanentemente.` });
+      }
+
       setDeleteDialog({ open: false, type: 'item', id: '', nome: '' });
       loadCategorias();
     } catch (err: any) {
-      console.error('Erro ao inativar categoria:', err);
-      toast({ variant: 'destructive', title: 'Erro ao inativar categoria', description: err.message });
+      console.error('Erro ao excluir categoria:', err);
+      toast({ variant: 'destructive', title: 'Erro ao excluir categoria', description: err.message });
     }
   };
 

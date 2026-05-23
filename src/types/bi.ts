@@ -11,6 +11,7 @@ export interface FiltrosBI {
   produtos: string[];
   status: string[];
   canais?: string[];
+  fornecedores: string[];
 }
 
 export interface KPI {

@@ -193,10 +193,28 @@ export default function ProdutosPage() {
   };
 
   const handleExcluirUnidade = async (id: string) => {
-    if (!confirm('Tem certeza que deseja inativar esta unidade?')) return;
+    if (!confirm('Tem certeza que deseja excluir esta unidade?')) return;
     const supabase = getSupabaseClient();
-    await supabase.from('unidades').update({ ativo: false }).eq('id', id);
-    toast({ title: 'Unidade inativada!' });
+    const unidade = unidades.find(u => u.id === id);
+    if (!unidade) return;
+
+    // Check if any product uses this unidade
+    const { count } = await supabase
+      .from('produtos')
+      .select('*', { count: 'exact', head: true })
+      .eq('unidade', unidade.nome)
+      .eq('empresa_id', empresaId);
+
+    if (count && count > 0) {
+      // Has references → soft-delete
+      await supabase.from('unidades').update({ ativo: false }).eq('id', id);
+      toast({ title: 'Unidade inativada (possui produtos vinculados)!' });
+    } else {
+      // No references → hard-delete
+      await supabase.from('unidades').delete().eq('id', id);
+      toast({ title: 'Unidade excluída!' });
+    }
+
     const { data } = await supabase.from('unidades').select('*').eq('empresa_id', empresaId).order('nome');
     if (data) setUnidades(data);
   };
@@ -563,12 +581,17 @@ export default function ProdutosPage() {
 
   const verificarProdutoEmUso = async (produtoId: string): Promise<boolean> => {
     const supabase = getSupabaseClient();
-    const { count, error } = await supabase
+    const { count: vendasCount, error: vendasError } = await supabase
       .from('itens_venda')
       .select('*', { count: 'exact', head: true })
       .eq('produto_id', produtoId);
-    if (error) return false;
-    return (count || 0) > 0;
+    if (vendasError) return false;
+    const { count: movCount, error: movError } = await supabase
+      .from('estoque_movimentos')
+      .select('*', { count: 'exact', head: true })
+      .eq('produto_id', produtoId);
+    if (movError) return false;
+    return ((vendasCount || 0) + (movCount || 0)) > 0;
   };
 
   const handleDeleteClick = async (produto: Produto) => {
@@ -584,13 +607,18 @@ export default function ProdutosPage() {
   const confirmDeleteOrInactivate = async () => {
     if (!produtoToDelete) return;
     try {
-      await excluirProduto(produtoToDelete.id);
-      toast({
-        title: produtoHasHistory ? 'Produto inativado!' : 'Produto excluído!',
-        description: produtoHasHistory
-          ? 'O produto foi inativado e não aparece mais nos cadastros, mas os relatórios anteriores continuam válidos.'
-          : undefined,
-      });
+      if (produtoHasHistory) {
+        await excluirProduto(produtoToDelete.id);
+        toast({
+          title: 'Produto inativado!',
+          description: 'O produto foi inativado e não aparece mais nos cadastros, mas os relatórios anteriores continuam válidos.',
+        });
+      } else {
+        const supabase = getSupabaseClient();
+        const { error } = await supabase.from('produtos').delete().eq('id', produtoToDelete.id);
+        if (error) throw error;
+        toast({ title: 'Produto excluído!' });
+      }
       setDeleteDialogOpen(false);
       setProdutoToDelete(null);
     } catch (error) {

@@ -917,7 +917,7 @@ export default function ClientesPage() {
                         <div className="space-y-2">
                           <Label>Nome da Marca (no menu do admin)</Label>
                           <Input
-                            placeholder="Ex: Gestão Café (deixe vazio para usar o padrão do segmento)"
+                            placeholder="Ex: MB Sistemas (deixe vazio para usar o padrão do segmento)"
                             value={nomeMarca}
                             onChange={(e) => setNomeMarca(e.target.value)}
                           />
@@ -1448,7 +1448,7 @@ export default function ClientesPage() {
                         <div className="space-y-2">
                           <Label>Nome da Marca (no menu do admin)</Label>
                           <Input
-                            placeholder="Ex: Gestão Café (deixe vazio para usar o padrão do segmento)"
+                            placeholder="Ex: MB Sistemas (deixe vazio para usar o padrão do segmento)"
                             value={nomeMarca}
                             onChange={(e) => setNomeMarca(e.target.value)}
                           />

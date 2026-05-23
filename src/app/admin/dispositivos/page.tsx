@@ -179,7 +179,7 @@ export default function DispositivosPage() {
     try {
       let response;
       if (action === 'excluir') {
-        response = await fetch(`/api/dispositivos/${deviceId}`, { method: 'DELETE' });
+        response = await fetch(`/api/dispositivos/${deviceId}?force=true`, { method: 'DELETE' });
       } else {
         response = await fetch(`/api/dispositivos/${deviceId}`, {
           method: 'PATCH',

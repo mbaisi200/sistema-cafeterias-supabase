@@ -231,15 +231,34 @@ export function ServicosTab() {
     if (!deleteTarget) return;
     try {
       const supabase = getSupabaseClient();
-      const { error } = await supabase
-        .from('servicos')
-        .update({ ativo: false })
-        .eq('id', deleteTarget.id);
-      if (error) throw error;
-      toast.success(`Serviço "${deleteTarget.nome}" inativado!`);
+
+      // Check if servico is referenced in lavanderia_precos
+      const { count } = await supabase
+        .from('lavanderia_precos')
+        .select('*', { count: 'exact', head: true })
+        .eq('servico_id', deleteTarget.id);
+
+      if (count && count > 0) {
+        // Has references → soft-delete
+        const { error } = await supabase
+          .from('servicos')
+          .update({ ativo: false })
+          .eq('id', deleteTarget.id);
+        if (error) throw error;
+        toast.success(`Serviço "${deleteTarget.nome}" inativado (possui vínculos)!`);
+      } else {
+        // No references → hard-delete
+        const { error } = await supabase
+          .from('servicos')
+          .delete()
+          .eq('id', deleteTarget.id);
+        if (error) throw error;
+        toast.success(`Serviço "${deleteTarget.nome}" excluído!`);
+      }
+
       await carregar();
     } catch {
-      toast.error('Erro ao inativar serviço');
+      toast.error('Erro ao excluir serviço');
     } finally {
       setDeleteDialogOpen(false);
       setDeleteTarget(null);

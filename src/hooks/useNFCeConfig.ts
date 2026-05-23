@@ -282,9 +282,38 @@ export function useNFCeConfig(): UseNFCeConfigReturn {
 
   const deletarCertificado = async (id: string): Promise<{ sucesso: boolean; erro?: string }> => {
     try {
+      // Check if any nfce_config or nfe references this certificado
+      const { count: nfceCount } = await supabase
+        .from('nfce_config')
+        .select('*', { count: 'exact', head: true })
+        .eq('certificado_id', id);
+
+      const { count: nfeCount } = await supabase
+        .from('nfe')
+        .select('*', { count: 'exact', head: true })
+        .eq('certificado_id', id);
+
+      const totalRefs = (nfceCount || 0) + (nfeCount || 0);
+
+      if (totalRefs > 0) {
+        // Referenced by NF-e records → soft-delete
+        const { error } = await supabase
+          .from('nfce_certificados')
+          .update({ ativo: false })
+          .eq('id', id);
+
+        if (error) {
+          return { sucesso: false, erro: error.message };
+        }
+
+        await carregarDados();
+        return { sucesso: true };
+      }
+
+      // No references → hard-delete
       const { error } = await supabase
         .from('nfce_certificados')
-        .update({ ativo: false })
+        .delete()
         .eq('id', id);
 
       if (error) {

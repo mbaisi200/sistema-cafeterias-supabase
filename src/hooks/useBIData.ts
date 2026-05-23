@@ -32,6 +32,7 @@ interface Produto {
   categoriaId?: string;
   preco?: number;
   custo?: number;
+  fornecedorId?: string | null;
 }
 
 interface Categoria {
@@ -45,7 +46,7 @@ interface Movimentacao {
   formaPagamento?: string;
 }
 
-export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Categoria[], movimentacoes: Movimentacao[]) {
+export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Categoria[], movimentacoes: Movimentacao[], fornecedores?: any[]) {
   const [filtros, setFiltros] = useState<FiltrosBI>({
     periodo: 'ano',
     filtroCategoria: 'todos',
@@ -55,6 +56,7 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
     produtos: [],
     status: [],
     canais: [],
+    fornecedores: [],
   });
 
   // Criar mapa de produtos para lookup rápido
@@ -124,6 +126,14 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
       if (filtros.produtos.length > 0) {
         const temProdutoFiltrado = venda.itens?.some(item => filtros.produtos.includes(item.produtoId));
         if (!temProdutoFiltrado) return false;
+      }
+      // Filtro por fornecedor
+      if (filtros.fornecedores.length > 0) {
+        const temFornecedor = venda.itens?.some(item => {
+          const produto = produtosMap.get(item.produtoId);
+          return produto && filtros.fornecedores.includes(produto.fornecedorId || '');
+        });
+        if (!temFornecedor) return false;
       }
       return true;
     });
@@ -487,7 +497,7 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
 
   // Resetar filtros
   const resetarFiltros = useCallback(() => {
-    setFiltros({ periodo: 'ano', filtroCategoria: 'todos', categorias: [], formasPagamento: [], tiposVenda: [], produtos: [], status: [], canais: [] });
+    setFiltros({ periodo: 'ano', filtroCategoria: 'todos', categorias: [], formasPagamento: [], tiposVenda: [], produtos: [], status: [], canais: [], fornecedores: [] });
   }, []);
 
   // Opções de filtros
@@ -507,7 +517,6 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
       { valor: 'comanda', label: 'Comanda' },
       { valor: 'delivery', label: 'Delivery' }
     ],
-    produtos: produtos.map(p => ({ valor: p.id, label: p.nome })),
     canais: [
       { valor: 'balcao', label: 'Balcão' },
       { valor: 'mesa', label: 'Mesa' },
@@ -516,8 +525,10 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
       { valor: 'rappi', label: 'Rappi' },
       { valor: 'uber_eats', label: 'Uber Eats' },
       { valor: 'whatsapp', label: 'WhatsApp' }
-    ]
-  }), [categorias, produtos]);
+    ],
+    fornecedores: (fornecedores || []).map((f: any) => ({ valor: f.id, label: f.nome })),
+    produtos: produtos.map(p => ({ valor: p.id, label: p.nome })),
+  }), [categorias, produtos, fornecedores]);
 
   return {
     kpis, 

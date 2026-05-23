@@ -89,16 +89,37 @@ export default function UnidadesPage() {
   };
 
   const handleExcluir = async (id: string) => {
-    if (!confirm('Tem certeza que deseja inativar esta unidade?')) return;
+    if (!confirm('Tem certeza que deseja excluir esta unidade?')) return;
     
     const supabase = getSupabaseClient();
-    const { error } = await supabase.from('unidades').update({ ativo: false }).eq('id', id);
-    
-    if (error) {
-      toast({ variant: 'destructive', title: 'Erro ao inativar' });
+    const unidade = unidades.find(u => u.id === id);
+    if (!unidade) return;
+
+    // Check if any product uses this unidade
+    const { count } = await supabase
+      .from('produtos')
+      .select('*', { count: 'exact', head: true })
+      .eq('unidade', unidade.nome)
+      .eq('empresa_id', empresaId);
+
+    if (count && count > 0) {
+      // Has references → soft-delete
+      const { error } = await supabase.from('unidades').update({ ativo: false }).eq('id', id);
+      if (error) {
+        toast({ variant: 'destructive', title: 'Erro ao inativar' });
+      } else {
+        toast({ title: 'Unidade inativada (possui produtos vinculados)!' });
+        loadUnidades();
+      }
     } else {
-      toast({ title: 'Unidade inativada!' });
-      loadUnidades();
+      // No references → hard-delete
+      const { error } = await supabase.from('unidades').delete().eq('id', id);
+      if (error) {
+        toast({ variant: 'destructive', title: 'Erro ao excluir' });
+      } else {
+        toast({ title: 'Unidade excluída!' });
+        loadUnidades();
+      }
     }
   };
 

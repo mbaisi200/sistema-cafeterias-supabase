@@ -108,9 +108,17 @@ export default function EstoquePage() {
   const [dialogHistorico, setDialogHistorico] = useState(false);
   const [dialogLote, setDialogLote] = useState(false);
   const [dialogMovimentacao, setDialogMovimentacao] = useState(false);
+  const [dialogNovaMov, setDialogNovaMov] = useState(false);
+  const [novaMovSearch, setNovaMovSearch] = useState('');
+  const [novaMovProduto, setNovaMovProduto] = useState<any>(null);
+  const [novaMovTipo, setNovaMovTipo] = useState<'entrada' | 'saida'>('entrada');
+  const [novaMovQtd, setNovaMovQtd] = useState('');
+  const [novaMovObs, setNovaMovObs] = useState('');
   const [produtoSelecionado, setProdutoSelecionado] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [showBaixoEstoque, setShowBaixoEstoque] = useState(false);
+  const [showEntradasHoje, setShowEntradasHoje] = useState(false);
+  const [showSaidasHoje, setShowSaidasHoje] = useState(false);
   
   // Formulário de entrada
   const [quantidade, setQuantidade] = useState('');
@@ -122,7 +130,7 @@ export default function EstoquePage() {
   
   // Formulário de lote
   const [loteSearch, setLoteSearch] = useState('');
-  const [loteFornecedorSelecionado, setLoteFornecedorSelecionado] = useState('');
+  const [loteFornecedorSelecionado, setLoteFornecedorSelecionado] = useState('__todos__');
   const [loteFornecedorOutro, setLoteFornecedorOutro] = useState('');
   const [loteDocumentoRef, setLoteDocumentoRef] = useState('');
   const [loteObservacao, setLoteObservacao] = useState('');
@@ -156,7 +164,7 @@ export default function EstoquePage() {
     if (loteFornecedorSelecionado === '__outro__') {
       return loteFornecedorOutro.trim();
     }
-    if (loteFornecedorSelecionado) {
+    if (loteFornecedorSelecionado && loteFornecedorSelecionado !== '__todos__') {
       const f = fornecedores.find(f => f.id === loteFornecedorSelecionado);
       return f?.nome || loteFornecedorSelecionado;
     }
@@ -250,14 +258,23 @@ export default function EstoquePage() {
 
   // ===== LOTE: Produtos filtrados para o dialog de lote =====
   const loteProdutosFiltrados = useMemo(() => {
-    if (!loteSearch.trim()) return produtos;
-    const q = loteSearch.toLowerCase();
-    return produtos.filter(p =>
-      p.nome.toLowerCase().includes(q) ||
-      (p.codigo && p.codigo.toLowerCase().includes(q)) ||
-      (p.codigoBarras && p.codigoBarras.includes(q))
-    );
-  }, [produtos, loteSearch]);
+    let filtered = produtos;
+
+    if (loteFornecedorSelecionado && loteFornecedorSelecionado !== '__outro__' && loteFornecedorSelecionado !== '__todos__') {
+      filtered = filtered.filter(p => p.fornecedorId === loteFornecedorSelecionado);
+    }
+
+    if (loteSearch.trim()) {
+      const q = loteSearch.toLowerCase();
+      filtered = filtered.filter(p =>
+        p.nome.toLowerCase().includes(q) ||
+        (p.codigo && p.codigo.toLowerCase().includes(q)) ||
+        (p.codigoBarras && p.codigoBarras.includes(q))
+      );
+    }
+
+    return filtered;
+  }, [produtos, loteSearch, loteFornecedorSelecionado]);
 
   const loteItensMap = useMemo(() => {
     const map: Record<string, LoteItem> = {};
@@ -288,7 +305,7 @@ export default function EstoquePage() {
   // Abrir dialog de lote
   const handleAbrirLote = () => {
     setLoteSearch('');
-    setLoteFornecedorSelecionado('');
+    setLoteFornecedorSelecionado('__todos__');
     setLoteFornecedorOutro('');
     setLoteDocumentoRef('');
     setLoteObservacao('');
@@ -346,6 +363,55 @@ export default function EstoquePage() {
   // Remover item do lote
   const removeLoteItem = (produtoId: string) => {
     setLoteItens(prev => prev.filter(i => i.produtoId !== produtoId));
+  };
+
+  // Registrar nova movimentação manual
+  const registrarNovaMov = async () => {
+    if (!novaMovProduto || !novaMovQtd || parseFloat(novaMovQtd) <= 0) {
+      toast({ variant: 'destructive', title: 'Selecione um produto e informe a quantidade' });
+      return;
+    }
+
+    setSaving(true);
+    const supabase = getSupabaseClient();
+    if (!supabase || !empresaId) return;
+
+    try {
+      const qtd = parseFloat(novaMovQtd);
+      const estoqueAnterior = novaMovProduto.estoqueAtual || 0;
+      const estoqueNovo = novaMovTipo === 'entrada' ? estoqueAnterior + qtd : estoqueAnterior - qtd;
+
+      await atualizarProduto(novaMovProduto.id, { estoqueAtual: estoqueNovo });
+
+      const { error } = await supabase
+        .from('estoque_movimentos')
+        .insert({
+          empresa_id: empresaId,
+          produto_id: novaMovProduto.id,
+          produto_nome: novaMovProduto.nome,
+          tipo: novaMovTipo,
+          quantidade: qtd,
+          observacao: novaMovObs || null,
+          usuario_id: user?.id,
+          usuario_nome: user?.nome,
+          criado_por_nome: user?.nome,
+        });
+
+      if (error) throw error;
+
+      toast({ title: `✓ ${novaMovTipo === 'entrada' ? 'Entrada' : 'Saída'} de ${qtd} ${novaMovProduto.unidade || 'un'} registrada` });
+      setDialogNovaMov(false);
+      setNovaMovProduto(null);
+      setNovaMovSearch('');
+      setNovaMovQtd('');
+      setNovaMovObs('');
+      carregarMovimentacoes();
+    } catch (error) {
+      console.error('Erro ao registrar movimentação:', error);
+      toast({ variant: 'destructive', title: 'Erro ao registrar movimentação' });
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Registrar entrada no estoque
@@ -570,6 +636,16 @@ export default function EstoquePage() {
     .filter(m => m.tipo === 'saida')
     .reduce((acc, m) => acc + m.quantidade, 0);
 
+  const hojeStr = new Date().toDateString();
+  const movimentacoesHojeEntrada = useMemo(() =>
+    movimentacoes.filter(m => m.tipo === 'entrada' && m.criadoEm && new Date(m.criadoEm).toDateString() === hojeStr),
+    [movimentacoes, hojeStr]
+  );
+  const movimentacoesHojeSaida = useMemo(() =>
+    movimentacoes.filter(m => m.tipo === 'saida' && m.criadoEm && new Date(m.criadoEm).toDateString() === hojeStr),
+    [movimentacoes, hojeStr]
+  );
+
   // Exportar PDF
   const handleExportPDF = async () => {
     const empresaInfo = await fetchEmpresaPDFData(empresaId);
@@ -629,25 +705,22 @@ export default function EstoquePage() {
     outroValue: string,
     onOutroChange: (val: string) => void,
   ) => (
-    <div className="space-y-2">
+    <div className="space-y-2 min-w-0">
       <Label htmlFor="fornecedor">Fornecedor</Label>
       {fornecedores.length > 0 ? (
         <>
           <Select value={value} onValueChange={onChange}>
-            <SelectTrigger id="fornecedor">
-              <SelectValue placeholder="Selecione o fornecedor (opcional)" />
+            <SelectTrigger id="fornecedor" className="w-full">
+              <SelectValue placeholder="Selecione o fornecedor (opcional)" className="truncate" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-w-[var(--radix-select-trigger-width)]">
+              <SelectItem value="__todos__">
+                <span className="font-medium">Todos os fornecedores</span>
+              </SelectItem>
               {fornecedores.map(f => (
-                <SelectItem key={f.id} value={f.id}>
-                  <div className="flex items-center gap-2">
-                    <span>{f.nome}</span>
-                    {f.cnpj && (
-                      <span className="text-xs text-muted-foreground">
-                        ({f.cnpj})
-                      </span>
-                    )}
-                  </div>
+                <SelectItem key={f.id} value={f.id} className="truncate">
+                  {f.nome}
+                  {f.cnpj && <span className="text-xs text-muted-foreground ml-1">({f.cnpj})</span>}
                 </SelectItem>
               ))}
               <SelectItem value="__outro__">
@@ -712,8 +785,11 @@ export default function EstoquePage() {
               <Button variant="outline" onClick={handleExportPDF} className="gap-2" disabled={produtosFiltrados.length === 0}>
                 <Download className="h-4 w-4" /> Exportar PDF
               </Button>
-              <Button variant="outline" onClick={() => setDialogMovimentacao(true)} className="gap-2 bg-green-50 text-green-700 border-green-200 hover:bg-green-100">
-                <ArrowUpDown className="h-4 w-4" /> Movimentação de Estoque
+              <Button variant="outline" onClick={() => setDialogNovaMov(true)} className="gap-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
+                <Plus className="h-4 w-4" /> Nova Movimentação
+              </Button>
+              <Button variant="outline" onClick={() => setDialogMovimentacao(true)} className="gap-2">
+                <History className="h-4 w-4" /> Histórico de Movimentações
               </Button>
               <Link href="/admin/estoque/relatorio">
                 <Button variant="default" className="gap-2">
@@ -739,42 +815,42 @@ export default function EstoquePage() {
               </CardContent>
             </Card>
             
-            <Card>
+            <Card
+              className={`cursor-pointer transition-colors border-green-200 hover:bg-green-50/50 dark:hover:bg-green-950/10 ${showEntradasHoje ? 'ring-2 ring-green-300' : ''}`}
+              onClick={() => movimentacoesHojeEntrada.length > 0 && setShowEntradasHoje(!showEntradasHoje)}
+            >
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
                     <ArrowUp className="h-6 w-6 text-green-600" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-muted-foreground">Entradas (Hoje)</p>
-                    <p className="text-2xl font-bold">
-                      {movimentacoes.filter(m => 
-                        m.tipo === 'entrada' && 
-                        m.criadoEm && 
-                        new Date(m.criadoEm).toDateString() === new Date().toDateString()
-                      ).length}
-                    </p>
+                    <p className="text-2xl font-bold">{movimentacoesHojeEntrada.length}</p>
                   </div>
+                  {movimentacoesHojeEntrada.length > 0 && (
+                    <ChevronDown className={`h-5 w-5 text-green-600 transition-transform ${showEntradasHoje ? 'rotate-180' : ''}`} />
+                  )}
                 </div>
               </CardContent>
             </Card>
             
-            <Card>
+            <Card
+              className={`cursor-pointer transition-colors border-red-200 hover:bg-red-50/50 dark:hover:bg-red-950/10 ${showSaidasHoje ? 'ring-2 ring-red-300' : ''}`}
+              onClick={() => movimentacoesHojeSaida.length > 0 && setShowSaidasHoje(!showSaidasHoje)}
+            >
               <CardContent className="pt-6">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
                     <ArrowDown className="h-6 w-6 text-red-600" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm text-muted-foreground">Saídas (Hoje)</p>
-                    <p className="text-2xl font-bold">
-                      {movimentacoes.filter(m => 
-                        m.tipo === 'saida' && 
-                        m.criadoEm && 
-                        new Date(m.criadoEm).toDateString() === new Date().toDateString()
-                      ).length}
-                    </p>
+                    <p className="text-2xl font-bold">{movimentacoesHojeSaida.length}</p>
                   </div>
+                  {movimentacoesHojeSaida.length > 0 && (
+                    <ChevronDown className={`h-5 w-5 text-red-600 transition-transform ${showSaidasHoje ? 'rotate-180' : ''}`} />
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -799,6 +875,78 @@ export default function EstoquePage() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Movimentações de Hoje - Entradas */}
+          {showEntradasHoje && movimentacoesHojeEntrada.length > 0 && (
+            <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-800/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <ArrowUp className="h-4 w-4 text-green-600" />
+                  <span className="text-sm font-bold text-green-700">Entradas de Hoje ({movimentacoesHojeEntrada.length})</span>
+                </div>
+                <div className="border border-green-200 dark:border-green-800/50 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-green-100/50 dark:bg-green-900/30">
+                        <th className="text-left text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Produto</th>
+                        <th className="text-center text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Qtd</th>
+                        <th className="text-center text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Fornecedor</th>
+                        <th className="text-center text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Doc. Ref.</th>
+                        <th className="text-right text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Horário</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {movimentacoesHojeEntrada.map((mov: MovimentacaoEstoque, idx: number) => (
+                        <tr key={mov.id} className={`${idx % 2 === 0 ? 'bg-green-50/50 dark:bg-green-950/10' : ''} border-t border-green-100 dark:border-green-800/30`}>
+                          <td className="text-green-800 dark:text-green-400 px-3 py-1.5 truncate max-w-[200px]">{mov.produtoNome}</td>
+                          <td className="text-center text-green-800 dark:text-green-400 px-3 py-1.5 font-mono">+{mov.quantidade}</td>
+                          <td className="text-center text-green-800 dark:text-green-400 px-3 py-1.5 text-xs">{mov.fornecedor || '-'}</td>
+                          <td className="text-center text-green-800 dark:text-green-400 px-3 py-1.5 text-xs">{mov.documentoRef || '-'}</td>
+                          <td className="text-right text-green-800 dark:text-green-400 px-3 py-1.5 text-xs">{new Date(mov.criadoEm).toLocaleTimeString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Movimentações de Hoje - Saídas */}
+          {showSaidasHoje && movimentacoesHojeSaida.length > 0 && (
+            <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-800/50">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <ArrowDown className="h-4 w-4 text-red-600" />
+                  <span className="text-sm font-bold text-red-700">Saídas de Hoje ({movimentacoesHojeSaida.length})</span>
+                </div>
+                <div className="border border-red-200 dark:border-red-800/50 rounded-lg overflow-hidden">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-red-100/50 dark:bg-red-900/30">
+                        <th className="text-left text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Produto</th>
+                        <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Qtd</th>
+                        <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Fornecedor</th>
+                        <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Doc. Ref.</th>
+                        <th className="text-right text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Horário</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {movimentacoesHojeSaida.map((mov: MovimentacaoEstoque, idx: number) => (
+                        <tr key={mov.id} className={`${idx % 2 === 0 ? 'bg-red-50/50 dark:bg-red-950/10' : ''} border-t border-red-100 dark:border-red-800/30`}>
+                          <td className="text-red-800 dark:text-red-400 px-3 py-1.5 truncate max-w-[200px]">{mov.produtoNome}</td>
+                          <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 font-mono">-{mov.quantidade}</td>
+                          <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{mov.fornecedor || '-'}</td>
+                          <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{mov.documentoRef || '-'}</td>
+                          <td className="text-right text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{new Date(mov.criadoEm).toLocaleTimeString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {showBaixoEstoque && produtosBaixoEstoque.length > 0 && (
             <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/50">
@@ -897,11 +1045,11 @@ export default function EstoquePage() {
             </Card>
           ) : (
             <Card>
-              <div className="overflow-x-auto">
+              <div className="max-h-[calc(100vh-280px)] overflow-auto">
               <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[35%]">
+                    <TableHead className="w-[28%]">
                       <div className="flex items-center gap-1 group">
                         <button
                           onClick={() => {
@@ -929,7 +1077,7 @@ export default function EstoquePage() {
                         />
                       )}
                     </TableHead>
-                    <TableHead className="w-[15%]">
+                    <TableHead className="w-[12%]">
                       <div className="flex items-center gap-1 group">
                         <button
                           onClick={() => {
@@ -1041,7 +1189,7 @@ export default function EstoquePage() {
                         />
                       )}
                     </TableHead>
-                    <TableHead className="w-[16%] text-center">Ações</TableHead>
+                    <TableHead className="w-[26%] text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1123,7 +1271,7 @@ export default function EstoquePage() {
                   })}
                 </TableBody>
               </Table>
-                </div>
+              </div>
               </Card>
             )}
         </div>
@@ -1278,33 +1426,35 @@ export default function EstoquePage() {
               </DialogDescription>
             </DialogHeader>
             
-            <div className="flex-1 overflow-hidden flex flex-col gap-4 py-2">
+            <div className="flex-1 overflow-hidden flex flex-col gap-2 py-1 min-h-0">
               {/* Campos compartilhados */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {renderFornecedorSelect(
                   loteFornecedorSelecionado,
                   setLoteFornecedorSelecionado,
                   loteFornecedorOutro,
                   setLoteFornecedorOutro,
                 )}
-                <div className="space-y-2">
-                  <Label htmlFor="loteDocumento">Documento / Nota Fiscal</Label>
+                <div className="space-y-1">
+                  <Label htmlFor="loteDocumento" className="text-xs">Documento / Nota Fiscal</Label>
                   <Input
                     id="loteDocumento"
                     placeholder="Ex: NF 12345 (opcional)"
                     value={loteDocumentoRef}
                     onChange={(e) => setLoteDocumentoRef(e.target.value)}
+                    className="h-8"
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="loteObservacao">Observação (aplicada a todos)</Label>
+              <div className="space-y-1">
+                <Label htmlFor="loteObservacao">Observação</Label>
                 <Textarea
                   id="loteObservacao"
                   placeholder="Observação opcional..."
                   value={loteObservacao}
                   onChange={(e) => setLoteObservacao(e.target.value)}
                   rows={2}
+                  className="text-sm"
                 />
               </div>
 
@@ -1386,8 +1536,8 @@ export default function EstoquePage() {
               )}
 
               {/* Tabela de produtos disponíveis */}
-              <div className="border rounded-lg flex-1 min-h-0">
-                <ScrollArea className="h-[250px]">
+              <div className="border rounded-lg flex-1 min-h-0 flex flex-col overflow-hidden">
+                <div className="flex-1 overflow-y-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -1448,7 +1598,7 @@ export default function EstoquePage() {
                       )}
                     </TableBody>
                   </Table>
-                </ScrollArea>
+                </div>
               </div>
             </div>
 
@@ -1463,6 +1613,128 @@ export default function EstoquePage() {
               >
                 {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Layers className="h-4 w-4 mr-2" />}
                 Confirmar Lote ({loteItens.filter(i => i.quantidade && parseFloat(i.quantidade) > 0).length} produto(s))
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* DIALOG NOVA MOVIMENTAÇÃO MANUAL */}
+        <Dialog open={dialogNovaMov} onOpenChange={(open) => {
+          setDialogNovaMov(open);
+          if (!open) { setNovaMovProduto(null); setNovaMovSearch(''); setNovaMovQtd(''); setNovaMovObs(''); }
+        }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-blue-600" />
+                Nova Movimentação
+              </DialogTitle>
+              <DialogDescription>
+                Registre entrada ou saída manual de um produto
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-2">
+              {/* Busca de produto */}
+              <div className="space-y-2">
+                <Label>Produto *</Label>
+                <Input
+                  placeholder="Digite para buscar..."
+                  value={novaMovSearch}
+                  onChange={(e) => {
+                    setNovaMovSearch(e.target.value);
+                    setNovaMovProduto(null);
+                  }}
+                />
+                {novaMovSearch && !novaMovProduto && (
+                  <div className="border rounded-lg max-h-40 overflow-y-auto">
+                    {produtos
+                      .filter(p =>
+                        p.nome.toLowerCase().includes(novaMovSearch.toLowerCase()) ||
+                        (p.codigo && p.codigo.toLowerCase().includes(novaMovSearch.toLowerCase()))
+                      )
+                      .slice(0, 20)
+                      .map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-muted transition-colors border-b last:border-0"
+                          onClick={() => {
+                            setNovaMovProduto(p);
+                            setNovaMovSearch(`${p.nome}${p.codigo ? ` (${p.codigo})` : ''}`);
+                          }}
+                        >
+                          <span className="font-medium">{p.nome}</span>
+                          {p.codigo && <span className="text-muted-foreground ml-2">({p.codigo})</span>}
+                          <span className="text-muted-foreground ml-2 text-xs">Est: {p.estoqueAtual || 0}</span>
+                        </button>
+                      ))}
+                  </div>
+                )}
+                {novaMovProduto && (
+                  <div className="bg-muted rounded-lg p-3 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">{novaMovProduto.nome}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Estoque atual: <strong>{novaMovProduto.estoqueAtual || 0}</strong> {novaMovProduto.unidade || 'un'}
+                      </p>
+                    </div>
+                    <Button variant="ghost" size="sm" onClick={() => { setNovaMovProduto(null); setNovaMovSearch(''); }}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Tipo */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Tipo *</Label>
+                  <Select value={novaMovTipo} onValueChange={(v: 'entrada' | 'saida') => setNovaMovTipo(v)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="entrada">Entrada</SelectItem>
+                      <SelectItem value="saida">Saída</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Quantidade *</Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    placeholder="Ex: 10"
+                    value={novaMovQtd}
+                    onChange={(e) => setNovaMovQtd(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* Observação */}
+              <div className="space-y-2">
+                <Label>Observação</Label>
+                <Input
+                  placeholder="Motivo da movimentação (opcional)"
+                  value={novaMovObs}
+                  onChange={(e) => setNovaMovObs(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={() => setDialogNovaMov(false)} className="w-full sm:w-auto">
+                Cancelar
+              </Button>
+              <Button
+                className="bg-blue-600 hover:bg-blue-700 w-full sm:w-auto"
+                onClick={registrarNovaMov}
+                disabled={saving || !novaMovProduto || !novaMovQtd || parseFloat(novaMovQtd) <= 0}
+              >
+                {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                Confirmar {novaMovTipo === 'entrada' ? 'Entrada' : 'Saída'}
               </Button>
             </DialogFooter>
           </DialogContent>

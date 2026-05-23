@@ -45,6 +45,25 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     const { id } = await params;
+
+    // Check if any fidelidade_transacoes reference this recompensa
+    const { count } = await supabase
+      .from('fidelidade_transacoes')
+      .select('*', { count: 'exact', head: true })
+      .eq('recompensa_id', id);
+
+    if (count && count > 0) {
+      // Referenced by transacoes → soft-delete
+      const { error } = await supabase
+        .from('fidelidade_recompensas')
+        .update({ ativo: false })
+        .eq('id', id);
+      if (error) throw error;
+
+      return NextResponse.json({ sucesso: true, message: 'Recompensa inativada (referenciada por transações)' });
+    }
+
+    // No references → hard-delete
     const { error } = await supabase.from('fidelidade_recompensas').delete().eq('id', id);
     if (error) throw error;
 

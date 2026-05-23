@@ -311,11 +311,37 @@ export default function PedidosPage() {
   const handleDeleteCondicao = async (id: string) => {
     try {
       const supabase = getSupabase();
-      await supabase.from('condicoes_pagamento').update({ ativo: false }).eq('id', id);
+      const condicao = condicoesPagamento.find(c => c.id === id);
+      if (!condicao) return;
+
+      // Check if any pedido or venda references this condicao
+      const { count: pedidosCount } = await supabase
+        .from('pedidos')
+        .select('*', { count: 'exact', head: true })
+        .eq('condicao_pagamento', condicao.nome)
+        .eq('empresa_id', empresaId);
+
+      const { count: vendasCount } = await supabase
+        .from('vendas')
+        .select('*', { count: 'exact', head: true })
+        .eq('condicao_pagamento', condicao.nome)
+        .eq('empresa_id', empresaId);
+
+      const totalRefs = (pedidosCount || 0) + (vendasCount || 0);
+
+      if (totalRefs > 0) {
+        // Has references → soft-delete
+        await supabase.from('condicoes_pagamento').update({ ativo: false }).eq('id', id);
+        toast({ title: `Condição inativada (${totalRefs} vínculo(s))` });
+      } else {
+        // No references → hard-delete
+        await supabase.from('condicoes_pagamento').delete().eq('id', id);
+        toast({ title: 'Condição excluída!' });
+      }
+
       loadCondicoes();
-      toast({ title: 'Condição inativada' });
     } catch (err: any) {
-      toast({ variant: 'destructive', title: 'Erro ao inativar condição', description: err.message });
+      toast({ variant: 'destructive', title: 'Erro ao excluir condição', description: err.message });
     }
   };
 
