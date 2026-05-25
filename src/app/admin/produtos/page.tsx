@@ -1493,7 +1493,7 @@ export default function ProdutosPage() {
                           />
                         )}
                       </TableHead>
-                      <TableHead>Categoria</TableHead>
+                      <TableHead className="w-32">Categoria</TableHead>
                       <TableHead className="text-center">
                         <div className="flex items-center gap-1 group justify-center">
                           <button
@@ -1593,8 +1593,8 @@ export default function ProdutosPage() {
                             {produto.codigo || '-'}
                           </span>
                         </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
+                        <TableCell className="max-w-[120px]">
+                          <Badge variant="outline" className="text-xs truncate block max-w-full" title={getNomeCategoria(produto.categoriaId)}>
                             {getNomeCategoria(produto.categoriaId)}
                           </Badge>
                         </TableCell>
@@ -1863,8 +1863,8 @@ export default function ProdutosPage() {
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">
+                          <TableCell className="max-w-[120px]">
+                            <Badge variant="outline" className="truncate block max-w-full" title={getNomeCategoria(produto.categoriaId)}>
                               {getNomeCategoria(produto.categoriaId)}
                             </Badge>
                           </TableCell>
@@ -2056,7 +2056,7 @@ export default function ProdutosPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-[180px]">Produto</TableHead>
-                        <TableHead>Categoria</TableHead>
+                        <TableHead className="w-32">Categoria</TableHead>
                         {mostrarCusto && <TableHead className="text-right">Preço Custo</TableHead>}
                         <TableHead className="text-right">Preço Venda</TableHead>
                         {mostrarCusto && <TableHead className="text-right">Margem (R$)</TableHead>}
@@ -2082,8 +2082,8 @@ export default function ProdutosPage() {
                                 </div>
                               </div>
                             </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="text-xs">
+                            <TableCell className="max-w-[120px]">
+                              <Badge variant="outline" className="text-xs truncate block max-w-full" title={getNomeCategoria(produto.categoriaId)}>
                                 {getNomeCategoria(produto.categoriaId)}
                               </Badge>
                             </TableCell>

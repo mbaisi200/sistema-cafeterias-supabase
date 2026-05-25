@@ -188,9 +188,13 @@ export default function AdminDashboardPage() {
   const [pdvUrl, setPdvUrl] = useState('/pdv');
 
   // Detail dialog for product metrics
-  const [detalheDialogo, setDetalheDialogo] = useState<{ aberto: boolean; titulo: string; dados: { nome: string; quantidade: number; valor: number }[] }>({
-    aberto: false, titulo: '', dados: [],
-  });
+  type DialogoTipo = 'produtos' | 'vendas' | 'lista-vendas' | 'media-itens' | 'ticket';
+  const [detalheDialogo, setDetalheDialogo] = useState<{
+    aberto: boolean;
+    titulo: string;
+    tipo: DialogoTipo;
+    dados: any[];
+  }>({ aberto: false, titulo: '', tipo: 'produtos', dados: [] });
 
   // Low stock alert
   const [lowStockProdutos, setLowStockProdutos] = useState<any[]>([]);
@@ -587,7 +591,50 @@ export default function AdminDashboardPage() {
 
   const abrirDetalheProdutos = (titulo: string, vendasList: any[]) => {
     const dados = agregarProdutosVendidos(vendasList);
-    setDetalheDialogo({ aberto: true, titulo, dados });
+    setDetalheDialogo({ aberto: true, titulo, tipo: 'produtos', dados });
+  };
+
+  const abrirDetalheVendas = (titulo: string, vendasList: any[]) => {
+    const dados = vendasList.map(v => ({
+      id: v.id,
+      data: v.criadoEm,
+      valor: v.total || 0,
+      itensCount: v.itens?.length || 0,
+      formaPagamento: v.formaPagamento || v.forma_pagamento || '-',
+    }));
+    setDetalheDialogo({ aberto: true, titulo, tipo: 'vendas', dados });
+  };
+
+  const abrirListaVendas = (titulo: string, vendasList: any[]) => {
+    const dados = vendasList.map(v => ({
+      id: v.id,
+      data: v.criadoEm,
+      valor: v.total || 0,
+      itensCount: v.itens?.length || 0,
+      tipo: v.tipo || v.canal || '-',
+    }));
+    setDetalheDialogo({ aberto: true, titulo, tipo: 'lista-vendas', dados });
+  };
+
+  const abrirDetalheMediaItens = (titulo: string, vendasList: any[]) => {
+    const dados = vendasList.map(v => ({
+      id: v.id,
+      data: v.criadoEm,
+      valor: v.total || 0,
+      itensCount: v.itens?.reduce((acc: number, i: any) => acc + (i.quantidade || 0), 0) || 0,
+      itensSKU: v.itens?.length || 0,
+    }));
+    setDetalheDialogo({ aberto: true, titulo, tipo: 'media-itens', dados });
+  };
+
+  const abrirDetalheTicket = (titulo: string, vendasList: any[]) => {
+    const dados = vendasList.map(v => ({
+      id: v.id,
+      data: v.criadoEm,
+      valor: v.total || 0,
+      itensCount: v.itens?.reduce((acc: number, i: any) => acc + (i.quantidade || 0), 0) || 0,
+    }));
+    setDetalheDialogo({ aberto: true, titulo, tipo: 'ticket', dados });
   };
 
   const kpisDia: KPICardData[] = [
@@ -598,6 +645,7 @@ export default function AdminDashboardPage() {
       icone: DollarSign,
       corIcone: 'text-green-600',
       corBg: 'bg-green-50',
+      aoClicar: () => abrirDetalheVendas('Valor vendido - Hoje', vendasDia),
     },
     {
       titulo: 'Quantidade de vendas',
@@ -606,6 +654,7 @@ export default function AdminDashboardPage() {
       icone: ShoppingCart,
       corIcone: 'text-blue-600',
       corBg: 'bg-blue-50',
+      aoClicar: () => abrirListaVendas('Vendas realizadas - Hoje', vendasDia),
     },
     {
       titulo: 'Itens vendidos (SKU)',
@@ -632,6 +681,7 @@ export default function AdminDashboardPage() {
       icone: Hash,
       corIcone: 'text-cyan-600',
       corBg: 'bg-cyan-50',
+      aoClicar: () => abrirDetalheMediaItens('Média de itens por pedido - Hoje', vendasDia),
     },
     {
       titulo: 'Ticket médio',
@@ -640,6 +690,7 @@ export default function AdminDashboardPage() {
       icone: BarChart3,
       corIcone: 'text-rose-600',
       corBg: 'bg-rose-50',
+      aoClicar: () => abrirDetalheTicket('Ticket médio - Hoje', vendasDia),
     },
   ];
 
@@ -660,6 +711,7 @@ export default function AdminDashboardPage() {
       corIcone: 'text-green-600',
       corBg: 'bg-green-50',
       variacao: calcVariacao(metricasMesAtual.totalVendido, metricasMesAnterior.totalVendido),
+      aoClicar: () => abrirDetalheVendas('Valor vendido - Mês', vendasMesAtual),
     },
     {
       titulo: 'Quantidade de vendas',
@@ -669,6 +721,7 @@ export default function AdminDashboardPage() {
       corIcone: 'text-blue-600',
       corBg: 'bg-blue-50',
       variacao: calcVariacao(metricasMesAtual.qtdVendas, metricasMesAnterior.qtdVendas),
+      aoClicar: () => abrirListaVendas('Vendas realizadas - Mês', vendasMesAtual),
     },
     {
       titulo: 'Itens vendidos (SKU)',
@@ -698,6 +751,7 @@ export default function AdminDashboardPage() {
       corIcone: 'text-cyan-600',
       corBg: 'bg-cyan-50',
       variacao: calcVariacao(metricasMesAtual.mediaItensPorPedido, metricasMesAnterior.mediaItensPorPedido),
+      aoClicar: () => abrirDetalheMediaItens('Média de itens por pedido - Mês', vendasMesAtual),
     },
     {
       titulo: 'Ticket médio',
@@ -707,6 +761,7 @@ export default function AdminDashboardPage() {
       corIcone: 'text-rose-600',
       corBg: 'bg-rose-50',
       variacao: calcVariacao(metricasMesAtual.ticketMedio, metricasMesAnterior.ticketMedio),
+      aoClicar: () => abrirDetalheTicket('Ticket médio - Mês', vendasMesAtual),
     },
   ];
 
@@ -1406,41 +1461,163 @@ export default function AdminDashboardPage() {
             </DialogContent>
           </Dialog>
 
-          {/* ── Dialog: Detalhe de Produtos Vendidos ── */}
+          {/* ── Dialog: Detalhes ── */}
           <Dialog open={detalheDialogo.aberto} onOpenChange={(open) => setDetalheDialogo(prev => ({ ...prev, aberto: open }))}>
             <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col">
               <DialogHeader>
                 <DialogTitle>{detalheDialogo.titulo}</DialogTitle>
                 <DialogDescription>
-                  {detalheDialogo.dados.length} produto{detalheDialogo.dados.length !== 1 ? 's' : ''} encontrado{detalheDialogo.dados.length !== 1 ? 's' : ''}
+                  {detalheDialogo.dados.length} registro{detalheDialogo.dados.length !== 1 ? 's' : ''} encontrado{detalheDialogo.dados.length !== 1 ? 's' : ''}
                 </DialogDescription>
               </DialogHeader>
               <div className="overflow-y-auto flex-1 -mx-6 px-6">
-                <table className="w-full text-sm">
-                  <thead className="sticky top-0 bg-background">
-                    <tr className="border-b">
-                      <th className="text-left py-2 font-medium text-muted-foreground">Produto</th>
-                      <th className="text-right py-2 font-medium text-muted-foreground">Qtd</th>
-                      <th className="text-right py-2 font-medium text-muted-foreground">Valor</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {detalheDialogo.dados.map((item, i) => (
-                      <tr key={i} className="border-b last:border-0">
-                        <td className="py-2 truncate max-w-[280px]">{item.nome}</td>
-                        <td className="py-2 text-right">{item.quantidade}</td>
-                        <td className="py-2 text-right font-medium">{formatBRL(item.valor)}</td>
+                {detalheDialogo.tipo === 'produtos' && (
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-background">
+                      <tr className="border-b">
+                        <th className="text-left py-2 font-medium text-muted-foreground">Produto</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">Qtd</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">Valor</th>
                       </tr>
-                    ))}
-                  </tbody>
-                  <tfoot>
-                    <tr className="border-t-2 border-foreground/20 font-semibold">
-                      <td className="py-2 text-sm">Total</td>
-                      <td className="py-2 text-right text-sm">{detalheDialogo.dados.reduce((s, i) => s + i.quantidade, 0)}</td>
-                      <td className="py-2 text-right text-sm font-bold">{formatBRL(detalheDialogo.dados.reduce((s, i) => s + i.valor, 0))}</td>
-                    </tr>
-                  </tfoot>
-                </table>
+                    </thead>
+                    <tbody>
+                      {detalheDialogo.dados.map((item, i) => (
+                        <tr key={i} className="border-b last:border-0">
+                          <td className="py-2 truncate max-w-[280px]">{item.nome}</td>
+                          <td className="py-2 text-right">{item.quantidade}</td>
+                          <td className="py-2 text-right font-medium">{formatBRL(item.valor)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-foreground/20 font-semibold">
+                        <td className="py-2 text-sm">Total</td>
+                        <td className="py-2 text-right text-sm">{detalheDialogo.dados.reduce((s, i) => s + i.quantidade, 0)}</td>
+                        <td className="py-2 text-right text-sm font-bold">{formatBRL(detalheDialogo.dados.reduce((s, i) => s + i.valor, 0))}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+                {detalheDialogo.tipo === 'vendas' && (
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-background">
+                      <tr className="border-b">
+                        <th className="text-left py-2 font-medium text-muted-foreground">Data/Hora</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">Valor</th>
+                        <th className="text-center py-2 font-medium text-muted-foreground">Itens</th>
+                        <th className="text-left py-2 font-medium text-muted-foreground">Pagamento</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detalheDialogo.dados.map((item, i) => (
+                        <tr key={i} className="border-b last:border-0">
+                          <td className="py-2 text-xs">{item.data ? format(new Date(item.data), 'dd/MM HH:mm') : '-'}</td>
+                          <td className="py-2 text-right font-medium">{formatBRL(item.valor)}</td>
+                          <td className="py-2 text-center">{item.itensCount}</td>
+                          <td className="py-2 text-xs">{item.formaPagamento}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-foreground/20 font-semibold">
+                        <td className="py-2 text-sm">Total</td>
+                        <td className="py-2 text-right text-sm font-bold">{formatBRL(detalheDialogo.dados.reduce((s, i) => s + i.valor, 0))}</td>
+                        <td className="py-2 text-center text-sm">{detalheDialogo.dados.reduce((s, i) => s + i.itensCount, 0)}</td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+                {detalheDialogo.tipo === 'lista-vendas' && (
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-background">
+                      <tr className="border-b">
+                        <th className="text-left py-2 font-medium text-muted-foreground">Data/Hora</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">Valor</th>
+                        <th className="text-center py-2 font-medium text-muted-foreground">Itens</th>
+                        <th className="text-left py-2 font-medium text-muted-foreground">Tipo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detalheDialogo.dados.map((item, i) => (
+                        <tr key={i} className="border-b last:border-0">
+                          <td className="py-2 text-xs">{item.data ? format(new Date(item.data), 'dd/MM HH:mm') : '-'}</td>
+                          <td className="py-2 text-right font-medium">{formatBRL(item.valor)}</td>
+                          <td className="py-2 text-center">{item.itensCount}</td>
+                          <td className="py-2 text-xs capitalize">{item.tipo}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-foreground/20 font-semibold">
+                        <td className="py-2 text-sm">Total</td>
+                        <td className="py-2 text-right text-sm font-bold">{formatBRL(detalheDialogo.dados.reduce((s, i) => s + i.valor, 0))}</td>
+                        <td className="py-2 text-center text-sm">{detalheDialogo.dados.reduce((s, i) => s + i.itensCount, 0)}</td>
+                        <td />
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+                {detalheDialogo.tipo === 'media-itens' && (
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-background">
+                      <tr className="border-b">
+                        <th className="text-left py-2 font-medium text-muted-foreground">Data/Hora</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">Valor</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">Itens (un)</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">SKUs</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detalheDialogo.dados.map((item, i) => (
+                        <tr key={i} className="border-b last:border-0">
+                          <td className="py-2 text-xs">{item.data ? format(new Date(item.data), 'dd/MM HH:mm') : '-'}</td>
+                          <td className="py-2 text-right font-medium">{formatBRL(item.valor)}</td>
+                          <td className="py-2 text-right">{item.itensCount}</td>
+                          <td className="py-2 text-right">{item.itensSKU}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-foreground/20 font-semibold">
+                        <td className="py-2 text-sm">Total</td>
+                        <td className="py-2 text-right text-sm font-bold">{formatBRL(detalheDialogo.dados.reduce((s, i) => s + i.valor, 0))}</td>
+                        <td className="py-2 text-right text-sm">{detalheDialogo.dados.reduce((s, i) => s + i.itensCount, 0)}</td>
+                        <td className="py-2 text-right text-sm">{detalheDialogo.dados.reduce((s, i) => s + i.itensSKU, 0)}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
+                {detalheDialogo.tipo === 'ticket' && (
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 bg-background">
+                      <tr className="border-b">
+                        <th className="text-left py-2 font-medium text-muted-foreground">Data/Hora</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">Total</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">Itens</th>
+                        <th className="text-right py-2 font-medium text-muted-foreground">Ticket</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detalheDialogo.dados.map((item, i) => (
+                        <tr key={i} className="border-b last:border-0">
+                          <td className="py-2 text-xs">{item.data ? format(new Date(item.data), 'dd/MM HH:mm') : '-'}</td>
+                          <td className="py-2 text-right font-medium">{formatBRL(item.valor)}</td>
+                          <td className="py-2 text-right">{item.itensCount}</td>
+                          <td className="py-2 text-right font-semibold">{formatBRL(item.itensCount > 0 ? item.valor / item.itensCount : 0)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-foreground/20 font-semibold">
+                        <td className="py-2 text-sm">Total</td>
+                        <td className="py-2 text-right text-sm font-bold">{formatBRL(detalheDialogo.dados.reduce((s, i) => s + i.valor, 0))}</td>
+                        <td className="py-2 text-right text-sm">{detalheDialogo.dados.reduce((s, i) => s + i.itensCount, 0)}</td>
+                        <td className="py-2 text-right text-sm">{formatBRL(detalheDialogo.dados.reduce((s, i) => s + i.valor, 0) / Math.max(detalheDialogo.dados.reduce((s, i) => s + i.itensCount, 0), 1))}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                )}
               </div>
               <DialogFooter className="border-t pt-4">
                 <Button variant="outline" onClick={() => setDetalheDialogo(prev => ({ ...prev, aberto: false }))}>
