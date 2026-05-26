@@ -608,6 +608,20 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - **PDV**: acúmulo automático no PDV Restaurante e PDV Varejo via `fetch()` não-bloqueante após finalizar venda
 - RLS + GRANT explícito (Nota #10) em todas as tabelas
 
+### Pedidos — Reserva de Estoque + Busca Produtos ✅
+- Reserva de estoque criada no momento da criação do pedido (status pendente), usando `tipo='reserva'` em `estoque_movimentos`
+- Liberação automática ao cancelar/excluir o pedido; conversão em venda ao faturar
+- Helpers: `reservarEstoquePedido`, `liberarReservaPedido`, `converterReservaEmVenda`, `getReservas` em `src/lib/supabase/client.ts`
+- Migration: `supabase/migrations/add_estoque_reserva.sql` (CHECK 'reserva', coluna `pedido_id`, índices)
+- Busca de produtos migrada de Popover para Dialog separado com input controlado
+- Colunas "Res." e "Disp." na tabela de produtos (`/admin/produtos`) com ordenação
+- Coluna "Reservado" na listagem de estoque (`/admin/estoque`) com badges no histórico
+
+### Pedidos — Títulos Ordenáveis ✅
+- Headers Nº, Cliente, Itens, Total, Data, Status clicáveis com indicador ArrowUpDown
+- Ordenação via `useMemo` com `sortBy`/`sortDir` state (asc/desc)
+- Botões de ação reduzidos de `h-8 w-8` (32px) para `h-7 w-7` (28px) para caber 6 botões em 210px
+
 ### Dashboard — Ranking Produtos (Ordem Decrescente) ✅
 - Ranking de Produtos e Serviços no Dashboard agora ordena do maior valor (topo) para o menor (base)
 - `src/components/bi/DashboardCharts.tsx`: dados ordenados decrescentemente com `type="category"` no eixo Y — o primeiro item do array (maior valor) aparece no topo do gráfico de barras horizontal
