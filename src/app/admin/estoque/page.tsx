@@ -36,7 +36,7 @@ import {
 import { useProdutos, useFornecedores, useCategorias } from '@/hooks/useSupabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient, getReservas } from '@/lib/supabase';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import {
@@ -65,7 +65,7 @@ interface MovimentacaoEstoque {
   id: string;
   produtoId: string;
   produtoNome: string;
-  tipo: 'entrada' | 'saida' | 'ajuste';
+  tipo: 'entrada' | 'saida' | 'ajuste' | 'venda' | 'reserva';
   quantidade: number;
   estoqueAnterior?: number;
   estoqueNovo?: number;
@@ -146,7 +146,8 @@ export default function EstoquePage() {
   const [movFiltroCategoria, setMovFiltroCategoria] = useState('todos');
   const [movDataInicio, setMovDataInicio] = useState('');
   const [movDataFim, setMovDataFim] = useState('');
-  const [movFiltroTipo, setMovFiltroTipo] = useState<'todos' | 'entrada' | 'saida'>('todos');
+  const [movFiltroTipo, setMovFiltroTipo] = useState<string>('todos');
+  const [reservas, setReservas] = useState<Record<string, number>>({});
 
   // Fornecedor resolvido (nome do registry ou texto livre)
   const fornecedorResolvido = useMemo(() => {
@@ -218,6 +219,21 @@ export default function EstoquePage() {
   useEffect(() => {
     carregarMovimentacoes();
   }, [carregarMovimentacoes]);
+
+  // Carregar reservas
+  useEffect(() => {
+    if (!empresaId) return;
+    const loadReservas = async () => {
+      try {
+        const supabase = getSupabaseClient();
+        const data = await getReservas(supabase, empresaId!);
+        setReservas(data);
+      } catch (error) {
+        console.error('Erro ao carregar reservas:', error);
+      }
+    };
+    loadReservas();
+  }, [empresaId, produtos]);
 
   // Filtros
   const produtosFiltrados = useMemo(() => {
@@ -1161,6 +1177,9 @@ export default function EstoquePage() {
                         />
                       )}
                     </TableHead>
+                    <TableHead className="w-[12%] text-center">
+                      <span className="text-muted-foreground text-xs">Reservado</span>
+                    </TableHead>
                     <TableHead className="w-[10%] text-center">
                       <div className="flex items-center gap-1 group justify-center">
                         <button
@@ -1222,6 +1241,11 @@ export default function EstoquePage() {
                         </TableCell>
                         <TableCell className="text-center">
                           <span className="text-sm">{produto.estoqueMinimo || 0}</span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className="text-sm font-mono text-amber-600">
+                            {reservas[produto.id] || 0}
+                          </span>
                         </TableCell>
                         <TableCell className="text-center">
                           {estoqueBaixo ? (
@@ -1856,6 +1880,14 @@ export default function EstoquePage() {
                         <TableCell>
                           {mov.tipo === 'entrada' ? (
                             <Badge className="bg-green-500 text-xs">Entrada</Badge>
+                          ) : mov.tipo === 'venda' ? (
+                            <Badge className="bg-blue-500 text-xs">Venda</Badge>
+                          ) : mov.tipo === 'reserva' && mov.quantidade > 0 ? (
+                            <Badge className="bg-amber-500 text-xs">Reservado</Badge>
+                          ) : mov.tipo === 'reserva' ? (
+                            <Badge className="bg-amber-300 text-xs">Liberado</Badge>
+                          ) : mov.tipo === 'ajuste' ? (
+                            <Badge variant="secondary" className="text-xs">Ajuste</Badge>
                           ) : (
                             <Badge variant="destructive" className="text-xs">Saída</Badge>
                           )}
@@ -1923,6 +1955,9 @@ export default function EstoquePage() {
                   <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="entrada">Entrada</SelectItem>
                   <SelectItem value="saida">Saída</SelectItem>
+                  <SelectItem value="venda">Venda</SelectItem>
+                  <SelectItem value="reserva">Reserva</SelectItem>
+                  <SelectItem value="ajuste">Ajuste</SelectItem>
                 </SelectContent>
               </Select>
               <div className="relative flex-1 w-full md:max-w-[200px]">
@@ -2030,7 +2065,14 @@ export default function EstoquePage() {
                   </TableHeader>
                   <TableBody>
                     {movimentacoesFiltradas.map((mov) => (
-                      <TableRow key={mov.id} className={mov.tipo === 'entrada' ? 'bg-green-50/50' : 'bg-red-50/50'}>
+                        <TableRow key={mov.id} className={
+                          mov.tipo === 'entrada' ? 'bg-green-50/50' :
+                          mov.tipo === 'reserva' && mov.quantidade > 0 ? 'bg-amber-50/50' :
+                          mov.tipo === 'reserva' ? 'bg-amber-100/50' :
+                          mov.tipo === 'ajuste' ? 'bg-yellow-50/50' :
+                          mov.tipo === 'venda' ? 'bg-blue-50/50' :
+                          'bg-red-50/50'
+                        }>
                         <TableCell className="text-sm">
                           {mov.criadoEm
                             ? new Date(mov.criadoEm).toLocaleDateString('pt-BR') + ' ' + new Date(mov.criadoEm).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -2044,6 +2086,22 @@ export default function EstoquePage() {
                             <Badge className="bg-green-500 text-xs">
                               <ArrowUp className="h-3 w-3 mr-1" /> Entrada
                             </Badge>
+                          ) : mov.tipo === 'venda' ? (
+                            <Badge className="bg-blue-500 text-xs">
+                              <ArrowDown className="h-3 w-3 mr-1" /> Venda
+                            </Badge>
+                          ) : mov.tipo === 'reserva' && mov.quantidade > 0 ? (
+                            <Badge className="bg-amber-500 text-xs">
+                              <ArrowUp className="h-3 w-3 mr-1" /> Reservado
+                            </Badge>
+                          ) : mov.tipo === 'reserva' ? (
+                            <Badge className="bg-amber-300 text-xs">
+                              <ArrowDown className="h-3 w-3 mr-1" /> Liberado
+                            </Badge>
+                          ) : mov.tipo === 'ajuste' ? (
+                            <Badge variant="secondary" className="text-xs">
+                              Ajuste
+                            </Badge>
                           ) : (
                             <Badge variant="destructive" className="text-xs">
                               <ArrowDown className="h-3 w-3 mr-1" /> Saída
@@ -2051,8 +2109,15 @@ export default function EstoquePage() {
                           )}
                         </TableCell>
                         <TableCell className="text-center">
-                          <span className={`font-bold ${mov.tipo === 'entrada' ? 'text-green-600' : 'text-red-600'}`}>
-                            {mov.tipo === 'entrada' ? '+' : '-'}{mov.quantidade}
+                          <span className={`font-bold ${
+                            mov.tipo === 'entrada' ? 'text-green-600' :
+                            mov.tipo === 'venda' ? 'text-blue-600' :
+                            mov.tipo === 'reserva' && mov.quantidade > 0 ? 'text-amber-600' :
+                            mov.tipo === 'reserva' ? 'text-amber-400' :
+                            mov.tipo === 'ajuste' ? 'text-yellow-600' :
+                            'text-red-600'
+                          }`}>
+                            {mov.tipo === 'entrada' || (mov.tipo === 'reserva' && mov.quantidade > 0) ? '+' : ''}{mov.quantidade}
                           </span>
                         </TableCell>
                         <TableCell>

@@ -674,39 +674,34 @@ export function useVendas() {
 
     try {
       setError(null);
+
+      // Limitar ao período útil (últimos 6 meses) para performance
+      const seisMesesAtras = new Date();
+      seisMesesAtras.setMonth(seisMesesAtras.getMonth() - 6);
+
       // Carregar vendas
       const { data: vendasData, error: vendasError } = await withRetry(() => supabase
         .from('vendas')
         .select('*')
         .eq('empresa_id', empresaId)
+        .gte('criado_em', seisMesesAtras.toISOString())
         .order('criado_em', { ascending: false })
+        .limit(500)
       );
 
       if (vendasError) throw vendasError;
 
-      // Carregar itens de venda
-      const { data: itensData, error: itensError } = await withRetry(() => supabase
-        .from('itens_venda')
-        .select('*')
-        .eq('empresa_id', empresaId)
-      );
-
-      if (itensError) throw itensError;
-
-      // PostgREST limita em 1000 linhas — buscar páginas adicionais se necessário
-      const { count: dbCount } = await supabase
-        .from('itens_venda')
-        .select('id', { count: 'exact', head: true })
-        .eq('empresa_id', empresaId);
-
-      let allItens = itensData || [];
-      if (dbCount && dbCount > (itensData?.length || 0)) {
-        const { data: page2 } = await supabase
+      // Carregar apenas itens das vendas retornadas
+      const vendaIds = (vendasData || []).map(v => v.id);
+      let allItens: any[] = [];
+      if (vendaIds.length > 0) {
+        const { data: itensData, error: itensError } = await withRetry(() => supabase
           .from('itens_venda')
           .select('*')
-          .eq('empresa_id', empresaId)
-          .range(itensData?.length || 0, (dbCount || 0) - 1);
-        if (page2) allItens = [...allItens, ...page2];
+          .in('venda_id', vendaIds)
+        );
+        if (itensError) throw itensError;
+        allItens = itensData || [];
       }
 
       // Combinar vendas com itens - mapear snake_case para camelCase

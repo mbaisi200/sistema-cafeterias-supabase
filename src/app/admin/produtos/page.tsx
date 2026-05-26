@@ -38,7 +38,7 @@ import {
 import { useProdutos, useCategorias, useCombos } from '@/hooks/useSupabase';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient, getReservas } from '@/lib/supabase';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   Plus,
@@ -133,7 +133,7 @@ export default function ProdutosPage() {
   const [search, setSearch] = useState('');
   const [colunaNome, setColunaNome] = useState('Produto');
   const [colunaCodigo, setColunaCodigo] = useState('Código');
-  const [colunaEstoqueAtual, setColunaEstoqueAtual] = useState('Estoque Atual');
+  const [colunaEstoqueAtual, setColunaEstoqueAtual] = useState('Estoque');
   const [colunaEstoqueMinimo, setColunaEstoqueMinimo] = useState('Estoque Mínimo');
   const [colunaStatus, setColunaStatus] = useState('Status');
   const [editandoColuna, setEditandoColuna] = useState<string | null>(null);
@@ -141,6 +141,7 @@ export default function ProdutosPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [categoriaFilter, setCategoriaFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<'todos' | 'ativos' | 'inativos'>('ativos');
+  const [reservas, setReservas] = useState<Record<string, number>>({});
   const [produtoAtivo, setProdutoAtivo] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editandoProduto, setEditandoProduto] = useState<Produto | null>(null);
@@ -398,6 +399,21 @@ export default function ProdutosPage() {
     loadIfoodConfig();
   }, [empresaId]);
 
+  // Carregar reservas de estoque
+  useEffect(() => {
+    if (!empresaId) return;
+    const loadReservas = async () => {
+      try {
+        const supabase = getSupabaseClient();
+        const data = await getReservas(supabase, empresaId!);
+        setReservas(data);
+      } catch (error) {
+        console.error('Erro ao carregar reservas:', error);
+      }
+    };
+    loadReservas();
+  }, [empresaId, produtos]);
+
   const filteredProdutos = useMemo(() => {
     const filtered = produtos.filter(produto => {
       const searchLower = search.toLowerCase();
@@ -422,13 +438,15 @@ export default function ProdutosPage() {
         case 'estoque_minimo': aVal = a.estoqueMinimo ?? 0; bVal = b.estoqueMinimo ?? 0; break;
         case 'preco': aVal = a.preco ?? 0; bVal = b.preco ?? 0; break;
         case 'ativo': aVal = a.ativo ? 1 : 0; bVal = b.ativo ? 1 : 0; break;
+        case 'reservado': aVal = reservas[a.id] || 0; bVal = reservas[b.id] || 0; break;
+        case 'disponivel': aVal = Math.max(0, (a.estoqueAtual || 0) - (reservas[a.id] || 0)); bVal = Math.max(0, (b.estoqueAtual || 0) - (reservas[b.id] || 0)); break;
         default: return 0;
       }
       if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
       return 0;
     });
-  }, [produtos, search, categoriaFilter, statusFilter, sortBy, sortDir]);
+  }, [produtos, search, categoriaFilter, statusFilter, sortBy, sortDir, reservas]);
 
   // Produtos marcados para iFood
   const produtosIfood = produtos.filter(p => p.disponivelIfood);
@@ -1053,15 +1071,28 @@ export default function ProdutosPage() {
                           </div>
                           {editandoProduto && (
                             <div className="space-y-2">
-                              <Label>Estoque Atual</Label>
+                              <Label>Disponível para venda</Label>
                               <div className={`flex h-10 items-center rounded-md border px-3 text-sm font-mono ${
-                                (editandoProduto.estoqueAtual || 0) <= (editandoProduto.estoqueMinimo || 0)
+                                ((editandoProduto.estoqueAtual || 0) - (reservas[editandoProduto.id] || 0)) <= (editandoProduto.estoqueMinimo || 0)
                                   ? 'bg-red-50 border-red-200 text-red-700'
                                   : 'bg-green-50 border-green-200 text-green-700'
                               }`}>
-                                {editandoProduto.estoqueAtual ?? 0} {editandoProduto.unidade || 'un'}
-                                {(editandoProduto.estoqueAtual || 0) <= (editandoProduto.estoqueMinimo || 0) && (
+                                {Math.max(0, (editandoProduto.estoqueAtual || 0) - (reservas[editandoProduto.id] || 0))} {editandoProduto.unidade || 'un'}
+                                {((editandoProduto.estoqueAtual || 0) - (reservas[editandoProduto.id] || 0)) <= (editandoProduto.estoqueMinimo || 0) && (
                                   <span className="ml-2 text-xs font-normal">(abaixo do mínimo)</span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                                <span>
+                                  <span className="font-mono">{editandoProduto.estoqueAtual ?? 0}</span> estoque real
+                                </span>
+                                {reservas[editandoProduto.id] > 0 && (
+                                  <>
+                                    <span>·</span>
+                                    <span className="text-amber-600">
+                                      <span className="font-mono">{reservas[editandoProduto.id]}</span> reservados
+                                    </span>
+                                  </>
                                 )}
                               </div>
                             </div>
@@ -1434,10 +1465,10 @@ export default function ProdutosPage() {
             ) : (
               <Card>
                 <div className="overflow-x-auto">
-                <Table className="table-fixed w-full min-w-[800px]">
+                <Table className="table-fixed w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[200px]">
+                      <TableHead className="w-[140px]">
                         <div className="flex items-center gap-1 group">
                           <button
                             onClick={() => {
@@ -1465,7 +1496,7 @@ export default function ProdutosPage() {
                           />
                         )}
                       </TableHead>
-                      <TableHead>
+                      <TableHead className="w-16">
                         <div className="flex items-center gap-1 group">
                           <button
                             onClick={() => {
@@ -1493,8 +1524,8 @@ export default function ProdutosPage() {
                           />
                         )}
                       </TableHead>
-                      <TableHead className="w-32">Categoria</TableHead>
-                      <TableHead className="text-center">
+                      <TableHead className="w-20 whitespace-nowrap">Cat.</TableHead>
+                      <TableHead className="w-20 text-center whitespace-nowrap">
                         <div className="flex items-center gap-1 group justify-center">
                           <button
                             onClick={() => {
@@ -1522,7 +1553,37 @@ export default function ProdutosPage() {
                           />
                         )}
                       </TableHead>
-                      <TableHead className="text-right">
+                      <TableHead className="w-20 text-center whitespace-nowrap">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'reservado') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                            else { setSortBy('reservado'); setSortDir('asc'); }
+                            setEditandoColuna(null);
+                          }}
+                          className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer justify-center"
+                        >
+                          <span className="text-muted-foreground">
+                            {sortBy === 'reservado' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                          </span>
+                          Res.
+                        </button>
+                      </TableHead>
+                      <TableHead className="w-20 text-center whitespace-nowrap">
+                        <button
+                          onClick={() => {
+                            if (sortBy === 'disponivel') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                            else { setSortBy('disponivel'); setSortDir('asc'); }
+                            setEditandoColuna(null);
+                          }}
+                          className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer justify-center"
+                        >
+                          <span className="text-muted-foreground">
+                            {sortBy === 'disponivel' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                          </span>
+                          Disp.
+                        </button>
+                      </TableHead>
+                      <TableHead className="w-20 text-right whitespace-nowrap">
                         <button
                           onClick={() => {
                             if (sortBy === 'preco') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -1534,9 +1595,9 @@ export default function ProdutosPage() {
                           {sortBy === 'preco' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
                         </button>
                       </TableHead>
-                      <TableHead className="text-center">iFood</TableHead>
-                      <TableHead className="text-center">Uber Eats</TableHead>
-                      <TableHead className="text-center">
+                      <TableHead className="w-12 text-center whitespace-nowrap">iFood</TableHead>
+                      <TableHead className="w-12 text-center whitespace-nowrap">Uber</TableHead>
+                      <TableHead className="w-20 text-center whitespace-nowrap">
                         <div className="flex items-center gap-1 group justify-center">
                           <button
                             onClick={() => {
@@ -1564,7 +1625,7 @@ export default function ProdutosPage() {
                           />
                         )}
                       </TableHead>
-                      <TableHead className="w-[100px] text-center">Ações</TableHead>
+                      <TableHead className="w-[80px] text-center">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1603,28 +1664,47 @@ export default function ProdutosPage() {
                             {produto.estoqueAtual || 0} {produto.unidade || 'un'}
                           </span>
                         </TableCell>
+                        <TableCell className="text-center">
+                          <span className="text-sm font-mono text-amber-600">
+                            {reservas[produto.id] || 0} {produto.unidade || 'un'}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <span className={`text-sm font-mono ${
+                            ((produto.estoqueAtual || 0) - (reservas[produto.id] || 0)) <= (produto.estoqueMinimo || 0)
+                              ? 'text-red-600 font-semibold'
+                              : 'text-green-600'
+                          }`}>
+                            {Math.max(0, (produto.estoqueAtual || 0) - (reservas[produto.id] || 0))} {produto.unidade || 'un'}
+                          </span>
+                        </TableCell>
                         <TableCell className="text-right">
                           <span className="font-semibold text-green-600">
                             R$ {(produto.preco || 0).toFixed(2)}
                           </span>
                         </TableCell>
                         <TableCell className="text-center">
-                          <Checkbox 
-                            checked={produto.disponivelIfood}
-                            onCheckedChange={(checked) => handleToggleIfood(produto, checked as boolean)}
-                          />
+                          <div className="flex flex-col items-center gap-1">
+                            <Checkbox 
+                              checked={produto.disponivelIfood}
+                              onCheckedChange={(checked) => handleToggleIfood(produto, checked as boolean)}
+                            />
+                            {getIfoodStatusBadge(produto)}
+                          </div>
                         </TableCell>
                         <TableCell className="text-center">
-                          {getIfoodStatusBadge(produto)}
+                          <div className="flex flex-col items-center gap-1">
+                            <Checkbox 
+                              checked={produto.disponivelUberEats}
+                              onCheckedChange={(checked) => handleToggleUberEats(produto, checked as boolean)}
+                            />
+                            {getUberEatsStatusBadge(produto)}
+                          </div>
                         </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox 
-                            checked={produto.disponivelUberEats}
-                            onCheckedChange={(checked) => handleToggleUberEats(produto, checked as boolean)}
-                          />
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {getUberEatsStatusBadge(produto)}
+                        <TableCell className="text-center whitespace-nowrap">
+                          <Badge variant={produto.ativo !== false ? 'default' : 'secondary'} className="text-xs">
+                            {produto.ativo !== false ? 'Ativo' : 'Inativo'}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center justify-center gap-1">

@@ -309,3 +309,148 @@ export async function debitarEstoqueVenda(
     criado_em: new Date().toISOString(),
   });
 }
+
+// ── Reserva de Estoque (Pedidos) ──
+export async function reservarEstoquePedido(
+  supabase: any,
+  empresaId: string,
+  pedidoId: string,
+  itens: Array<{ produtoId: string; produtoNome: string; quantidade: number }>,
+  usuarioId?: string,
+  usuarioNome?: string,
+): Promise<void> {
+  if (!itens.length) return;
+
+  const produtoIds = itens.map(i => i.produtoId);
+  const { data: produtos } = await supabase
+    .from('produtos')
+    .select('id, controlar_estoque')
+    .in('id', produtoIds);
+
+  const controlaEstoque = new Set(
+    (produtos || []).filter(p => p.controlar_estoque !== false).map(p => p.id)
+  );
+
+  const movimentos = itens
+    .filter(i => controlaEstoque.has(i.produtoId))
+    .map(item => ({
+      empresa_id: empresaId,
+      produto_id: item.produtoId,
+      produto_nome: item.produtoNome,
+      tipo: 'reserva',
+      quantidade: item.quantidade,
+      observacao: `Reserva Pedido`,
+      pedido_id: pedidoId,
+      usuario_id: usuarioId,
+      usuario_nome: usuarioNome,
+      criado_em: new Date().toISOString(),
+    }));
+
+  if (movimentos.length) {
+    await supabase.from('estoque_movimentos').insert(movimentos);
+  }
+}
+
+export async function liberarReservaPedido(
+  supabase: any,
+  pedidoId: string,
+): Promise<void> {
+  const { data: reservas } = await supabase
+    .from('estoque_movimentos')
+    .select('*')
+    .eq('pedido_id', pedidoId)
+    .eq('tipo', 'reserva');
+
+  if (!reservas || !reservas.length) return;
+
+  const estornos = reservas.map(r => ({
+    empresa_id: r.empresa_id,
+    produto_id: r.produto_id,
+    produto_nome: r.produto_nome,
+    tipo: 'reserva',
+    quantidade: -Math.abs(r.quantidade),
+    observacao: `Liberação reserva Pedido`,
+    pedido_id: pedidoId,
+    usuario_id: r.usuario_id,
+    usuario_nome: r.usuario_nome,
+    criado_em: new Date().toISOString(),
+  }));
+
+  await supabase.from('estoque_movimentos').insert(estornos);
+}
+
+export async function converterReservaEmVenda(
+  supabase: any,
+  empresaId: string,
+  pedidoId: string,
+  vendaId: string,
+  usuarioId?: string,
+  usuarioNome?: string,
+): Promise<void> {
+  const { data: reservas } = await supabase
+    .from('estoque_movimentos')
+    .select('*')
+    .eq('pedido_id', pedidoId)
+    .eq('tipo', 'reserva');
+
+  if (!reservas || !reservas.length) return;
+
+  const estornos = reservas.map(r => ({
+    empresa_id: r.empresa_id,
+    produto_id: r.produto_id,
+    produto_nome: r.produto_nome,
+    tipo: 'reserva',
+    quantidade: -Math.abs(r.quantidade),
+    observacao: `Liberação por faturamento - Venda`,
+    pedido_id: pedidoId,
+    venda_id: vendaId,
+    usuario_id: usuarioId || r.usuario_id,
+    usuario_nome: usuarioNome || r.usuario_nome,
+    criado_em: new Date().toISOString(),
+  }));
+
+  await supabase.from('estoque_movimentos').insert(estornos);
+
+  for (const r of reservas) {
+    await debitarEstoqueVenda(
+      supabase,
+      empresaId,
+      r.produto_id,
+      Math.abs(r.quantidade),
+      usuarioId || r.usuario_id,
+      usuarioNome || r.usuario_nome,
+      vendaId,
+      `Faturamento Pedido`,
+    );
+  }
+}
+
+export async function getReservas(
+  supabase: any,
+  empresaId: string,
+  produtoIds?: string[],
+): Promise<Record<string, number>> {
+  let query = supabase
+    .from('estoque_movimentos')
+    .select('produto_id, quantidade')
+    .eq('empresa_id', empresaId)
+    .eq('tipo', 'reserva');
+
+  if (produtoIds && produtoIds.length) {
+    query = query.in('produto_id', produtoIds);
+  }
+
+  const { data } = await query;
+
+  const reservas: Record<string, number> = {};
+  (data || []).forEach(r => {
+    const id = r.produto_id;
+    reservas[id] = (reservas[id] || 0) + (r.quantidade || 0);
+  });
+
+  for (const key in reservas) {
+    reservas[key] = Math.max(0, reservas[key]);
+  }
+
+  return reservas;
+}

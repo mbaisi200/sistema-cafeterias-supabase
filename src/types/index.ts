@@ -114,7 +114,7 @@ export interface Funcionario {
 }
 
 // Estoque Types
-export type TipoMovimento = 'entrada' | 'saida' | 'ajuste' | 'venda';
+export type TipoMovimento = 'entrada' | 'saida' | 'ajuste' | 'venda' | 'reserva';
 
 export interface EstoqueMovimento {
   id: string;

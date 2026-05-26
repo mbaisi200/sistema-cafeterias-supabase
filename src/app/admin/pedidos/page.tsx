@@ -50,7 +50,7 @@ import {
 } from '@/components/ui/collapsible';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient, reservarEstoquePedido, liberarReservaPedido, converterReservaEmVenda } from '@/lib/supabase';
 import { exportToPDF, formatCurrencyPDF, formatDatePDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
 import {
   Tabs,
@@ -83,6 +83,7 @@ import {
   CheckCircle,
   AlertTriangle,
   ClipboardList,
+  ArrowUpDown,
 } from 'lucide-react';
 import { PedidosListagemTab } from './PedidosListagemTab';
 
@@ -173,8 +174,9 @@ export default function PedidosPage() {
 
   // Items state
   const [itens, setItens] = useState<PedidoItem[]>([]);
-  const [openProdutoSearch, setOpenProdutoSearch] = useState<boolean[]>([]);
-  const [produtoSearchByItem, setProdutoSearchByItem] = useState<string[]>([]);
+  const [produtoSelectOpen, setProdutoSelectOpen] = useState(false);
+  const [produtoTargetIndex, setProdutoTargetIndex] = useState(-1);
+  const [produtoSearchText, setProdutoSearchText] = useState('');
 
   // Data lists
   const [clientes, setClientes] = useState<any[]>([]);
@@ -182,6 +184,8 @@ export default function PedidosPage() {
   const [condicoesPagamento, setCondicoesPagamento] = useState<any[]>([]);
   const [novaCondicao, setNovaCondicao] = useState('');
   const [condicoesOpen, setCondicoesOpen] = useState(true);
+  const [sortBy, setSortBy] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   // Load data
   useEffect(() => {
@@ -348,24 +352,17 @@ export default function PedidosPage() {
   // ============================================================
   // Filters
   // ============================================================
+  const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
   const clientesFiltrados = useMemo(() => {
     if (!clienteSearch.trim()) return clientes;
-    const term = clienteSearch.toLowerCase();
+    const term = normalize(clienteSearch);
     return clientes.filter(c =>
-      (c.nome_razao_social || '').toLowerCase().includes(term) ||
-      (c.nome_fantasia || '').toLowerCase().includes(term) ||
+      normalize(c.nome_razao_social || '').includes(term) ||
+      normalize(c.nome_fantasia || '').includes(term) ||
       (c.cnpj_cpf || '').includes(term)
     );
   }, [clientes, clienteSearch]);
-
-  const getProdutosFiltrados = (index: number) => {
-    const term = (produtoSearchByItem[index] || '').toLowerCase().trim();
-    if (!term) return produtos;
-    return produtos.filter(p =>
-      (p.nome || '').toLowerCase().includes(term) ||
-      (p.codigo_barras || '').includes(term)
-    );
-  };
 
   const getDateRange = () => {
     const now = new Date();
@@ -396,18 +393,56 @@ export default function PedidosPage() {
     }
   };
 
-  const pedidosFiltrados = pedidos.filter(p => {
-    const matchStatus = statusFilter === 'todos' || p.status === statusFilter;
-    const matchSearch = !search ||
-      (p.clienteNome || '').toLowerCase().includes(search.toLowerCase()) ||
-      String(p.numero).includes(search);
-    const range = getDateRange();
-    const matchDate = !range || (p.criadoEm && (() => {
-      const d = new Date(p.criadoEm);
-      return d >= range.inicio && d < range.fim;
-    })());
-    return matchStatus && matchSearch && matchDate;
-  });
+  const handleSort = (col: string) => {
+    if (sortBy === col) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(col);
+      setSortDir('asc');
+    }
+  };
+
+  const pedidosFiltrados = useMemo(() => {
+    const filtrados = pedidos.filter(p => {
+      const matchStatus = statusFilter === 'todos' || p.status === statusFilter;
+      const matchSearch = !search ||
+        (p.clienteNome || '').toLowerCase().includes(search.toLowerCase()) ||
+        String(p.numero).includes(search);
+      const range = getDateRange();
+      const matchDate = !range || (p.criadoEm && (() => {
+        const d = new Date(p.criadoEm);
+        return d >= range.inicio && d < range.fim;
+      })());
+      return matchStatus && matchSearch && matchDate;
+    });
+
+    if (!sortBy) return filtrados;
+
+    return [...filtrados].sort((a, b) => {
+      let cmp = 0;
+      switch (sortBy) {
+        case 'numero':
+          cmp = (a.numero || 0) - (b.numero || 0);
+          break;
+        case 'cliente':
+          cmp = (a.clienteNome || '').localeCompare(b.clienteNome || '');
+          break;
+        case 'itens':
+          cmp = (a.itens?.length || 0) - (b.itens?.length || 0);
+          break;
+        case 'total':
+          cmp = (a.total || 0) - (b.total || 0);
+          break;
+        case 'data':
+          cmp = new Date(a.criadoEm || 0).getTime() - new Date(b.criadoEm || 0).getTime();
+          break;
+        case 'status':
+          cmp = (a.status || '').localeCompare(b.status || '');
+          break;
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [pedidos, statusFilter, search, sortBy, sortDir]);
 
   // Stats
   const pedidosPendentes = pedidos.filter(p => p.status === 'pendente');
@@ -428,8 +463,6 @@ export default function PedidosPage() {
       desconto: 0,
       total: 0,
     }]);
-    setOpenProdutoSearch(prev => [...prev, false]);
-    setProdutoSearchByItem(prev => [...prev, '']);
   };
 
   const updateItem = (index: number, field: string, value: any) => {
@@ -448,8 +481,6 @@ export default function PedidosPage() {
 
   const removeItem = (index: number) => {
     setItens(itens.filter((_, i) => i !== index));
-    setOpenProdutoSearch(prev => prev.filter((_, i) => i !== index));
-    setProdutoSearchByItem(prev => prev.filter((_, i) => i !== index));
   };
 
   const totalItens = itens.reduce((acc, item) => acc + item.total, 0);
@@ -475,6 +506,9 @@ export default function PedidosPage() {
       const descontoTotal = totalDesconto;
 
       if (editingPedido) {
+        // Liberar reserva antiga antes de atualizar
+        await liberarReservaPedido(supabase, editingPedido.id);
+
         const { error } = await supabase
           .from('pedidos')
           .update({
@@ -491,6 +525,10 @@ export default function PedidosPage() {
           })
           .eq('id', editingPedido.id);
         if (error) throw error;
+
+        // Recriar reserva com os novos itens
+        await reservarEstoquePedido(supabase, empresaId!, editingPedido.id, itens, user?.id, user?.nome);
+
         toast({ title: 'Pedido atualizado com sucesso!' });
       } else {
         const { data: last } = await supabase
@@ -502,7 +540,7 @@ export default function PedidosPage() {
           .single();
         const nextNum = (last?.numero || 0) + 1;
 
-        const { error } = await supabase
+        const { data: novoPedido, error } = await supabase
           .from('pedidos')
           .insert({
             empresa_id: empresaId,
@@ -520,8 +558,14 @@ export default function PedidosPage() {
             itens: JSON.stringify(itens),
             criado_por: user?.id,
             criado_por_nome: user?.nome,
-          });
+          })
+          .select('id')
+          .single();
         if (error) throw error;
+
+        // Reservar estoque para o novo pedido
+        await reservarEstoquePedido(supabase, empresaId!, novoPedido.id, itens, user?.id, user?.nome);
+
         toast({ title: 'Pedido criado com sucesso!' });
       }
       setDialogOpen(false);
@@ -555,6 +599,10 @@ export default function PedidosPage() {
       }
 
       if (!confirm('Deseja realmente excluir este pedido?')) return;
+
+      // Liberar reserva antes de excluir
+      await liberarReservaPedido(supabase, id);
+
       const { error } = await supabase.from('pedidos').delete().eq('id', id);
       if (error) throw error;
       toast({ title: 'Pedido excluído' });
@@ -586,6 +634,10 @@ export default function PedidosPage() {
     if (!confirm('Tem certeza que deseja cancelar este pedido?')) return;
     try {
       const supabase = getSupabase();
+
+      // Liberar reserva ao cancelar
+      await liberarReservaPedido(supabase, id);
+
       const { error } = await supabase
         .from('pedidos')
         .update({ status: 'cancelado' })
@@ -631,6 +683,9 @@ export default function PedidosPage() {
         .single();
 
       if (vendaError) throw vendaError;
+
+      // Converter reserva em venda real (libera reserva + debita estoque)
+      await converterReservaEmVenda(supabase, empresaId!, converterPedido.id, novaVenda.id, user?.id, user?.nome);
 
       // Create itens_venda from pedido items
       if (converterPedido.itens && converterPedido.itens.length > 0 && novaVenda) {
@@ -695,8 +750,7 @@ export default function PedidosPage() {
     setFormaPagamento(pedido.formaPagamento || '');
     setObservacoes(pedido.observacoes || '');
     setItens(pedido.itens || []);
-    setOpenProdutoSearch((pedido.itens || []).map(() => false));
-    setProdutoSearchByItem((pedido.itens || []).map(() => ''));
+    setProdutoSearchText('');
     setDialogOpen(true);
   };
 
@@ -711,8 +765,9 @@ export default function PedidosPage() {
     setFormaPagamento('');
     setObservacoes('');
     setItens([]);
-    setOpenProdutoSearch([]);
-    setProdutoSearchByItem([]);
+    setProdutoTargetIndex(-1);
+    setProdutoSelectOpen(false);
+    setProdutoSearchText('');
   };
 
   // ============================================================
@@ -986,13 +1041,37 @@ export default function PedidosPage() {
                   <Table className="w-full table-fixed">
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[80px] whitespace-nowrap">Nº</TableHead>
-                        <TableHead className="w-auto">Cliente</TableHead>
-                        <TableHead className="w-[80px] text-center whitespace-nowrap">Itens</TableHead>
-                        <TableHead className="w-[120px] text-right whitespace-nowrap">Total</TableHead>
-                        <TableHead className="w-[120px] whitespace-nowrap">Data</TableHead>
-                        <TableHead className="w-[100px] text-center whitespace-nowrap">Status</TableHead>
-                        <TableHead className="w-[200px] text-center whitespace-nowrap">Ações</TableHead>
+                        <TableHead className="w-[70px] whitespace-nowrap">
+                          <button className="flex items-center gap-1 font-medium" onClick={() => handleSort('numero')}>
+                            Nº {sortBy === 'numero' && <ArrowUpDown className={`h-3 w-3 transition-all ${sortDir === 'desc' ? 'rotate-180' : ''}`} />}
+                          </button>
+                        </TableHead>
+                        <TableHead className="w-auto">
+                          <button className="flex items-center gap-1 font-medium w-full text-left" onClick={() => handleSort('cliente')}>
+                            Cliente {sortBy === 'cliente' && <ArrowUpDown className={`h-3 w-3 transition-all ${sortDir === 'desc' ? 'rotate-180' : ''}`} />}
+                          </button>
+                        </TableHead>
+                        <TableHead className="w-[70px] text-center whitespace-nowrap">
+                          <button className="flex items-center gap-1 font-medium mx-auto" onClick={() => handleSort('itens')}>
+                            Itens {sortBy === 'itens' && <ArrowUpDown className={`h-3 w-3 transition-all ${sortDir === 'desc' ? 'rotate-180' : ''}`} />}
+                          </button>
+                        </TableHead>
+                        <TableHead className="w-[110px] text-right whitespace-nowrap">
+                          <button className="flex items-center gap-1 font-medium ml-auto" onClick={() => handleSort('total')}>
+                            Total {sortBy === 'total' && <ArrowUpDown className={`h-3 w-3 transition-all ${sortDir === 'desc' ? 'rotate-180' : ''}`} />}
+                          </button>
+                        </TableHead>
+                        <TableHead className="w-[110px] whitespace-nowrap">
+                          <button className="flex items-center gap-1 font-medium" onClick={() => handleSort('data')}>
+                            Data {sortBy === 'data' && <ArrowUpDown className={`h-3 w-3 transition-all ${sortDir === 'desc' ? 'rotate-180' : ''}`} />}
+                          </button>
+                        </TableHead>
+                        <TableHead className="w-[110px] text-center whitespace-nowrap">
+                          <button className="flex items-center gap-1 font-medium mx-auto" onClick={() => handleSort('status')}>
+                            Status {sortBy === 'status' && <ArrowUpDown className={`h-3 w-3 transition-all ${sortDir === 'desc' ? 'rotate-180' : ''}`} />}
+                          </button>
+                        </TableHead>
+                        <TableHead className="w-[210px] text-center whitespace-nowrap">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1011,26 +1090,26 @@ export default function PedidosPage() {
                           <TableCell className="text-center whitespace-nowrap">{getStatusBadge(p.status)}</TableCell>
                           <TableCell className="whitespace-nowrap">
                             <div className="flex items-center justify-center gap-1">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailPedido(p)} title="Ver detalhes">
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setDetailPedido(p)} title="Ver detalhes">
                                 <Eye className="h-4 w-4" />
                               </Button>
                               {p.status === 'pendente' && (
                                 <>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600" onClick={() => handleAprovar(p.id)} title="Aprovar">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" onClick={() => handleAprovar(p.id)} title="Aprovar">
                                     <CheckCircle2 className="h-4 w-4" />
                                   </Button>
                                   <Link href={`/admin/nfe/emitir?pedido_id=${p.id}`}>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-purple-600" title="Emitir NF-e">
+                                    <Button variant="ghost" size="icon" className="h-7 w-7 text-purple-600" title="Emitir NF-e">
                                       <FileText className="h-4 w-4" />
                                     </Button>
                                   </Link>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => handleCancelar(p.id)} title="Cancelar">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => handleCancelar(p.id)} title="Cancelar">
                                     <XCircle className="h-4 w-4" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(p)} title="Editar">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(p)} title="Editar">
                                     <Edit className="h-4 w-4 text-blue-600" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDelete(p.id)} title="Excluir">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleDelete(p.id)} title="Excluir">
                                     <Trash2 className="h-4 w-4 text-red-600" />
                                   </Button>
                                 </>
@@ -1038,24 +1117,31 @@ export default function PedidosPage() {
                               {p.status === 'aprovado' && (
                                 <>
                                   <Link href={`/admin/nfe/emitir?pedido_id=${p.id}`}>
-                                    <Button variant="ghost" size="sm" className="h-8 gap-1 text-purple-600 hover:text-purple-700" title="Emitir NF-e">
+                                    <Button variant="ghost" size="sm" className="h-7 gap-1 text-purple-600 hover:text-purple-700" title="Emitir NF-e">
                                       <FileText className="h-4 w-4" />
                                     </Button>
                                   </Link>
                                   <Button
                                     variant="ghost"
                                     size="sm"
-                                    className="h-8 gap-1 text-green-600 hover:text-green-700"
+                                    className="h-7 gap-1 text-green-600 hover:text-green-700"
                                     onClick={() => { setConverterPedido(p); setConverterFormaPagamento(p.formaPagamento); setConverterDialogOpen(true); }}
                                     title="Converter em Venda"
                                   >
                                     <FileText className="h-4 w-4" />
                                     <ArrowRight className="h-3 w-3" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleEdit(p)} title="Editar">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleEdit(p)} title="Editar">
                                     <Edit className="h-4 w-4 text-blue-600" />
                                   </Button>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => handleDelete(p.id)} title="Excluir">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => handleDelete(p.id)} title="Excluir">
+                                    <Trash2 className="h-4 w-4 text-red-600" />
+                                  </Button>
+                                </>
+                              )}
+                              {p.status === 'convertido' && (
+                                <>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => handleDelete(p.id)} title="Excluir">
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </>
@@ -1063,11 +1149,11 @@ export default function PedidosPage() {
                               {(p.status === 'convertido' || p.status === 'cancelado') && (
                                 <>
                                   <Link href={`/admin/nfe/emitir?pedido_id=${p.id}`}>
-                                    <Button variant="ghost" size="sm" className="h-8 gap-1 text-purple-600 hover:text-purple-700" title="Emitir NF-e">
+                                    <Button variant="ghost" size="sm" className="h-7 gap-1 text-purple-600 hover:text-purple-700" title="Emitir NF-e">
                                       <FileText className="h-4 w-4" />
                                     </Button>
                                   </Link>
-                                  <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600" onClick={() => handleDelete(p.id)} title="Excluir">
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 text-red-600" onClick={() => handleDelete(p.id)} title="Excluir">
                                     <Trash2 className="h-4 w-4" />
                                   </Button>
                                 </>
@@ -1220,57 +1306,19 @@ export default function PedidosPage() {
                         {itens.map((item, i) => (
                           <TableRow key={item.id}>
                             <TableCell>
-                              <Popover
-                                open={openProdutoSearch[i] || false}
-                                onOpenChange={(open) => {
-                                  const updated = [...openProdutoSearch];
-                                  updated[i] = open;
-                                  setOpenProdutoSearch(updated);
-                                }}
-                              >
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" className="h-8 text-xs justify-start font-normal w-full">
-                                    {item.produtoNome || 'Selecionar produto...'}
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-72 p-0">
-                                  <Command shouldFilter={false}>
-                                    <CommandInput
-                                      placeholder="Buscar produto por nome..."
-                                      value={produtoSearchByItem[i] || ''}
-                                      onValueChange={(val) => {
-                                        const updated = [...produtoSearchByItem];
-                                        updated[i] = val;
-                                        setProdutoSearchByItem(updated);
-                                      }}
-                                    />
-                                    <CommandList>
-                                      <CommandEmpty>Nenhum produto encontrado</CommandEmpty>
-                                      <CommandGroup className="max-h-64 overflow-y-auto">
-                                        {getProdutosFiltrados(i).map(p => (
-                                          <CommandItem
-                                            key={p.id}
-                                            value={p.nome}
-                                            onSelect={() => {
-                                              updateItem(i, 'produtoId', p.id);
-                                              const updated = [...openProdutoSearch];
-                                              updated[i] = false;
-                                              setOpenProdutoSearch(updated);
-                                              const searchUpdated = [...produtoSearchByItem];
-                                              searchUpdated[i] = '';
-                                              setProdutoSearchByItem(searchUpdated);
-                                            }}
-                                          >
-                                            <Package className="mr-2 h-4 w-4" />
-                                            <span>{p.nome}</span>
-                                            <span className="ml-auto text-xs text-muted-foreground">R$ {(p.preco || 0).toFixed(2)}</span>
-                                          </CommandItem>
-                                        ))}
-                                      </CommandGroup>
-                                    </CommandList>
-                                  </Command>
-                                </PopoverContent>
-                              </Popover>
+                              <div className="flex items-center gap-1">
+                                <Button
+                                  variant="outline"
+                                  className="h-8 text-xs justify-start font-normal flex-1 min-w-0"
+                                  onClick={() => {
+                                    setProdutoTargetIndex(i);
+                                    setProdutoSearchText('');
+                                    setProdutoSelectOpen(true);
+                                  }}
+                                >
+                                  <span className="truncate">{item.produtoNome || 'Selecionar produto...'}</span>
+                                </Button>
+                              </div>
                             </TableCell>
                             <TableCell>
                               <Input type="number" min="1" value={item.quantidade} onChange={(e) => updateItem(i, 'quantidade', parseFloat(e.target.value) || 1)} className="h-8 text-center text-xs" />
@@ -1322,9 +1370,55 @@ export default function PedidosPage() {
               <Button variant="outline" onClick={() => { setDialogOpen(false); resetForm(); }}>Cancelar</Button>
               <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                {editingPedido ? 'Salvar Alterações' : 'Criar Pedido'}
+                Salvar Pedido
               </Button>
             </DialogFooter>
+
+            {/* Product search dialog */}
+            <Dialog open={produtoSelectOpen} onOpenChange={setProdutoSelectOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Selecionar Produto</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Buscar produto por nome..."
+                    value={produtoSearchText}
+                    onChange={(e) => setProdutoSearchText(e.target.value)}
+                    className="h-10 text-sm"
+                    autoFocus
+                  />
+                  <div className="max-h-80 overflow-y-auto space-y-0.5">
+                    {produtos
+                      .filter(p => {
+                        if (!produtoSearchText.trim()) return true;
+                        const term = normalize(produtoSearchText);
+                        return normalize(p.nome || '').includes(term) ||
+                               (p.codigo_barras || '').includes(term);
+                      })
+                      .map(p => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          className="w-full text-left px-4 py-3 text-sm rounded-md hover:bg-accent flex items-center gap-3"
+                          onClick={() => {
+                            updateItem(produtoTargetIndex, 'produtoId', p.id);
+                            setProdutoSelectOpen(false);
+                            setProdutoSearchText('');
+                          }}
+                        >
+                          <Package className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                          <span className="flex-1 truncate">{p.nome}</span>
+                          <span className="text-muted-foreground flex-shrink-0">R$ {(p.preco || 0).toFixed(2)}</span>
+                        </button>
+                      ))}
+                    {produtos.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-8">Nenhum produto encontrado</p>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </DialogContent>
         </Dialog>
 
