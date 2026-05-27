@@ -11,6 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { reservarEstoqueVenda, liberarReservaVenda, converterReservaVendaEmSaida } from '@/lib/supabase';
 import { 
   IFoodWebhookEvent, 
   IFoodOrder, 
@@ -130,6 +131,18 @@ async function handleNewOrder(order: IFoodOrder) {
       }));
 
       await supabase.from('itens_venda').insert(itens);
+
+      // Reservar estoque
+      await reservarEstoqueVenda(
+        supabase,
+        empresaId,
+        venda.id,
+        itens.map(i => ({
+          produtoId: '',
+          produtoNome: i.nome,
+          quantidade: i.quantidade,
+        })),
+      );
     }
 
     // Registrar log
@@ -181,10 +194,20 @@ async function handleStatusUpdate(update: IFoodOrderStatusUpdate) {
         'CANCELLED': 'cancelada',
       };
 
+      const newStatus = statusMap[update.status] || 'aberta';
+
       await supabase
         .from('vendas')
-        .update({ status: statusMap[update.status] || 'aberta' })
+        .update({ status: newStatus })
         .eq('id', venda.id);
+
+      if (newStatus === 'cancelada') {
+        await liberarReservaVenda(supabase, venda.id);
+      }
+
+      if (newStatus === 'fechada') {
+        await converterReservaVendaEmSaida(supabase, venda.empresa_id, venda.id);
+      }
 
       // Registrar log
       await supabase.from('logs').insert({

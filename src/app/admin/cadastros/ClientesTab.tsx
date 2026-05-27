@@ -407,115 +407,113 @@ export function ClientesTab() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <Table className="w-full table-fixed">
-                <TableHeader>
+            <Table className="w-full table-fixed">
+              <TableHeader>
                   <TableRow>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>CNPJ / CPF</TableHead>
-                    <TableHead>Razão Social / Nome</TableHead>
-                    <TableHead>IE</TableHead>
-                    <TableHead>Município / UF</TableHead>
-                    <TableHead>Telefone</TableHead>
-                    <TableHead>E-mail</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right w-[100px]">Ações</TableHead>
+                    <TableHead className="w-14 whitespace-nowrap">Tipo</TableHead>
+                    <TableHead className="w-28 whitespace-nowrap">CNPJ / CPF</TableHead>
+                    <TableHead className="w-40">Razão Social / Nome</TableHead>
+                    <TableHead className="w-14 whitespace-nowrap">IE</TableHead>
+                    <TableHead className="w-28 whitespace-nowrap">Município / UF</TableHead>
+                    <TableHead className="w-24 whitespace-nowrap">Telefone</TableHead>
+                    <TableHead className="w-28 whitespace-nowrap">E-mail</TableHead>
+                    <TableHead className="w-20 whitespace-nowrap">Status</TableHead>
+                    <TableHead className="text-right w-20 whitespace-nowrap">Ações</TableHead>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {clientes.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell>
-                        <Badge variant={c.tipo_pessoa === '1' ? 'default' : 'secondary'} className="gap-1">
-                          {c.tipo_pessoa === '1' ? <Building2 className="h-3 w-3" /> : <User className="h-3 w-3" />}
-                          {c.tipo_pessoa === '1' ? 'PJ' : 'PF'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {c.tipo_pessoa === '1'
-                          ? c.cnpj_cpf.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
-                          : c.cnpj_cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}
-                      </TableCell>
-                      <TableCell className="font-medium max-w-[200px] truncate whitespace-normal" title={c.nome_razao_social}>
-                        {c.nome_razao_social}
-                        {c.nome_fantasia && <p className="text-xs text-muted-foreground">{c.nome_fantasia}</p>}
-                      </TableCell>
-                      <TableCell className="text-xs">
-                        {c.indicador_ie === 1 ? c.inscricao_estadual || '-' : c.indicador_ie === 2 ? 'Isento' : '-'}
-                      </TableCell>
-                      <TableCell className="text-sm truncate whitespace-normal" title={`${c.municipio}/${c.uf}`}>{c.municipio}/{c.uf}</TableCell>
-                      <TableCell className="text-sm">{c.telefone || c.celular || '-'}</TableCell>
-                      <TableCell className="text-sm max-w-[150px] truncate whitespace-normal" title={c.email || '-'}>{c.email || '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={c.ativo ? 'default' : 'secondary'}>
-                          {c.ativo ? 'Ativo' : 'Inativo'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleEditar(c)}>
-                              <Pencil className="mr-2 h-4 w-4" />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            {c.ativo ? (
-                              <DropdownMenuItem
-                                className="text-orange-600"
-                                onClick={() => handleDeleteClick(c)}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Inativar
-                              </DropdownMenuItem>
-                            ) : (
-                              <DropdownMenuItem
-                                className="text-green-600"
-                                onClick={async () => {
-                                  try {
-                                    const res = await fetch('/api/clientes', {
-                                      method: 'PUT',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ id: c.id, ativo: true }),
-                                    });
-                                    const data = await res.json();
-                                    if (data.sucesso) {
-                                      toast.success(`${c.nome_razao_social} foi ativado novamente.`);
-                                      carregar();
-                                    } else {
-                                      toast.error(data.erro?.mensagem || 'Erro ao ativar');
-                                    }
-                                  } catch {
-                                    toast.error('Erro de conexão');
-                                  }
-                                }}
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Ativar
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
+              </TableHeader>
+              <TableBody>
+                {clientes.map((c) => (
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      <Badge variant={c.tipo_pessoa === '1' ? 'default' : 'secondary'} className="gap-1 whitespace-nowrap">
+                        {c.tipo_pessoa === '1' ? <Building2 className="h-3 w-3" /> : <User className="h-3 w-3" />}
+                        {c.tipo_pessoa === '1' ? 'PJ' : 'PF'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="font-mono text-xs truncate" title={c.cnpj_cpf}>
+                      {c.tipo_pessoa === '1'
+                        ? c.cnpj_cpf.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+                        : c.cnpj_cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}
+                    </TableCell>
+                    <TableCell className="font-medium truncate" title={c.nome_razao_social}>
+                      {c.nome_razao_social}
+                      {c.nome_fantasia && <span className="text-xs text-muted-foreground ml-1">({c.nome_fantasia})</span>}
+                    </TableCell>
+                    <TableCell className="text-xs truncate" title={c.inscricao_estadual || ''}>
+                      {c.indicador_ie === 1 ? c.inscricao_estadual || '-' : c.indicador_ie === 2 ? 'Isento' : '-'}
+                    </TableCell>
+                    <TableCell className="text-sm truncate" title={`${c.municipio}/${c.uf}`}>{c.municipio}/{c.uf}</TableCell>
+                    <TableCell className="text-sm truncate" title={c.telefone || c.celular || '-'}>{c.telefone || c.celular || '-'}</TableCell>
+                    <TableCell className="text-sm truncate" title={c.email || '-'}>{c.email || '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant={c.ativo ? 'default' : 'secondary'} className="whitespace-nowrap">
+                        {c.ativo ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handleEditar(c)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          {c.ativo ? (
                             <DropdownMenuItem
-                              className="text-red-600"
+                              className="text-orange-600"
                               onClick={() => handleDeleteClick(c)}
                             >
                               <Trash2 className="mr-2 h-4 w-4" />
-                              Excluir
+                              Inativar
                             </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                          ) : (
+                            <DropdownMenuItem
+                              className="text-green-600"
+                              onClick={async () => {
+                                try {
+                                  const res = await fetch('/api/clientes', {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ id: c.id, ativo: true }),
+                                  });
+                                  const data = await res.json();
+                                  if (data.sucesso) {
+                                    toast.success(`${c.nome_razao_social} foi ativado novamente.`);
+                                    carregar();
+                                  } else {
+                                    toast.error(data.erro?.mensagem || 'Erro ao ativar');
+                                  }
+                                } catch {
+                                  toast.error('Erro de conexão');
+                                }
+                              }}
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Ativar
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            className="text-red-600"
+                            onClick={() => handleDeleteClick(c)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>

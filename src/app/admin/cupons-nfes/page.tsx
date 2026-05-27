@@ -185,6 +185,18 @@ export default function CuponsNFEsPage() {
             </div>
         </div>
         <div className="flex gap-2">
+          <Link href="/admin/nfe/config">
+            <Button variant="outline" className="gap-2">
+              <Settings className="h-4 w-4" />
+              Config. NF-e
+            </Button>
+          </Link>
+          <Link href="/admin/configuracoes-cupom">
+            <Button variant="outline" className="gap-2">
+              <Receipt className="h-4 w-4" />
+              Config. Cupom Fiscal
+            </Button>
+          </Link>
           <Button
             variant="outline"
             className="gap-2"
@@ -234,18 +246,6 @@ export default function CuponsNFEsPage() {
             <Download className="h-4 w-4" />
             Exportar PDF
           </Button>
-          <Link href="/admin/nfe/config">
-            <Button variant="outline" className="gap-2">
-              <Settings className="h-4 w-4" />
-              Config. NF-e
-            </Button>
-          </Link>
-          <Link href="/admin/configuracoes-cupom">
-            <Button variant="outline" className="gap-2">
-              <Receipt className="h-4 w-4" />
-              Config. Cupom Fiscal
-            </Button>
-          </Link>
         </div>
 
       <Tabs value={ativoTab} onValueChange={setAtivoTab}>

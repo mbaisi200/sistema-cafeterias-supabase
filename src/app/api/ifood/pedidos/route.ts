@@ -12,6 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { liberarReservaVenda, converterReservaVendaEmSaida } from '@/lib/supabase';
 
 // Constants iFood API
 const IFOOD_API_BASE_URL = 'https://merchant-api.ifood.com.br';
@@ -427,6 +428,14 @@ export async function POST(request: NextRequest) {
           atualizado_em: new Date().toISOString(),
         })
         .eq('venda_id', vendaId);
+
+      // Liberar reserva se cancelou / converter em saída se entregou
+      if (novoStatus === 'cancelada') {
+        await liberarReservaVenda(supabase, vendaId);
+      }
+      if (novoStatus === 'entregue') {
+        await converterReservaVendaEmSaida(supabase, empresaId, vendaId);
+      }
     }
 
     // Atualizar erro na config se falhou

@@ -47,7 +47,7 @@ import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { getSupabaseClient } from '@/lib/supabase';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Plus,
   Search,
@@ -71,6 +71,7 @@ import {
   Settings,
   Heart,
   WashingMachine,
+  ArrowUpDown,
   type LucideIcon,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -132,6 +133,8 @@ export default function SegmentosPage() {
   const [secoesDisponiveis, setSecoesDisponiveis] = useState<any[]>([]);
   const [secoesSelecionadas, setSecoesSelecionadas] = useState<Set<string>>(new Set());
   const [loadingSecoes, setLoadingSecoes] = useState(false);
+  const [sortBy, setSortBy] = useState<string>('nome');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const { toast } = useToast();
 
   const fetchSegmentos = useCallback(async () => {
@@ -210,6 +213,60 @@ export default function SegmentosPage() {
 
   const filteredSegmentos = segmentos.filter((seg) =>
     seg.nome.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortDir('asc');
+    }
+  };
+
+  const sortedSegmentos = useMemo(() => {
+    return [...filteredSegmentos].sort((a, b) => {
+      let aVal: any, bVal: any;
+      switch (sortBy) {
+        case 'nome':
+          aVal = a.nome.toLowerCase();
+          bVal = b.nome.toLowerCase();
+          break;
+        case 'nome_marca':
+          aVal = a.nome_marca.toLowerCase();
+          bVal = b.nome_marca.toLowerCase();
+          break;
+        case 'descricao':
+          aVal = (a.descricao || '').toLowerCase();
+          bVal = (b.descricao || '').toLowerCase();
+          break;
+        case 'empresas_count':
+          aVal = a.empresas_count || 0;
+          bVal = b.empresas_count || 0;
+          break;
+        case 'ativo':
+          aVal = a.ativo ? 1 : 0;
+          bVal = b.ativo ? 1 : 0;
+          break;
+        default:
+          return 0;
+      }
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  }, [filteredSegmentos, sortBy, sortDir]);
+
+  const SortHeader = ({ column, children, className }: { column: string; children: React.ReactNode; className?: string }) => (
+    <TableHead className={className}>
+      <button
+        className="flex items-center gap-1 hover:text-foreground transition-colors"
+        onClick={() => handleSort(column)}
+      >
+        {children}
+        <ArrowUpDown className={`h-3 w-3 ${sortBy === column ? 'text-blue-600' : 'text-muted-foreground/50'}`} />
+      </button>
+    </TableHead>
   );
 
   const openCreateDialog = () => {
@@ -721,16 +778,16 @@ export default function SegmentosPage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Nome Marca</TableHead>
-                        <TableHead className="hidden md:table-cell">Descrição</TableHead>
-                        <TableHead className="text-center">Empresas</TableHead>
-                        <TableHead>Status</TableHead>
+                        <SortHeader column="nome">Nome</SortHeader>
+                        <SortHeader column="nome_marca">Nome Marca</SortHeader>
+                        <SortHeader column="descricao" className="hidden md:table-cell">Descrição</SortHeader>
+                        <SortHeader column="empresas_count" className="text-center">Empresas</SortHeader>
+                        <SortHeader column="ativo">Status</SortHeader>
                         <TableHead className="text-right">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredSegmentos.map((segmento) => {
+                      {sortedSegmentos.map((segmento) => {
                         const IconComp = getIconComponent(segmento.icone);
                         return (
                           <TableRow key={segmento.id}>

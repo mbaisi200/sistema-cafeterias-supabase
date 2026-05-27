@@ -13,6 +13,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { verifyWebhookSignatureAsync, processUberEatsOrder, logUberEatsEvent } from '@/services/uber-eats-service';
+import { liberarReservaVenda } from '@/lib/supabase';
 import type { UberEatsOrder } from '@/types/uber-eats';
 
 export async function POST(request: NextRequest) {
@@ -137,6 +138,7 @@ export async function POST(request: NextRequest) {
       if (pedido) {
         await supabase.from('vendas').update({ status: 'cancelada' }).eq('id', pedido.venda_id);
         await supabase.from('uber_eats_pedidos').update({ uber_eats_status: 'CANCELLED' }).eq('order_id', orderId);
+        await liberarReservaVenda(supabase, pedido.venda_id);
       }
 
       await logUberEatsEvent(empresaId, 'order_cancelled', 'Pedido cancelado pelo Uber Eats', {}, orderId, undefined, true);

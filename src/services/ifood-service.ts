@@ -5,7 +5,7 @@
  * Inclui autenticação, recebimento de pedidos, sincronização de produtos e atualização de status.
  */
 
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient, reservarEstoqueVenda } from '@/lib/supabase';
 import {
   IFoodConfig,
   IFoodOrder,
@@ -509,6 +509,18 @@ export async function processIFoodOrder(
   if (itensError) {
     console.error('Erro ao criar itens da venda:', itensError);
   }
+
+  // Reservar estoque
+  await reservarEstoqueVenda(
+    supabase,
+    empresaId,
+    venda.id,
+    itensVenda.map(i => ({
+      produtoId: i.produto_id || '',
+      produtoNome: i.nome,
+      quantidade: i.quantidade,
+    })),
+  );
 
   // Criar pagamento
   const { error: pagamentoError } = await supabase

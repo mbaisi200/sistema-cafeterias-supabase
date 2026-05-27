@@ -13,7 +13,6 @@ import {
   XCircle, 
   ChevronLeft,
   ArrowRight,
-  ShoppingCart,
   Bike,
   MessageCircle,
   Globe,
@@ -48,20 +47,6 @@ const integracoesDisponiveis = [
       'Sincronização de cardápio',
       'Atualização de estoque em tempo real',
       'Solicitação de entregador',
-    ],
-  },
-  {
-    id: 'rappi',
-    nome: 'Rappi',
-    descricao: 'Integre com o Rappi para receber pedidos e gerenciar seu delivery de forma centralizada.',
-    icone: <ShoppingCart className="h-10 w-10" />,
-    disponivel: false,
-    cor: 'text-orange-500',
-    bgCor: 'bg-orange-50',
-    recursos: [
-      'Recebimento automático de pedidos',
-      'Gestão centralizada de pedidos',
-      'Sincronização de produtos',
     ],
   },
   {
@@ -170,7 +155,6 @@ function IntegracoesContent() {
       }
 
       // Outras integrações (por enquanto desconectadas)
-      status['rappi'] = { ativo: false, status: 'disconnected' };
       status['whatsapp'] = { ativo: false, status: 'disconnected' };
       status['mercado_pago'] = { ativo: false, status: 'disconnected' };
 

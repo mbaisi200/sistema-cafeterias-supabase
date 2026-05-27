@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { liberarReservaVenda, converterReservaVendaEmSaida } from '@/lib/supabase';
 
 async function getConfig(empresaId: string) {
   const supabase = await createClient();
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
       case 'deny': {
         await supabase.from('vendas').update({ status: 'cancelada' }).eq('id', vendaId);
         await logEvent(empresaId, 'order_denied', { orderId: params.orderId, sucesso: true, detalhes: params.motivo });
+        await liberarReservaVenda(supabase, vendaId);
         return NextResponse.json({ sucesso: true, data: { message: 'Pedido rejeitado', novoStatus: 'cancelada' } });
       }
 
@@ -83,12 +85,14 @@ export async function POST(request: NextRequest) {
       case 'deliver': {
         await supabase.from('vendas').update({ status: 'entregue', fechado_em: new Date().toISOString() }).eq('id', vendaId);
         await logEvent(empresaId, 'order_delivered', { orderId: params.orderId, sucesso: true });
+        await converterReservaVendaEmSaida(supabase, empresaId, vendaId);
         return NextResponse.json({ sucesso: true, data: { message: 'Pedido entregue' } });
       }
 
       case 'cancel': {
         await supabase.from('vendas').update({ status: 'cancelada' }).eq('id', vendaId);
         await logEvent(empresaId, 'order_cancelled', { orderId: params.orderId, sucesso: true, detalhes: params.motivo });
+        await liberarReservaVenda(supabase, vendaId);
         return NextResponse.json({ sucesso: true, data: { message: 'Pedido cancelado' } });
       }
 

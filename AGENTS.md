@@ -518,6 +518,17 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Valor total é calculado como soma dos itens menos desconto
 - `formDesconto` salvo no metadata JSON da OS e carregado ao editar
 
+### RLS Policies — Correção `auth_user_id` ✅
+- **Bug**: As políticas RLS em `supabase/migrations/nfe_completo_com_clientes.sql` usam `WHERE id = auth.uid()` — mas `usuarios.id` é a PK interna, não o ID do auth. O correto é `WHERE auth_user_id = auth.uid()`
+- **Impacto**: Tabelas `clientes`, `nfe_config`, `nfe`, `nfe_eventos`, `nfe_inutilizacao`, `nfe_logs` retornam **403 Forbidden** para usuários autenticados (não-master) ao tentar SELECT/INSERT/UPDATE/DELETE
+- **Fix**: Migration `supabase/migrations/fix_nfe_clientes_rls_policies.sql` — drop e recria as policies com `auth_user_id` e adiciona bypass para role `master`
+- **Sintoma**: Seed reporta `Erro no seed: Object` com 4 keys vazias — no console aparece `supabase.co/rest/v1/clientes?columns=... 403 ()`
+
+### Seed — Tolerância a RLS ✅
+- Cada etapa do seed agora é envolvida em try-catch individual
+- Falha de RLS não impede as demais etapas (log `⚠️ Tabela: erro (pode ser RLS)`)
+- Progresso continua normalmente mesmo quando uma etapa pula
+
 ### Notificações — Dispositivos Pendentes ✅
 - Badge vermelho na sidebar (item "Dispositivos") com contagem de pendentes
 - Atualização automática a cada 30s

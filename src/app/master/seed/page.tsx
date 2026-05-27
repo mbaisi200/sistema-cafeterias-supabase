@@ -504,22 +504,34 @@ const TIPOS_VENDA_BASE = ['balcao', 'mesa', 'delivery'];
 // Formas de pagamento
 const FORMAS_PAGAMENTO = ['dinheiro', 'debito', 'credito', 'pix'];
 
-// Tabelas que serão limpas
+// Tabelas que serão limpas (ordenadas por dependência FK: filhos antes dos pais)
 const TABELAS_PARA_LIMPAR = [
-  'categorias',
-  'fornecedores',
-  'funcionarios',
-  'mesas',
-  'produtos',
-  'vendas',
   'itens_venda',
   'pagamentos',
-  'estoque_movimentos',
-  'contas',
-  'nfe_importadas',
-  'caixas',
+  'vendas',
+  'comandas',
   'movimentacoes_caixa',
-  'logs'
+  'caixas',
+  'estoque_movimentos',
+  'ordens_servico',
+  'pedidos',
+  'nfe',
+  'contas',
+  'logs',
+  'mesas',
+  'produtos',
+  'funcionarios',
+  'clientes',
+  'fornecedores',
+  'categorias',
+  'unidades',
+  'servicos',
+  'condicoes_pagamento',
+  'lavanderia_itens_catalogo',
+  'lavanderia_servicos_catalogo',
+  'lavanderia_precos',
+  'lavanderia_categorias',
+  'nfe_importadas',
 ];
 
 export default function SeedPage() {
@@ -1040,11 +1052,200 @@ function SeedContent() {
       });
 
       updateStatus('Produtos', 'done', produtosDataInfo.length);
-      setProgressValue(25);
+      setProgressValue(22);
       addLog(`${produtosDataInfo.length} produtos criados.`);
 
       // ==========================================
-      // 5. CRIAR VENDAS (220 vendas)
+      // FORNECEDORES
+      // ==========================================
+      updateStatus('Fornecedores', 'running');
+      addLog('Criando fornecedores...');
+      let fornecedoresIds: string[] = [];
+      try {
+        const fornecedoresData = fornecedoresSeed.map(nome => ({
+          empresa_id: empresaId,
+          nome,
+          razao_social: nome,
+          ativo: true,
+          criado_em: new Date().toISOString(),
+          atualizado_em: new Date().toISOString(),
+        }));
+
+        const { data: fornecedoresInsert, error: fornError } = await supabase
+          .from('fornecedores')
+          .insert(fornecedoresData)
+          .select('id, nome');
+
+        if (fornError) throw fornError;
+
+        fornecedoresIds = fornecedoresInsert?.map((f: any) => f.id) || [];
+        updateStatus('Fornecedores', 'done', fornecedoresIds.length);
+        addLog(`${fornecedoresIds.length} fornecedores criados.`);
+      } catch (e: any) {
+        addLog(`⚠️ Fornecedores: ${e.message || e.code || 'erro ao criar'} (pode ser RLS)`);
+        updateStatus('Fornecedores', 'done', 0, e.message);
+      }
+      setProgressValue(26);
+
+      // ==========================================
+      // CLIENTES
+      // ==========================================
+      updateStatus('Clientes', 'running');
+      addLog('Criando clientes...');
+      let clientesInsert: { id: string; nome_razao_social: string }[] | null = null;
+      try {
+        const clientesNomes = [
+          'João Silva', 'Maria Oliveira', 'Carlos Santos', 'Ana Costa',
+          'Pedro Almeida', 'Fernanda Souza', 'Lucas Lima', 'Juliana Pereira',
+          'Rafael Martins', 'Amanda Barbosa', 'Bruno Rocha', 'Larissa Dias',
+          'Gabriel Carvalho', 'Beatriz Teixeira', 'Felipe Ribeiro',
+        ];
+
+        const clientesData = clientesNomes.map((nome, idx) => ({
+          empresa_id: empresaId,
+          nome_razao_social: nome,
+          tipo_pessoa: '1',
+          cnpj_cpf: `${String(100 + idx).padStart(3, '0')}${String(200 + idx).padStart(3, '0')}${String(300 + idx).padStart(3, '0')}${String(10 + idx)}`.replace(/\D/g, '').slice(0, 14),
+          email: `${nome.toLowerCase().replace(/ /g, '.')}@email.com`,
+          telefone: `(11) 9${String(Math.floor(9000 + Math.random() * 1000))}-${String(Math.floor(1000 + Math.random() * 9000))}`,
+          logradouro: 'Rua Exemplo',
+          numero: String(100 + idx),
+          bairro: 'Centro',
+          codigo_municipio: '3550308',
+          municipio: 'São Paulo',
+          uf: 'SP',
+          cep: '01001000',
+          ativo: true,
+          criado_em: new Date().toISOString(),
+          atualizado_em: new Date().toISOString(),
+        }));
+
+        const { data: result, error: cliError } = await supabase
+          .from('clientes')
+          .insert(clientesData)
+          .select('id, nome_razao_social');
+
+        if (cliError) throw cliError;
+        clientesInsert = result;
+        updateStatus('Clientes', 'done', clientesInsert?.length || 0);
+        addLog(`${clientesInsert?.length || 0} clientes criados.`);
+      } catch (e: any) {
+        addLog(`⚠️ Clientes: ${e.message || e.code || 'erro ao criar'} (pode ser RLS)`);
+        updateStatus('Clientes', 'done', 0, e.message);
+      }
+      setProgressValue(30);
+
+      // ==========================================
+      // UNIDADES
+      // ==========================================
+      updateStatus('Unidades', 'running');
+      addLog('Criando unidades...');
+      let unidadesData: { nome: string; descricao: string; empresa_id: string; ativo: boolean; criado_em: string }[] = [];
+      try {
+        unidadesData = [
+          { nome: 'UN', descricao: 'Unidade' },
+          { nome: 'KG', descricao: 'Quilograma' },
+          { nome: 'G', descricao: 'Grama' },
+          { nome: 'L', descricao: 'Litro' },
+          { nome: 'ML', descricao: 'Mililitro' },
+          { nome: 'CX', descricao: 'Caixa' },
+          { nome: 'PC', descricao: 'Peça' },
+          { nome: 'MT', descricao: 'Metro' },
+          { nome: 'M²', descricao: 'Metro Quadrado' },
+          { nome: 'HR', descricao: 'Hora' },
+        ].map(u => ({
+          empresa_id: empresaId,
+          ...u,
+          ativo: true,
+          criado_em: new Date().toISOString(),
+        }));
+
+        const { error: unidError } = await supabase
+          .from('unidades')
+          .insert(unidadesData);
+
+        if (unidError) throw unidError;
+        updateStatus('Unidades', 'done', unidadesData.length);
+        addLog(`${unidadesData.length} unidades criadas.`);
+      } catch (e: any) {
+        addLog(`⚠️ Unidades: ${e.message || e.code || 'erro ao criar'} (pode ser RLS)`);
+        updateStatus('Unidades', 'done', 0, e.message);
+      }
+      setProgressValue(33);
+
+      // ==========================================
+      // SERVIÇOS
+      // ==========================================
+      updateStatus('Serviços', 'running');
+      addLog('Criando serviços...');
+      let servicosData: { nome: string; preco: number; duracao: number; categoria: string; comissao: number; empresa_id: string; ativo: boolean; criado_em: string; atualizado_em: string }[] = [];
+      try {
+        servicosData = [
+          { nome: 'Consultoria', preco: 150.00, duracao: 60, categoria: 'Consultoria' },
+          { nome: 'Manutenção Preventiva', preco: 200.00, duracao: 120, categoria: 'Manutenção' },
+          { nome: 'Instalação', preco: 100.00, duracao: 90, categoria: 'Instalação' },
+          { nome: 'Treinamento', preco: 80.00, duracao: 60, categoria: 'Treinamento' },
+          { nome: 'Suporte Técnico', preco: 50.00, duracao: 30, categoria: 'Suporte' },
+          { nome: 'Transporte', preco: 35.00, duracao: 45, categoria: 'Logística' },
+          { nome: 'Entrega Expressa', preco: 25.00, duracao: 20, categoria: 'Entrega' },
+        ].map(s => ({
+          empresa_id: empresaId,
+          ...s,
+          comissao: 0,
+          ativo: true,
+          criado_em: new Date().toISOString(),
+          atualizado_em: new Date().toISOString(),
+        }));
+
+        const { error: servError } = await supabase
+          .from('servicos')
+          .insert(servicosData);
+
+        if (servError) throw servError;
+        updateStatus('Serviços', 'done', servicosData.length);
+        addLog(`${servicosData.length} serviços criados.`);
+      } catch (e: any) {
+        addLog(`⚠️ Serviços: ${e.message || e.code || 'erro ao criar'} (pode ser RLS)`);
+        updateStatus('Serviços', 'done', 0, e.message);
+      }
+      setProgressValue(36);
+
+      // ==========================================
+      // CONDIÇÕES DE PAGAMENTO
+      // ==========================================
+      updateStatus('Condições de Pagamento', 'running');
+      addLog('Criando condições de pagamento...');
+      let condicoesData: { nome: string; descricao: string; empresa_id: string; ativo: boolean; criado_em: string }[] = [];
+      try {
+        condicoesData = [
+          { nome: 'À Vista', descricao: 'Pagamento à vista' },
+          { nome: 'À Prazo 30 dias', descricao: 'Pagamento em 30 dias' },
+          { nome: 'À Prazo 60 dias', descricao: 'Pagamento em 60 dias' },
+          { nome: '30/60 dias', descricao: '30 e 60 dias' },
+          { nome: 'Boleto 30 dias', descricao: 'Boleto bancário 30 dias' },
+          { nome: 'Cheque 30 dias', descricao: 'Cheque pré-datado 30 dias' },
+        ].map(c => ({
+          empresa_id: empresaId,
+          ...c,
+          ativo: true,
+          criado_em: new Date().toISOString(),
+        }));
+
+        const { error: condError } = await supabase
+          .from('condicoes_pagamento')
+          .insert(condicoesData);
+
+        if (condError) throw condError;
+        updateStatus('Condições de Pagamento', 'done', condicoesData.length);
+        addLog(`${condicoesData.length} condições de pagamento criadas.`);
+      } catch (e: any) {
+        addLog(`⚠️ Condições de Pagamento: ${e.message || e.code || 'erro ao criar'} (pode ser RLS)`);
+        updateStatus('Condições de Pagamento', 'done', 0, e.message);
+      }
+      setProgressValue(39);
+
+      // ==========================================
+      // VENDAS
       // ==========================================
       updateStatus('Vendas', 'running');
       addLog('Criando vendas (isso pode levar alguns segundos)...');
@@ -1171,11 +1372,11 @@ function SeedContent() {
       }
 
       updateStatus('Vendas', 'done', NUM_VENDAS);
-      setProgressValue(75);
+      setProgressValue(60);
       addLog(`${NUM_VENDAS} vendas criadas com seus itens e pagamentos.`);
 
       // ==========================================
-      // 6. CRIAR MOVIMENTOS DE ESTOQUE
+      // MOVIMENTOS DE ESTOQUE
       // ==========================================
       let numMovimentos = 0;
       if (criarEstoque) {
@@ -1211,13 +1412,13 @@ function SeedContent() {
         if (movError) console.error('Erro ao criar movimentos:', movError);
 
         updateStatus('Movimentos de Estoque', 'done', NUM_MOVIMENTOS);
-        setProgressValue(80);
+        setProgressValue(64);
         addLog(`${NUM_MOVIMENTOS} movimentos de estoque criados.`);
         numMovimentos = NUM_MOVIMENTOS;
       } else {
         updateStatus('Movimentos de Estoque', 'done', 0, 'Desabilitada no segmento');
         addLog('⏭️ Movimentos de estoque: desabilitada no segmento selecionado.');
-        setProgressValue(80);
+        setProgressValue(64);
       }
 
       // ==========================================
@@ -1277,16 +1478,86 @@ function SeedContent() {
         if (contasError) console.error('Erro ao criar contas:', contasError);
 
         updateStatus('Contas a Pagar/Receber', 'done', 40);
-        setProgressValue(85);
+        setProgressValue(68);
         addLog('40 contas (pagar/receber) criadas.');
       } else {
         updateStatus('Contas a Pagar/Receber', 'done', 0, 'Desabilitada no segmento');
         addLog('⏭️ Contas a pagar/receber: desabilitada no segmento selecionado.');
-        setProgressValue(85);
+        setProgressValue(68);
       }
 
       // ==========================================
-      // 8. CRIAR CAIXAS
+      // PEDIDOS DE COMPRA
+      // ==========================================
+      updateStatus('Pedidos de Compra', 'running');
+      addLog('Criando pedidos de compra...');
+      let numPedidos = 0;
+      try {
+        numPedidos = 15;
+        const pedidosData = Array.from({ length: numPedidos }, (_, idx) => {
+          const dataPedido = gerarDataAleatoria(periodoInicio, periodoFim);
+          const numItens = Math.floor(Math.random() * 5) + 1;
+          const itensPedido: any[] = [];
+          let subtotal = 0;
+
+          for (let j = 0; j < numItens; j++) {
+            const produto = produtosDataInfo[Math.floor(Math.random() * produtosDataInfo.length)];
+            const qtd = Math.floor(Math.random() * 20) + 5;
+            itensPedido.push({
+              produto_id: produto.id,
+              nome: produto.nome,
+              quantidade: qtd,
+              preco_unitario: produto.preco,
+              total: produto.preco * qtd,
+            });
+            subtotal += produto.preco * qtd;
+          }
+
+          const desconto = Math.random() > 0.8 ? Math.floor(subtotal * 0.05) : 0;
+          const total = subtotal - desconto;
+          const statuses = ['pendente', 'aprovado', 'aprovado', 'pendente', 'cancelado'];
+          const formaPg = FORMAS_PAGAMENTO[Math.floor(Math.random() * FORMAS_PAGAMENTO.length)];
+          const condPg = ['À Vista', '30 dias', '60 dias', '30/60'][Math.floor(Math.random() * 4)];
+
+          const cliente = clientesInsert?.[Math.floor(Math.random() * (clientesInsert?.length || 1))];
+          const clienteId = cliente?.id || null;
+          const clienteNome = cliente?.nome_razao_social || 'Consumidor';
+
+          return {
+            empresa_id: empresaId,
+            numero: idx + 1,
+            cliente_id: clienteId,
+            cliente_nome: clienteNome,
+            subtotal,
+            desconto,
+            total,
+            status: statuses[Math.floor(Math.random() * statuses.length)],
+            forma_pagamento: formaPg,
+            condicao_pagamento: condPg,
+            prazo_entrega: new Date(dataPedido.getTime() + Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
+            observacoes: '',
+            itens: itensPedido,
+            criado_em: dataPedido.toISOString(),
+            atualizado_em: dataPedido.toISOString(),
+          };
+        });
+
+        const { error: pedidosError } = await supabase
+          .from('pedidos')
+          .insert(pedidosData);
+
+        if (pedidosError) throw pedidosError;
+
+        updateStatus('Pedidos de Compra', 'done', numPedidos);
+        addLog(`${numPedidos} pedidos de compra criados.`);
+      } catch (e: any) {
+        addLog(`⚠️ Pedidos: ${e.message || e.code || 'erro ao criar'} (pode ser RLS)`);
+        updateStatus('Pedidos de Compra', 'done', 0, e.message);
+      }
+      setProgressValue(72);
+
+      // ==========================================
+      // CAIXAS
       // ==========================================
       if (criarCaixas) {
         updateStatus('Caixas', 'running');
@@ -1397,16 +1668,98 @@ function SeedContent() {
       }
 
       updateStatus('Caixas', 'done', 20);
-      setProgressValue(95);
+      setProgressValue(82);
       addLog('20 sessões de caixa criadas com suas movimentações.');
       } else {
         updateStatus('Caixas', 'done', 0, 'Desabilitada no segmento');
         addLog('⏭️ Sessões de caixa: desabilitada no segmento selecionado.');
-        setProgressValue(95);
+        setProgressValue(82);
       }
 
       // ==========================================
-      // 9. CRIAR LOGS
+      // LAVANDERIA — CATÁLOGO
+      // ==========================================
+      updateStatus('Lavanderia (Catálogo)', 'running');
+      addLog('Criando dados de lavanderia...');
+      let lavItensInsert: { id: string; descricao: string }[] | null = null;
+      let lavServInsert: { id: string }[] | null = null;
+      try {
+        const lavCategorias = [
+          { nome: 'Camisas', cor_bg: 'bg-blue-100', cor_text: 'text-blue-700' },
+          { nome: 'Calças', cor_bg: 'bg-indigo-100', cor_text: 'text-indigo-700' },
+          { nome: 'Vestidos', cor_bg: 'bg-pink-100', cor_text: 'text-pink-700' },
+          { nome: 'Paletós', cor_bg: 'bg-gray-100', cor_text: 'text-gray-700' },
+          { nome: 'Cobertores', cor_bg: 'bg-orange-100', cor_text: 'text-orange-700' },
+        ].map(c => ({ empresa_id: empresaId, ...c, ativo: true, ordem: 0, criado_em: new Date().toISOString() }));
+
+        const { data: lavCatInsert, error: lavCatErr } = await supabase
+          .from('lavanderia_categorias')
+          .insert(lavCategorias)
+          .select('id, nome');
+        if (lavCatErr) console.error('Erro ao criar categorias lav:', lavCatErr);
+
+        const lavItens = [
+          { descricao: 'Camisa Social M', categoria: 'Camisas' },
+          { descricao: 'Camisa Social G', categoria: 'Camisas' },
+          { descricao: 'Calça Social 42', categoria: 'Calças' },
+          { descricao: 'Calça Jeans 40', categoria: 'Calças' },
+          { descricao: 'Vestido Curto', categoria: 'Vestidos' },
+          { descricao: 'Vestido Longo', categoria: 'Vestidos' },
+          { descricao: 'Paletó 42', categoria: 'Paletós' },
+          { descricao: 'Paletó 44', categoria: 'Paletós' },
+          { descricao: 'Cobertor Casal', categoria: 'Cobertores' },
+          { descricao: 'Cobertor Solteiro', categoria: 'Cobertores' },
+        ].map(i => ({ empresa_id: empresaId, ...i, ativo: true, criado_em: new Date().toISOString() }));
+
+        const { data: result, error: lavItErr } = await supabase
+          .from('lavanderia_itens_catalogo')
+          .insert(lavItens)
+          .select('id, descricao');
+        if (lavItErr) throw lavItErr;
+        lavItensInsert = result;
+
+        const lavServicos = [
+          { nome: 'Lavagem Simples', descricao: 'Lavagem padrão', preco: 8.00 },
+          { nome: 'Lavagem Premium', descricao: 'Lavagem com perfume', preco: 15.00 },
+          { nome: 'Secagem', descricao: 'Secagem em máquina', preco: 5.00 },
+          { nome: 'Passadoria', descricao: 'Passar roupa', preco: 10.00 },
+          { nome: 'Lavagem + Passadoria', descricao: 'Combo completo', preco: 18.00 },
+        ].map(s => ({ empresa_id: empresaId, ...s, ativo: true, ordem: 0, criado_em: new Date().toISOString(), atualizado_em: new Date().toISOString() }));
+
+        const { data: result2, error: lavServErr } = await supabase
+          .from('lavanderia_servicos_catalogo')
+          .insert(lavServicos)
+          .select('id');
+        if (lavServErr) throw lavServErr;
+        lavServInsert = result2;
+
+        if (lavItensInsert && lavItensInsert.length > 0 && lavServInsert && lavServInsert.length > 0) {
+          const itens = lavItensInsert;
+          const servicos = lavServInsert;
+          const precosData = itens.flatMap(item =>
+            servicos.map(serv => ({
+              empresa_id: empresaId,
+              item_id: item.id,
+              servico_id: serv.id,
+              preco: Math.floor(Math.random() * 15) + 5,
+            }))
+          );
+          const { error: precosErr } = await supabase
+            .from('lavanderia_precos')
+            .insert(precosData);
+          if (precosErr) console.error('Erro ao criar preços lav:', precosErr);
+        }
+
+        updateStatus('Lavanderia (Catálogo)', 'done', (lavItensInsert?.length || 0) + (lavServInsert?.length || 0));
+        addLog(`${lavItensInsert?.length || 0} itens e ${lavServInsert?.length || 0} serviços de lavanderia criados.`);
+      } catch (e: any) {
+        addLog(`⚠️ Lavanderia: ${e.message || e.code || 'erro ao criar'} (pode ser RLS)`);
+        updateStatus('Lavanderia (Catálogo)', 'done', 0, e.message);
+      }
+      setProgressValue(90);
+
+      // ==========================================
+      // LOGS DE ATIVIDADE
       // ==========================================
       updateStatus('Logs de Atividade', 'running');
       addLog('Criando logs de atividade...');
@@ -1441,11 +1794,19 @@ function SeedContent() {
       addLog('═══════════════════════════════════════');
       addLog('✅ SEED CONCLUÍDO COM SUCESSO!');
       addLog('═══════════════════════════════════════');
-      addLog(`Total de registros criados: ${8 + funcionariosIds.length + mesasIds.length + produtosDataInfo.length + NUM_VENDAS * 3 + numMovimentos + 40 + 20 * 2 + 100}`);
+      addLog(`Total de registros criados: ${8 + funcionariosIds.length + mesasIds.length + produtosDataInfo.length + NUM_VENDAS * 3 + numMovimentos + 40 + 20 * 2 + 100 + (fornecedoresIds?.length || 0) + (clientesInsert?.length || 0) + unidadesData.length + servicosData.length + condicoesData.length + numPedidos + (lavItensInsert?.length || 0) + (lavServInsert?.length || 0) + ((lavItensInsert?.length || 0) * (lavServInsert?.length || 0))}`);
 
     } catch (error) {
       console.error('Erro no seed:', error);
-      addLog(`❌ Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      console.error('Tipo:', typeof error, 'Constructor:', (error as any)?.constructor?.name, 'Keys:', Object.keys(error as object || {}), 'Props:', Object.getOwnPropertyNames(error as object || {}));
+      if (error && typeof error === 'object') {
+        const errObj = error as Record<string, unknown>;
+        const msg = errObj.message || (errObj as any).error || errObj.code || errObj.details || errObj.hint || JSON.stringify(errObj);
+        addLog(`❌ Erro: ${msg}`);
+        addLog(`  Code: ${errObj.code || 'N/A'} | Details: ${errObj.details || 'N/A'}`);
+      } else {
+        addLog(`❌ Erro: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      }
     } finally {
       setLoading(false);
     }

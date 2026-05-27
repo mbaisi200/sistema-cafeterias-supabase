@@ -7,7 +7,7 @@
  * Documentação: https://developer.uber.com/docs/eats
  */
 
-import { getSupabaseClient } from '@/lib/supabase';
+import { getSupabaseClient, reservarEstoqueVenda } from '@/lib/supabase';
 import {
   UberEatsConfig,
   UberEatsOrder,
@@ -663,6 +663,18 @@ export async function processUberEatsOrder(
     if (itensError) {
       console.error('Erro ao criar itens da venda:', itensError);
     }
+
+    // Reservar estoque
+    await reservarEstoqueVenda(
+      supabase,
+      empresaId,
+      venda.id,
+      itensVenda.map(i => ({
+        produtoId: i.produto_id || '',
+        produtoNome: i.nome,
+        quantidade: i.quantidade,
+      })),
+    );
   }
 
   // Criar registro na tabela uber_eats_pedidos
