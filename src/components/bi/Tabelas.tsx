@@ -44,10 +44,10 @@ export function ProdutosMaisVendidos({ dados, categorias }: ProdutosMaisVendidos
                 <TableRow>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Produto</TableHead>
-                  <TableHead className="w-28">Categoria</TableHead>
+                  <TableHead className="w-28 hidden md:table-cell">Categoria</TableHead>
                   <TableHead className="text-right w-16">Qtd.</TableHead>
                   <TableHead className="text-right w-28">Valor Total</TableHead>
-                  <TableHead className="w-32">% Vendas</TableHead>
+                  <TableHead className="w-32 hidden md:table-cell">% Vendas</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -66,14 +66,14 @@ export function ProdutosMaisVendidos({ dados, categorias }: ProdutosMaisVendidos
                       <TableCell>
                         <div className="font-medium group-hover:text-primary transition-colors truncate" title={produto.nome}>{produto.nome}</div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <Badge variant="outline" className="truncate max-w-full">{getNomeCategoria(produto.categoriaId)}</Badge>
                       </TableCell>
                       <TableCell className="text-right font-medium whitespace-nowrap">{produto.quantidadeTotal}</TableCell>
                       <TableCell className="text-right font-medium text-emerald-600 whitespace-nowrap">
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(produto.valorTotal)}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <div className="space-y-1">
                           <Progress value={(produto.valorTotal / maxValor) * 100} className="h-2" />
                           <span className="text-xs text-muted-foreground">{produto.percentualVendas.toFixed(1)}%</span>
@@ -277,13 +277,13 @@ export function LucroBrutoPorProduto({ dados, resumo, categorias }: LucroBrutoPo
                 <TableRow>
                   <TableHead className="w-12">#</TableHead>
                   <TableHead>Produto</TableHead>
-                  <TableHead className="w-28">Categoria</TableHead>
-                  <TableHead className="text-right w-16">Qtd.</TableHead>
+                  <TableHead className="w-28 hidden md:table-cell">Categoria</TableHead>
+                  <TableHead className="text-right w-16 hidden md:table-cell">Qtd.</TableHead>
                   <TableHead className="text-right w-24">Receita</TableHead>
-                  <TableHead className="text-right w-24">Custo</TableHead>
+                  <TableHead className="text-right w-24 hidden md:table-cell">Custo</TableHead>
                   <TableHead className="text-right w-24">Lucro Bruto</TableHead>
                   <TableHead className="text-right w-20">Margem</TableHead>
-                  <TableHead className="w-24">Barra</TableHead>
+                  <TableHead className="w-24 hidden md:table-cell">Barra</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -317,14 +317,14 @@ export function LucroBrutoPorProduto({ dados, resumo, categorias }: LucroBrutoPo
                             Pç: {formatarMoeda(produto.precoUnitario)} • Custo: {formatarMoeda(produto.custoUnitario)}
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                           <Badge variant="outline" className="truncate max-w-full">{getNomeCategoria(produto.categoriaId)}</Badge>
                         </TableCell>
-                        <TableCell className="text-right font-medium whitespace-nowrap">{produto.quantidadeVendida}</TableCell>
+                        <TableCell className="text-right font-medium whitespace-nowrap hidden md:table-cell">{produto.quantidadeVendida}</TableCell>
                         <TableCell className="text-right font-medium text-blue-600 whitespace-nowrap">
                           {formatarMoeda(produto.receitaTotal)}
                         </TableCell>
-                        <TableCell className="text-right font-medium text-orange-600 whitespace-nowrap">
+                        <TableCell className="text-right font-medium text-orange-600 whitespace-nowrap hidden md:table-cell">
                           {formatarMoeda(produto.custoTotal)}
                         </TableCell>
                         <TableCell className="text-right font-bold whitespace-nowrap">
@@ -344,7 +344,7 @@ export function LucroBrutoPorProduto({ dados, resumo, categorias }: LucroBrutoPo
                             </span>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                           <Progress 
                             value={Math.max(0, (produto.lucroBruto / maxLucro) * 100)} 
                             className="h-2"

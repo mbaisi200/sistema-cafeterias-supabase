@@ -1176,7 +1176,7 @@ export default function PDVPage() {
   if (loading) {
     return (
       <ProtectedRoute allowedRoles={['admin', 'funcionario']}>
-        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-orange-50 to-amber-50 dark:from-[#1a1a2e] dark:to-[#1e2235]">
+        <div className="flex items-center justify-center h-screen bg-gradient-to-br from-[#e8f0ed] via-[#eaeae6] to-[#f0eddd] dark:from-[#1a1a2e] dark:to-[#1e2235]">
           <Loader2 className={`h-12 w-12 animate-spin ${darkMode ? 'text-teal-400' : 'text-orange-500'}`} />
         </div>
       </ProtectedRoute>
@@ -1185,7 +1185,7 @@ export default function PDVPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'funcionario']}>
-      <div className={`h-screen flex flex-col ${darkMode ? 'bg-[#1a1a2e]' : 'bg-white'}`}>
+      <div className={`h-screen flex flex-col ${darkMode ? 'bg-gradient-to-br from-[#1a1a2e] via-[#1e2235] to-[#16213e]' : 'bg-gradient-to-br from-[#e8f0ed] via-[#eaeae6] to-[#f0eddd]'}`}>
         
         {/* HEADER */}
         <header className={`${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-blue-100'} px-3 py-1.5 flex items-center justify-between shrink-0 shadow-sm`}>

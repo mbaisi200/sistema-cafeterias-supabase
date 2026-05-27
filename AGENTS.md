@@ -626,3 +626,43 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Ranking de Produtos e Serviços no Dashboard agora ordena do maior valor (topo) para o menor (base)
 - `src/components/bi/DashboardCharts.tsx`: dados ordenados decrescentemente com `type="category"` no eixo Y — o primeiro item do array (maior valor) aparece no topo do gráfico de barras horizontal
 - `src/app/admin/dashboard/page.tsx`: `sort` ascendente + `slice(-10)` mantém os 10 maiores valores
+
+### Backup CSV → JSON ✅
+- `handleBackupCSV` convertido para `handleBackupJSON` no Dashboard
+- Exporta `backup-dados-{data}.json` com metadados + `select *` de cada tabela + itens_venda
+- Estrutura restaurable: `{ metadados, dados: { vendas, clientes, ... } }`
+
+### Dashboard — Botão Atualizar ✅
+- Agora recarrega vendas + OS lavanderia + estoque baixo (antes só vendas)
+- Ícone giratório e "Atualizando..." enquanto carrega
+- Botão desabilitado durante o refresh
+
+### Gráficos Clicáveis (Dashboard) ✅
+- `DayOfWeekChart` e `ShiftChart` aceitam `onSliceClick`
+- Clique na fatia ou legenda abre dialog com vendas detalhadas do dia/turno
+- Cursor `pointer` no hover
+
+### PDV — Fundo Padronizado ✅
+- Fundo do PDV (`/pdv`) e PDV Varejo (`/pdv-varejo`) agora usam o mesmo gradiente do Dashboard
+- Light: `from-[#e8f0ed] via-[#eaeae6] to-[#f0eddd]`
+- Dark: `from-[#1a1a2e] via-[#1e2235] to-[#16213e]`
+
+### PDV Varejo — Toggle Tema ✅
+- Botão alternar claro/escuro adicionado no header (ícone Sun/Moon + label)
+- Estilo `secondary` no claro, `outline` no escuro
+
+### Sidebar — Cupons Renomeado ✅
+- "Cupons Fiscais" → "Cupons e Notas Fiscais" (hardcoded + migration SQL)
+- Migration: `supabase/migrations/rename_cupons_fiscais.sql`
+- Breadcrumbs e títulos da página também atualizados
+
+### Relatórios — Responsivo Mobile ✅
+- Colunas supressas em mobile (`hidden md:table-cell`):
+  - ProdutosMaisVendidos: oculta Categoria e % Vendas
+  - LucroBrutoPorProduto: oculta Categoria, Qtd., Custo, Barra
+  - VendasItensDia: oculta Categoria e Operador
+- Nada alterado em desktop
+
+### Open Graph / Link Preview ✅
+- `layout.tsx` agora inclui `openGraph` e `twitter` metadata
+- Usa `/logo.svg` como imagem de preview ao compartilhar link da Vercel

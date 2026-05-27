@@ -153,9 +153,10 @@ export function ProductRankingChart({ dados }: ProductRankingChartProps) {
 // ─────────────────────────────────────────
 interface DayOfWeekChartProps {
   dados: { dia: string; valor: number; quantidade: number }[];
+  onSliceClick?: (dia: string) => void;
 }
 
-export function DayOfWeekChart({ dados }: DayOfWeekChartProps) {
+export function DayOfWeekChart({ dados, onSliceClick }: DayOfWeekChartProps) {
   const total = dados.reduce((acc, d) => acc + d.valor, 0);
 
   return (
@@ -177,6 +178,8 @@ export function DayOfWeekChart({ dados }: DayOfWeekChartProps) {
                 dataKey="valor"
                 nameKey="dia"
                 stroke="none"
+                onClick={(_, index) => onSliceClick?.(dados[index].dia)}
+                style={{ cursor: onSliceClick ? 'pointer' : 'default' }}
               >
                 {dados.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
@@ -192,7 +195,11 @@ export function DayOfWeekChart({ dados }: DayOfWeekChartProps) {
           </ChartContainer>
           <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 mt-2">
             {dados.map((item, index) => (
-              <div key={item.dia} className="flex items-center gap-1.5">
+              <div
+                key={item.dia}
+                className="flex items-center gap-1.5 cursor-pointer hover:opacity-80"
+                onClick={() => onSliceClick?.(item.dia)}
+              >
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: PIE_COLORS[index % PIE_COLORS.length] }} />
                 <span className="text-xs text-gray-500">{item.dia}</span>
                 {total > 0 && (
@@ -214,9 +221,10 @@ export function DayOfWeekChart({ dados }: DayOfWeekChartProps) {
 // ─────────────────────────────────────────
 interface ShiftChartProps {
   dados: { turno: string; valor: number; quantidade: number }[];
+  onSliceClick?: (turno: string) => void;
 }
 
-export function ShiftChart({ dados }: ShiftChartProps) {
+export function ShiftChart({ dados, onSliceClick }: ShiftChartProps) {
   const SHIFT_COLORS = ['#14B8A6', '#F59E0B', '#6366F1'];
   const total = dados.reduce((acc, d) => acc + d.valor, 0);
 
@@ -239,6 +247,8 @@ export function ShiftChart({ dados }: ShiftChartProps) {
                 dataKey="valor"
                 nameKey="turno"
                 stroke="none"
+                onClick={(_, index) => onSliceClick?.(dados[index].turno)}
+                style={{ cursor: onSliceClick ? 'pointer' : 'default' }}
               >
                 {dados.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={SHIFT_COLORS[index % SHIFT_COLORS.length]} />
@@ -254,7 +264,11 @@ export function ShiftChart({ dados }: ShiftChartProps) {
           </ChartContainer>
           <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2">
             {dados.map((item, index) => (
-              <div key={item.turno} className="flex items-center gap-1.5">
+              <div
+                key={item.turno}
+                className="flex items-center gap-1.5 cursor-pointer hover:opacity-80"
+                onClick={() => onSliceClick?.(item.turno)}
+              >
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: SHIFT_COLORS[index % SHIFT_COLORS.length] }} />
                 <span className="text-xs text-gray-500">{item.turno}</span>
                 {total > 0 && (

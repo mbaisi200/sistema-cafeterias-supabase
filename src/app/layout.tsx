@@ -23,6 +23,21 @@ export const metadata: Metadata = {
   icons: {
     icon: "/logo.svg",
   },
+  openGraph: {
+    title: "MB Sistemas",
+    description: "Sistema SaaS completo para gestão de cafeterias e restaurantes.",
+    url: "https://seu-app.vercel.app",
+    siteName: "MB Sistemas",
+    images: [{ url: "/logo.svg", width: 512, height: 512 }],
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MB Sistemas",
+    description: "Sistema SaaS completo para gestão de cafeterias e restaurantes.",
+    images: ["/logo.svg"],
+  },
 };
 
 export default function RootLayout({

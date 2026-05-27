@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -185,10 +185,11 @@ export default function AdminDashboardPage() {
   const [backupLoading, setBackupLoading] = useState(false);
   const [backupDialogOpen, setBackupDialogOpen] = useState(false);
   const [backupProgress, setBackupProgress] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const [pdvUrl, setPdvUrl] = useState('/pdv');
 
   // Detail dialog for product metrics
-  type DialogoTipo = 'produtos' | 'vendas' | 'lista-vendas' | 'media-itens' | 'ticket';
+  type DialogoTipo = 'produtos' | 'vendas' | 'lista-vendas' | 'media-itens' | 'ticket' | 'dia-semana' | 'turno';
   const [detalheDialogo, setDetalheDialogo] = useState<{
     aberto: boolean;
     titulo: string;
@@ -362,6 +363,53 @@ export default function AdminDashboardPage() {
       clearInterval(interval);
     };
   }, [refreshVendas]);
+
+  // ── Manual refresh ──
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshVendas?.();
+      const supabase = getSupabaseClient();
+      if (empresaId && supabase) {
+        const { data: osData } = await supabase
+          .from('ordens_servico')
+          .select('*')
+          .eq('empresa_id', empresaId)
+          .eq('ativo', true)
+          .order('criado_em', { ascending: false });
+        if (osData) {
+          const parsed = (osData || [])
+            .filter((o: any) => (o.observacoes || '').startsWith('[LAVANDERIA]'))
+            .map((o: any) => {
+              let parsedItens: any[] = [];
+              try { const raw = o.servicos; parsedItens = (typeof raw === 'string' ? JSON.parse(raw) : (raw || [])); } catch {}
+              return {
+                id: o.id,
+                status: ({ aberta: 'recebida', em_andamento: 'em_lavagem', concluida: 'pronta', aprovada: 'entregue', cancelada: 'cancelada' } as Record<string, string>)[o.status] || o.status,
+                valorTotal: parseFloat(o.valor_total) || 0,
+                totalPecas: parsedItens.reduce((acc: number, i: any) => acc + (i.quantidade || 0), 0),
+                criadoEm: o.criado_em || '',
+              };
+            });
+          setOsLavanderia(parsed);
+        }
+        const { data: lowData } = await supabase
+          .from('produtos')
+          .select('id, nome, estoque_atual, estoque_minimo, unidade, controlar_estoque')
+          .eq('empresa_id', empresaId)
+          .eq('ativo', true);
+        if (lowData) {
+          setLowStockProdutos(lowData.filter(
+            (p: any) => p.controlar_estoque !== false && (p.estoque_atual || 0) <= (p.estoque_minimo || 0)
+          ));
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao atualizar:', err);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [empresaId, refreshVendas]);
 
   // ── Period filter ──
   type PeriodoDashboard = 'atual' | 'meses' | 'customizado';
@@ -637,6 +685,44 @@ export default function AdminDashboardPage() {
     setDetalheDialogo({ aberto: true, titulo, tipo: 'ticket', dados });
   };
 
+  const abrirDetalheDiaSemana = (dia: string) => {
+    const vendasDoDia = vendasMesAtual.filter(v => {
+      if (!v.criadoEm) return false;
+      const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+      return diasSemana[new Date(v.criadoEm).getDay()] === dia;
+    });
+    const dados = vendasDoDia.map(v => ({
+      id: v.id,
+      data: v.criadoEm,
+      valor: v.total || 0,
+      formaPagamento: v.formaPagamento || v.forma_pagamento || '-',
+      itensCount: v.itens?.length || 0,
+    }));
+    setDetalheDialogo({ aberto: true, titulo: `Vendas - ${dia}`, tipo: 'vendas', dados });
+  };
+
+  const abrirDetalheTurno = (turno: string) => {
+    const horarios: Record<string, { min: number; max: number }> = {
+      'Manhã (6-12h)': { min: 6, max: 12 },
+      'Tarde (12-18h)': { min: 12, max: 18 },
+      'Noite (18-24h)': { min: 18, max: 24 },
+    };
+    const h = horarios[turno];
+    const vendasDoTurno = vendasMesAtual.filter(v => {
+      if (!v.criadoEm || !h) return false;
+      const hora = new Date(v.criadoEm).getHours();
+      return hora >= h.min && hora < h.max;
+    });
+    const dados = vendasDoTurno.map(v => ({
+      id: v.id,
+      data: v.criadoEm,
+      valor: v.total || 0,
+      formaPagamento: v.formaPagamento || v.forma_pagamento || '-',
+      itensCount: v.itens?.length || 0,
+    }));
+    setDetalheDialogo({ aberto: true, titulo: `Vendas - ${turno}`, tipo: 'vendas', dados });
+  };
+
   const kpisDia: KPICardData[] = [
     {
       titulo: 'Valor vendido',
@@ -906,9 +992,9 @@ export default function AdminDashboardPage() {
   const mediaItensAnterior = metricasMesAnterior.mediaItensPorPedido;
 
   // ─────────────────────────────────────────
-  // Backup CSV - Exporta dados do admin logado
+  // Backup JSON - Exporta dados do admin logado
   // ─────────────────────────────────────────
-  const handleBackupCSV = async () => {
+  const handleBackupJSON = async () => {
     if (!empresaId) return;
     setBackupLoading(true);
     setBackupDialogOpen(true);
@@ -918,147 +1004,103 @@ export default function AdminDashboardPage() {
       const supabase = getSupabaseClient();
       if (!supabase) throw new Error('Supabase não disponível');
 
-      const results: Record<string, { headers: string[]; rows: string[][] }> = {};
+      const backup: Record<string, any[]> = {};
 
       // 1. Vendas
       setBackupProgress('Exportando vendas...');
       const { data: vendasData } = await supabase
         .from('vendas')
-        .select('id, tipo, canal, status, total, desconto, forma_pagamento, cliente_id, nome_cliente, criado_em, fechado_em')
+        .select('*')
         .eq('empresa_id', empresaId)
         .order('criado_em', { ascending: false })
         .limit(10000);
-      if (vendasData && vendasData.length > 0) {
-        results['vendas'] = {
-          headers: ['ID', 'Tipo', 'Canal', 'Status', 'Total', 'Desconto', 'Forma Pagamento', 'Cliente', 'Data Criação', 'Data Fechamento'],
-          rows: vendasData.map((v: any) => [
-            v.id, v.tipo || '', v.canal || '', v.status || '',
-            (v.total || 0).toFixed(2), (v.desconto || 0).toFixed(2),
-            v.forma_pagamento || '', v.nome_cliente || '',
-            v.criado_em || '', v.fechado_em || '',
-          ]),
-        };
-      }
+      if (vendasData) backup['vendas'] = vendasData;
 
       // 2. Clientes
       setBackupProgress('Exportando clientes...');
       const { data: clientesData } = await supabase
         .from('clientes')
-        .select('id, nome_razao_social, nome_fantasia, cnpj_cpf, tipo_pessoa, telefone, celular, email, logradouro, numero, bairro, municipio, uf, cep, ativo')
+        .select('*')
         .eq('empresa_id', empresaId)
         .limit(10000);
-      if (clientesData && clientesData.length > 0) {
-        results['clientes'] = {
-          headers: ['ID', 'Nome/Razão Social', 'Nome Fantasia', 'CNPJ/CPF', 'Tipo', 'Telefone', 'Celular', 'Email', 'Logradouro', 'Número', 'Bairro', 'Município', 'UF', 'CEP', 'Ativo'],
-          rows: clientesData.map((c: any) => [
-            c.id, c.nome_razao_social || '', c.nome_fantasia || '', c.cnpj_cpf || '',
-            c.tipo_pessoa || '', c.telefone || '', c.celular || '', c.email || '',
-            c.logradouro || '', c.numero || '', c.bairro || '', c.municipio || '',
-            c.uf || '', c.cep || '', c.ativo ? 'Sim' : 'Não',
-          ]),
-        };
-      }
+      if (clientesData) backup['clientes'] = clientesData;
 
       // 3. Produtos
       setBackupProgress('Exportando produtos...');
       const { data: produtosData } = await supabase
         .from('produtos')
-        .select('id, nome, descricao, codigo, codigo_barras, preco, custo, unidade, estoque_atual, estoque_minimo, ativo, destaque, disponivel_ifood, is_combo')
+        .select('*')
         .eq('empresa_id', empresaId)
         .limit(10000);
-      if (produtosData && produtosData.length > 0) {
-        results['produtos'] = {
-          headers: ['ID', 'Nome', 'Descrição', 'Código', 'Código Barras', 'Preço', 'Custo', 'Unidade', 'Estoque Atual', 'Estoque Mínimo', 'Ativo', 'Destaque', 'iFood', 'Combo'],
-          rows: produtosData.map((p: any) => [
-            p.id, p.nome || '', p.descricao || '', p.codigo || '', p.codigo_barras || '',
-            (p.preco || 0).toFixed(2), (p.custo || 0).toFixed(2), p.unidade || '',
-            p.estoque_atual || 0, p.estoque_minimo || 0,
-            p.ativo ? 'Sim' : 'Não', p.destaque ? 'Sim' : 'Não',
-            p.disponivel_ifood ? 'Sim' : 'Não', p.is_combo ? 'Sim' : 'Não',
-          ]),
-        };
-      }
+      if (produtosData) backup['produtos'] = produtosData;
 
       // 4. Categorias
       setBackupProgress('Exportando categorias...');
       const { data: categoriasData } = await supabase
         .from('categorias')
-        .select('id, nome, cor, ordem, ativo')
+        .select('*')
         .eq('empresa_id', empresaId)
         .limit(1000);
-      if (categoriasData && categoriasData.length > 0) {
-        results['categorias'] = {
-          headers: ['ID', 'Nome', 'Cor', 'Ordem', 'Ativo'],
-          rows: categoriasData.map((c: any) => [
-            c.id, c.nome || '', c.cor || '', c.ordem || 0, c.ativo ? 'Sim' : 'Não',
-          ]),
-        };
-      }
+      if (categoriasData) backup['categorias'] = categoriasData;
 
       // 5. Ordens de Serviço (Lavanderia)
       setBackupProgress('Exportando ordens de serviço...');
       const { data: osData } = await supabase
         .from('ordens_servico')
-        .select('id, numero, cliente_nome, descricao, status, valor_total, valor_servicos, data_previsao, data_conclusao, criado_em, criado_por_nome, observacoes')
+        .select('*')
         .eq('empresa_id', empresaId)
         .order('criado_em', { ascending: false })
         .limit(10000);
-      if (osData && osData.length > 0) {
-        results['ordens_servico'] = {
-          headers: ['ID', 'Número', 'Cliente', 'Descrição', 'Status', 'Valor Total', 'Valor Serviços', 'Data Previsão', 'Data Conclusão', 'Criado Em', 'Criado Por'],
-          rows: osData.map((o: any) => [
-            o.id, o.numero || 0, o.cliente_nome || '', o.descricao || '', o.status || '',
-            (o.valor_total || 0).toFixed(2), (o.valor_servicos || 0).toFixed(2),
-            o.data_previsao || '', o.data_conclusao || '', o.criado_em || '', o.criado_por_nome || '',
-          ]),
-        };
-      }
+      if (osData) backup['ordens_servico'] = osData;
 
       // 6. Fornecedores
       setBackupProgress('Exportando fornecedores...');
       const { data: fornecedoresData } = await supabase
         .from('fornecedores')
-        .select('id, nome_razao_social, nome_fantasia, cnpj_cpf, telefone, celular, email, logradouro, numero, bairro, municipio, uf, ativo')
+        .select('*')
         .eq('empresa_id', empresaId)
         .limit(5000);
-      if (fornecedoresData && fornecedoresData.length > 0) {
-        results['fornecedores'] = {
-          headers: ['ID', 'Nome/Razão Social', 'Nome Fantasia', 'CNPJ/CPF', 'Telefone', 'Celular', 'Email', 'Logradouro', 'Número', 'Bairro', 'Município', 'UF', 'Ativo'],
-          rows: fornecedoresData.map((f: any) => [
-            f.id, f.nome_razao_social || '', f.nome_fantasia || '', f.cnpj_cpf || '',
-            f.telefone || '', f.celular || '', f.email || '',
-            f.logradouro || '', f.numero || '', f.bairro || '', f.municipio || '',
-            f.uf || '', f.ativo ? 'Sim' : 'Não',
-          ]),
-        };
+      if (fornecedoresData) backup['fornecedores'] = fornecedoresData;
+
+      // 7. Itens de Venda
+      setBackupProgress('Exportando itens de venda...');
+      if (backup['vendas']?.length) {
+        const vendaIds = backup['vendas'].map(v => v.id);
+        const { data: itensData } = await supabase
+          .from('itens_venda')
+          .select('*')
+          .in('venda_id', vendaIds)
+          .limit(50000);
+        if (itensData) backup['itens_venda'] = itensData;
       }
 
-      setBackupProgress('Gerando arquivo CSV...');
+      setBackupProgress('Gerando arquivo JSON...');
 
-      // Gerar arquivo CSV combinado
-      const allSections: string[] = [];
       const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
 
-      for (const [sectionName, section] of Object.entries(results)) {
-        allSections.push(`\n=== ${sectionName.toUpperCase()} ===`);
-        allSections.push(section.headers.join(';'));
-        section.rows.forEach(row => {
-          allSections.push(row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(';'));
-        });
-        allSections.push(`Total de registros: ${section.rows.length}`);
-      }
+      const backupObj = {
+        metadados: {
+          tipo: 'backup',
+          geradoEm: new Date().toISOString(),
+          empresaId,
+          versaoSistema: '1.0.0',
+          totalRegistros: Object.values(backup).reduce((acc, arr) => acc + arr.length, 0),
+          tabelas: Object.keys(backup),
+        },
+        dados: backup,
+      };
 
-      const csvContent = '\uFEFF' + allSections.join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const jsonContent = JSON.stringify(backupObj, null, 2);
+      const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `backup-dados-${timestamp}.csv`;
+      link.download = `backup-dados-${timestamp}.json`;
       link.click();
       URL.revokeObjectURL(url);
 
-      const totalRows = Object.values(results).reduce((acc, r) => acc + r.rows.length, 0);
-      setBackupProgress(`Backup concluído! ${totalRows} registros exportados em ${Object.keys(results).length} tabelas.`);
+      const totalRows = Object.values(backup).reduce((acc, arr) => acc + arr.length, 0);
+      setBackupProgress(`Backup concluído! ${totalRows} registros exportados em ${Object.keys(backup).length} tabelas.`);
     } catch (error: any) {
       console.error('Erro no backup:', error);
       setBackupProgress(`Erro: ${error.message}`);
@@ -1104,9 +1146,9 @@ export default function AdminDashboardPage() {
                   {format(new Date(), "EEEE, dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
                 </p>
               </div>
-              <Button variant="outline" size="sm" onClick={refreshVendas} className="gap-1">
-                <RefreshCw className="h-3.5 w-3.5" />
-                Atualizar
+              <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="gap-1">
+                <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+                {refreshing ? 'Atualizando...' : 'Atualizar'}
               </Button>
             </div>
           </div>
@@ -1302,8 +1344,8 @@ export default function AdminDashboardPage() {
           {/* ═══════════════════════════════════ */}
           <section>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <DayOfWeekChart dados={vendasPorDiaSemana} />
-              <ShiftChart dados={vendasPorTurno} />
+              <DayOfWeekChart dados={vendasPorDiaSemana} onSliceClick={abrirDetalheDiaSemana} />
+              <ShiftChart dados={vendasPorTurno} onSliceClick={abrirDetalheTurno} />
               <ItemsPerOrderCard
                 mediaAtual={mediaItensAtual}
                 mediaAnterior={mediaItensAnterior}
@@ -1408,7 +1450,7 @@ export default function AdminDashboardPage() {
               <Button
                 variant="outline"
                 className="h-12 justify-start gap-2 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-900/30 dark:hover:text-blue-300"
-                onClick={handleBackupCSV}
+                onClick={handleBackupJSON}
                 disabled={backupLoading}
               >
                 {backupLoading ? (
@@ -1416,7 +1458,7 @@ export default function AdminDashboardPage() {
                 ) : (
                   <DatabaseBackup className="h-4 w-4" />
                 )}
-                <span className="text-sm">Backup CSV</span>
+                <span className="text-sm">Backup JSON</span>
               </Button>
             </div>
           </section>
@@ -1430,7 +1472,7 @@ export default function AdminDashboardPage() {
                   Backup de Dados
                 </DialogTitle>
                 <DialogDescription>
-                  Exportando dados da sua conta no formato CSV
+                  Exportando dados da sua conta no formato JSON
                 </DialogDescription>
               </DialogHeader>
               <div className="py-4">

@@ -458,12 +458,12 @@ export function VendasItensDia() {
               <TableRow>
                 <TableHead className="w-12">#</TableHead>
                 <TableHead>Item</TableHead>
-                <TableHead>Categoria</TableHead>
+                <TableHead className="hidden md:table-cell">Categoria</TableHead>
                 <TableHead className="text-right w-16">Qtd.</TableHead>
                 <TableHead className="text-right w-24">Vl. Unit.</TableHead>
                 <TableHead className="text-right w-24">Total</TableHead>
                 <TableHead className="text-center w-24">Horário</TableHead>
-                <TableHead className="w-28">Operador</TableHead>
+                <TableHead className="w-28 hidden md:table-cell">Operador</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -478,7 +478,7 @@ export function VendasItensDia() {
                   <TableRow key={item.nome} className="hover:bg-muted/50">
                     <TableCell className="font-medium">{index + 1}</TableCell>
                     <TableCell className="font-medium truncate" title={item.nome}>{item.nome}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <Badge variant="outline" className="truncate max-w-full">{item.categoriaNome}</Badge>
                     </TableCell>
                     <TableCell className="text-right font-medium whitespace-nowrap">{item.quantidade.toFixed(0)}</TableCell>
@@ -496,7 +496,7 @@ export function VendasItensDia() {
                         {item.vendas.length > 3 && <span className="text-xs text-muted-foreground">+{item.vendas.length - 3}</span>}
                       </div>
                     </TableCell>
-                    <TableCell className="truncate">
+                    <TableCell className="truncate hidden md:table-cell">
                       <div className="flex items-center gap-1">
                         <User className="h-3 w-3 text-muted-foreground flex-shrink-0" />
                         <span className="text-xs text-muted-foreground truncate">

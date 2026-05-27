@@ -48,8 +48,9 @@ import {
   Undo2,
   FolderOpen,
   FileText,
-
   Monitor,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -86,7 +87,7 @@ export default function PDVVarejoPage() {
   const { user, empresaId, nomeMarca, logout } = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-  const { resolvedTheme } = useTheme();
+  const { resolvedTheme, setTheme } = useTheme();
   const darkMode = resolvedTheme === 'dark';
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
@@ -820,10 +821,10 @@ export default function PDVVarejoPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'funcionario']}>
-      <div className={`h-screen flex flex-col ${darkMode ? 'bg-[#1a1a2e]' : 'bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-50'}`}>
+      <div className={`h-screen flex flex-col ${darkMode ? 'bg-gradient-to-br from-[#1a1a2e] via-[#1e2235] to-[#16213e]' : 'bg-gradient-to-br from-[#e8f0ed] via-[#eaeae6] to-[#f0eddd]'}`}>
 
         {/* HEADER - POS Retail Style */}
-        <header className={`${darkMode ? 'bg-gradient-to-r from-[#0f172a] via-blue-950 to-slate-900 border-white/10' : 'bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 border-blue-800/30'} px-4 py-2 shrink-0 shadow-xl border-b`}>
+        <header className={`${darkMode ? 'bg-gradient-to-r from-[#0f172a] via-blue-950 to-slate-900 border-white/10' : 'bg-white/70 backdrop-blur-md border-teal-100/60'} px-4 py-2 shrink-0 shadow-xl border-b`}>
           <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Button
@@ -894,6 +895,20 @@ export default function PDVVarejoPage() {
                   Fechar
                 </Button>
               )}
+              <Button
+                variant={darkMode ? 'outline' : 'secondary'}
+                size="sm"
+                className={`h-8 gap-1.5 px-2.5 rounded-xl text-xs font-medium ${
+                  darkMode
+                    ? 'border-yellow-500/40 text-yellow-300 hover:bg-yellow-500/20 hover:text-yellow-200'
+                    : 'bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200/50'
+                }`}
+                onClick={() => setTheme(darkMode ? 'light' : 'dark')}
+                title={darkMode ? 'Modo claro' : 'Modo escuro'}
+              >
+                {darkMode ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+                <span>{darkMode ? 'Claro' : 'Escuro'}</span>
+              </Button>
               <Button
                 variant="ghost"
                 size="sm"

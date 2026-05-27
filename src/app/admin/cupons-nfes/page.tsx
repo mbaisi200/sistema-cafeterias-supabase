@@ -174,24 +174,15 @@ export default function CuponsNFEsPage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin', 'master']}>
-      <MainLayout breadcrumbs={[{ title: 'Cupons Fiscais' }]}>
-        <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <Link href="/admin/dashboard">
-            <Button variant="ghost" size="icon" className="h-8 w-8">
-              <ChevronLeft className="h-5 w-5" />
-            </Button>
-          </Link>
-          <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <FileText className="h-7 w-7" />
-            Cupons Fiscais
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Gerencie cupons fiscais (NFC-e) e emissão de Notas Fiscais Eletrônicas (NF-e)
-          </p>
-          </div>
+      <MainLayout breadcrumbs={[{ title: 'Cupons e Notas Fiscais' }]}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-blue-600 shadow-lg shadow-purple-500/30">
+              <FileText className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">Cupons e Notas Fiscais</h1>
+              <p className="text-sm text-muted-foreground">Gestão de cupons fiscais (NFC-e) e notas fiscais eletrônicas de saída</p>
+            </div>
         </div>
         <div className="flex gap-2">
           <Button
@@ -252,11 +243,10 @@ export default function CuponsNFEsPage() {
           <Link href="/admin/configuracoes-cupom">
             <Button variant="outline" className="gap-2">
               <Receipt className="h-4 w-4" />
-              Cupom Fiscal
+              Config. Cupom Fiscal
             </Button>
           </Link>
         </div>
-      </div>
 
       <Tabs value={ativoTab} onValueChange={setAtivoTab}>
         <TabsList className="grid w-full md:w-auto md:inline-grid grid-cols-2 gap-2">
@@ -500,7 +490,7 @@ export default function CuponsNFEsPage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Receipt className="h-5 w-5 text-green-600" />
-                  Cupons Fiscais (NFC-e)
+                  Cupons e Notas Fiscais (NFC-e)
                 </CardTitle>
                 <div className="flex gap-2">
                   <Link href="/admin/configuracoes-cupom">
@@ -769,7 +759,6 @@ export default function CuponsNFEsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
       </MainLayout>
     </ProtectedRoute>
   );
