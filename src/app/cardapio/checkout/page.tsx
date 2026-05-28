@@ -93,6 +93,7 @@ function CheckoutContent() {
   const [clienteNome, setClienteNome] = useState('');
   const [clienteTelefone, setClienteTelefone] = useState('');
   const [clienteEmail, setClienteEmail] = useState('');
+  const [clienteCpfCnpj, setClienteCpfCnpj] = useState('');
 
   // Endereços
   const [enderecos, setEnderecos] = useState<ClienteEndereco[]>([]);
@@ -185,6 +186,10 @@ function CheckoutContent() {
 
       if (clienteExistente) {
         clienteId = clienteExistente.id;
+        // Atualizar CPF/CNPJ se o cliente existente não tiver e o form foi preenchido
+        if (clienteCpfCnpj.trim()) {
+          await supabase.from('clientes').update({ cnpj_cpf: clienteCpfCnpj.replace(/\D/g, '') }).eq('id', clienteId);
+        }
       } else {
         const { data: novoCliente, error: clienteError } = await supabase
           .from('clientes')
@@ -193,6 +198,7 @@ function CheckoutContent() {
             nome: clienteNome,
             telefone: clienteTelefone.replace(/\D/g, ''),
             email: clienteEmail || null,
+            cnpj_cpf: clienteCpfCnpj.replace(/\D/g, '') || null,
             criado_em: new Date().toISOString(),
           })
           .select('id')
@@ -472,6 +478,10 @@ function CheckoutContent() {
             <div className="space-y-2">
               <Label htmlFor="telefone">Telefone *</Label>
               <Input id="telefone" value={clienteTelefone} onChange={(e) => setClienteTelefone(e.target.value)} placeholder="(00) 00000-0000" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cpf_cnpj">CPF/CNPJ (opcional)</Label>
+              <Input id="cpf_cnpj" value={clienteCpfCnpj} onChange={(e) => setClienteCpfCnpj(e.target.value)} placeholder="000.000.000-00" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">E-mail (opcional)</Label>
