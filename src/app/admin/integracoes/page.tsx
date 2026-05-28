@@ -18,7 +18,8 @@ import {
   Globe,
   Loader2,
   Settings,
-  Link2
+  Link2,
+  Database
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
@@ -284,6 +285,30 @@ function IntegracoesContent() {
           );
         })}
       </div>
+
+      {/* Importar Dados Card */}
+      <Card className="mt-8 bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
+        <CardContent className="pt-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 rounded-full bg-purple-100">
+              <Database className="h-6 w-6 text-purple-600" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-lg">Importar Dados das Integrações</h3>
+              <p className="text-muted-foreground mt-1">
+                Importe produtos e pedidos existentes do iFood e Uber Eats para o sistema. Ideal para a primeira configuração ou sincronização manual.
+              </p>
+              <Link href="/admin/integracoes/importar">
+                <Button className="mt-3 bg-purple-600 hover:bg-purple-700">
+                  <Database className="h-4 w-4 mr-2" />
+                  Importar Dados
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Info Card */}
       <Card className="mt-8 bg-gradient-to-r from-orange-50 to-red-50 border-orange-200">
