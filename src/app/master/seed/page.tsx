@@ -532,6 +532,7 @@ const TABELAS_PARA_LIMPAR = [
   'lavanderia_precos',
   'lavanderia_categorias',
   'nfe_importadas',
+  'pedido_delivery',     // cascade deleta itens, historico, avaliacoes
 ];
 
 export default function SeedPage() {
@@ -1555,6 +1556,127 @@ function SeedContent() {
         updateStatus('Pedidos de Compra', 'done', 0, e.message);
       }
       setProgressValue(72);
+
+      // ==========================================
+      // DELIVERY (Cardápio Online)
+      // ==========================================
+      if (incluirDelivery && clientesInsert && clientesInsert.length > 0) {
+        updateStatus('Delivery - Pedidos Online', 'running');
+        addLog('Criando pedidos de delivery (cardápio online)...');
+        try {
+          const NUM_DELIVERY = 20;
+          const pedidosDeliveryInsert: any[] = [];
+          const itensDeliveryInsert: any[] = [];
+          const deliveryStatuses: string[] = ['pendente', 'confirmado', 'em_preparacao', 'pronto', 'saiu_para_entrega', 'entregue', 'cancelado'];
+          const deliveryTipos: string[] = ['delivery', 'delivery', 'delivery', 'retirada', 'consumo_local'];
+          const formasPagamentoDelivery: string[] = ['dinheiro', 'debito', 'credito', 'pix', 'online'];
+          const enderecoPadrao = { logradouro: 'Rua das Flores', numero: '123', complemento: 'Apto 42', bairro: 'Centro', cidade: 'São Paulo', estado: 'SP', cep: '01001-000' };
+
+          // Store items grouped by pedido index for later assignment
+          const itensPorPedido: { pedidoIdx: number; item: { produto_id: string; produto_nome: string; quantidade: number; preco_unitario: number; total: number; criado_em: string } }[] = [];
+
+          for (let i = 0; i < NUM_DELIVERY; i++) {
+            const dataPedido = gerarDataAleatoria(periodoInicio, periodoFim);
+            const cliente = clientesInsert[Math.floor(Math.random() * clientesInsert.length)];
+            const status = deliveryStatuses[Math.floor(Math.random() * deliveryStatuses.length)];
+            const tipo = deliveryTipos[Math.floor(Math.random() * deliveryTipos.length)];
+            const formaPagamento = formasPagamentoDelivery[Math.floor(Math.random() * formasPagamentoDelivery.length)];
+            const codigo = `DEL${String(i + 1).padStart(4, '0')}`;
+
+            const numItens = Math.floor(Math.random() * 4) + 1;
+            let subtotal = 0;
+
+            for (let j = 0; j < numItens; j++) {
+              const produto = produtosDataInfo[Math.floor(Math.random() * produtosDataInfo.length)];
+              const qtd = Math.floor(Math.random() * 3) + 1;
+              itensPorPedido.push({
+                pedidoIdx: i,
+                item: {
+                  produto_id: produto.id,
+                  produto_nome: produto.nome,
+                  quantidade: qtd,
+                  preco_unitario: produto.preco,
+                  total: produto.preco * qtd,
+                  criado_em: dataPedido.toISOString(),
+                },
+              });
+              subtotal += produto.preco * qtd;
+            }
+
+            const taxaEntrega = tipo === 'delivery' ? Math.floor(Math.random() * 10) + 5 : 0;
+            const desconto = Math.random() > 0.8 ? Math.floor(subtotal * (Math.random() * 0.1)) : 0;
+            const total = subtotal - desconto + taxaEntrega;
+
+            // Build status timestamps
+            const statusTimestamps: Record<string, string> = {};
+            const statusSequence = ['pendente', 'confirmado', 'em_preparacao', 'pronto', 'saiu_para_entrega', 'entregue'];
+            const statusIdx = deliveryStatuses.indexOf(status);
+            if (statusIdx >= 0) {
+              for (let s = 0; s <= statusIdx && s < statusSequence.length; s++) {
+                const ts = new Date(dataPedido.getTime() + s * (Math.floor(Math.random() * 10) + 2) * 60000).toISOString();
+                if (statusSequence[s] === 'confirmado') statusTimestamps.data_confirmacao = ts;
+                if (statusSequence[s] === 'em_preparacao') statusTimestamps.data_preparacao_inicio = ts;
+                if (statusSequence[s] === 'pronto') statusTimestamps.data_preparacao_fim = ts;
+                if (statusSequence[s] === 'saiu_para_entrega') statusTimestamps.data_saida_entrega = ts;
+                if (statusSequence[s] === 'entregue') statusTimestamps.data_entrega = ts;
+              }
+            }
+            if (status === 'cancelado') {
+              statusTimestamps.data_cancelamento = new Date(dataPedido.getTime() + Math.floor(Math.random() * 30) * 60000).toISOString();
+            }
+
+            pedidosDeliveryInsert.push({
+              empresa_id: empresaId,
+              cliente_id: cliente.id,
+              codigo,
+              tipo,
+              status,
+              subtotal,
+              taxa_entrega: taxaEntrega,
+              desconto,
+              total,
+              forma_pagamento: formaPagamento,
+              status_pagamento: status === 'cancelado' ? 'estornado' : Math.random() > 0.3 ? 'pago' : 'pendente',
+              observacoes: Math.random() > 0.7 ? 'Sem cebola, por favor' : '',
+              endereco_entrega: tipo === 'delivery' ? enderecoPadrao : null,
+              tempo_estimado_preparo: Math.floor(Math.random() * 20) + 15,
+              ...statusTimestamps,
+              criado_em: dataPedido.toISOString(),
+              atualizado_em: new Date().toISOString(),
+            });
+          }
+
+          const { data: deliveryInsert, error: delError } = await supabase
+            .from('pedido_delivery')
+            .insert(pedidosDeliveryInsert)
+            .select('id');
+
+          if (delError) throw delError;
+
+          if (deliveryInsert && deliveryInsert.length > 0) {
+            // Map pedido idx to actual id, then assign to items
+            const itensFinal = itensPorPedido.map(ip => ({
+              pedido_id: deliveryInsert[ip.pedidoIdx].id,
+              ...ip.item,
+            }));
+
+            const { error: itensDelError } = await supabase
+              .from('pedido_delivery_itens')
+              .insert(itensFinal);
+            if (itensDelError) console.error('Erro ao criar itens delivery:', itensDelError);
+          }
+
+          updateStatus('Delivery - Pedidos Online', 'done', deliveryInsert?.length || 0);
+          addLog(`${deliveryInsert?.length || 0} pedidos de delivery criados com itens.`);
+        } catch (e: any) {
+          addLog(`⚠️ Delivery: ${e.message || e.code || 'erro ao criar'} (pode ser RLS)`);
+          updateStatus('Delivery - Pedidos Online', 'done', 0, e.message);
+        }
+      } else {
+        updateStatus('Delivery - Pedidos Online', 'done', 0, incluirDelivery ? 'Sem clientes para vincular' : 'Desabilitada no segmento');
+        addLog(incluirDelivery ? '⏭️ Delivery: sem clientes para criar pedidos.' : '⏭️ Delivery: desabilitada no segmento selecionado.');
+      }
+      setProgressValue(76);
 
       // ==========================================
       // CAIXAS

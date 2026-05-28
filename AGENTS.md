@@ -677,3 +677,21 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ### Open Graph / Link Preview ✅
 - `layout.tsx` agora inclui `openGraph` e `twitter` metadata
 - Usa `/logo.svg` como imagem de preview ao compartilhar link da Vercel
+
+### Delivery — População no Seed ✅
+- Dados de delivery (`pedido_delivery` + `pedido_delivery_itens`) populados no seed automaticamente quando a feature delivery está ativa
+- 20 pedidos com status variados (pendente, confirmado, em preparação, pronto, saiu para entrega, entregue, cancelado)
+- Itens vinculados a produtos reais do catálogo, com valores, taxas e descontos
+- `TABELAS_PARA_LIMPAR` inclui `pedido_delivery` (cascade deleta itens/histórico/avaliações)
+
+### Estoque — Ordenação por Status ✅
+- Coluna "Status" em `/admin/estoque` agora ordena por nível de estoque (Baixo/Normal) ao invés de `ativo`
+
+### PDV Varejo — Atalhos de Teclado Revisados ✅
+- Handler refatorado com `useRef` para evitar stale closures
+- Event listener em `capture: true` para funcionar com diálogos abertos
+- Atalhos F2/F3/F4/F8/F10 mantidos; Ctrl+F12 → Ctrl+F2, Ctrl+F5 → Ctrl+F9 (evitando teclas interceptadas pelo browser)
+
+### CSS — `min-w-0` em Flex com `truncate` ✅
+- Adicionado `min-w-0` em elementos `flex-1` que contêm filhos com `truncate` para garantir que a truncagem funcione em contexto flexbox
+- Corrigido em: `FiltrosBI.tsx` (mobile), `pedidos/page.tsx` (busca produtos), `AppSidebar.tsx` (nome do usuário)

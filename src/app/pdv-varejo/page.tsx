@@ -772,20 +772,42 @@ export default function PDVVarejoPage() {
     }
   };
 
-  // Refs para atalhos de teclado (evita stale closures + funciona com diálogos abertos)
-  const handleKeyRef = useRef<((e: KeyboardEvent) => void) | null>(null);
-  handleKeyRef.current = (e: KeyboardEvent) => {
-    if (e.key === 'F4') { e.preventDefault(); if (itensCarrinho.length > 0) setDialogPagamento(true); }
-    if (e.key === 'F2') { e.preventDefault(); handleremoveSelected(); }
-    if (e.key === 'F3') { e.preventDefault(); if (selectedItemId) { setDialogDesconto(selectedItemId); const item = itensCarrinho.find(i => i.id === selectedItemId); setValorDescontoInput((item?.descontoPercentual || 0).toString()); } else { setDialogDesconto('total'); setValorDescontoInput(descontoTotalPercentual.toString()); } }
-    if (e.key === 'F8') { e.preventDefault(); setDialogDevolucao(true); }
-    if (e.key === 'F10') { e.preventDefault(); setDialogAbrirPedido(true); }
-    if (e.ctrlKey && e.key === 'F12') { e.preventDefault(); setDialogObservacao(true); }
-    if (e.ctrlKey && e.key === 'F5') { e.preventDefault(); setDialogCliente(true); }
-  };
+  // Refs para atalhos de teclado
+  const removeItemRef = useRef<(id: string) => void>(removerItem);
+  removeItemRef.current = removerItem;
+  const itensCarrinhoRef = useRef(itensCarrinho);
+  itensCarrinhoRef.current = itensCarrinho;
+  const selectedItemIdRef = useRef(selectedItemId);
+  selectedItemIdRef.current = selectedItemId;
+  const descontoTotalPercentualRef = useRef(descontoTotalPercentual);
+  descontoTotalPercentualRef.current = descontoTotalPercentual;
+  const setDialogPagamentoRef = useRef(setDialogPagamento);
+  setDialogPagamentoRef.current = setDialogPagamento;
+  const setDialogDescontoRef = useRef(setDialogDesconto);
+  setDialogDescontoRef.current = setDialogDesconto;
+  const setValorDescontoInputRef = useRef(setValorDescontoInput);
+  setValorDescontoInputRef.current = setValorDescontoInput;
+  const setDialogDevolucaoRef = useRef(setDialogDevolucao);
+  setDialogDevolucaoRef.current = setDialogDevolucao;
+  const setDialogAbrirPedidoRef = useRef(setDialogAbrirPedido);
+  setDialogAbrirPedidoRef.current = setDialogAbrirPedido;
+  const setDialogObservacaoRef = useRef(setDialogObservacao);
+  setDialogObservacaoRef.current = setDialogObservacao;
+  const setDialogClienteRef = useRef(setDialogCliente);
+  setDialogClienteRef.current = setDialogCliente;
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => handleKeyRef.current?.(e);
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === 'F2') { e.preventDefault(); setDialogObservacaoRef.current(true); return; }
+      if (e.ctrlKey && e.key === 'F9') { e.preventDefault(); setDialogClienteRef.current(true); return; }
+      if (e.key === 'F2') { e.preventDefault(); const id = selectedItemIdRef.current; if (id) { removeItemRef.current(id); } else { toastRef.current({ title: 'Selecione um item na tabela para remover' }); } return; }
+      if (e.key === 'F3') { e.preventDefault(); const selId = selectedItemIdRef.current; if (selId) { setDialogDescontoRef.current(selId); const item = itensCarrinhoRef.current.find(i => i.id === selId); setValorDescontoInputRef.current((item?.descontoPercentual || 0).toString()); } else { setDialogDescontoRef.current('total'); setValorDescontoInputRef.current(descontoTotalPercentualRef.current.toString()); } return; }
+      if (e.key === 'F4') { e.preventDefault(); if (itensCarrinhoRef.current.length > 0) setDialogPagamentoRef.current(true); return; }
+      if (e.key === 'F8') { e.preventDefault(); setDialogDevolucaoRef.current(true); return; }
+      if (e.key === 'F10') { e.preventDefault(); setDialogAbrirPedidoRef.current(true); return; }
+    };
     window.addEventListener('keydown', handler, { capture: true });
     return () => window.removeEventListener('keydown', handler, { capture: true });
   }, []);
@@ -1050,12 +1072,12 @@ export default function PDVVarejoPage() {
                   <p className={`text-sm ${darkMode ? 'text-gray-500' : 'text-gray-400'} mt-1`}>
                     Escaneie ou digite o código do produto
                   </p>
-                  <div className="flex items-center gap-4 mt-6 text-xs">
-                    <kbd className={`px-2 py-1 rounded ${darkMode ? 'bg-[#1a1a2e] text-gray-400 border-white/10' : 'bg-gray-100 text-gray-500 border-gray-200'} border font-mono`}>F4</kbd>
-                    <span className={darkMode ? 'text-gray-500' : 'text-gray-400'}>Finalizar</span>
-                    <kbd className={`px-2 py-1 rounded ${darkMode ? 'bg-[#1a1a2e] text-gray-400 border-white/10' : 'bg-gray-100 text-gray-500 border-gray-200'} border font-mono`}>F2</kbd>
-                    <span className={darkMode ? 'text-gray-500' : 'text-gray-400'}>Remover</span>
-                  </div>
+                   <div className="flex items-center gap-4 mt-6 text-xs">
+                     <kbd className={`px-2 py-1 rounded ${darkMode ? 'bg-[#1a1a2e] text-gray-400 border-white/10' : 'bg-gray-100 text-gray-500 border-gray-200'} border font-mono`}>F2</kbd>
+                     <span className={darkMode ? 'text-gray-500' : 'text-gray-400'}>Remover</span>
+                     <kbd className={`px-2 py-1 rounded ${darkMode ? 'bg-[#1a1a2e] text-gray-400 border-white/10' : 'bg-gray-100 text-gray-500 border-gray-200'} border font-mono`}>F4</kbd>
+                     <span className={darkMode ? 'text-gray-500' : 'text-gray-400'}>Finalizar</span>
+                   </div>
                 </div>
               ) : (
                 <table className={`w-full ${darkMode ? 'text-gray-200' : 'text-gray-700'}`}>
@@ -1191,7 +1213,8 @@ export default function PDVVarejoPage() {
               ) : (
                 <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                   <button className="hover:text-blue-500 transition-colors" onClick={() => setDialogCliente(true)}>
-                    Cliente: Ctrl+F5
+                    Cliente: Ctrl+F9
+                    Observação: Ctrl+F2
                   </button>
                 </span>
               )}
@@ -1316,14 +1339,6 @@ export default function PDVVarejoPage() {
               <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">F4</kbd>
             </Button>
             <Button
-              className="h-10 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 text-xs"
-              onClick={() => setDialogCliente(true)}
-            >
-              <User className="h-3.5 w-3.5 mr-1" />
-              Cliente
-              <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">⌃F5</kbd>
-            </Button>
-            <Button
               className="h-10 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 text-xs"
               onClick={() => setDialogDevolucao(true)}
             >
@@ -1349,7 +1364,15 @@ export default function PDVVarejoPage() {
             >
               <FileText className="h-3.5 w-3.5 mr-1" />
               Obs.
-              <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">⌃F12</kbd>
+              <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">⌃F2</kbd>
+            </Button>
+            <Button
+              className="h-10 bg-gradient-to-r from-cyan-500 to-teal-500 hover:from-cyan-600 hover:to-teal-600 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/20 text-xs"
+              onClick={() => setDialogCliente(true)}
+            >
+              <User className="h-3.5 w-3.5 mr-1" />
+              Cliente
+              <kbd className="ml-1.5 px-1 py-0.5 rounded bg-black/20 text-[10px] font-mono">⌃F9</kbd>
             </Button>
           </div>
         </div>
@@ -1722,7 +1745,7 @@ export default function PDVVarejoPage() {
           </DialogContent>
         </Dialog>
 
-        {/* Ctrl+F12 - Observação */}
+        {/* Ctrl+F2 - Observação */}
         <Dialog open={dialogObservacao} onOpenChange={setDialogObservacao}>
           <DialogContent className="sm:max-w-md rounded-2xl">
             <DialogHeader>

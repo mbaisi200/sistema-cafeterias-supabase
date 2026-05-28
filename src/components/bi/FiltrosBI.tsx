@@ -225,7 +225,7 @@ export function FiltrosBI({ filtros, periodoFormatado, opcoesFiltros, onAtualiza
       <Card className="border-2 border-primary/20">
         <CardContent className="p-4">
           <div className="flex items-center justify-between gap-4">
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="text-sm text-muted-foreground">Período</p>
               <p className="font-medium text-sm truncate">{periodoFormatado}</p>
             </div>

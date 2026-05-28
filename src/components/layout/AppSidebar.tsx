@@ -552,7 +552,7 @@ export function AppSidebar() {
                   {user?.nome?.charAt(0).toUpperCase() || 'U'}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex flex-col flex-1 group-data-[collapsible=icon]:hidden">
+              <div className="flex flex-col flex-1 min-w-0 group-data-[collapsible=icon]:hidden">
                 <span className={`text-sm font-medium truncate ${darkMode ? 'text-slate-100' : 'text-white'}`}>{user?.nome}</span>
                 <Badge variant="secondary" className={`text-xs w-fit ${darkMode ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30' : 'bg-white/15 text-white border-white/20'}`}>
                   {roleLabels[role || 'funcionario']}

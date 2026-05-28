@@ -1408,7 +1408,7 @@ export default function PedidosPage() {
                           }}
                         >
                           <Package className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                          <span className="flex-1 truncate">{p.nome}</span>
+                          <span className="flex-1 min-w-0 truncate">{p.nome}</span>
                           <span className="text-muted-foreground flex-shrink-0">R$ {(p.preco || 0).toFixed(2)}</span>
                         </button>
                       ))}

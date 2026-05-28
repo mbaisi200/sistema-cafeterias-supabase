@@ -261,7 +261,7 @@ export default function EstoquePage() {
         case 'codigo': aVal = (a.codigo || '').toLowerCase(); bVal = (b.codigo || '').toLowerCase(); break;
         case 'estoque_atual': aVal = a.estoqueAtual ?? 0; bVal = b.estoqueAtual ?? 0; break;
         case 'estoque_minimo': aVal = a.estoqueMinimo ?? 0; bVal = b.estoqueMinimo ?? 0; break;
-        case 'ativo': aVal = a.ativo ? 1 : 0; bVal = b.ativo ? 1 : 0; break;
+        case 'status_estoque': aVal = (a.estoqueAtual || 0) <= (a.estoqueMinimo || 0) ? 0 : 1; bVal = (b.estoqueAtual || 0) <= (b.estoqueMinimo || 0) ? 0 : 1; break;
         default: return 0;
       }
       if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
@@ -1184,14 +1184,14 @@ export default function EstoquePage() {
                       <div className="flex items-center gap-1 group justify-center">
                         <button
                           onClick={() => {
-                            if (sortBy === 'ativo') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-                            else { setSortBy('ativo'); setSortDir('asc'); }
+                            if (sortBy === 'status_estoque') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+                            else { setSortBy('status_estoque'); setSortDir('asc'); }
                             setEditandoColuna(null);
                           }}
                           className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
                         >
                           <span className="text-muted-foreground">
-                            {sortBy === 'ativo' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
+                            {sortBy === 'status_estoque' ? (sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />) : <ArrowUpDown className="h-3 w-3 opacity-40" />}
                           </span>
                           {colunaStatus}
                         </button>
