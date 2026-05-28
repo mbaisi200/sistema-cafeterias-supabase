@@ -132,6 +132,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
   { title: 'Dispositivos', url: '/admin/dispositivos', icon: Shield },
   { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
+  { title: 'Importar Dados', url: '/admin/integracoes/importar', icon: Database },
   { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
   {
     title: 'Uber Eats',

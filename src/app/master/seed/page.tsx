@@ -533,6 +533,14 @@ const TABELAS_PARA_LIMPAR = [
   'lavanderia_categorias',
   'nfe_importadas',
   'pedido_delivery',     // cascade deleta itens, historico, avaliacoes
+  'ifood_pedidos',
+  'uber_eats_pedidos',
+  'ifood_logs',
+  'uber_eats_logs',
+  'ifood_produtos_sync',
+  'uber_eats_produtos_sync',
+  'ifood_config',
+  'uber_eats_config',
 ];
 
 export default function SeedPage() {
@@ -1663,7 +1671,12 @@ function SeedContent() {
             const { error: itensDelError } = await supabase
               .from('pedido_delivery_itens')
               .insert(itensFinal);
-            if (itensDelError) console.error('Erro ao criar itens delivery:', itensDelError);
+            if (itensDelError) {
+              addLog(`❌ Erro ao criar itens delivery: ${itensDelError.message} (${itensDelError.code || 'sem código'})`);
+              console.error('Erro ao criar itens delivery:', itensDelError);
+            } else {
+              addLog(`  - ${itensFinal.length} itens inseridos em pedido_delivery_itens`);
+            }
           }
 
           updateStatus('Delivery - Pedidos Online', 'done', deliveryInsert?.length || 0);
@@ -1677,6 +1690,274 @@ function SeedContent() {
         addLog(incluirDelivery ? '⏭️ Delivery: sem clientes para criar pedidos.' : '⏭️ Delivery: desabilitada no segmento selecionado.');
       }
       setProgressValue(76);
+
+      // ==========================================
+      // INTEGRAÇÕES (iFood e Uber Eats)
+      // ==========================================
+      updateStatus('Integrações iFood/Uber', 'running');
+      addLog('Configurando integrações iFood e Uber Eats...');
+      try {
+        // Criar config iFood (conectada, para simular)
+        const { error: ifoodCfgErr } = await supabase
+          .from('ifood_config')
+          .upsert({
+            empresa_id: empresaId,
+            ativo: true,
+            status: 'connected',
+            merchant_id: 'simulado_ifood_merchant_123',
+            total_pedidos_recebidos: 0,
+            tempo_preparo_padrao: 30,
+            sincronizar_produtos: true,
+            sincronizar_estoque: true,
+            sincronizar_precos: true,
+            receber_pedidos_automatico: true,
+            criado_em: new Date().toISOString(),
+            atualizado_em: new Date().toISOString(),
+          }, { onConflict: 'empresa_id' });
+
+        if (ifoodCfgErr) {
+          addLog(`⚠️ ifood_config: ${ifoodCfgErr.message} (pode ser RLS)`);
+        } else {
+          addLog('✅ Config iFood criada (modo simulado, status=connected)');
+        }
+
+        // Criar config Uber Eats (conectada, para simular)
+        const { error: uberCfgErr } = await supabase
+          .from('uber_eats_config')
+          .upsert({
+            empresa_id: empresaId,
+            ativo: true,
+            status: 'connected',
+            merchant_uuid: 'simulado_uber_merchant_456',
+            total_pedidos_recebidos: 0,
+            tempo_preparo_padrao: 30,
+            sincronizar_produtos: true,
+            sincronizar_estoque: true,
+            sincronizar_precos: true,
+            receber_pedidos_automatico: true,
+            criado_em: new Date().toISOString(),
+            atualizado_em: new Date().toISOString(),
+          }, { onConflict: 'empresa_id' });
+
+        if (uberCfgErr) {
+          addLog(`⚠️ uber_eats_config: ${uberCfgErr.message} (pode ser RLS)`);
+        } else {
+          addLog('✅ Config Uber Eats criada (modo simulado, status=connected)');
+        }
+
+        // Criar vendas simulando iFood e Uber Eats
+        const NUM_IFOOD = 10;
+        const NUM_UBER = 10;
+        const ifoodVendasInsert: any[] = [];
+        const uberVendasInsert: any[] = [];
+        const ifoodItensData: any[] = [];
+        const uberItensData: any[] = [];
+        const ifoodPedidosInsert: any[] = [];
+        const uberPedidosInsert: any[] = [];
+
+        const nomesClientes = [
+          'João Silva', 'Maria Santos', 'Pedro Oliveira', 'Ana Costa', 'Carlos Souza',
+          'Juliana Lima', 'Roberto Almeida', 'Fernanda Rodrigues', 'Lucas Martins', 'Patrícia Gomes',
+        ];
+        const telefonesClientes = [
+          '(11) 99999-0001', '(11) 99999-0002', '(11) 99999-0003', '(11) 99999-0004', '(11) 99999-0005',
+          '(11) 99999-0006', '(11) 99999-0007', '(11) 99999-0008', '(11) 99999-0009', '(11) 99999-0010',
+        ];
+        const enderecosEntrega = [
+          { logradouro: 'Av. Paulista', numero: '1000', complemento: 'Apto 101', bairro: 'Bela Vista', cidade: 'São Paulo', estado: 'SP', cep: '01310-100' },
+          { logradouro: 'Rua Augusta', numero: '500', complemento: '', bairro: 'Consolação', cidade: 'São Paulo', estado: 'SP', cep: '01304-000' },
+          { logradouro: 'Rua Oscar Freire', numero: '800', complemento: 'Casa 2', bairro: 'Cerqueira César', cidade: 'São Paulo', estado: 'SP', cep: '01426-001' },
+        ];
+
+        const criarVendaIntegracao = (
+          canal: 'ifood' | 'uber_eats',
+          idx: number,
+          total: number
+        ) => {
+          const dataVenda = gerarDataAleatoria(periodoInicio, periodoFim);
+          const clienteIdx = Math.floor(Math.random() * nomesClientes.length);
+          const endereco = enderecosEntrega[Math.floor(Math.random() * enderecosEntrega.length)];
+          const pedidoExternoId = canal === 'ifood'
+            ? `IFOOD-${String(idx + 1).padStart(6, '0')}`
+            : `UBER-${String(idx + 1).padStart(6, '0')}`;
+          const status = 'aberta';
+
+          return {
+            empresa_id: empresaId,
+            tipo: 'delivery',
+            canal,
+            status,
+            subtotal: total,
+            taxa_entrega: 0,
+            total,
+            forma_pagamento: 'online',
+            pedido_externo_id: pedidoExternoId,
+            nome_cliente: nomesClientes[clienteIdx],
+            telefone_cliente: telefonesClientes[clienteIdx],
+            entrega_logradouro: endereco.logradouro,
+            entrega_numero: endereco.numero,
+            entrega_complemento: endereco.complemento,
+            entrega_bairro: endereco.bairro,
+            entrega_cidade: endereco.cidade,
+            entrega_estado: endereco.estado,
+            entrega_cep: endereco.cep,
+            observacao: '',
+            criado_em: dataVenda.toISOString(),
+            atualizado_em: dataVenda.toISOString(),
+          };
+        };
+
+        // Criar vendas iFood
+        for (let i = 0; i < NUM_IFOOD; i++) {
+          const numItens = Math.floor(Math.random() * 3) + 1;
+          let total = 0;
+          const itens: { produtoId: string; quantidade: number; nome: string }[] = [];
+
+          for (let j = 0; j < numItens; j++) {
+            const produto = produtosDataInfo[Math.floor(Math.random() * produtosDataInfo.length)];
+            const qtd = Math.floor(Math.random() * 2) + 1;
+            itens.push({ produtoId: produto.id, quantidade: qtd, nome: produto.nome });
+            total += produto.preco * qtd;
+          }
+
+          const venda = criarVendaIntegracao('ifood', i, total);
+          ifoodVendasInsert.push({ vendaData: venda, itens, total, idx: i });
+        }
+
+        // Criar vendas Uber Eats
+        for (let i = 0; i < NUM_UBER; i++) {
+          const numItens = Math.floor(Math.random() * 3) + 1;
+          let total = 0;
+          const itens: { produtoId: string; quantidade: number; nome: string }[] = [];
+
+          for (let j = 0; j < numItens; j++) {
+            const produto = produtosDataInfo[Math.floor(Math.random() * produtosDataInfo.length)];
+            const qtd = Math.floor(Math.random() * 2) + 1;
+            itens.push({ produtoId: produto.id, quantidade: qtd, nome: produto.nome });
+            total += produto.preco * qtd;
+          }
+
+          const venda = criarVendaIntegracao('uber_eats', i, total);
+          uberVendasInsert.push({ vendaData: venda, itens, total, idx: i });
+        }
+
+        // Inserir vendas iFood
+        let ifoodCount = 0;
+        for (const v of ifoodVendasInsert) {
+          const { data: vendaInsert, error: vErr } = await supabase
+            .from('vendas')
+            .insert(v.vendaData)
+            .select('id')
+            .single();
+
+          if (vErr) {
+            addLog(`⚠️ Venda iFood #${v.idx + 1}: ${vErr.message}`);
+            continue;
+          }
+
+          if (vendaInsert) {
+            ifoodCount++;
+            for (const item of v.itens) {
+              ifoodItensData.push({
+                empresa_id: empresaId,
+                venda_id: vendaInsert.id,
+                produto_id: item.produtoId,
+                nome: item.nome,
+                quantidade: item.quantidade,
+                preco_unitario: v.total / v.itens.length,
+                total: item.quantidade * (v.total / v.itens.length),
+                criado_em: v.vendaData.criado_em,
+              });
+            }
+
+            ifoodPedidosInsert.push({
+              empresa_id: empresaId,
+              venda_id: vendaInsert.id,
+              order_id: v.vendaData.pedido_externo_id,
+              display_id: `#${v.idx + 1}`,
+              customer_name: v.vendaData.nome_cliente,
+              customer_phone: v.vendaData.telefone_cliente,
+              order_type: 'DELIVERY',
+              ifood_status: 'PLACED',
+              dados_completos: { simulated: true },
+              criado_em: v.vendaData.criado_em,
+              atualizado_em: v.vendaData.criado_em,
+            });
+          }
+        }
+
+        // Inserir vendas Uber Eats
+        let uberCount = 0;
+        for (const v of uberVendasInsert) {
+          const { data: vendaInsert, error: vErr } = await supabase
+            .from('vendas')
+            .insert(v.vendaData)
+            .select('id')
+            .single();
+
+          if (vErr) {
+            addLog(`⚠️ Venda Uber Eats #${v.idx + 1}: ${vErr.message}`);
+            continue;
+          }
+
+          if (vendaInsert) {
+            uberCount++;
+            for (const item of v.itens) {
+              uberItensData.push({
+                empresa_id: empresaId,
+                venda_id: vendaInsert.id,
+                produto_id: item.produtoId,
+                nome: item.nome,
+                quantidade: item.quantidade,
+                preco_unitario: v.total / v.itens.length,
+                total: item.quantidade * (v.total / v.itens.length),
+                criado_em: v.vendaData.criado_em,
+              });
+            }
+
+            uberPedidosInsert.push({
+              empresa_id: empresaId,
+              venda_id: vendaInsert.id,
+              order_id: v.vendaData.pedido_externo_id,
+              display_id: `#${v.idx + 1}`,
+              customer_name: v.vendaData.nome_cliente,
+              customer_phone: v.vendaData.telefone_cliente,
+              order_type: 'DELIVERY',
+              uber_eats_status: 'PLACED',
+              dados_completos: { simulated: true },
+              criado_em: v.vendaData.criado_em,
+              atualizado_em: v.vendaData.criado_em,
+            });
+          }
+        }
+
+        // Inserir itens em batch
+        if (ifoodItensData.length > 0) {
+          const { error: ie } = await supabase.from('itens_venda').insert(ifoodItensData);
+          if (ie) addLog(`⚠️ Itens iFood: ${ie.message}`);
+        }
+        if (uberItensData.length > 0) {
+          const { error: ue } = await supabase.from('itens_venda').insert(uberItensData);
+          if (ue) addLog(`⚠️ Itens Uber Eats: ${ue.message}`);
+        }
+
+        // Inserir pedidos iFood/Uber
+        if (ifoodPedidosInsert.length > 0) {
+          const { error: pe } = await supabase.from('ifood_pedidos').insert(ifoodPedidosInsert);
+          if (pe) addLog(`⚠️ ifood_pedidos: ${pe.message}`);
+        }
+        if (uberPedidosInsert.length > 0) {
+          const { error: upe } = await supabase.from('uber_eats_pedidos').insert(uberPedidosInsert);
+          if (upe) addLog(`⚠️ uber_eats_pedidos: ${upe.message}`);
+        }
+
+        updateStatus('Integrações iFood/Uber', 'done', ifoodCount + uberCount);
+        addLog(`${ifoodCount} vendas iFood + ${uberCount} vendas Uber Eats criadas.`);
+      } catch (e: any) {
+        addLog(`⚠️ Integrações: ${e.message || e.code || 'erro ao criar'} (pode ser RLS)`);
+        updateStatus('Integrações iFood/Uber', 'done', 0, e.message);
+      }
+      setProgressValue(77);
 
       // ==========================================
       // CAIXAS
