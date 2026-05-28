@@ -292,9 +292,9 @@ export default function DeliveryAdminPage() {
   const PedidoCard = ({ pedido }: { pedido: Pedido }) => (
     <Card className="hover:shadow-md transition-shadow cursor-pointer" onClick={() => handleVerPedido(pedido)}>
       <CardContent className="p-4">
-        <div className="flex items-start justify-between mb-3">
-          <div>
-            <div className="flex items-center gap-2">
+        <div className="flex items-start justify-between mb-3 gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-bold text-lg">{pedido.codigo}</span>
               <Badge className={ORIGEM_CONFIG[pedido.origem].color}>
                 <span className="flex items-center gap-1">
@@ -314,8 +314,8 @@ export default function DeliveryAdminPage() {
           </div>
         </div>
         <Separator className="my-2" />
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-sm min-w-0">
             <Phone className="h-4 w-4 text-muted-foreground" />
             <span>{pedido.cliente?.telefone || 'N/A'}</span>
           </div>

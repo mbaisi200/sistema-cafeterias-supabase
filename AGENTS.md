@@ -694,4 +694,4 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 ### CSS — `min-w-0` em Flex com `truncate` ✅
 - Adicionado `min-w-0` em elementos `flex-1` que contêm filhos com `truncate` para garantir que a truncagem funcione em contexto flexbox
-- Corrigido em: `FiltrosBI.tsx` (mobile), `pedidos/page.tsx` (busca produtos), `AppSidebar.tsx` (nome do usuário)
+- Corrigido em: `FiltrosBI.tsx` (mobile), `pedidos/page.tsx` (busca produtos), `AppSidebar.tsx` (nome do usuário), `delivery/page.tsx` (PedidoCard badges + telefone)
