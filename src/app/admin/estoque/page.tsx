@@ -1065,7 +1065,7 @@ export default function EstoquePage() {
               <Table className="table-fixed w-full">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[28%]">
+                    <TableHead className="w-[24%]">
                       <div className="flex items-center gap-1 group">
                         <button
                           onClick={() => {
@@ -1208,7 +1208,7 @@ export default function EstoquePage() {
                         />
                       )}
                     </TableHead>
-                    <TableHead className="w-[26%] text-center">Ações</TableHead>
+                    <TableHead className="w-[18%] text-center">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1264,21 +1264,21 @@ export default function EstoquePage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 px-2 text-blue-600 hover:bg-blue-50"
+                              className="h-8 px-1 md:px-2 text-blue-600 hover:bg-blue-50"
                               onClick={() => handleEntrada(produto)}
                             >
-                              <ArrowUp className="h-4 w-4 mr-1" />
-                              Entrada
+                              <ArrowUp className="h-4 w-4 md:mr-1" />
+                              <span className="hidden md:inline">Entrada</span>
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 px-2 text-red-600 hover:bg-red-50"
+                              className="h-8 px-1 md:px-2 text-red-600 hover:bg-red-50"
                               onClick={() => handleSaida(produto)}
                               disabled={(produto.estoqueAtual || 0) <= 0}
                             >
-                              <ArrowDown className="h-4 w-4 mr-1" />
-                              Saída
+                              <ArrowDown className="h-4 w-4 md:mr-1" />
+                              <span className="hidden md:inline">Saída</span>
                             </Button>
                             <Button
                               variant="ghost"

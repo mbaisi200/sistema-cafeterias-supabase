@@ -612,7 +612,7 @@ export default function FinanceiroPage() {
                 </p>
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
               <Button
                 variant="ghost"
                 size="icon"

@@ -717,7 +717,7 @@ export default function FuncionariosPage() {
                     />
                   </div>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 flex-wrap">
                   <Button
                     variant={statusFilter === 'todos' ? 'default' : 'outline'}
                     onClick={() => setStatusFilter('todos')}

@@ -776,29 +776,29 @@ ${linha('<div class="t-center t-small">--- Cozinha ---</div>')}
       <MainLayout breadcrumbs={[{ title: 'Admin' }, { title: 'Delivery' }]}>
         <div className="space-y-4">
           {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+          <div className="flex items-start md:items-center justify-between gap-2 flex-wrap md:flex-nowrap">
+            <div className="flex items-center gap-3 min-w-0">
               <Link href="/admin/dashboard">
-                <Button variant="ghost" size="icon" className="h-8 w-8">
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
                   <ChevronLeft className="h-5 w-5" />
                 </Button>
               </Link>
-              <div>
+              <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h1 className="text-2xl font-bold">Delivery</h1>
-                  <Badge className="bg-green-500 animate-pulse text-[10px] px-1.5 py-0">NOVO</Badge>
+                  <h1 className="text-xl md:text-2xl font-bold truncate">Delivery</h1>
+                  <Badge className="bg-green-500 animate-pulse text-[10px] px-1.5 py-0 shrink-0">NOVO</Badge>
                 </div>
-                <p className="text-xs text-muted-foreground">Cardápio Online, iFood e Uber Eats</p>
+                <p className="text-xs text-muted-foreground truncate">Cardápio Online, iFood e Uber Eats</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 shrink-0">
               <Link href="/admin/delivery/config">
-                <Button variant="outline" size="sm">
-                  <Settings className="h-3.5 w-3.5 mr-1" /> Config
+                <Button variant="outline" size="sm" className="h-8 text-xs md:text-sm">
+                  <Settings className="h-3.5 w-3.5 md:mr-1" /> <span className="hidden md:inline">Config</span>
                 </Button>
               </Link>
-              <Button variant="outline" size="sm" onClick={loadPedidos}>
-                <RefreshCw className="h-3.5 w-3.5 mr-1" /> Atualizar
+              <Button variant="outline" size="sm" className="h-8 text-xs md:text-sm" onClick={loadPedidos}>
+                <RefreshCw className="h-3.5 w-3.5 md:mr-1" /> <span className="hidden md:inline">Atualizar</span>
               </Button>
             </div>
           </div>
@@ -809,30 +809,30 @@ ${linha('<div class="t-center t-small">--- Cozinha ---</div>')}
               ? 'bg-gradient-to-r from-orange-50 to-red-50 dark:from-orange-950/20 dark:to-red-950/20 border-l-4 border-l-orange-400'
               : 'bg-gradient-to-r from-gray-50 to-gray-100 dark:from-[#1e1e32] dark:to-[#1a1a2e]'
           }`}>
-            <CardContent className="p-2.5 flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs">
-                <UtensilsCrossed className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Integrações:</span>
+            <CardContent className="p-2.5 flex items-start md:items-center justify-between gap-2 flex-wrap md:flex-nowrap">
+              <div className="flex items-center gap-1.5 md:gap-2 text-xs flex-wrap">
+                <UtensilsCrossed className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-muted-foreground shrink-0">Integrações:</span>
                 <Link href="/admin/integracoes/ifood">
-                  <Badge className={`cursor-pointer ${ifoodConnected ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                  <Badge className={`cursor-pointer whitespace-nowrap ${ifoodConnected ? 'bg-red-500 hover:bg-red-600' : 'bg-gray-300 dark:bg-gray-700'}`}>
                     <Globe className="h-2.5 w-2.5 mr-0.5" />
                     iFood {ifoodConnected ? '✅' : '❌'}
                   </Badge>
                 </Link>
                 <Link href="/admin/integracoes/uber-eats">
-                  <Badge className={`cursor-pointer ${uberConnected ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                  <Badge className={`cursor-pointer whitespace-nowrap ${uberConnected ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300 dark:bg-gray-700'}`}>
                     <Globe className="h-2.5 w-2.5 mr-0.5" />
                     Uber Eats {uberConnected ? '✅' : '❌'}
                   </Badge>
                 </Link>
                 {integracoesPendentes.length > 0 && (
-                  <Badge variant="outline" className="border-orange-300 text-orange-600 dark:text-orange-400 text-[10px]">
+                  <Badge variant="outline" className="border-orange-300 text-orange-600 dark:text-orange-400 text-[10px] whitespace-nowrap">
                     {integracoesPendentes.length} pendente(s)
                   </Badge>
                 )}
               </div>
               <Link href="/admin/integracoes">
-                <Button variant="ghost" size="sm" className="h-6 text-xs">
+                <Button variant="ghost" size="sm" className="h-6 text-xs shrink-0">
                   <ExternalLink className="h-3 w-3 mr-1" /> Gerenciar
                 </Button>
               </Link>

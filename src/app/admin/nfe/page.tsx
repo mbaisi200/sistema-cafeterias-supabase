@@ -1297,7 +1297,7 @@ export default function NFePage() {
                   )}
 
                   {(detailItem as NFeSaida).status === 'nfe_emitida' && (
-                    <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
                       <Button
                         variant="outline"
                         className="flex-1 gap-2"

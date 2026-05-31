@@ -492,7 +492,7 @@ export default function CuponsNFEsPage() {
                   <Receipt className="h-5 w-5 text-green-600" />
                   Cupons e Notas Fiscais (NFC-e)
                 </CardTitle>
-                <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
                   <Link href="/admin/configuracoes-cupom">
                     <Button variant="outline" size="sm" className="gap-2">
                       <Settings className="h-4 w-4" />

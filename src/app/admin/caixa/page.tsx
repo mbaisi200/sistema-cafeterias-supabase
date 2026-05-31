@@ -485,16 +485,16 @@ export default function CaixaPage() {
                         {movimentacoes.map((mov: any) => (
                           <div
                             key={mov.id}
-                            className={`flex items-center justify-between p-3 rounded-lg border ${
+                            className={`flex items-start md:items-center justify-between p-3 rounded-lg border gap-2 ${
                               mov.tipo === 'sangria' ? 'bg-red-50 border-red-200' :
                               mov.tipo === 'reforco' ? 'bg-green-50 border-green-200' :
                               'bg-gray-50'
                             }`}
                           >
-                            <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
                               {getTipoIcon(mov.tipo)}
                               <div className="min-w-0">
-                                <p className="font-medium truncate">{mov.descricao}</p>
+                                <p className="font-medium truncate text-sm md:text-base">{mov.descricao}</p>
                                 <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                                   <Badge variant="outline" className="text-xs">
                                     {getTipoLabel(mov.tipo)}
@@ -509,8 +509,8 @@ export default function CaixaPage() {
                                 </div>
                               </div>
                             </div>
-                            <div className="text-right shrink-0 ml-3">
-                              <p className={`text-lg font-bold ${
+                            <div className="text-right shrink-0">
+                              <p className={`text-base md:text-lg font-bold ${
                                 mov.tipo === 'sangria' ? 'text-red-600' : 'text-green-600'
                               }`}>
                                 {mov.tipo === 'sangria' ? '-' : '+'} R$ {(mov.valor || 0).toFixed(2)}
@@ -566,19 +566,19 @@ export default function CaixaPage() {
                         return (
                           <div
                             key={cx.id}
-                            className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all ${
+                            className={`flex items-start md:items-center justify-between p-4 rounded-lg border cursor-pointer transition-all gap-2 ${
                               isSelected
                                 ? 'bg-emerald-50 border-emerald-300 ring-1 ring-emerald-200'
                                 : 'bg-gray-50 hover:bg-gray-100 hover:border-gray-300'
                             }`}
                             onClick={() => handleVerRelatorio(cx.id)}
                           >
-                            <div className="flex items-center gap-3 min-w-0">
+                            <div className="flex items-center gap-3 min-w-0 flex-1">
                               <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center shrink-0">
                                 <Lock className="h-5 w-5 text-gray-600" />
                               </div>
                               <div className="min-w-0">
-                                <p className="font-medium">
+                                <p className="font-medium text-sm md:text-base">
                                   {cx.abertoEm?.toLocaleDateString('pt-BR')}
                                   {cx.fechadoEm && (
                                     <span className="text-muted-foreground font-normal">
@@ -592,26 +592,26 @@ export default function CaixaPage() {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-3 shrink-0 ml-3">
-                              <div className="text-right">
-                                <p className="text-lg font-bold">R$ {(cx.valor_final || cx.valorFinal || 0).toFixed(2)}</p>
-                                <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 md:gap-3 shrink-0 text-right">
+                              <div>
+                                <p className="text-base md:text-lg font-bold">R$ {(cx.valor_final || cx.valorFinal || 0).toFixed(2)}</p>
+                                <div className="flex items-center gap-1 md:gap-2">
                                   {(cx.quebra || 0) !== 0 && (
                                     <Badge
                                       variant={cx.quebra > 0 ? 'default' : 'destructive'}
-                                      className="text-xs"
+                                      className="text-[10px] md:text-xs"
                                     >
                                       {cx.quebra > 0 ? 'Sobra' : 'Falta'}: R$ {Math.abs(cx.quebra).toFixed(2)}
                                     </Badge>
                                   )}
                                   {(cx.quebra || 0) === 0 && cx.fechado_em && (
-                                    <Badge variant="outline" className="text-xs bg-green-100 text-green-700">
+                                    <Badge variant="outline" className="text-[10px] md:text-xs bg-green-100 text-green-700">
                                       Conferido
                                     </Badge>
                                   )}
                                 </div>
                               </div>
-                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                              <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                             </div>
                           </div>
                         );
