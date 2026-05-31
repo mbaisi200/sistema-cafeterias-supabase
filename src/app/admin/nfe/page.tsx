@@ -513,7 +513,7 @@ export default function NFePage() {
               </p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Link href="/admin/nfe/importar">
                 <Button variant="outline" size="sm" className="gap-1 md:gap-2 text-xs md:text-sm w-full sm:w-auto">
                   <FileUp className="h-3.5 w-3.5 md:h-4 md:w-4" />

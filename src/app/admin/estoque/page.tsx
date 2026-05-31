@@ -1179,7 +1179,7 @@ export default function EstoquePage() {
                     <TableHead className="w-[12%] text-center hidden md:table-cell">
                       <span className="text-muted-foreground text-xs">Reservado</span>
                     </TableHead>
-                    <TableHead className="w-[10%] text-center">
+                    <TableHead className="w-[10%] text-center hidden md:table-cell">
                       <div className="flex items-center gap-1 group justify-center">
                         <button
                           onClick={() => {
@@ -1246,7 +1246,7 @@ export default function EstoquePage() {
                             {reservas[produto.id] || 0}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center hidden md:table-cell">
                           {estoqueBaixo ? (
                             <Badge variant="destructive" className="text-xs">
                               <AlertTriangle className="h-3 w-3 mr-1" />

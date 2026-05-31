@@ -184,22 +184,23 @@ export default function CuponsNFEsPage() {
               <p className="text-sm text-muted-foreground">Gestão de cupons fiscais (NFC-e) e notas fiscais eletrônicas de saída</p>
             </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Link href="/admin/nfe/config">
-            <Button variant="outline" className="gap-2">
-              <Settings className="h-4 w-4" />
+            <Button variant="outline" size="sm" className="gap-1 md:gap-2 w-full sm:w-auto text-xs md:text-sm">
+              <Settings className="h-3.5 w-3.5 md:h-4 md:w-4" />
               Config. NF-e
             </Button>
           </Link>
           <Link href="/admin/configuracoes-cupom">
-            <Button variant="outline" className="gap-2">
-              <Receipt className="h-4 w-4" />
+            <Button variant="outline" size="sm" className="gap-1 md:gap-2 w-full sm:w-auto text-xs md:text-sm">
+              <Receipt className="h-3.5 w-3.5 md:h-4 md:w-4" />
               Config. Cupom Fiscal
             </Button>
           </Link>
           <Button
             variant="outline"
-            className="gap-2"
+            size="sm"
+            className="gap-1 md:gap-2 w-full sm:w-auto text-xs md:text-sm"
             onClick={async () => {
               const empresaInfo = await fetchEmpresaPDFData(empresaId);
               exportToPDF({
@@ -243,8 +244,8 @@ export default function CuponsNFEsPage() {
               });
             }}
           >
-            <Download className="h-4 w-4" />
-            Exportar PDF
+            <Download className="h-3.5 w-3.5 md:h-4 md:w-4" />
+            <span className="text-xs md:text-sm">Exportar PDF</span>
           </Button>
         </div>
 
