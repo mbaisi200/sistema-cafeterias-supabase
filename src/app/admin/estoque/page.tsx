@@ -1093,7 +1093,7 @@ export default function EstoquePage() {
                         />
                       )}
                     </TableHead>
-                    <TableHead className="w-[12%]">
+                    <TableHead className="w-[12%] hidden md:table-cell">
                       <div className="flex items-center gap-1 group">
                         <button
                           onClick={() => {
@@ -1149,12 +1149,11 @@ export default function EstoquePage() {
                         />
                       )}
                     </TableHead>
-                    <TableHead className="w-[12%] text-center">
+                    <TableHead className="w-[12%] text-center hidden md:table-cell">
                       <div className="flex items-center gap-1 group justify-center">
                         <button
                           onClick={() => {
                             if (sortBy === 'estoque_minimo') setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-                            else { setSortBy('estoque_minimo'); setSortDir('asc'); }
                             setEditandoColuna(null);
                           }}
                           className="flex items-center gap-1 text-foreground hover:text-primary transition-colors cursor-pointer"
@@ -1177,7 +1176,7 @@ export default function EstoquePage() {
                         />
                       )}
                     </TableHead>
-                    <TableHead className="w-[12%] text-center">
+                    <TableHead className="w-[12%] text-center hidden md:table-cell">
                       <span className="text-muted-foreground text-xs">Reservado</span>
                     </TableHead>
                     <TableHead className="w-[10%] text-center">
@@ -1229,7 +1228,7 @@ export default function EstoquePage() {
                             </div>
                           </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden md:table-cell">
                           <span className="text-sm text-muted-foreground">
                             {produto.codigo || produto.codigoBarras || '-'}
                           </span>
@@ -1239,10 +1238,10 @@ export default function EstoquePage() {
                             {produto.estoqueAtual || 0}
                           </span>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center hidden md:table-cell">
                           <span className="text-sm">{produto.estoqueMinimo || 0}</span>
                         </TableCell>
-                        <TableCell className="text-center">
+                        <TableCell className="text-center hidden md:table-cell">
                           <span className="text-sm font-mono text-amber-600">
                             {reservas[produto.id] || 0}
                           </span>
@@ -1264,21 +1263,21 @@ export default function EstoquePage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 px-1 md:px-2 text-blue-600 hover:bg-blue-50"
+                              className="h-8 px-2 text-blue-600 hover:bg-blue-50"
                               onClick={() => handleEntrada(produto)}
                             >
-                              <ArrowUp className="h-4 w-4 md:mr-1" />
-                              <span className="hidden md:inline">Entrada</span>
+                              <ArrowUp className="h-4 w-4 mr-1" />
+                              Entrada
                             </Button>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 px-1 md:px-2 text-red-600 hover:bg-red-50"
+                              className="h-8 px-2 text-red-600 hover:bg-red-50"
                               onClick={() => handleSaida(produto)}
                               disabled={(produto.estoqueAtual || 0) <= 0}
                             >
-                              <ArrowDown className="h-4 w-4 md:mr-1" />
-                              <span className="hidden md:inline">Saída</span>
+                              <ArrowDown className="h-4 w-4 mr-1" />
+                              Saída
                             </Button>
                             <Button
                               variant="ghost"

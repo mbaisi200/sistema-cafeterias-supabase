@@ -515,23 +515,25 @@ export default function NFePage() {
             </div>
             <div className="flex gap-2">
               <Link href="/admin/nfe/importar">
-                <Button variant="outline" className="gap-2">
-                  <FileUp className="h-4 w-4" />
+                <Button variant="outline" size="sm" className="gap-1 md:gap-2 text-xs md:text-sm w-full sm:w-auto">
+                  <FileUp className="h-3.5 w-3.5 md:h-4 md:w-4" />
                   Importar NF-e
                 </Button>
               </Link>
               <Button
                 variant="destructive"
-                className="gap-2"
+                size="sm"
+                className="gap-1 md:gap-2 text-xs md:text-sm w-full sm:w-auto"
                 onClick={handleExcluirNFeEntrada}
                 disabled={excluindoNFe || expandedRows.size === 0}
               >
-                {excluindoNFe ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                {excluindoNFe ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 md:h-4 md:w-4" />}
                 Excluir NF-e Entrada
               </Button>
               <Button
                 variant="outline"
-                className="gap-2"
+                size="sm"
+                className="gap-1 md:gap-2 text-xs md:text-sm w-full sm:w-auto"
                 onClick={async () => {
                   const empresaInfo = await fetchEmpresaPDFData(empresaId);
                   if (activeTab === 'entrada') {
@@ -594,12 +596,12 @@ export default function NFePage() {
                   }
                 }}
               >
-                <Download className="h-4 w-4" />
+                <Download className="h-3.5 w-3.5 md:h-4 md:w-4" />
                 Exportar PDF
               </Button>
               <Link href="/admin/nfe/config">
-                <Button variant="outline" className="gap-2">
-                  <Settings className="h-4 w-4" />
+                <Button variant="outline" size="sm" className="gap-1 md:gap-2 text-xs md:text-sm w-full sm:w-auto">
+                  <Settings className="h-3.5 w-3.5 md:h-4 md:w-4" />
                   Config. NF-e
                 </Button>
               </Link>
@@ -1297,7 +1299,7 @@ export default function NFePage() {
                   )}
 
                   {(detailItem as NFeSaida).status === 'nfe_emitida' && (
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex flex-col sm:flex-row gap-2">
                       <Button
                         variant="outline"
                         className="flex-1 gap-2"
