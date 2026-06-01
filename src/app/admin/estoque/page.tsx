@@ -1220,9 +1220,9 @@ export default function EstoquePage() {
                             <div className="h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
                               <Package className="h-5 w-5 text-muted-foreground" />
                             </div>
-                            <div>
-                              <p className="font-medium">{produto.nome}</p>
-                              <p className="text-xs text-muted-foreground">
+                            <div className="min-w-0">
+                              <p className="font-medium truncate" title={produto.nome}>{produto.nome}</p>
+                              <p className="text-xs text-muted-foreground truncate">
                                 {produto.unidade || 'un'}
                               </p>
                             </div>
