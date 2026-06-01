@@ -555,7 +555,8 @@ export default function AdminDashboardPage() {
       if (excDelivery && (v.canal === 'delivery' || v.tipo === 'delivery')) return false;
       if (!v.criadoEm) return false;
       const d = new Date(v.criadoEm);
-      return d >= selectedDayStart && d <= selectedDayEnd;
+      if (d < selectedDayStart || d > selectedDayEnd) return false;
+      return true;
     });
   }, [vendas, selectedDayStart, selectedDayEnd, excluirDelivery]);
 

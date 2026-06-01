@@ -720,6 +720,7 @@ export function useVendas() {
         total: parseFloat(venda.total) || 0,
         formaPagamento: venda.forma_pagamento,
         pedidoExternoId: venda.pedido_externo_id,
+        clienteId: venda.cliente_id,
         nomeCliente: venda.nome_cliente,
         telefoneCliente: venda.telefone_cliente,
         comandaId: venda.comanda_id,
@@ -2387,7 +2388,7 @@ export function useCombos() {
     try {
       const { data, error } = await supabase
         .from('combo_itens')
-        .select('*, produtos!inner(nome, preco, estoque_atual, unidade)')
+        .select('*, produtos!item_produto_id(nome, preco, estoque_atual, unidade)')
         .eq('combo_produto_id', comboProdutoId)
         .order('criado_em', { ascending: true });
 

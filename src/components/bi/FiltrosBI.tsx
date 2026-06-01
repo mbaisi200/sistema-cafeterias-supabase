@@ -28,6 +28,7 @@ interface FiltrosBIProps {
     tiposVenda: { valor: string; label: string }[];
     produtos: { valor: string; label: string }[];
     fornecedores: { valor: string; label: string }[];
+    clientes: { valor: string; label: string }[];
   };
   onAtualizarFiltros: (filtros: Partial<FiltrosBI>) => void;
   onResetarFiltros: () => void;
@@ -153,8 +154,196 @@ function ProdutoSelect({ opcoes, valores, onChange }: {
   );
 }
 
+function FornecedorSelect({ opcoes, valores, onChange }: {
+  opcoes: { valor: string; label: string }[];
+  valores: string[];
+  onChange: (valores: string[]) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [showAll, setShowAll] = useState(false);
+
+  const filtered = search
+    ? opcoes.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+    : opcoes;
+
+  const displayed = showAll ? filtered : filtered.slice(0, 20);
+  const hasMore = !showAll && filtered.length > 20;
+  const allFilteredSelected = filtered.length > 0 && filtered.every(f => valores.includes(f.valor));
+  const someFilteredSelected = filtered.some(f => valores.includes(f.valor)) && !allFilteredSelected;
+
+  const toggleAllFiltered = () => {
+    if (allFilteredSelected) {
+      const filteredIds = new Set(filtered.map(f => f.valor));
+      onChange(valores.filter(v => !filteredIds.has(v)));
+    } else {
+      const filteredIds = new Set(filtered.map(f => f.valor));
+      const currentIds = new Set(valores);
+      const merged = [...valores];
+      for (const id of filteredIds) {
+        if (!currentIds.has(id)) merged.push(id);
+      }
+      onChange(merged);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm font-medium">
+          Fornecedores
+          {valores.length > 0 && (
+            <Badge variant="secondary" className="ml-2 text-xs">{valores.length}</Badge>
+          )}
+        </Label>
+        {valores.length > 0 && (
+          <button onClick={() => onChange([])} className="text-xs text-muted-foreground hover:text-foreground">
+            Limpar
+          </button>
+        )}
+      </div>
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          placeholder="Buscar fornecedor..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setShowAll(false); }}
+          className="h-8 pl-8 text-xs"
+        />
+      </div>
+      {filtered.length > 0 && (
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="select-all-fornecedores"
+            checked={allFilteredSelected}
+            ref={(el: HTMLButtonElement | null) => {
+              if (el) (el as unknown as { indeterminate: boolean }).indeterminate = someFilteredSelected;
+            }}
+            onCheckedChange={toggleAllFiltered}
+          />
+          <Label htmlFor="select-all-fornecedores" className="text-xs text-muted-foreground cursor-pointer">
+            Selecionar todos ({filtered.length})
+          </Label>
+        </div>
+      )}
+      <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+        {displayed.map((opcao) => (
+          <div key={opcao.valor} className="flex items-center space-x-2">
+            <Checkbox id={`forn-${opcao.valor}`} checked={valores.includes(opcao.valor)} onCheckedChange={(checked) => { onChange(checked ? [...valores, opcao.valor] : valores.filter((v) => v !== opcao.valor)); }} />
+            <Label htmlFor={`forn-${opcao.valor}`} className="text-xs cursor-pointer truncate">{opcao.label}</Label>
+          </div>
+        ))}
+        {displayed.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-2">Nenhum fornecedor encontrado</p>
+        )}
+      </div>
+      {hasMore && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="text-xs text-blue-600 hover:text-blue-800 w-full text-center py-1"
+        >
+          Mostrar mais {filtered.length - 20} fornecedores...
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ClienteSelect({ opcoes, valores, onChange }: {
+  opcoes: { valor: string; label: string }[];
+  valores: string[];
+  onChange: (valores: string[]) => void;
+}) {
+  const [search, setSearch] = useState('');
+  const [showAll, setShowAll] = useState(false);
+
+  const filtered = search
+    ? opcoes.filter(o => o.label.toLowerCase().includes(search.toLowerCase()))
+    : opcoes;
+
+  const displayed = showAll ? filtered : filtered.slice(0, 20);
+  const hasMore = !showAll && filtered.length > 20;
+  const allFilteredSelected = filtered.length > 0 && filtered.every(f => valores.includes(f.valor));
+  const someFilteredSelected = filtered.some(f => valores.includes(f.valor)) && !allFilteredSelected;
+
+  const toggleAllFiltered = () => {
+    if (allFilteredSelected) {
+      const filteredIds = new Set(filtered.map(f => f.valor));
+      onChange(valores.filter(v => !filteredIds.has(v)));
+    } else {
+      const filteredIds = new Set(filtered.map(f => f.valor));
+      const currentIds = new Set(valores);
+      const merged = [...valores];
+      for (const id of filteredIds) {
+        if (!currentIds.has(id)) merged.push(id);
+      }
+      onChange(merged);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <Label className="text-sm font-medium">
+          Clientes
+          {valores.length > 0 && (
+            <Badge variant="secondary" className="ml-2 text-xs">{valores.length}</Badge>
+          )}
+        </Label>
+        {valores.length > 0 && (
+          <button onClick={() => onChange([])} className="text-xs text-muted-foreground hover:text-foreground">
+            Limpar
+          </button>
+        )}
+      </div>
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <Input
+          placeholder="Buscar cliente..."
+          value={search}
+          onChange={(e) => { setSearch(e.target.value); setShowAll(false); }}
+          className="h-8 pl-8 text-xs"
+        />
+      </div>
+      {filtered.length > 0 && (
+        <div className="flex items-center space-x-2">
+          <Checkbox
+            id="select-all-clientes"
+            checked={allFilteredSelected}
+            ref={(el: HTMLButtonElement | null) => {
+              if (el) (el as unknown as { indeterminate: boolean }).indeterminate = someFilteredSelected;
+            }}
+            onCheckedChange={toggleAllFiltered}
+          />
+          <Label htmlFor="select-all-clientes" className="text-xs text-muted-foreground cursor-pointer">
+            Selecionar todos ({filtered.length})
+          </Label>
+        </div>
+      )}
+      <div className="max-h-48 overflow-y-auto space-y-1 pr-1">
+        {displayed.map((opcao) => (
+          <div key={opcao.valor} className="flex items-center space-x-2">
+            <Checkbox id={`cli-${opcao.valor}`} checked={valores.includes(opcao.valor)} onCheckedChange={(checked) => { onChange(checked ? [...valores, opcao.valor] : valores.filter((v) => v !== opcao.valor)); }} />
+            <Label htmlFor={`cli-${opcao.valor}`} className="text-xs cursor-pointer truncate">{opcao.label}</Label>
+          </div>
+        ))}
+        {displayed.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-2">Nenhum cliente encontrado</p>
+        )}
+      </div>
+      {hasMore && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="text-xs text-blue-600 hover:text-blue-800 w-full text-center py-1"
+        >
+          Mostrar mais {filtered.length - 20} clientes...
+        </button>
+      )}
+    </div>
+  );
+}
+
 function FiltrosContent({ filtros, opcoesFiltros, onAtualizarFiltros, onResetarFiltros }: { filtros: FiltrosBI; opcoesFiltros: FiltrosBIProps['opcoesFiltros']; onAtualizarFiltros: FiltrosBIProps['onAtualizarFiltros']; onResetarFiltros: FiltrosBIProps['onResetarFiltros'] }) {
-  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos, ...filtros.fornecedores].length;
+  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos, ...filtros.fornecedores, ...filtros.clientes].length;
 
   return (
     <div className="space-y-4">
@@ -201,7 +390,8 @@ function FiltrosContent({ filtros, opcoesFiltros, onAtualizarFiltros, onResetarF
         <ProdutoSelect opcoes={opcoesFiltros.produtos} valores={filtros.produtos} onChange={(valores) => onAtualizarFiltros({ produtos: valores })} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MultiSelect titulo="Fornecedores" opcoes={opcoesFiltros.fornecedores} valores={filtros.fornecedores} onChange={(valores) => onAtualizarFiltros({ fornecedores: valores })} />
+        <FornecedorSelect opcoes={opcoesFiltros.fornecedores} valores={filtros.fornecedores} onChange={(valores) => onAtualizarFiltros({ fornecedores: valores })} />
+        <ClienteSelect opcoes={opcoesFiltros.clientes} valores={filtros.clientes} onChange={(valores) => onAtualizarFiltros({ clientes: valores })} />
       </div>
       <Separator />
       <div className="flex items-center justify-between gap-4">
@@ -218,7 +408,7 @@ function FiltrosContent({ filtros, opcoesFiltros, onAtualizarFiltros, onResetarF
 
 export function FiltrosBI({ filtros, periodoFormatado, opcoesFiltros, onAtualizarFiltros, onResetarFiltros }: FiltrosBIProps) {
   const isMobile = useIsMobile();
-  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos, ...filtros.fornecedores].length;
+  const filtrosAtivos = [...filtros.categorias, ...filtros.formasPagamento, ...filtros.tiposVenda, ...filtros.produtos, ...filtros.fornecedores, ...filtros.clientes].length;
 
   if (isMobile) {
     return (

@@ -406,6 +406,10 @@ export default function DeliveryAdminPage() {
   };
 
   const handlePrintCupom = async (pedido: Pedido, vendaId: string) => {
+    // Abrir janela de impressão SINCRONAMENTE antes do await para evitar bloqueio de pop-up
+    let printWindow: Window | null = null;
+    try { printWindow = window.open('', '_blank', 'width=400,height=600'); } catch {}
+
     const itens = await loadPedidoDetalhes(pedido);
     const emp = empresaPrint;
     const cfg = cupomConfig;
@@ -425,7 +429,7 @@ export default function DeliveryAdminPage() {
       tamanhoCupom: (cfg.larguraPapel || 58) <= 58 ? '58mm' : '80mm',
       codigoVenda: vendaId.slice(0, 8),
       configuracoes: cfg,
-    });
+    }, printWindow);
   };
 
   const handlePrintCozinha = async (pedido: Pedido) => {

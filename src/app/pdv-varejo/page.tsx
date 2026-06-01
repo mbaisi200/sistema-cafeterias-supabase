@@ -2,7 +2,7 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProdutos, useCategorias, useCaixa, registrarLog } from '@/hooks/useSupabase';
+import { useProdutos, useCategorias, useCaixa, useCombos, registrarLog } from '@/hooks/useSupabase';
 import { CupomFiscalModal, imprimirCupomFiscal, DadosCupomFiscal } from '@/components/pdv/CupomFiscal';
 import { BuscaCliente, ClienteEncontrado } from '@/components/pdv/BuscaCliente';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +51,7 @@ import {
   Monitor,
   Sun,
   Moon,
+  Layers,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -67,6 +68,8 @@ interface ItemCarrinho {
   unidade: string;
   descontoPercentual: number;
   imagem?: string;
+  isCombo?: boolean;
+  comboPertencente?: string;
 }
 
 interface PagamentoItem {
@@ -92,6 +95,7 @@ export default function PDVVarejoPage() {
   const { produtos, loading: loadingProdutos } = useProdutos();
   const { categorias, loading: loadingCategorias } = useCategorias();
   const { caixaAberto, abrirCaixa, fecharCaixa } = useCaixa();
+  const { obterItensComboParaVenda } = useCombos();
 
   const [codigoInput, setCodigoInput] = useState('');
   const [quantidadeInput, setQuantidadeInput] = useState('1');
@@ -226,8 +230,12 @@ export default function PDVVarejoPage() {
 
   const loading = loadingProdutos || loadingCategorias;
 
-  const subtotal = itensCarrinho.reduce((acc, item) => acc + ((item.preco || 0) * (item.quantidade || 0)), 0);
+  const subtotal = itensCarrinho.reduce((acc, item) => {
+    if (item.isCombo) return acc;
+    return acc + ((item.preco || 0) * (item.quantidade || 0));
+  }, 0);
   const totalDescontoItens = itensCarrinho.reduce((acc, item) => {
+    if (item.isCombo) return acc;
     const descontoItem = ((item.preco || 0) * (item.quantidade || 0)) * ((item.descontoPercentual || 0) / 100);
     return acc + descontoItem;
   }, 0);
@@ -235,14 +243,91 @@ export default function PDVVarejoPage() {
   const totalFinal = subtotal - totalDescontoItens - totalDescontoGeral;
   const totalPago = pagamentos.reduce((acc, pg) => acc + (pg.valor || 0), 0);
   const troco = Math.max(0, totalPago - totalFinal);
-  const totalItens = itensCarrinho.reduce((acc, i) => acc + i.quantidade, 0);
+  const totalItens = itensCarrinho.reduce((acc, i) => i.isCombo ? acc : acc + i.quantidade, 0);
 
-  const adicionarProduto = (produto: any, qtd?: number, precoCustom?: number) => {
+  const adicionarProduto = async (produto: any, qtd?: number, precoCustom?: number) => {
     if (!produto.preco || produto.preco <= 0) {
       toast({ variant: 'destructive', title: 'Produto sem preço definido' });
       return;
     }
     const qtde = qtd || parseFloat(quantidadeInput) || 1;
+
+    // Se for combo, adicionar o combo + itens componentes com rateio
+    if (produto.isCombo) {
+      const itens = await obterItensComboParaVenda(produto.id);
+      const comboIds = new Set([produto.id, ...itens.map(ci => ci.itemProdutoId)]);
+      const comboPreco = precoCustom || parseFloat(precoInput) || produto.comboPreco || produto.preco;
+
+      // Guarda quantidades existentes antes de remover
+      const qtdsExistentes = new Map<string, number>();
+      for (const item of itensCarrinho) {
+        if (comboIds.has(item.produtoId)) {
+          qtdsExistentes.set(item.produtoId, (qtdsExistentes.get(item.produtoId) || 0) + item.quantidade);
+        }
+      }
+
+      // Remove linhas antigas deste combo
+      const carrinhoSemCombo = itensCarrinho.filter(item => !comboIds.has(item.produtoId));
+
+      // Calcula soma dos preços dos componentes para rateio
+      const compData = itens.map(ci => {
+        const prod = produtos.find((p: any) => p.id === ci.itemProdutoId);
+        return { ci, prod };
+      }).filter(x => x.prod);
+      const sumComp = compData.reduce((acc, { ci, prod }) => acc + (Number(prod!.preco) || 0) * (Number(ci.quantidade) || 1), 0);
+      const needRateio = comboPreco > 0 && sumComp > 0 && comboPreco < sumComp;
+
+      const novosItens: ItemCarrinho[] = [];
+
+      // Itens componentes (com rateio se necessário) — não entram no total
+      for (const { ci, prod } of compData) {
+        const qtdExistente = qtdsExistentes.get(ci.itemProdutoId) || 0;
+        const precoComp = needRateio && sumComp > 0
+          ? (comboPreco * (Number(prod!.preco) * Number(ci.quantidade))) / sumComp / Number(ci.quantidade)
+          : Number(prod!.preco) || 0;
+        novosItens.push({
+          id: Date.now().toString() + ci.itemProdutoId,
+          produtoId: prod!.id,
+          nome: prod!.nome,
+          preco: precoComp,
+          precoOriginal: prod!.preco || 0,
+          quantidade: qtdExistente + ci.quantidade * qtde,
+          codigo: prod!.codigo || '',
+          codigoBarras: prod!.codigoBarras || '',
+          unidade: prod!.unidade || 'UN',
+          descontoPercentual: 0,
+          imagem: prod!.imagem || '',
+          comboPertencente: produto.id,
+        });
+      }
+
+      // Linha do combo (com o preço total)
+      novosItens.push({
+        id: Date.now().toString() + '-combo',
+        produtoId: produto.id,
+        nome: produto.nome,
+        preco: comboPreco,
+        precoOriginal: comboPreco,
+        quantidade: (qtdsExistentes.get(produto.id) || 0) + qtde,
+        codigo: produto.codigo || '',
+        codigoBarras: produto.codigoBarras || '',
+        unidade: produto.unidade || 'UN',
+        descontoPercentual: 0,
+        imagem: produto.imagem || '',
+        isCombo: true,
+      });
+
+      setItensCarrinho([...carrinhoSemCombo, ...novosItens]);
+      setSelectedItemId(novosItens[0]?.id || null);
+      toast({
+        title: `Combo "${produto.nome}" adicionado (${itens.length} itens)`,
+        description: `Qtd: ${(qtdsExistentes.get(produto.id) || 0) + qtde} | Total: R$ ${comboPreco.toFixed(2)}`,
+        className: "bg-green-500 text-white border-green-600",
+        duration: 1500,
+      });
+      return;
+    }
+
     const preco = precoCustom || parseFloat(precoInput) || produto.preco;
 
     const existente = itensCarrinho.find(item => item.produtoId === produto.id);
@@ -409,6 +494,13 @@ export default function PDVVarejoPage() {
       return;
     }
     setProcessando(true);
+
+    // Abrir janela de impressão SINCRONAMENTE (antes de await) para evitar bloqueio de pop-up
+    let printWindow: Window | null = null;
+    if (dadosCupom.imprimirCupom) {
+      try { printWindow = window.open('', '_blank', 'width=400,height=600'); } catch {}
+    }
+
     try {
       const supabase = getSupabaseClient();
       if (!supabase) throw new Error('Supabase não inicializado');
@@ -439,16 +531,18 @@ export default function PDVVarejoPage() {
       if (vendaError) throw vendaError;
       const vendaId = vendaData.id;
 
-      const itensVenda = itensCarrinho.map(item => ({
-        empresa_id: empresaId,
-        venda_id: vendaId,
-        produto_id: item.produtoId,
-        nome: item.nome,
-        quantidade: item.quantidade,
-        preco_unitario: item.preco,
-        desconto: item.descontoPercentual,
-        total: (item.preco * item.quantidade) * (1 - item.descontoPercentual / 100),
-      }));
+      const itensVenda = itensCarrinho
+        .filter(item => !item.isCombo)
+        .map(item => ({
+          empresa_id: empresaId,
+          venda_id: vendaId,
+          produto_id: item.produtoId,
+          nome: item.nome,
+          quantidade: item.quantidade,
+          preco_unitario: item.preco,
+          desconto: item.descontoPercentual,
+          total: (item.preco * item.quantidade) * (1 - item.descontoPercentual / 100),
+        }));
 
       const { error: itensError } = await supabase
         .from('itens_venda')
@@ -457,6 +551,7 @@ export default function PDVVarejoPage() {
       if (itensError) throw itensError;
 
       for (const item of itensCarrinho) {
+        if (item.isCombo) continue; // combo não tem estoque físico, só seus componentes
         await debitarEstoqueVenda(supabase, empresaId, item.produtoId, item.quantidade, user?.id, user?.nome, vendaId);
       }
 
@@ -533,7 +628,7 @@ export default function PDVVarejoPage() {
           enderecoEmpresa: empresa?.endereco || '',
           cpfCliente: dadosCupom.cpfCliente,
           nomeCliente: dadosCupom.nomeCliente,
-          itens: itensCarrinho.map(item => ({
+          itens: itensCarrinho.filter(i => !i.isCombo).map(item => ({
             nome: item.nome,
             quantidade: item.quantidade,
             preco: item.preco,
@@ -551,7 +646,7 @@ export default function PDVVarejoPage() {
           ufEmpresa: empresa?.estado || '',
           vendedor: user?.nome || 'OPERADOR',
           softwareName: nomeMarca || undefined,
-        });
+        }, printWindow);
       }
 
       // Emitir NFC-e se solicitado
@@ -562,8 +657,8 @@ export default function PDVVarejoPage() {
             dinheiro: '01', credito: '03', debito: '04', pix: '17',
           };
 
-          // Buscar dados fiscais dos produtos
-          const produtoIds = [...new Set(itensCarrinho.map(i => i.produtoId))];
+          // Buscar dados fiscais dos produtos (ignorando cabeçalho de combo)
+          const produtoIds = [...new Set(itensCarrinho.filter(i => !i.isCombo).map(i => i.produtoId))];
           const { data: produtosData } = await supabase
             .from('produtos')
             .select('id, ncm, cfop, origem, cst, csosn, unidade_tributavel')
@@ -580,7 +675,7 @@ export default function PDVVarejoPage() {
                 cpf_cnpj: dadosCupom.cpfCliente,
                 nome: dadosCupom.nomeCliente || clienteSelecionado?.nome_razao_social || undefined,
               } : undefined,
-              produtos: itensCarrinho.map(item => {
+              produtos: itensCarrinho.filter(i => !i.isCombo).map(item => {
                 const fiscal = fiscaisMap.get(item.produtoId);
                 const valLiq = (item.preco * item.quantidade) * (1 - (item.descontoPercentual || 0) / 100);
                 return {
@@ -702,8 +797,8 @@ export default function PDVVarejoPage() {
     router.push('/');
   };
 
-  const selecionarProdutoBusca = (produto: any) => {
-    adicionarProduto(produto);
+  const selecionarProdutoBusca = async (produto: any) => {
+    await adicionarProduto(produto);
     setCodigoInput('');
     setQuantidadeInput('1');
     setPrecoInput('');
@@ -747,7 +842,7 @@ export default function PDVVarejoPage() {
     setShowDropdown(false);
   };
 
-  const processarDevolucao = () => {
+  const processarDevolucao = async () => {
     if (!devolucaoCodigo.trim()) return;
     const codigo = devolucaoCodigo.trim();
     const produto = (produtos || []).find(p =>
@@ -758,7 +853,7 @@ export default function PDVVarejoPage() {
       return;
     }
     const qtd = parseFloat(devolucaoQtd) || 1;
-    adicionarProduto(produto, -qtd);
+    await adicionarProduto(produto, -qtd);
     setDialogDevolucao(false);
     setDevolucaoCodigo('');
     setDevolucaoQtd('1');
@@ -1104,8 +1199,8 @@ export default function PDVVarejoPage() {
                             animate={{ opacity: 1, x: 0 }}
                             exit={{ opacity: 0, x: -20, height: 0 }}
                             transition={{ delay: idx * 0.03 }}
-                            onClick={() => setSelectedItemId(item.id)}
-                            className={`cursor-pointer border-b ${darkMode ? 'border-white/5 hover:bg-white/5' : 'border-gray-100 hover:bg-blue-50/50'} transition-colors ${isSelected ? (darkMode ? 'bg-blue-900/20 ring-2 ring-inset ring-blue-500/30' : 'bg-blue-50 ring-2 ring-inset ring-blue-300/50') : ''}`}
+                            onClick={() => !item.comboPertencente && setSelectedItemId(item.id)}
+                            className={`border-b transition-colors ${item.comboPertencente ? (darkMode ? 'bg-purple-900/10 text-gray-400' : 'bg-purple-50/50 text-gray-500') : 'cursor-pointer hover:bg-blue-50/50'} ${isSelected ? (darkMode ? 'bg-blue-900/20 ring-2 ring-inset ring-blue-500/30' : 'bg-blue-50 ring-2 ring-inset ring-blue-300/50') : ''}`}
                           >
                             <td className="py-3 px-4">
                               <span className={`text-sm font-mono ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
@@ -1114,7 +1209,10 @@ export default function PDVVarejoPage() {
                             </td>
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
-                                <span className={`text-sm font-semibold ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>{item.nome}</span>
+                                {item.comboPertencente && (
+                                  <Layers className="h-3.5 w-3.5 text-purple-400 flex-shrink-0" />
+                                )}
+                                <span className={`text-sm font-semibold ${item.comboPertencente ? 'text-muted-foreground text-xs' : (darkMode ? 'text-gray-100' : 'text-gray-800')}`}>{item.nome}</span>
                                 {item.descontoPercentual > 0 && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); setDialogDesconto(item.id); setValorDescontoInput(item.descontoPercentual.toString()); }}
@@ -1128,6 +1226,9 @@ export default function PDVVarejoPage() {
                               </div>
                             </td>
                             <td className="py-3 px-4">
+                              {item.comboPertencente ? (
+                                <span className={`text-xs ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>Incluso</span>
+                              ) : (
                               <div className="flex items-center justify-center gap-1">
                                 <button
                                   className={`h-7 w-7 rounded-lg ${darkMode ? 'bg-[#1a1a2e] hover:bg-white/10 text-gray-300' : 'bg-gray-100 hover:bg-gray-200 text-gray-600'} flex items-center justify-center transition-colors`}
@@ -1150,6 +1251,7 @@ export default function PDVVarejoPage() {
                                   <Plus className="h-3.5 w-3.5" />
                                 </button>
                               </div>
+                              )}
                             </td>
                             <td className={`py-3 px-2 text-right text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                               R$ {fmt(item.preco)}
@@ -1175,12 +1277,14 @@ export default function PDVVarejoPage() {
                                 >
                                   <Percent className="h-3.5 w-3.5" />
                                 </button>
-                                <button
-                                  className={`h-7 w-7 rounded-lg ${darkMode ? 'bg-red-500/20 hover:bg-red-500/40 text-red-400' : 'bg-red-50 hover:bg-red-100 text-red-500'} flex items-center justify-center transition-colors`}
-                                  onClick={(e) => { e.stopPropagation(); removerItem(item.id); }}
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
+                                {!item.comboPertencente && (
+                                  <button
+                                    className={`h-7 w-7 rounded-lg ${darkMode ? 'bg-red-500/20 hover:bg-red-500/40 text-red-400' : 'bg-red-50 hover:bg-red-100 text-red-500'} flex items-center justify-center transition-colors`}
+                                    onClick={(e) => { e.stopPropagation(); removerItem(item.id); }}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </button>
+                                )}
                               </div>
                             </td>
                           </motion.tr>
@@ -1660,7 +1764,7 @@ export default function PDVVarejoPage() {
           onConfirmar={finalizarVenda}
           formaPagamento={formaPagamentoSelecionada}
           total={totalFinal}
-          itens={itensCarrinho.map(item => ({
+          itens={itensCarrinho.filter(i => !i.comboPertencente).map(item => ({
             nome: item.nome,
             quantidade: item.quantidade,
             preco: item.preco,

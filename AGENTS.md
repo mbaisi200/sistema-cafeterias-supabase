@@ -695,3 +695,42 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 ### CSS — `min-w-0` em Flex com `truncate` ✅
 - Adicionado `min-w-0` em elementos `flex-1` que contêm filhos com `truncate` para garantir que a truncagem funcione em contexto flexbox
 - Corrigido em: `FiltrosBI.tsx` (mobile), `pedidos/page.tsx` (busca produtos), `AppSidebar.tsx` (nome do usuário), `delivery/page.tsx` (PedidoCard badges + telefone)
+
+### Combos no PDV ✅
+- **PDV Varejo** (`/pdv-varejo`): combo expandido em itens componentes com rateio proporcional de preço; `isCombo` e `comboPertencente` na interface `ItemCarrinho`
+- **PDV Restaurante balcão** (`/pdv`): combo expandido em itens componentes com rateio
+- **PDV Restaurante mesa/delivery/comanda + Garçom**: combo mantido como linha única (sem expansão)
+- **Cupom fiscal / NFC-e**: envia apenas componentes (`.filter(!item.isCombo || !item.comboPertencente)`) com seus NCM/CFOP/CST individuais
+- **Estoque**: débito pula o cabeçalho do combo (faz só nos componentes)
+- **"Combos" filter button**: botão roxo na barra de categorias do PDV Restaurante e Garçom (`__combos__`)
+- **Fallback**: quando `obterItensComboParaVenda` retorna vazio (RLS/sem itens), combo adicionado como produto normal com preço cheio
+- **Admin Produtos**: aba Combos com colunas Preço Cheio + Preço Combo; auto-prefixo `CO` no código; rateio visível no dialog de itens
+- **Cart width**: `w-64` → `w-96` para melhor visualização no PDV Restaurante
+
+### Cupom Fiscal — Popup Blocker ✅
+- `imprimirCupomFiscal` agora aceita `printWindow?: Window | null` como segundo argumento
+- Todos os callers (PDV, PDV Varejo, PDV Garçom, Delivery) abrem a janela **sincronamente antes do `await`** para evitar bloqueio de pop-up
+- Se a janela não for passada, a função faz `window.open()` sozinha (fallback)
+
+### BI — Filtros de Busca (Clientes + Fornecedores) ✅
+- `ClienteSelect` e `FornecedorSelect` em `FiltrosBI.tsx` com search, select-all (indeterminate), paginação (20 + "Mostrar mais")
+- Substituem os antigos `MultiSelect` básicos
+- `FiltrosBI` adiciona `clientes: string[]`
+- `useBIData` expõe `clientesUnicos` das vendas e filtra por `clienteId`
+- Grelha de 4 colunas no layout de filtros
+
+### Estoque — Cards Clicáveis ✅
+- Cards "Entradas Hoje", "Saídas Hoje", "Estoque Baixo" trocados de `<Card>` para `<div>` puro (mesmas classes visuais)
+- `onClick` com `e.stopPropagation()`, `role="button"`, `tabIndex={0}`, `onKeyDown` (Enter/Space)
+- `active:scale-[0.98]` para feedback tátil
+- Card "Estoque Baixo" também alterna `filterStatus` entre `'baixo'`/`'todos'` (filtra a tabela principal)
+
+### Estoque — Movimentações com Vendas ✅
+- `estoque_movimentos` query inclui `JOIN vendas!venda_id(nome_cliente)` para buscar nome do cliente
+- Coluna "Cliente" na tabela de Saídas mostra `clienteNome` quando tipo é `'venda'`
+- Total de saídas agora inclui `tipo === 'venda'` e usa `Math.abs()` no valor
+- Interface `MovimentacaoEstoque` inclui `clienteNome?: string`
+
+---
+
+> ⚠️ **IMPORTANTE PARA AGENTES IA:** NUNCA fazer `git push`, `git commit`, ou `git add` sem ser **explicitamente solicitado** pelo usuário. Apenas altere arquivos locais. Commits e pushes só devem ser feitos quando o usuário pedir expressamente.

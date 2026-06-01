@@ -544,7 +544,8 @@ export function imprimirCupomFiscal(
     cidadeEmpresa?: string;
     ufEmpresa?: string;
     vendedor?: string;
-  }
+  },
+  printWindow?: Window | null
 ) {
   const {
     nomeEmpresa: nomeEmpresaParam,
@@ -889,13 +890,13 @@ export function imprimirCupomFiscal(
   // ---------- Abrir janela de impressão ----------
   const tamanhoPapel = `${larguraMm}mm`;
 
-  const printWindow = window.open('', '_blank', 'width=400,height=600');
-  if (!printWindow) {
+  const win = printWindow || window.open('', '_blank', 'width=400,height=600');
+  if (!win) {
     alert('Não foi possível abrir a janela de impressão. Verifique se pop-ups estão bloqueados.');
     return;
   }
 
-  printWindow.document.write(`
+  win.document.write(`
     <!DOCTYPE html>
     <html>
     <head>
@@ -939,11 +940,11 @@ export function imprimirCupomFiscal(
     </html>
   `);
 
-  printWindow.document.close();
-  printWindow.focus();
+  win.document.close();
+  win.focus();
   
   setTimeout(() => {
-    printWindow.print();
-    printWindow.close();
+    win.print();
+    win.close();
   }, 250);
 }

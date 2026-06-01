@@ -2,7 +2,7 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProdutos, useCategorias, useMesas, useCaixa, registrarLog } from '@/hooks/useSupabase';
+import { useProdutos, useCategorias, useMesas, useCaixa, useCombos, registrarLog } from '@/hooks/useSupabase';
 import { CupomFiscalModal, imprimirCupomFiscal, DadosCupomFiscal } from '@/components/pdv/CupomFiscal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -42,6 +42,7 @@ import {
   Eraser,
   Lock,
   Menu,
+  Layers,
   ShoppingBag,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -396,7 +397,9 @@ export default function PDVGarcomPage() {
 
   const produtosFiltrados = useMemo(() => {
     let lista = produtos || [];
-    if (categoriaAtiva !== 'todos') {
+    if (categoriaAtiva === '__combos__') {
+      lista = lista.filter(p => p.isCombo);
+    } else if (categoriaAtiva !== 'todos') {
       lista = lista.filter((p) => p.categoriaId === categoriaAtiva);
     }
     if (search) {
@@ -833,6 +836,13 @@ export default function PDVGarcomPage() {
     }
 
     setProcessando(true);
+
+    // Abrir janela de impressão SINCRONAMENTE (antes de await) para evitar bloqueio de pop-up
+    let printWindow: Window | null = null;
+    if (dadosCupom.imprimirCupom) {
+      try { printWindow = window.open('', '_blank', 'width=400,height=600'); } catch {}
+    }
+
     try {
       const supabase = getSupabaseClient();
       if (!supabase) throw new Error('Supabase não inicializado');
@@ -991,7 +1001,7 @@ export default function PDVGarcomPage() {
           ufEmpresa: empresa?.estado || '',
           vendedor: user?.nome || 'GARÇOM',
           pagamentosMultiplos: pagamentos.length > 0 ? pagamentos : undefined,
-        });
+        }, printWindow);
       }
 
       // Emitir NFC-e se solicitado
@@ -1623,6 +1633,17 @@ function ProdutoView({
             }`}
           >
             Todos
+          </button>
+          <button
+            onClick={() => setCategoriaAtiva('__combos__')}
+            className={`shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all ${
+              categoriaAtiva === '__combos__'
+                ? 'bg-purple-600 text-white shadow-sm shadow-purple-600/30'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <Layers className="h-3.5 w-3.5" />
+            Combos
           </button>
           {categorias.map((cat) => (
             <button

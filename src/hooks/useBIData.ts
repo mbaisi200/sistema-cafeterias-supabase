@@ -16,6 +16,8 @@ interface Venda {
   canal?: string;
   criadoEm?: Date;
   criadoPorNome?: string;
+  clienteId?: string;
+  nomeCliente?: string;
   itens?: Array<{
     produtoId: string;
     nome?: string;
@@ -57,6 +59,7 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
     status: [],
     canais: [],
     fornecedores: [],
+    clientes: [],
   });
 
   // Criar mapa de produtos para lookup rápido
@@ -134,6 +137,10 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
           return produto && filtros.fornecedores.includes(produto.fornecedorId || '');
         });
         if (!temFornecedor) return false;
+      }
+      // Filtro por cliente
+      if (filtros.clientes.length > 0) {
+        if (!venda.clienteId || !filtros.clientes.includes(venda.clienteId)) return false;
       }
       return true;
     });
@@ -497,8 +504,21 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
 
   // Resetar filtros
   const resetarFiltros = useCallback(() => {
-    setFiltros({ periodo: 'ano', filtroCategoria: 'todos', categorias: [], formasPagamento: [], tiposVenda: [], produtos: [], status: [], canais: [], fornecedores: [] });
+    setFiltros({ periodo: 'ano', filtroCategoria: 'todos', categorias: [], formasPagamento: [], tiposVenda: [], produtos: [], status: [], canais: [], fornecedores: [], clientes: [] });
   }, []);
+
+  // Clientes únicos das vendas
+  const clientesUnicos = useMemo(() => {
+    const unique = new Map<string, string>();
+    vendas.forEach(v => {
+      if (v.clienteId && v.nomeCliente && !unique.has(v.clienteId)) {
+        unique.set(v.clienteId, v.nomeCliente);
+      }
+    });
+    return Array.from(unique.entries())
+      .map(([id, nome]) => ({ valor: id, label: nome }))
+      .sort((a, b) => a.label.localeCompare(b.label, 'pt-BR'));
+  }, [vendas]);
 
   // Opções de filtros
   const opcoesFiltros = useMemo(() => ({
@@ -528,7 +548,8 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
     ],
     fornecedores: (fornecedores || []).map((f: any) => ({ valor: f.id, label: f.nome })),
     produtos: produtos.map(p => ({ valor: p.id, label: p.nome })),
-  }), [categorias, produtos, fornecedores]);
+    clientes: clientesUnicos,
+  }), [categorias, produtos, fornecedores, clientesUnicos]);
 
   return {
     kpis, 

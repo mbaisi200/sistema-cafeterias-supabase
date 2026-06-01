@@ -2,7 +2,7 @@
 
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { useAuth } from '@/contexts/AuthContext';
-import { useProdutos, useCategorias, useMesas, useCaixa, useComandas, registrarLog } from '@/hooks/useSupabase';
+import { useProdutos, useCategorias, useMesas, useCaixa, useComandas, useCombos, registrarLog } from '@/hooks/useSupabase';
 import { CupomFiscalModal, imprimirCupomFiscal, DadosCupomFiscal } from '@/components/pdv/CupomFiscal';
 import { BuscaCliente, ClienteEncontrado } from '@/components/pdv/BuscaCliente';
 import { Badge } from '@/components/ui/badge';
@@ -50,6 +50,7 @@ import {
   UserPlus,
   X,
   FileText,
+  Layers,
   Sun,
   Moon,
 } from 'lucide-react';
@@ -69,6 +70,7 @@ interface ItemPedido {
   mesaNumero?: number;
   cliente?: string;
   criadoEm: Date;
+  isCombo?: boolean;
 }
 
 interface DeliveryInfo {
@@ -104,6 +106,7 @@ export default function PDVPage() {
     alterarQuantidadeItem: alterarQtdItemComanda,
     fecharComanda: finalizarComanda 
   } = useComandas();
+  const { obterItensComboParaVenda } = useCombos();
   
   // Estados
   const [categoriaAtiva, setCategoriaAtiva] = useState<string>('todos');
@@ -279,7 +282,9 @@ export default function PDVPage() {
   // Produtos filtrados
   const produtosFiltrados = useMemo(() => {
     let lista = produtos || [];
-    if (categoriaAtiva !== 'todos') {
+    if (categoriaAtiva === '__combos__') {
+      lista = lista.filter(p => p.isCombo);
+    } else if (categoriaAtiva !== 'todos') {
       lista = lista.filter(p => p.categoriaId === categoriaAtiva);
     }
     if (search) {
@@ -353,20 +358,20 @@ export default function PDVPage() {
     })).sort((a: any, b: any) => a.numero - b.numero);
   }, [mesas, mesasOcupadas]);
 
-  // Total do pedido
-  const total = (itensPedido || []).reduce((acc, item) => acc + (item.preco * item.quantidade), 0);
+  // Total do pedido (arredondado para evitar ponto flutuante)
+  const total = Math.round((itensPedido || []).reduce((acc, item) => acc + (item.preco * item.quantidade), 0) * 100) / 100;
 
   // Total pago nos pagamentos múltiplos
   const totalPago = pagamentos.reduce((acc, pg) => acc + pg.valor, 0);
 
   // Adicionar pagamento à lista
-  const adicionarPagamento = (forma: string) => {
-    const valor = parseFloat(valorPagamentoAtual) || 0;
+  const adicionarPagamento = (forma: string, valorCustom?: number) => {
+    const valor = valorCustom ?? (parseFloat(valorPagamentoAtual) || (total - totalPago));
     if (valor <= 0) {
       toast({ variant: 'destructive', title: 'Informe o valor do pagamento' });
       return;
     }
-    if (totalPago + valor > total + 0.01) { // tolerância de 1 centavo
+    if (totalPago + valor > total + 0.01) {
       toast({ variant: 'destructive', title: 'Valor excede o total da venda' });
       return;
     }
@@ -379,21 +384,18 @@ export default function PDVPage() {
     setPagamentos(pagamentos.filter((_, i) => i !== index));
   };
 
-  // Auto-fill payment amount when dialog opens or when payments change
+  // Auto-fill payment amount when dialog opens
   useEffect(() => {
     if (dialogPagamento) {
       const restante = total - totalPago;
       setValorPagamentoAtual(restante > 0 ? restante.toFixed(2) : '');
-      // Reset payments when dialog opens fresh (no prior payments)
-      if (totalPago === 0) {
-        setPagamentos([]);
-      }
+      setPagamentos([]);
     }
   }, [dialogPagamento]);
 
   // Finalizar com múltiplos pagamentos
   const handleFinalizarComPagamentos = () => {
-    if (totalPago < total) {
+    if (totalPago < total - 0.01) {
       toast({ variant: 'destructive', title: 'Pagamento incompleto' });
       return;
     }
@@ -445,6 +447,102 @@ export default function PDVPage() {
 
     const supabase = getSupabaseClient();
     if (!supabase) return;
+
+    // Para combo (balcão): expandir nos itens componentes com rateio
+    if (produto.isCombo && tipoVenda === 'balcao') {
+      const itens = await obterItensComboParaVenda(produto.id);
+
+      // Se não encontrou itens (RLS ou sem configuração), adiciona como produto normal
+      if (itens.length === 0) {
+        const existente = itensPedido.find(item => item.produtoId === produto.id);
+        if (existente) {
+          setItensPedido(itensPedido.map(item =>
+            item.id === existente.id
+              ? { ...item, quantidade: item.quantidade + 1 }
+              : item
+          ));
+        } else {
+          const comboPreco = produto.comboPreco || produto.preco;
+          setItensPedido([...itensPedido, {
+            id: Date.now().toString(),
+            produtoId: produto.id,
+            nome: produto.nome,
+            preco: comboPreco,
+            quantidade: 1,
+            codigo: produto.codigo || '',
+            unidade: produto.unidade || 'UN',
+            atendenteId: user?.id || '',
+            atendenteNome: user?.nome || '',
+            tipoVenda: 'balcao',
+            criadoEm: new Date(),
+          }]);
+        }
+        toast({ title: `✓ "${produto.nome}" adicionado`, duration: 1500 });
+        return;
+      }
+
+      const comboIds = new Set([produto.id, ...itens.map(ci => ci.itemProdutoId)]);
+      const comboPreco = produto.comboPreco || produto.preco;
+      const qtdsExistentes = new Map<string, number>();
+      for (const item of itensPedido) {
+        if (comboIds.has(item.produtoId)) {
+          qtdsExistentes.set(item.produtoId, (qtdsExistentes.get(item.produtoId) || 0) + item.quantidade);
+        }
+      }
+      const pedidoSemCombo = itensPedido.filter(item => !comboIds.has(item.produtoId));
+
+      // Calcula soma dos preços dos componentes para rateio
+      const compData = itens.map(ci => {
+        const prod = produtos.find((p: any) => p.id === ci.itemProdutoId);
+        return { ci, prod };
+      }).filter(x => x.prod);
+      const sumComp = compData.reduce((acc, { ci, prod }) => acc + (prod!.preco || 0) * ci.quantidade, 0);
+      const needRateio = comboPreco > 0 && sumComp > 0 && comboPreco < sumComp;
+
+      const novosItens: ItemPedido[] = [];
+
+      // Itens componentes (com rateio se necessário)
+      for (const { ci, prod } of compData) {
+        const qtdExistente = qtdsExistentes.get(ci.itemProdutoId) || 0;
+        let precoComp = prod!.preco || 0;
+        if (needRateio) {
+          precoComp = (comboPreco * (prod!.preco * ci.quantidade)) / sumComp / ci.quantidade;
+        }
+        novosItens.push({
+          id: Date.now().toString() + ci.itemProdutoId,
+          produtoId: prod!.id,
+          nome: prod!.nome,
+          preco: precoComp,
+          quantidade: qtdExistente + ci.quantidade,
+          codigo: prod!.codigo || '',
+          unidade: prod!.unidade || 'UN',
+          atendenteId: user?.id || '',
+          atendenteNome: user?.nome || '',
+          tipoVenda: 'balcao',
+          criadoEm: new Date(),
+        });
+      }
+
+      // Linha do combo (preço 0 — valor rateado nos componentes)
+      novosItens.push({
+        id: Date.now().toString() + '-combo',
+        produtoId: produto.id,
+        nome: produto.nome,
+        preco: 0,
+        quantidade: (qtdsExistentes.get(produto.id) || 0) + 1,
+        codigo: produto.codigo || '',
+        unidade: produto.unidade || 'UN',
+        isCombo: true,
+        atendenteId: user?.id || '',
+        atendenteNome: user?.nome || '',
+        tipoVenda: 'balcao',
+        criadoEm: new Date(),
+      });
+
+      setItensPedido([...pedidoSemCombo, ...novosItens]);
+      toast({ title: `✓ Combo "${produto.nome}" adicionado (${itens.length} itens)`, duration: 1500 });
+      return;
+    }
 
     // Para mesa e delivery, salva no Supabase
     if (tipoVenda === 'mesa' || tipoVenda === 'delivery') {
@@ -798,6 +896,15 @@ export default function PDVPage() {
     }
 
     setProcessando(true);
+
+    // Abrir janela de impressão SINCRONAMENTE (antes de await) para evitar bloqueio de pop-up
+    let printWindow: Window | null = null;
+    if (dadosCupom.imprimirCupom) {
+      try {
+        printWindow = window.open('', '_blank', 'width=400,height=600');
+      } catch {}
+    }
+
     try {
       let vendaId = '';
       
@@ -857,13 +964,13 @@ export default function PDVPage() {
         vendaId = vendaData.id;
 
         // Criar itens de venda - usando campos do schema correto
-        const itensVenda = itensPedido.map(item => ({
+        const itensVenda = itensPedido.filter(item => !item.isCombo).map(item => ({
           empresa_id: empresaId,
           venda_id: vendaData.id,
           produto_id: item.produtoId,
           nome: item.nome,
           quantidade: item.quantidade,
-          preco_unitario: item.preco, // campo correto do schema
+          preco_unitario: item.preco,
           total: item.preco * item.quantidade,
         }));
 
@@ -879,7 +986,7 @@ export default function PDVPage() {
           await debitarEstoqueVenda(supabase, empresaId, item.produtoId, item.quantidade, user?.id, user?.nome, vendaData.id);
         }
 
-        // Baixar estoque dos itens componentes dos combos
+        // Baixar estoque dos itens componentes dos combos (apenas se não expandidos)
         const combosVendidos = itensPedido.filter(item => item.isCombo);
         if (combosVendidos.length > 0) {
           const comboIds = combosVendidos.map(item => item.produtoId);
@@ -892,6 +999,8 @@ export default function PDVPage() {
             const reducoes = new Map<string, number>();
             for (const ci of comboData) {
               if (!ci.custo_incluido) continue;
+              // Se o componente já está em itensNormais, foi expandido — não debitar novamente
+              if (itensNormais.some(item => item.produtoId === ci.item_produto_id)) continue;
               const comboVendido = combosVendidos.find(i => i.produtoId === ci.combo_produto_id);
               if (comboVendido) {
                 reducoes.set(ci.item_produto_id, (reducoes.get(ci.item_produto_id) || 0) + ci.quantidade * comboVendido.quantidade);
@@ -995,7 +1104,7 @@ export default function PDVPage() {
             enderecoEmpresa: empresa?.endereco || '',
             cpfCliente: dadosCupom.cpfCliente,
             nomeCliente: dadosCupom.nomeCliente,
-            itens: itensPedido.map(item => ({
+            itens: itensPedido.filter(item => !item.isCombo).map(item => ({
               nome: item.nome,
               quantidade: item.quantidade,
               preco: item.preco,
@@ -1012,7 +1121,7 @@ export default function PDVPage() {
             cidadeEmpresa: empresa?.cidade || '',
             ufEmpresa: empresa?.estado || '',
             vendedor: user?.nome || 'ADMINISTRADOR',
-          });
+          }, printWindow);
         }
 
         // Emitir NFC-e se solicitado
@@ -1023,7 +1132,7 @@ export default function PDVPage() {
               dinheiro: '01', credito: '03', debito: '04', pix: '17',
             };
 
-            const produtoIds = [...new Set(itensPedido.map(i => i.produtoId))];
+            const produtoIds = [...new Set(itensPedido.filter(i => !i.isCombo).map(i => i.produtoId))];
             const { data: produtosData } = await supabase
               .from('produtos')
               .select('id, ncm, cfop, origem, cst, csosn, unidade_tributavel')
@@ -1040,7 +1149,7 @@ export default function PDVPage() {
                   cpf_cnpj: dadosCupom.cpfCliente,
                   nome: dadosCupom.nomeCliente || dadosCupom.cliente?.nome_razao_social || undefined,
                 } : undefined,
-                produtos: itensPedido.map(item => {
+                produtos: itensPedido.filter(item => !item.isCombo).map(item => {
                   const fiscal = fiscaisMap.get(item.produtoId);
                   const valLiq = (item.preco * item.quantidade) * (1 - (item.descontoPercentual || 0) / 100);
                   return {
@@ -1385,7 +1494,7 @@ export default function PDVPage() {
                     <ClipboardList className="h-12 w-12 mx-auto mb-2 opacity-50" />
                     <p className="text-sm">Nenhuma comanda aberta</p>
                     <Button 
-                      size="sm" 
+                      size="sm"
                       variant="outline" 
                       className="mt-3"
                       onClick={() => setDialogComanda(true)}
@@ -1436,6 +1545,15 @@ export default function PDVPage() {
                 onClick={() => setCategoriaAtiva('todos')}
               >
                 Todos
+              </Button>
+              <Button
+                size="sm"
+                variant={categoriaAtiva === '__combos__' ? 'default' : 'outline'}
+                className={`h-7 text-xs font-bold whitespace-nowrap transition-all ${categoriaAtiva === '__combos__' ? 'bg-purple-600 text-white shadow-sm' : darkMode ? 'bg-[#1a1a2e] text-purple-400 border-purple-400/30 hover:bg-[#2a2a42]' : 'bg-white text-purple-600 border border-purple-200 hover:bg-purple-50'}`}
+                onClick={() => setCategoriaAtiva('__combos__')}
+              >
+                <Layers className="h-3.5 w-3.5 mr-1" />
+                Combos
               </Button>
               {(categorias || []).map(cat => (
                 <Button
@@ -1498,7 +1616,7 @@ export default function PDVPage() {
 
           {/* COLUNA DIREITA - CARRINHO - DESKTOP ONLY */}
           {!isMobile && (
-          <div className={`w-64 ${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-blue-100'} rounded-lg shadow-sm flex flex-col overflow-hidden h-full`}>
+          <div className={`w-96 ${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-blue-100'} rounded-lg shadow-sm flex flex-col overflow-hidden h-full`}>
             
             {/* HEADER CARRINHO */}
             <div className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} px-2 py-2 shrink-0 border-b`}>
@@ -1560,7 +1678,7 @@ export default function PDVPage() {
                     <div key={item.id} className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} rounded-lg p-2 hover:border-blue-300 transition-all shadow-sm`}>
                       <div className="flex justify-between items-start mb-1">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
                             <span className="text-xs font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded-full shrink-0">#{index + 1}</span>
                             <p className="font-bold text-gray-800 text-sm truncate">{item.nome}</p>
                           </div>
@@ -1610,7 +1728,12 @@ export default function PDVPage() {
               <Button
                 className="w-full h-9 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={itensPedido.length === 0 || processando || (tipoVenda === 'comanda' && !comandaSelecionada)}
-                onClick={() => setDialogPagamento(true)}
+                onClick={() => {
+                  const restante = total - totalPago;
+                  setValorPagamentoAtual(restante > 0 ? restante.toFixed(2) : '');
+                  setPagamentos([]);
+                  setDialogPagamento(true);
+                }}
               >
                 <CreditCard className="h-4 w-4 mr-1.5" />
                 {processando ? 'Processando...' : 'FINALIZAR VENDA'}
@@ -1717,7 +1840,7 @@ export default function PDVPage() {
                     <div key={item.id} className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} rounded-lg p-2 hover:border-blue-300 transition-all shadow-sm`}>
                       <div className="flex justify-between items-start mb-1">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 min-w-0">
                             <span className="text-xs font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded-full shrink-0">#{index + 1}</span>
                             <p className="font-bold text-gray-800 text-sm truncate">{item.nome}</p>
                           </div>
@@ -1765,7 +1888,13 @@ export default function PDVPage() {
               <Button
                 className="w-full h-9 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={itensPedido.length === 0 || processando || (tipoVenda === 'comanda' && !comandaSelecionada)}
-                onClick={() => { setShowCartMobile(false); setDialogPagamento(true); }}
+                onClick={() => { 
+                  setShowCartMobile(false);
+                  const restante = total - totalPago;
+                  setValorPagamentoAtual(restante > 0 ? restante.toFixed(2) : '');
+                  setPagamentos([]);
+                  setDialogPagamento(true); 
+                }}
               >
                 <CreditCard className="h-4 w-4 mr-1.5" />
                 {processando ? 'Processando...' : 'FINALIZAR VENDA'}
@@ -2144,7 +2273,7 @@ export default function PDVPage() {
           )}
 
           {/* Saldo restante */}
-          {totalPago < total && (
+          {totalPago < total - 0.01 && (
             <div className="bg-orange-50 rounded-lg p-3 border border-orange-200 text-center">
               <p className="text-sm text-orange-700 font-medium">Falta pagar:</p>
               <p className="text-xl font-bold text-orange-600">R$ {(total - totalPago).toFixed(2)}</p>
@@ -2152,7 +2281,7 @@ export default function PDVPage() {
           )}
 
           {/* Troco */}
-          {totalPago > total && (
+          {totalPago > total + 0.01 && (
             <div className="bg-green-50 rounded-lg p-3 border border-green-200 text-center">
               <p className="text-sm text-green-700 font-medium">Troco:</p>
               <p className="text-xl font-bold text-green-600">R$ {(totalPago - total).toFixed(2)}</p>
@@ -2160,7 +2289,7 @@ export default function PDVPage() {
           )}
 
           {/* Adicionar pagamento */}
-          {totalPago < total && (
+          {totalPago < total - 0.01 && (
             <div className="space-y-3 border-t pt-4">
               <p className="text-sm font-medium text-gray-600">Adicionar pagamento:</p>
               
@@ -2242,7 +2371,7 @@ export default function PDVPage() {
             </Button>
             <Button 
               className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold"
-              disabled={totalPago < total || processando}
+              disabled={totalPago < total - 0.01 || processando}
               onClick={handleFinalizarComPagamentos}
             >
               {processando ? (
@@ -2268,7 +2397,7 @@ export default function PDVPage() {
         onConfirmar={finalizarVenda}
         formaPagamento={formaPagamentoSelecionada}
         total={total}
-        itens={itensPedido.map(item => ({
+        itens={itensPedido.filter(item => !item.isCombo).map(item => ({
           nome: item.nome,
           quantidade: item.quantidade,
           preco: item.preco,

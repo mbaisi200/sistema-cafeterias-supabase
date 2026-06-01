@@ -72,6 +72,7 @@ interface MovimentacaoEstoque {
   observacao?: string;
   fornecedor?: string;
   documentoRef?: string;
+  clienteNome?: string;
   criadoPor: string;
   criadoPorNome: string;
   criadoEm: Date;
@@ -184,7 +185,7 @@ export default function EstoquePage() {
     // Buscar movimentações
     supabase
       .from('estoque_movimentos')
-      .select('*')
+      .select('*, vendas!venda_id(nome_cliente)')
       .eq('empresa_id', empresaId)
       .order('criado_em', { ascending: false })
       .limit(50)
@@ -206,6 +207,7 @@ export default function EstoquePage() {
           observacao: item.observacao ?? undefined,
           fornecedor: item.fornecedor ?? undefined,
           documentoRef: item.documento_ref ?? undefined,
+          clienteNome: item.vendas?.nome_cliente ?? undefined,
           criadoPor: item.criado_por || item.usuario_id || '-',
           criadoPorNome: item.criado_por_nome || item.usuario_nome || '-',
           criadoEm: item.criado_em ? new Date(item.criado_em) : undefined,
@@ -649,8 +651,8 @@ export default function EstoquePage() {
     .filter(m => m.tipo === 'entrada')
     .reduce((acc, m) => acc + m.quantidade, 0);
   const totalSaidas = movimentacoesFiltradas
-    .filter(m => m.tipo === 'saida')
-    .reduce((acc, m) => acc + m.quantidade, 0);
+    .filter(m => m.tipo === 'saida' || m.tipo === 'venda')
+    .reduce((acc, m) => acc + Math.abs(Number(m.quantidade)), 0);
 
   const hojeStr = new Date().toDateString();
   const movimentacoesHojeEntrada = useMemo(() =>
@@ -658,7 +660,7 @@ export default function EstoquePage() {
     [movimentacoes, hojeStr]
   );
   const movimentacoesHojeSaida = useMemo(() =>
-    movimentacoes.filter(m => m.tipo === 'saida' && m.criadoEm && new Date(m.criadoEm).toDateString() === hojeStr),
+    movimentacoes.filter(m => (m.tipo === 'saida' || m.tipo === 'venda') && m.criadoEm && new Date(m.criadoEm).toDateString() === hojeStr),
     [movimentacoes, hojeStr]
   );
 
@@ -831,11 +833,17 @@ export default function EstoquePage() {
               </CardContent>
             </Card>
             
-            <Card
-              className={`cursor-pointer transition-colors border-green-200 hover:bg-green-50/50 dark:hover:bg-green-950/10 ${showEntradasHoje ? 'ring-2 ring-green-300' : ''}`}
-              onClick={() => movimentacoesHojeEntrada.length > 0 && setShowEntradasHoje(!showEntradasHoje)}
+            <div
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowEntradasHoje(prev => !prev); }}}
+              className={`cursor-pointer select-none transition-all duration-150 rounded-2xl border border-border/50 bg-white/90 dark:bg-[#1e1e32]/80 backdrop-blur-sm py-6 shadow-sm hover:shadow-md hover:border-border border-green-200 hover:bg-green-50/50 dark:hover:bg-green-950/10 active:scale-[0.98] ${showEntradasHoje ? 'ring-2 ring-green-300' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowEntradasHoje(prev => !prev);
+              }}
             >
-              <CardContent className="pt-6">
+              <div className="px-6 pt-6">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
                     <ArrowUp className="h-6 w-6 text-green-600" />
@@ -848,14 +856,20 @@ export default function EstoquePage() {
                     <ChevronDown className={`h-5 w-5 text-green-600 transition-transform ${showEntradasHoje ? 'rotate-180' : ''}`} />
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
             
-            <Card
-              className={`cursor-pointer transition-colors border-red-200 hover:bg-red-50/50 dark:hover:bg-red-950/10 ${showSaidasHoje ? 'ring-2 ring-red-300' : ''}`}
-              onClick={() => movimentacoesHojeSaida.length > 0 && setShowSaidasHoje(!showSaidasHoje)}
+            <div
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowSaidasHoje(prev => !prev); }}}
+              className={`cursor-pointer select-none transition-all duration-150 rounded-2xl border border-border/50 bg-white/90 dark:bg-[#1e1e32]/80 backdrop-blur-sm py-6 shadow-sm hover:shadow-md hover:border-border border-red-200 hover:bg-red-50/50 dark:hover:bg-red-950/10 active:scale-[0.98] ${showSaidasHoje ? 'ring-2 ring-red-300' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowSaidasHoje(prev => !prev);
+              }}
             >
-              <CardContent className="pt-6">
+              <div className="px-6 pt-6">
                 <div className="flex items-center gap-4">
                   <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
                     <ArrowDown className="h-6 w-6 text-red-600" />
@@ -868,16 +882,23 @@ export default function EstoquePage() {
                     <ChevronDown className={`h-5 w-5 text-red-600 transition-transform ${showSaidasHoje ? 'rotate-180' : ''}`} />
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
             
-            <Card
-              className={`cursor-pointer transition-colors ${produtosBaixoEstoque.length > 0 ? 'border-yellow-300 hover:bg-yellow-50/50 dark:hover:bg-yellow-950/10' : ''} ${showBaixoEstoque ? 'ring-2 ring-yellow-300' : ''}`}
-              onClick={() => produtosBaixoEstoque.length > 0 && setShowBaixoEstoque(!showBaixoEstoque)}
+            <div
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilterStatus(prev => prev === 'baixo' ? 'todos' : 'baixo'); setShowBaixoEstoque(prev => !prev); }}}
+              className={`cursor-pointer select-none transition-all duration-150 rounded-2xl border border-border/50 bg-white/90 dark:bg-[#1e1e32]/80 backdrop-blur-sm py-6 shadow-sm hover:shadow-md hover:border-border active:scale-[0.98] ${produtosBaixoEstoque.length > 0 ? 'border-yellow-300 hover:bg-yellow-50/50 dark:hover:bg-yellow-950/10' : ''} ${filterStatus === 'baixo' ? 'ring-2 ring-yellow-300' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setFilterStatus(prev => prev === 'baixo' ? 'todos' : 'baixo');
+                setShowBaixoEstoque(prev => !prev);
+              }}
             >
-              <CardContent className="pt-6">
+              <div className="px-6 pt-6">
                 <div className="flex items-center gap-4">
-                  <div className="h-12 w-12 rounded-full bg-yellow-100 flex items-center justify-center">
+                  <div className={"h-12 w-12 rounded-full flex items-center justify-center " + (filterStatus === 'baixo' ? 'bg-yellow-200' : 'bg-yellow-100')}>
                     <AlertTriangle className={`h-6 w-6 ${produtosBaixoEstoque.length > 0 ? 'text-yellow-600' : 'text-yellow-400'}`} />
                   </div>
                   <div className="flex-1">
@@ -888,8 +909,8 @@ export default function EstoquePage() {
                     <ChevronDown className={`h-5 w-5 text-yellow-600 transition-transform ${showBaixoEstoque ? 'rotate-180' : ''}`} />
                   )}
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
 
           {/* Movimentações de Hoje - Entradas */}
@@ -942,7 +963,7 @@ export default function EstoquePage() {
                       <tr className="bg-red-100/50 dark:bg-red-900/30">
                         <th className="text-left text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Produto</th>
                         <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Qtd</th>
-                        <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Fornecedor</th>
+                        <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Cliente/Fornecedor</th>
                         <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Doc. Ref.</th>
                         <th className="text-right text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Horário</th>
                       </tr>
@@ -951,8 +972,8 @@ export default function EstoquePage() {
                       {movimentacoesHojeSaida.map((mov: MovimentacaoEstoque, idx: number) => (
                         <tr key={mov.id} className={`${idx % 2 === 0 ? 'bg-red-50/50 dark:bg-red-950/10' : ''} border-t border-red-100 dark:border-red-800/30`}>
                           <td className="text-red-800 dark:text-red-400 px-3 py-1.5 truncate max-w-[200px]">{mov.produtoNome}</td>
-                          <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 font-mono">-{mov.quantidade}</td>
-                          <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{mov.fornecedor || '-'}</td>
+                          <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 font-mono">-{Math.abs(Number(mov.quantidade))}</td>
+                          <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{mov.tipo === 'venda' ? (mov.clienteNome || '-') : (mov.fornecedor || '-')}</td>
                           <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{mov.documentoRef || '-'}</td>
                           <td className="text-right text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{new Date(mov.criadoEm).toLocaleTimeString()}</td>
                         </tr>
@@ -2116,7 +2137,7 @@ export default function EstoquePage() {
                             mov.tipo === 'ajuste' ? 'text-yellow-600' :
                             'text-red-600'
                           }`}>
-                            {mov.tipo === 'entrada' || (mov.tipo === 'reserva' && mov.quantidade > 0) ? '+' : ''}{mov.quantidade}
+                            {mov.tipo === 'entrada' || (mov.tipo === 'reserva' && mov.quantidade > 0) ? '+' : '-'}{Math.abs(Number(mov.quantidade))}
                           </span>
                         </TableCell>
                         <TableCell>

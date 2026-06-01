@@ -41,6 +41,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient, getReservas } from '@/lib/supabase';
 import { useState, useEffect, useRef, useMemo } from 'react';
 import {
+  Pencil,
   Plus,
   Search,
   Edit,
@@ -146,6 +147,7 @@ export default function ProdutosPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editandoProduto, setEditandoProduto] = useState<Produto | null>(null);
   const [saving, setSaving] = useState(false);
+  const [isComboChecked, setIsComboChecked] = useState(false);
 
   // Estados de Categorias
   const [dialogCategoriaOpen, setDialogCategoriaOpen] = useState(false);
@@ -230,8 +232,9 @@ export default function ProdutosPage() {
   const [dialogComboOpen, setDialogComboOpen] = useState(false);
   const [comboProdutoSelecionado, setComboProdutoSelecionado] = useState<Produto | null>(null);
   const [comboItensState, setComboItensState] = useState<Array<{ itemProdutoId: string; quantidade: number; custoIncluido: boolean }>>([]);
-  const [savingCombo, setSavingCombo] = useState(false);
   const [comboSearch, setComboSearch] = useState('');
+  const [comboDialogPreco, setComboDialogPreco] = useState('');
+  const [savingCombo, setSavingCombo] = useState(false);
 
   // Estado toggle mostrar/ocultar preço de custo na Tabela de Preços
   const [mostrarCusto, setMostrarCusto] = useState(false);
@@ -242,6 +245,14 @@ export default function ProdutosPage() {
   const [fotoDeleting, setFotoDeleting] = useState(false);
   const [fotoError, setFotoError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const codigoRef = useRef<HTMLInputElement>(null);
+
+  // Refresh automático ao voltar para a aba (atualiza dados de outro terminal)
+  useEffect(() => {
+    const handler = () => { if (document.visibilityState === 'visible') refetchProdutos(); };
+    document.addEventListener('visibilitychange', handler);
+    return () => document.removeEventListener('visibilitychange', handler);
+  }, [refetchProdutos]);
 
   // Sub-seções permitidas da página de Produtos (controlado por segmento)
   const [subsecoesPermitidas, setSubsecoesPermitidas] = useState<string[]>([]);
@@ -490,6 +501,15 @@ export default function ProdutosPage() {
         cofinsAliquota: parseFloat(formData.get('cofinsAliquota') as string) || 0,
       };
 
+      // Auto-prefixar código com CO para combos
+      if (dados.isCombo) {
+        if (dados.codigo && !dados.codigo.startsWith('CO')) {
+          dados.codigo = 'CO' + dados.codigo;
+        } else if (!dados.codigo) {
+          dados.codigo = 'CO' + (dados.nome || 'COMBO').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 15);
+        }
+      }
+
       // Gerar código externo para iFood se não existir
       if (dados.disponivelIfood && !editandoProduto?.ifoodExternalCode) {
         dados.ifoodExternalCode = `PROD-${Date.now()}`;
@@ -526,12 +546,14 @@ export default function ProdutosPage() {
   const handleEditarProduto = (produto: Produto) => {
     setEditandoProduto(produto);
     setProdutoAtivo(produto.ativo ?? true);
+    setIsComboChecked(produto.isCombo ?? false);
     setDialogOpen(true);
   };
 
   const handleNovoProduto = () => {
     setEditandoProduto(null);
     setProdutoAtivo(true);
+    setIsComboChecked(false);
     setDialogOpen(true);
   };
 
@@ -650,6 +672,24 @@ export default function ProdutosPage() {
       toast({ title: 'Produto excluído!' });
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erro ao excluir produto' });
+    }
+  };
+
+  const handleExcluirCombo = async (combo: any) => {
+    try {
+      const supabase = getSupabaseClient();
+      if (!supabase) return;
+      await supabase.from('combo_itens').delete().eq('combo_produto_id', combo.id);
+      const { error } = await supabase
+        .from('produtos')
+        .update({ is_combo: false, combo_preco: 0 })
+        .eq('id', combo.id);
+      if (error) throw error;
+      refetchProdutos();
+      toast({ title: `Combo "${combo.nome}" desvinculado — produto mantido` });
+    } catch (error) {
+      console.error('Erro ao excluir combo:', error);
+      toast({ variant: 'destructive', title: 'Erro ao excluir combo' });
     }
   };
 
@@ -886,7 +926,7 @@ export default function ProdutosPage() {
             {showCombosTab && (
               <TabsTrigger value="combos">
                 <Layers className="h-4 w-4 mr-2" />
-                Combos ({produtos.filter(p => p.isCombo).length})
+                Combos ({produtos.filter(p => p.isCombo && p.ativo !== false).length})
               </TabsTrigger>
             )}
             {showPrecosTab && (
@@ -1003,7 +1043,7 @@ export default function ProdutosPage() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor="codigo">Código Interno</Label>
-                            <Input id="codigo" name="codigo" placeholder="Ex: PROD001" defaultValue={editandoProduto?.codigo || ''} />
+                            <Input id="codigo" ref={codigoRef} name="codigo" placeholder="Ex: PROD001" defaultValue={editandoProduto?.codigo || ''} />
                           </div>
                         </div>
                         <div className="space-y-2">
@@ -1030,7 +1070,7 @@ export default function ProdutosPage() {
                               <SelectContent className="w-full">
                                 {categorias.length === 0 ? (
                                   <SelectItem value="sem-categoria">Nenhuma categoria</SelectItem>
-                                ) : categorias.map(cat => (
+                                ) : [...categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cat => (
                                   <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
                                 ))}
                               </SelectContent>
@@ -1131,7 +1171,22 @@ export default function ProdutosPage() {
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
-                            <Switch id="isCombo" name="isCombo" defaultChecked={editandoProduto?.isCombo} />
+                            <input type="hidden" name="isCombo" value={isComboChecked ? 'on' : 'off'} />
+                            <Switch id="isCombo" defaultChecked={editandoProduto?.isCombo} onCheckedChange={(checked) => {
+                              setIsComboChecked(checked);
+                              const input = codigoRef.current;
+                              if (!input) return;
+                              if (checked) {
+                                const nomeInput = document.getElementById('nome') as HTMLInputElement;
+                                const val = input.value;
+                                if (val && !val.startsWith('CO')) {
+                                  input.value = 'CO' + val;
+                                } else if (!val) {
+                                  const base = (nomeInput?.value || 'COMBO').replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 15);
+                                  input.value = 'CO' + base;
+                                }
+                              }
+                            }} />
                             <div>
                               <Label htmlFor="isCombo" className="flex items-center gap-1">
                                 <Layers className="h-4 w-4 text-purple-500" />
@@ -1140,6 +1195,13 @@ export default function ProdutosPage() {
                               <p className="text-xs text-muted-foreground">Produto virtual com itens agregados</p>
                             </div>
                           </div>
+                          {isComboChecked && (
+                            <div className="space-y-2">
+                              <Label htmlFor="comboPreco">Preço do Combo</Label>
+                              <Input id="comboPreco" name="comboPreco" type="number" step="0.01" placeholder="0.00" defaultValue={editandoProduto?.comboPreco || editandoProduto?.preco || ''} />
+                              <p className="text-xs text-muted-foreground">Preço total do combo. Se for menor que a soma dos itens, o valor será rateado no PDV.</p>
+                            </div>
+                          )}
                           <div className="flex items-center gap-2">
                             <Switch id="controlarEstoque" name="controlarEstoque" defaultChecked={editandoProduto?.controlarEstoque !== false} />
                             <div>
@@ -1444,7 +1506,7 @@ export default function ProdutosPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas as Categorias</SelectItem>
-                      {categorias.map(cat => (
+                      {[...categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cat => (
                         <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
                       ))}
                     </SelectContent>
@@ -1766,8 +1828,8 @@ export default function ProdutosPage() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {categorias.map((cat: any) => (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {[...categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map((cat: any) => (
                     <Card key={cat.id} className="hover:shadow-md transition-shadow">
                       <CardContent className="p-3 flex items-center gap-3">
                         <div 
@@ -1997,7 +2059,7 @@ export default function ProdutosPage() {
             </Card>
 
             {/* Lista de combos */}
-            {produtos.filter(p => p.isCombo).length === 0 ? (
+            {produtos.filter(p => p.isCombo && p.ativo !== false).length === 0 ? (
               <Card>
                 <CardContent className="flex flex-col items-center justify-center h-64">
                   <Layers className="h-16 w-16 text-muted-foreground mb-4" />
@@ -2010,7 +2072,7 @@ export default function ProdutosPage() {
             ) : (
               <Card>
                 <CardHeader>
-                  <CardTitle>Combos cadastrados ({produtos.filter(p => p.isCombo).length})</CardTitle>
+                  <CardTitle>Combos cadastrados ({produtos.filter(p => p.isCombo && p.ativo !== false).length})</CardTitle>
                   <CardDescription>
                     Configure os itens de cada combo
                   </CardDescription>
@@ -2020,13 +2082,13 @@ export default function ProdutosPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Combo</TableHead>
-                        <TableHead className="text-right">Preço</TableHead>
-                        <TableHead className="text-center">Itens</TableHead>
-                        <TableHead className="w-[160px] text-center">Ações</TableHead>
+                        <TableHead className="text-right">Preço Cheio</TableHead>
+                        <TableHead className="text-right">Preço Combo</TableHead>
+                        <TableHead className="w-[200px] text-center">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {produtos.filter(p => p.isCombo).map((combo) => (
+                      {produtos.filter(p => p.isCombo && p.ativo !== false).map((combo) => (
                         <TableRow key={combo.id}>
                           <TableCell>
                             <div className="flex items-center gap-3">
@@ -2041,36 +2103,53 @@ export default function ProdutosPage() {
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right font-semibold text-green-600">
+                          <TableCell className="text-right font-semibold">
                             R$ {(combo.preco || 0).toFixed(2)}
                           </TableCell>
-                          <TableCell className="text-center">
-                            <Badge variant="outline" className="text-purple-600 border-purple-200">
-                              <Settings2 className="h-3 w-3 mr-1" />
-                              Configurar
-                            </Badge>
+                          <TableCell className="text-right font-semibold text-purple-600">
+                            R$ {(combo.comboPreco || combo.preco || 0).toFixed(2)}
                           </TableCell>
                           <TableCell className="text-center">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={async () => {
-                                setComboProdutoSelecionado(combo);
-                                setComboItensState([]);
-                                setComboSearch('');
-                                const itens = await obterItensCombo(combo.id);
-                                setComboItensState(itens.map(i => ({
-                                  itemProdutoId: i.itemProdutoId,
-                                  quantidade: i.quantidade,
-                                  custoIncluido: i.custoIncluido,
-                                })));
-                                setDialogComboOpen(true);
-                              }}
-                              className="border-blue-300 text-blue-600 hover:bg-blue-50"
-                            >
-                              <Settings2 className="mr-2 h-4 w-4" />
-                              Configurar Itens
-                            </Button>
+                            <div className="flex items-center justify-center gap-1">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2 text-blue-600 hover:bg-blue-50"
+                                onClick={() => handleEditarProduto(combo)}
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                                <span className="hidden md:inline ml-1">Editar</span>
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 px-2 text-purple-600 hover:bg-purple-50"
+                                onClick={async () => {
+                                  setComboProdutoSelecionado(combo);
+                                  setComboItensState([]);
+                                  setComboSearch('');
+                                  setComboDialogPreco(String(combo.comboPreco || combo.preco || ''));
+                                  const itens = await obterItensCombo(combo.id);
+                                  setComboItensState(itens.map(i => ({
+                                    itemProdutoId: i.itemProdutoId,
+                                    quantidade: i.quantidade,
+                                    custoIncluido: i.custoIncluido,
+                                  })));
+                                  setDialogComboOpen(true);
+                                }}
+                              >
+                                <Settings2 className="h-3.5 w-3.5" />
+                                <span className="hidden md:inline ml-1">Itens</span>
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 px-2 text-red-600 hover:bg-red-50"
+                                onClick={() => handleExcluirCombo(combo)}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))}
@@ -2105,7 +2184,7 @@ export default function ProdutosPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">Todas as Categorias</SelectItem>
-                      {categorias.map(cat => (
+                      {[...categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(cat => (
                         <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
                       ))}
                     </SelectContent>
@@ -2344,17 +2423,63 @@ export default function ProdutosPage() {
                 )}
               </div>
 
-              {/* Preview do custo total */}
+              {/* Preço do Combo + Rateio */}
               {comboItensState.length > 0 && (
-                <div className="rounded-lg bg-muted/50 p-3">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Custo estimado dos itens (soma):</span>
-                    <span className="font-semibold">
-                      R$ {comboItensState.reduce((acc, item) => {
-                        const produto = produtos.find(p => p.id === item.itemProdutoId);
-                        return acc + ((produto?.custo || 0) * item.quantidade);
-                      }, 0).toFixed(2)}
-                    </span>
+                <div className="rounded-lg bg-muted/50 p-3 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 space-y-1">
+                      <Label htmlFor="comboDialogPreco" className="text-sm font-medium">Preço Total do Combo</Label>
+                      <Input
+                        id="comboDialogPreco"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={comboDialogPreco}
+                        onChange={(e) => setComboDialogPreco(e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div className="text-xs space-y-1 text-muted-foreground">
+                    <div className="flex justify-between">
+                      <span>Preço cheio dos itens (soma):</span>
+                      <span className="font-medium">
+                        R$ {comboItensState.reduce((acc, item) => {
+                          const p = produtos.find(pr => pr.id === item.itemProdutoId);
+                          return acc + ((p?.preco || 0) * item.quantidade);
+                        }, 0).toFixed(2)}
+                      </span>
+                    </div>
+                    {(() => {
+                      const precoCombo = parseFloat(comboDialogPreco) || 0;
+                      const sumCheio = comboItensState.reduce((acc, item) => {
+                        const p = produtos.find(pr => pr.id === item.itemProdutoId);
+                        return acc + ((p?.preco || 0) * item.quantidade);
+                      }, 0);
+                      if (precoCombo > 0 && sumCheio > 0 && precoCombo < sumCheio) {
+                        return (
+                          <div className="rounded bg-blue-50 dark:bg-blue-950/30 p-2 mt-2 text-blue-700 dark:text-blue-300">
+                            <p className="font-medium text-xs mb-1">Rateio ativo</p>
+                            {comboItensState.map(item => {
+                              const p = produtos.find(pr => pr.id === item.itemProdutoId);
+                              if (!p) return null;
+                              const precoRateado = (precoCombo * (p.preco * item.quantidade)) / sumCheio / item.quantidade;
+                              return (
+                                <div key={item.itemProdutoId} className="flex justify-between text-[11px]">
+                                  <span className="truncate">{p.nome} ({item.quantidade}x)</span>
+                                  <span className="font-medium whitespace-nowrap">R$ {precoRateado.toFixed(2)} /un</span>
+                                </div>
+                              );
+                            })}
+                            <div className="border-t border-blue-200 dark:border-blue-800 mt-1 pt-1 flex justify-between font-medium text-xs">
+                              <span>Total rateado</span>
+                              <span>R$ {precoCombo.toFixed(2)}</span>
+                            </div>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
               )}
@@ -2373,7 +2498,11 @@ export default function ProdutosPage() {
                   setSavingCombo(true);
                   try {
                     await salvarComboItens(comboProdutoSelecionado.id, comboItensState);
-                    toast({ title: 'Itens do combo salvo com sucesso!' });
+                    const novoPrecoCombo = parseFloat(comboDialogPreco) || 0;
+                    if (novoPrecoCombo > 0) {
+                      await atualizarProduto(comboProdutoSelecionado.id, { comboPreco: novoPrecoCombo });
+                    }
+                    toast({ title: 'Itens do combo salvos com sucesso!' });
                     setDialogComboOpen(false);
                     refetchProdutos();
                   } catch (error) {
