@@ -34,32 +34,32 @@ export default function CadastrosPage() {
           </div>
 
           <Tabs defaultValue="clientes" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="clientes" className="gap-2">
-                <Users className="h-4 w-4" />
-                Clientes
-              </TabsTrigger>
-              <TabsTrigger value="vendedores" className="gap-2">
-                <UserCheck className="h-4 w-4" />
-                Vendedores
-              </TabsTrigger>
-              <TabsTrigger value="fornecedores" className="gap-2">
-                <Truck className="h-4 w-4" />
-                Fornecedores
-              </TabsTrigger>
-              <TabsTrigger value="servicos" className="gap-2">
-                <Wrench className="h-4 w-4" />
-                Serviços
-              </TabsTrigger>
-              <TabsTrigger value="funcionarios" className="gap-2">
-                <UserCog className="h-4 w-4" />
-                Funcionários
-              </TabsTrigger>
-              <TabsTrigger value="listagem" className="gap-2">
-                <ClipboardList className="h-4 w-4" />
-                Listagem
-              </TabsTrigger>
-            </TabsList>
+          <TabsList className="flex-wrap h-auto md:h-10">
+            <TabsTrigger value="clientes" className="gap-1 md:gap-2">
+              <Users className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Clientes</span>
+            </TabsTrigger>
+            <TabsTrigger value="vendedores" className="gap-1 md:gap-2">
+              <UserCheck className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Vendedores</span>
+            </TabsTrigger>
+            <TabsTrigger value="fornecedores" className="gap-1 md:gap-2">
+              <Truck className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Fornecedores</span>
+            </TabsTrigger>
+            <TabsTrigger value="servicos" className="gap-1 md:gap-2">
+              <Wrench className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Serviços</span>
+            </TabsTrigger>
+            <TabsTrigger value="funcionarios" className="gap-1 md:gap-2">
+              <UserCog className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Funcionários</span>
+            </TabsTrigger>
+            <TabsTrigger value="listagem" className="gap-1 md:gap-2">
+              <ClipboardList className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Listagem</span>
+            </TabsTrigger>
+          </TabsList>
 
             <TabsContent value="clientes">
               <ClientesTab />
