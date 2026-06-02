@@ -339,7 +339,12 @@ Toda `<Table>` (shadcn/ui) deve usar `table-fixed w-full` para distribuir o espa
 7. **NFe parser** está em `src/lib/nfe-parser.ts` — não modifique sem entender a estrutura do XML fiscal
 8. **NF-e importação** — o fluxo é: upload XML → parser → matching → preview → confirmação → API
 9. **NÃO faça `git push` sem ser explicitamente requisitado** — o push manual expõe tokens no terminal
-10. **A partir de 30/10/2026**, novas tabelas no Supabase precisam de `GRANT` explícito: `grant select, insert, update, delete on public.nova_tabela to authenticated; grant ... to service_role;` — sem isso, a API não conseguirá acessar a tabela. Incluir em toda migration nova.
+10. **🔴 A partir de 30/10/2026 — OBRIGATÓRIO em TODA migration nova**: novas tabelas no Supabase precisam de `GRANT` explícito. Sem isso, a API retorna erro **42501**. Template:
+    ```sql
+    grant select, insert, update, delete on public.minha_tabela to authenticated;
+    grant select, insert, update, delete on public.minha_tabela to service_role;
+    ```
+    Colar **sempre** no final de qualquer migration que crie tabela.
 
 ---
 
@@ -724,6 +729,8 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - `onClick` com `e.stopPropagation()`, `role="button"`, `tabIndex={0}`, `onKeyDown` (Enter/Space)
 - `active:scale-[0.98]` para feedback tátil
 - Card "Estoque Baixo" também alterna `filterStatus` entre `'baixo'`/`'todos'` (filtra a tabela principal)
+- **Chevron sempre visível** (não depende mais de `length > 0`) para sinalizar que o card é clicável
+- **Preview sections renderizam mesmo sem dados**, exibindo mensagem "Nenhuma..." em vez de sumir silenciosamente
 
 ### Estoque — Movimentações com Vendas ✅
 - `estoque_movimentos` query inclui `JOIN vendas!venda_id(nome_cliente)` para buscar nome do cliente

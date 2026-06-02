@@ -251,8 +251,8 @@ export default function PDVPage() {
     };
 
     carregarPedidos();
-    // Polling a cada 5 segundos para atualizar (substituto do onSnapshot)
-    const interval = setInterval(carregarPedidos, 5000);
+    // Polling a cada 30 segundos para atualizar (substituto do onSnapshot)
+    const interval = setInterval(carregarPedidos, 30000);
     
     return () => clearInterval(interval);
   }, [tipoVenda, mesaSelecionada, empresaId]);
@@ -323,10 +323,10 @@ export default function PDVPage() {
     }
   }, [empresaId]);
 
-  // Polling every 3 seconds (guaranteed sync, no dependency on Realtime)
+  // Polling every 30 seconds (guaranteed sync, no dependency on Realtime)
   useEffect(() => {
     carregarMesasOcupadas();
-    const interval = setInterval(carregarMesasOcupadas, 3000);
+    const interval = setInterval(carregarMesasOcupadas, 30000);
     return () => clearInterval(interval);
   }, [empresaId, carregarMesasOcupadas]);
 

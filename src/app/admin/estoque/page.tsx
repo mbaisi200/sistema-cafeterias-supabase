@@ -833,15 +833,10 @@ export default function EstoquePage() {
               </CardContent>
             </Card>
             
-            <div
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowEntradasHoje(prev => !prev); }}}
+            <button
+              type="button"
               className={`cursor-pointer select-none transition-all duration-150 rounded-2xl border border-border/50 bg-white/90 dark:bg-[#1e1e32]/80 backdrop-blur-sm py-6 shadow-sm hover:shadow-md hover:border-border border-green-200 hover:bg-green-50/50 dark:hover:bg-green-950/10 active:scale-[0.98] ${showEntradasHoje ? 'ring-2 ring-green-300' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowEntradasHoje(prev => !prev);
-              }}
+              onClick={() => setShowEntradasHoje(prev => !prev)}
             >
               <div className="px-6 pt-6">
                 <div className="flex items-center gap-4">
@@ -852,22 +847,15 @@ export default function EstoquePage() {
                     <p className="text-sm text-muted-foreground">Entradas (Hoje)</p>
                     <p className="text-2xl font-bold">{movimentacoesHojeEntrada.length}</p>
                   </div>
-                  {movimentacoesHojeEntrada.length > 0 && (
-                    <ChevronDown className={`h-5 w-5 text-green-600 transition-transform ${showEntradasHoje ? 'rotate-180' : ''}`} />
-                  )}
+                  <ChevronDown className={`h-5 w-5 text-green-600 transition-transform ${showEntradasHoje ? 'rotate-180' : ''}`} />
                 </div>
               </div>
-            </div>
+            </button>
             
-            <div
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowSaidasHoje(prev => !prev); }}}
+            <button
+              type="button"
               className={`cursor-pointer select-none transition-all duration-150 rounded-2xl border border-border/50 bg-white/90 dark:bg-[#1e1e32]/80 backdrop-blur-sm py-6 shadow-sm hover:shadow-md hover:border-border border-red-200 hover:bg-red-50/50 dark:hover:bg-red-950/10 active:scale-[0.98] ${showSaidasHoje ? 'ring-2 ring-red-300' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowSaidasHoje(prev => !prev);
-              }}
+              onClick={() => setShowSaidasHoje(prev => !prev)}
             >
               <div className="px-6 pt-6">
                 <div className="flex items-center gap-4">
@@ -878,20 +866,15 @@ export default function EstoquePage() {
                     <p className="text-sm text-muted-foreground">Saídas (Hoje)</p>
                     <p className="text-2xl font-bold">{movimentacoesHojeSaida.length}</p>
                   </div>
-                  {movimentacoesHojeSaida.length > 0 && (
-                    <ChevronDown className={`h-5 w-5 text-red-600 transition-transform ${showSaidasHoje ? 'rotate-180' : ''}`} />
-                  )}
+                  <ChevronDown className={`h-5 w-5 text-red-600 transition-transform ${showSaidasHoje ? 'rotate-180' : ''}`} />
                 </div>
               </div>
-            </div>
+            </button>
             
-            <div
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFilterStatus(prev => prev === 'baixo' ? 'todos' : 'baixo'); setShowBaixoEstoque(prev => !prev); }}}
+            <button
+              type="button"
               className={`cursor-pointer select-none transition-all duration-150 rounded-2xl border border-border/50 bg-white/90 dark:bg-[#1e1e32]/80 backdrop-blur-sm py-6 shadow-sm hover:shadow-md hover:border-border active:scale-[0.98] ${produtosBaixoEstoque.length > 0 ? 'border-yellow-300 hover:bg-yellow-50/50 dark:hover:bg-yellow-950/10' : ''} ${filterStatus === 'baixo' ? 'ring-2 ring-yellow-300' : ''}`}
-              onClick={(e) => {
-                e.stopPropagation();
+              onClick={() => {
                 setFilterStatus(prev => prev === 'baixo' ? 'todos' : 'baixo');
                 setShowBaixoEstoque(prev => !prev);
               }}
@@ -905,114 +888,135 @@ export default function EstoquePage() {
                     <p className="text-sm text-muted-foreground">Estoque Baixo, Clique Aqui</p>
                     <p className="text-2xl font-bold text-yellow-600">{produtosBaixoEstoque.length}</p>
                   </div>
-                  {produtosBaixoEstoque.length > 0 && (
-                    <ChevronDown className={`h-5 w-5 text-yellow-600 transition-transform ${showBaixoEstoque ? 'rotate-180' : ''}`} />
-                  )}
+                  <ChevronDown className={`h-5 w-5 text-yellow-600 transition-transform ${showBaixoEstoque ? 'rotate-180' : ''}`} />
                 </div>
               </div>
-            </div>
+            </button>
           </div>
 
           {/* Movimentações de Hoje - Entradas */}
-          {showEntradasHoje && movimentacoesHojeEntrada.length > 0 && (
+          {showEntradasHoje && (
             <Card className="border-green-200 bg-green-50/50 dark:bg-green-950/20 dark:border-green-800/50">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <ArrowUp className="h-4 w-4 text-green-600" />
                   <span className="text-sm font-bold text-green-700">Entradas de Hoje ({movimentacoesHojeEntrada.length})</span>
                 </div>
-                <div className="border border-green-200 dark:border-green-800/50 rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-green-100/50 dark:bg-green-900/30">
-                        <th className="text-left text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Produto</th>
-                        <th className="text-center text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Qtd</th>
-                        <th className="text-center text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Fornecedor</th>
-                        <th className="text-center text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Doc. Ref.</th>
-                        <th className="text-right text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Horário</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {movimentacoesHojeEntrada.map((mov: MovimentacaoEstoque, idx: number) => (
-                        <tr key={mov.id} className={`${idx % 2 === 0 ? 'bg-green-50/50 dark:bg-green-950/10' : ''} border-t border-green-100 dark:border-green-800/30`}>
-                          <td className="text-green-800 dark:text-green-400 px-3 py-1.5 truncate max-w-[200px]">{mov.produtoNome}</td>
-                          <td className="text-center text-green-800 dark:text-green-400 px-3 py-1.5 font-mono">+{mov.quantidade}</td>
-                          <td className="text-center text-green-800 dark:text-green-400 px-3 py-1.5 text-xs">{mov.fornecedor || '-'}</td>
-                          <td className="text-center text-green-800 dark:text-green-400 px-3 py-1.5 text-xs">{mov.documentoRef || '-'}</td>
-                          <td className="text-right text-green-800 dark:text-green-400 px-3 py-1.5 text-xs">{new Date(mov.criadoEm).toLocaleTimeString()}</td>
+                {movimentacoesHojeEntrada.length > 0 ? (
+                  <div className="border border-green-200 dark:border-green-800/50 rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-green-100/50 dark:bg-green-900/30">
+                          <th className="text-left text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Produto</th>
+                          <th className="text-center text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Qtd</th>
+                          <th className="text-center text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Fornecedor</th>
+                          <th className="text-center text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Doc. Ref.</th>
+                          <th className="text-right text-green-800 dark:text-green-300 font-medium px-3 py-1.5">Horário</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {movimentacoesHojeEntrada.map((mov: MovimentacaoEstoque, idx: number) => (
+                          <tr key={mov.id} className={`${idx % 2 === 0 ? 'bg-green-50/50 dark:bg-green-950/10' : ''} border-t border-green-100 dark:border-green-800/30`}>
+                            <td className="text-green-800 dark:text-green-400 px-3 py-1.5 truncate max-w-[200px]">{mov.produtoNome}</td>
+                            <td className="text-center text-green-800 dark:text-green-400 px-3 py-1.5 font-mono">+{mov.quantidade}</td>
+                            <td className="text-center text-green-800 dark:text-green-400 px-3 py-1.5 text-xs">{mov.fornecedor || '-'}</td>
+                            <td className="text-center text-green-800 dark:text-green-400 px-3 py-1.5 text-xs">{mov.documentoRef || '-'}</td>
+                            <td className="text-right text-green-800 dark:text-green-400 px-3 py-1.5 text-xs">{new Date(mov.criadoEm).toLocaleTimeString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="border border-green-200 dark:border-green-800/50 rounded-lg p-6 text-center text-sm text-green-700/70 dark:text-green-400/70">
+                    Nenhuma entrada registrada hoje
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
 
           {/* Movimentações de Hoje - Saídas */}
-          {showSaidasHoje && movimentacoesHojeSaida.length > 0 && (
+          {showSaidasHoje && (
             <Card className="border-red-200 bg-red-50/50 dark:bg-red-950/20 dark:border-red-800/50">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
                   <ArrowDown className="h-4 w-4 text-red-600" />
                   <span className="text-sm font-bold text-red-700">Saídas de Hoje ({movimentacoesHojeSaida.length})</span>
                 </div>
-                <div className="border border-red-200 dark:border-red-800/50 rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-red-100/50 dark:bg-red-900/30">
-                        <th className="text-left text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Produto</th>
-                        <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Qtd</th>
-                        <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Cliente/Fornecedor</th>
-                        <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Doc. Ref.</th>
-                        <th className="text-right text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Horário</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {movimentacoesHojeSaida.map((mov: MovimentacaoEstoque, idx: number) => (
-                        <tr key={mov.id} className={`${idx % 2 === 0 ? 'bg-red-50/50 dark:bg-red-950/10' : ''} border-t border-red-100 dark:border-red-800/30`}>
-                          <td className="text-red-800 dark:text-red-400 px-3 py-1.5 truncate max-w-[200px]">{mov.produtoNome}</td>
-                          <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 font-mono">-{Math.abs(Number(mov.quantidade))}</td>
-                          <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{mov.tipo === 'venda' ? (mov.clienteNome || '-') : (mov.fornecedor || '-')}</td>
-                          <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{mov.documentoRef || '-'}</td>
-                          <td className="text-right text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{new Date(mov.criadoEm).toLocaleTimeString()}</td>
+                {movimentacoesHojeSaida.length > 0 ? (
+                  <div className="border border-red-200 dark:border-red-800/50 rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-red-100/50 dark:bg-red-900/30">
+                          <th className="text-left text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Produto</th>
+                          <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Qtd</th>
+                          <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Cliente/Fornecedor</th>
+                          <th className="text-center text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Doc. Ref.</th>
+                          <th className="text-right text-red-800 dark:text-red-300 font-medium px-3 py-1.5">Horário</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {movimentacoesHojeSaida.map((mov: MovimentacaoEstoque, idx: number) => (
+                          <tr key={mov.id} className={`${idx % 2 === 0 ? 'bg-red-50/50 dark:bg-red-950/10' : ''} border-t border-red-100 dark:border-red-800/30`}>
+                            <td className="text-red-800 dark:text-red-400 px-3 py-1.5 truncate max-w-[200px]">{mov.produtoNome}</td>
+                            <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 font-mono">-{Math.abs(Number(mov.quantidade))}</td>
+                            <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{mov.tipo === 'venda' ? (mov.clienteNome || '-') : (mov.fornecedor || '-')}</td>
+                            <td className="text-center text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{mov.documentoRef || '-'}</td>
+                            <td className="text-right text-red-800 dark:text-red-400 px-3 py-1.5 text-xs">{new Date(mov.criadoEm).toLocaleTimeString()}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="border border-red-200 dark:border-red-800/50 rounded-lg p-6 text-center text-sm text-red-700/70 dark:text-red-400/70">
+                    Nenhuma saída registrada hoje
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}
 
-          {showBaixoEstoque && produtosBaixoEstoque.length > 0 && (
+          {showBaixoEstoque && (
             <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/50">
               <CardContent className="p-4">
-                <div className="border border-amber-200 dark:border-amber-800/50 rounded-lg overflow-hidden">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-amber-100/50 dark:bg-amber-900/30">
-                        <th className="text-left text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Produto</th>
-                        <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Atual</th>
-                        <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Mínimo</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {produtosBaixoEstoque.slice(0, 5).map((p: any, idx: number) => (
-                        <tr key={p.id} className={`${idx % 2 === 0 ? 'bg-amber-50/50 dark:bg-amber-950/10' : ''} border-t border-amber-100 dark:border-amber-800/30`}>
-                          <td className="text-amber-800 dark:text-amber-400 px-3 py-1.5 truncate max-w-[200px]">{p.nome}</td>
-                          <td className="text-center text-amber-800 dark:text-amber-400 px-3 py-1.5 font-mono">{p.estoqueAtual ?? 0}</td>
-                          <td className="text-center text-amber-800 dark:text-amber-400 px-3 py-1.5 font-mono">{p.estoqueMinimo ?? 0}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {produtosBaixoEstoque.length > 5 && (
-                    <div className="bg-amber-100/50 dark:bg-amber-900/30 border-t border-amber-200 dark:border-amber-800/50 px-3 py-1.5 text-xs text-amber-600 dark:text-amber-500 text-center">
-                      E mais {produtosBaixoEstoque.length - 5} outro{produtosBaixoEstoque.length - 5 !== 1 ? 's' : ''}...
+                {produtosBaixoEstoque.length > 0 ? (
+                  <>
+                    <div className="border border-amber-200 dark:border-amber-800/50 rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-amber-100/50 dark:bg-amber-900/30">
+                            <th className="text-left text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Produto</th>
+                            <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Atual</th>
+                            <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-3 py-1.5">Mínimo</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {produtosBaixoEstoque.slice(0, 5).map((p: any, idx: number) => (
+                            <tr key={p.id} className={`${idx % 2 === 0 ? 'bg-amber-50/50 dark:bg-amber-950/10' : ''} border-t border-amber-100 dark:border-amber-800/30`}>
+                              <td className="text-amber-800 dark:text-amber-400 px-3 py-1.5 truncate max-w-[200px]">{p.nome}</td>
+                              <td className="text-center text-amber-800 dark:text-amber-400 px-3 py-1.5 font-mono">{p.estoqueAtual ?? 0}</td>
+                              <td className="text-center text-amber-800 dark:text-amber-400 px-3 py-1.5 font-mono">{p.estoqueMinimo ?? 0}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {produtosBaixoEstoque.length > 5 && (
+                        <div className="bg-amber-100/50 dark:bg-amber-900/30 border-t border-amber-200 dark:border-amber-800/50 px-3 py-1.5 text-xs text-amber-600 dark:text-amber-500 text-center">
+                          E mais {produtosBaixoEstoque.length - 5} outro{produtosBaixoEstoque.length - 5 !== 1 ? 's' : ''}...
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                    <p className="text-xs text-amber-600/80 dark:text-amber-500/80 mt-2 text-center">
+                      A lista principal abaixo já está filtrada por "Estoque Baixo"
+                    </p>
+                  </>
+                ) : (
+                  <div className="border border-amber-200 dark:border-amber-800/50 rounded-lg p-6 text-center text-sm text-amber-700/70 dark:text-amber-400/70">
+                    Nenhum produto com estoque baixo
+                  </div>
+                )}
               </CardContent>
             </Card>
           )}

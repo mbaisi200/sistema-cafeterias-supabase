@@ -285,11 +285,11 @@ export default function PDVGarcomPage() {
     }
   }, [empresaId]);
 
-  // Load comandas ALWAYS (not just on mesas screen) + auto-refresh every 5s
+  // Load comandas ALWAYS (not just on mesas screen) + auto-refresh every 30s
   // This ensures mesa status derived from comandas is always up-to-date
   useEffect(() => {
     carregarComandas();
-    const interval = setInterval(carregarComandas, 5000);
+    const interval = setInterval(carregarComandas, 30000);
     return () => clearInterval(interval);
   }, [empresaId, carregarComandas, lastComandaRefresh]);
 
@@ -350,7 +350,7 @@ export default function PDVGarcomPage() {
     };
 
     carregarPedidos();
-    const interval = setInterval(carregarPedidos, 5000);
+    const interval = setInterval(carregarPedidos, 30000);
     return () => clearInterval(interval);
   }, [mesaSelecionada, empresaId]);
 
