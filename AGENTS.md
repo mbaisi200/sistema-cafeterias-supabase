@@ -1,7 +1,5 @@
 # Sistema de Gestão - Cafeterias e Restaurantes
 
-> **Contexto para Agentes IA:** Este arquivo contém toda informação necessária para entender, navegar e modificar o projeto.
-
 > ⚠️ **IMPORTANTE:** NUNCA fazer `git push`, `git commit`, ou qualquer operação de push sem ser explicitamente solicitado pelo usuário. Commits e pushes só devem ser feitos quando o usuário pedir expressamente.
 
 ---
