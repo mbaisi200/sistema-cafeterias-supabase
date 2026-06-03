@@ -761,8 +761,8 @@ export default function NFePage() {
                             <TableHead className="w-10"></TableHead>
                             <TableHead className="w-28 whitespace-nowrap">Data</TableHead>
                             <TableHead className="w-48">Fornecedor</TableHead>
-                            <TableHead className="w-36 whitespace-nowrap">Documento Ref</TableHead>
-                            <TableHead className="w-24 text-center whitespace-nowrap">Produtos</TableHead>
+                            <TableHead className="w-36 whitespace-nowrap hidden md:table-cell">Documento Ref</TableHead>
+                            <TableHead className="w-24 text-center whitespace-nowrap hidden md:table-cell">Produtos</TableHead>
                             <TableHead className="w-28 text-right whitespace-nowrap">Valor Total</TableHead>
                             <TableHead className="w-24 text-right whitespace-nowrap">Ações</TableHead>
                           </TableRow>
@@ -794,12 +794,12 @@ export default function NFePage() {
                                       </span>
                                     </div>
                                   </TableCell>
-                                  <TableCell>
+                                  <TableCell className="hidden md:table-cell">
                                     <Badge variant="outline" className="text-xs font-mono">
                                       {nfe.documento_ref}
                                     </Badge>
                                   </TableCell>
-                                  <TableCell className="text-center">
+                                  <TableCell className="text-center hidden md:table-cell">
                                     <Badge variant="secondary" className="text-xs">
                                       <Package className="h-3 w-3 mr-1" />
                                       {nfe.produtos.length}
@@ -1037,8 +1037,8 @@ export default function NFePage() {
                             <TableHead className="w-28 whitespace-nowrap">Data</TableHead>
                             <TableHead className="w-48">Cliente</TableHead>
                             <TableHead className="w-28 text-right whitespace-nowrap">Total</TableHead>
-                            <TableHead className="w-32 whitespace-nowrap">Pagamento</TableHead>
-                            <TableHead className="w-28 whitespace-nowrap">Status NF-e</TableHead>
+                            <TableHead className="w-32 whitespace-nowrap hidden md:table-cell">Pagamento</TableHead>
+                            <TableHead className="w-28 whitespace-nowrap hidden md:table-cell">Status NF-e</TableHead>
                             <TableHead className="w-28 text-right whitespace-nowrap">Ações</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1062,12 +1062,12 @@ export default function NFePage() {
                               <TableCell className="text-right font-semibold text-sm">
                                 {formatCurrency(venda.total)}
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="hidden md:table-cell">
                                 <Badge variant="outline" className="text-xs">
                                   {venda.forma_pagamento}
                                 </Badge>
                               </TableCell>
-                              <TableCell>
+                              <TableCell className="hidden md:table-cell">
                                 {venda.status === 'nfe_emitida' ? (
                                   <Badge className="bg-green-500 text-xs gap-1">
                                     <CheckCircle2 className="h-3 w-3" />

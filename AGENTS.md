@@ -736,6 +736,14 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Total de saídas agora inclui `tipo === 'venda'` e usa `Math.abs()` no valor
 - Interface `MovimentacaoEstoque` inclui `clienteNome?: string`
 
+### Financeiro — Mobile Responsivo ✅
+- Colunas Vendedor, Categoria e Data Pagamento/Recebimento ocultas em mobile (`hidden md:table-cell`) nas tabelas A Pagar e A Receber
+- Colunas mantidas visíveis em mobile: Descrição, Vencimento, Valor, Status, Ações
+
+### NF-e — Mobile Responsivo ✅
+- **Entrada**: colunas Documento Ref e Produtos ocultas em mobile (mantidas: Data, Fornecedor, Valor Total, Ações)
+- **Saída**: colunas Pagamento e Status NF-e ocultas em mobile (mantidas: Número, Data, Cliente, Total, Ações)
+
 ---
 
 > ⚠️ **IMPORTANTE PARA AGENTES IA:** NUNCA fazer `git push`, `git commit`, ou `git add` sem ser **explicitamente solicitado** pelo usuário. Apenas altere arquivos locais. Commits e pushes só devem ser feitos quando o usuário pedir expressamente.

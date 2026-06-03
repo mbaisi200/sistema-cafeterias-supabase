@@ -1081,12 +1081,13 @@ export default function FinanceiroPage() {
                                 currentSort={sortPagar}
                                 onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
                               />
-                              <TableHead className="text-left text-[11px] py-2">Vendedor</TableHead>
+                              <TableHead className="text-left text-[11px] py-2 hidden md:table-cell">Vendedor</TableHead>
                               <SortableHeader 
                                 field="categoria" 
                                 label="Categoria" 
                               currentSort={sortPagar}
                               onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
+                              className="hidden md:table-cell"
                             />
                             <SortableHeader 
                               field="vencimento" 
@@ -1113,7 +1114,7 @@ export default function FinanceiroPage() {
                               label="Data Pagamento" 
                               currentSort={sortPagar}
                               onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
-                              className="text-right"
+                              className="hidden md:table-cell text-right"
                             />
                             <TableHead className="text-right">Ações</TableHead>
                           </TableRow>
@@ -1129,8 +1130,8 @@ export default function FinanceiroPage() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-sm">{conta.vendedor_nome || '-'}</TableCell>
-                              <TableCell>{conta.categoria || '-'}</TableCell>
+                              <TableCell className="text-sm hidden md:table-cell">{conta.vendedor_nome || '-'}</TableCell>
+                              <TableCell className="hidden md:table-cell">{conta.categoria || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">
                                 {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
                               </TableCell>
@@ -1138,7 +1139,7 @@ export default function FinanceiroPage() {
                                 {formatCurrency(conta.valor)}
                               </TableCell>
                               <TableCell className="whitespace-nowrap">{getStatusBadge(conta)}</TableCell>
-                              <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
+                              <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap hidden md:table-cell">
                                 {conta.dataPagamento 
                                   ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR')
                                   : '-'
@@ -1288,12 +1289,13 @@ export default function FinanceiroPage() {
                               currentSort={sortReceber}
                               onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
                             />
-                            <TableHead className="text-left text-[11px] py-2">Vendedor</TableHead>
+                            <TableHead className="text-left text-[11px] py-2 hidden md:table-cell">Vendedor</TableHead>
                             <SortableHeader 
                               field="categoria" 
                               label="Categoria" 
                               currentSort={sortReceber}
                               onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
+                              className="hidden md:table-cell"
                             />
                             <SortableHeader 
                               field="vencimento" 
@@ -1319,7 +1321,7 @@ export default function FinanceiroPage() {
                               label="Data Recebimento" 
                               currentSort={sortReceber}
                               onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
-                              className="text-right"
+                              className="hidden md:table-cell text-right"
                             />
                             <TableHead className="text-right">Ações</TableHead>
                           </TableRow>
@@ -1335,8 +1337,8 @@ export default function FinanceiroPage() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-sm">{conta.vendedor_nome || '-'}</TableCell>
-                              <TableCell>{conta.categoria || '-'}</TableCell>
+                              <TableCell className="text-sm hidden md:table-cell">{conta.vendedor_nome || '-'}</TableCell>
+                              <TableCell className="hidden md:table-cell">{conta.categoria || '-'}</TableCell>
                               <TableCell className="whitespace-nowrap">
                                 {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
                               </TableCell>
@@ -1344,7 +1346,7 @@ export default function FinanceiroPage() {
                                 {formatCurrency(conta.valor)}
                               </TableCell>
                               <TableCell className="whitespace-nowrap">{getStatusBadge(conta)}</TableCell>
-                              <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">
+                              <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap hidden md:table-cell">
                                 {conta.dataPagamento 
                                   ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR')
                                   : '-'
