@@ -737,8 +737,9 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - Interface `MovimentacaoEstoque` inclui `clienteNome?: string`
 
 ### Financeiro — Mobile Responsivo ✅
-- Colunas Vendedor, Categoria e Data Pagamento/Recebimento ocultas em mobile (`hidden md:table-cell`) nas tabelas A Pagar e A Receber
-- Colunas mantidas visíveis em mobile: Descrição, Vencimento, Valor, Status, Ações
+- Colunas Vendedor, Categoria, Status e Data Pagamento/Recebimento ocultas em mobile (`hidden md:table-cell`) nas tabelas A Pagar e A Receber
+- Botão Pagar/Receber com texto oculto em mobile (só ícone)
+- Colunas mantidas visíveis em mobile: Descrição, Vencimento, Valor, Ações
 
 ### NF-e — Mobile Responsivo ✅
 - **Entrada**: colunas Documento Ref e Produtos ocultas em mobile (mantidas: Data, Fornecedor, Valor Total, Ações)

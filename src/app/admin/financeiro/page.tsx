@@ -1107,6 +1107,7 @@ export default function FinanceiroPage() {
                               label="Status" 
                               currentSort={sortPagar}
                               onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
+                              className="hidden md:table-cell"
                             />
                             <SortableHeader 
 
@@ -1138,7 +1139,7 @@ export default function FinanceiroPage() {
                               <TableCell className="font-semibold text-right whitespace-nowrap">
                                 {formatCurrency(conta.valor)}
                               </TableCell>
-                              <TableCell className="whitespace-nowrap">{getStatusBadge(conta)}</TableCell>
+                              <TableCell className="whitespace-nowrap hidden md:table-cell">{getStatusBadge(conta)}</TableCell>
                               <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap hidden md:table-cell">
                                 {conta.dataPagamento 
                                   ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR')
@@ -1166,8 +1167,8 @@ export default function FinanceiroPage() {
                                         setDialogPagamentoOpen(true);
                                       }}
                                     >
-                                      <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                                      Pagar
+                                      <CheckCircle className="h-3.5 w-3.5" />
+                                      <span className="hidden md:inline ml-1">Pagar</span>
                                     </Button>
                                   )}
                                   <Button
@@ -1315,6 +1316,7 @@ export default function FinanceiroPage() {
                               label="Status" 
                               currentSort={sortReceber}
                               onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
+                              className="hidden md:table-cell"
                             />
                             <SortableHeader 
                               field="dataPagamento" 
@@ -1345,7 +1347,7 @@ export default function FinanceiroPage() {
                               <TableCell className="font-semibold text-right whitespace-nowrap">
                                 {formatCurrency(conta.valor)}
                               </TableCell>
-                              <TableCell className="whitespace-nowrap">{getStatusBadge(conta)}</TableCell>
+                              <TableCell className="whitespace-nowrap hidden md:table-cell">{getStatusBadge(conta)}</TableCell>
                               <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap hidden md:table-cell">
                                 {conta.dataPagamento 
                                   ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR')
@@ -1373,8 +1375,8 @@ export default function FinanceiroPage() {
                                         setDialogPagamentoOpen(true);
                                       }}
                                     >
-                                      <CheckCircle className="h-3.5 w-3.5 mr-1" />
-                                      Receber
+                                      <CheckCircle className="h-3.5 w-3.5" />
+                                      <span className="hidden md:inline ml-1">Receber</span>
                                     </Button>
                                   )}
                                   <Button
