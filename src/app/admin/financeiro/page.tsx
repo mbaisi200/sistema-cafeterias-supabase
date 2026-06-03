@@ -1072,120 +1072,98 @@ export default function FinanceiroPage() {
                       <p className="text-sm">Clique em &quot;Nova Conta&quot; para adicionar</p>
                     </div>
                   ) : (
-                      <Table className="w-full table-fixed [&_td]:px-2 [&_td]:py-2.5 [&_th]:px-2 [&_th]:h-10">
+                    <>
+                      {/* Mobile: cards */}
+                      <div className="md:hidden space-y-2">
+                        {contasPagarFiltered.map((conta) => (
+                          <div key={conta.id} className="bg-card border rounded-lg p-3 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{conta.descricao}</p>
+                                {conta.fornecedor && (
+                                  <p className="text-xs text-muted-foreground truncate">{conta.fornecedor}</p>
+                                )}
+                              </div>
+                              {getStatusBadge(conta)}
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">
+                                {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
+                              </span>
+                              <span className="font-semibold">{formatCurrency(conta.valor)}</span>
+                            </div>
+                            {conta.dataPagamento && (
+                              <div className="text-xs text-muted-foreground">
+                                Pago em: {new Date(conta.dataPagamento).toLocaleDateString('pt-BR')}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-end gap-1 pt-1 border-t">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => abrirEdicao(conta)} title="Editar">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              {conta.status === 'pendente' && (
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-green-600 border-green-300 hover:bg-green-50" onClick={() => { setContaSelecionada(conta); setDialogPagamentoOpen(true); }}>
+                                  <CheckCircle className="h-3.5 w-3.5 mr-1" />Pagar
+                                </Button>
+                              )}
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-500" onClick={() => abrirExclusao(conta)} title="Inativar">
+                                <EyeOff className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Desktop: table */}
+                      <div className="hidden md:block">
+                        <Table className="w-full table-fixed [&_td]:px-2 [&_td]:py-2.5 [&_th]:px-2 [&_th]:h-10">
                           <TableHeader>
                             <TableRow>
-                              <SortableHeader 
-                                field="descricao" 
-                                label="Descrição" 
-                                currentSort={sortPagar}
-                                onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
-                              />
-                              <TableHead className="text-left text-[11px] py-2 hidden md:table-cell">Vendedor</TableHead>
-                              <SortableHeader 
-                                field="categoria" 
-                                label="Categoria" 
-                              currentSort={sortPagar}
-                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
-                              className="hidden md:table-cell"
-                            />
-                            <SortableHeader 
-                              field="vencimento" 
-                              label="Vencimento" 
-                              currentSort={sortPagar}
-                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
-                            />
-                            <SortableHeader 
-                              field="valor" 
-                              label="Valor" 
-                              currentSort={sortPagar}
-                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
-                              className="text-right"
-                            />
-                            <SortableHeader 
-                              field="status" 
-                              label="Status" 
-                              currentSort={sortPagar}
-                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
-                              className="hidden md:table-cell"
-                            />
-                            <SortableHeader 
-
-                              field="dataPagamento" 
-                              label="Data Pagamento" 
-                              currentSort={sortPagar}
-                              onSort={(f) => handleSort(f, sortPagar, setSortPagar)}
-                              className="hidden md:table-cell text-right"
-                            />
-                            <TableHead className="text-right">Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {contasPagarFiltered.map((conta) => (
-                            <TableRow key={conta.id}>
-                              <TableCell>
-                                <div className="max-w-[200px] truncate">
-                                  <p className="font-medium truncate">{conta.descricao}</p>
-                                  {conta.fornecedor && (
-                                    <p className="text-sm text-muted-foreground truncate">{conta.fornecedor}</p>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-sm hidden md:table-cell">{conta.vendedor_nome || '-'}</TableCell>
-                              <TableCell className="hidden md:table-cell">{conta.categoria || '-'}</TableCell>
-                              <TableCell className="whitespace-nowrap">
-                                {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
-                              </TableCell>
-                              <TableCell className="font-semibold text-right whitespace-nowrap">
-                                {formatCurrency(conta.valor)}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap hidden md:table-cell">{getStatusBadge(conta)}</TableCell>
-                              <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap hidden md:table-cell">
-                                {conta.dataPagamento 
-                                  ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR')
-                                  : '-'
-                                }
-                              </TableCell>
-                              <TableCell className="text-right whitespace-nowrap">
-                                <div className="flex items-center justify-end gap-0.5">
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7"
-                                    onClick={() => abrirEdicao(conta)}
-                                    title="Editar"
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  {conta.status === 'pendente' && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-7 text-xs text-green-600 border-green-300 hover:bg-green-50 px-2"
-                                      onClick={() => {
-                                        setContaSelecionada(conta);
-                                        setDialogPagamentoOpen(true);
-                                      }}
-                                    >
-                                      <CheckCircle className="h-3.5 w-3.5" />
-                                      <span className="hidden md:inline ml-1">Pagar</span>
-                                    </Button>
-                                  )}
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 text-orange-500"
-                                    onClick={() => abrirExclusao(conta)}
-                                    title="Inativar"
-                                  >
-                                    <EyeOff className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              </TableCell>
+                              <SortableHeader field="descricao" label="Descrição" currentSort={sortPagar} onSort={(f) => handleSort(f, sortPagar, setSortPagar)} />
+                              <TableHead className="text-left text-[11px] py-2">Vendedor</TableHead>
+                              <SortableHeader field="categoria" label="Categoria" currentSort={sortPagar} onSort={(f) => handleSort(f, sortPagar, setSortPagar)} />
+                              <SortableHeader field="vencimento" label="Vencimento" currentSort={sortPagar} onSort={(f) => handleSort(f, sortPagar, setSortPagar)} />
+                              <SortableHeader field="valor" label="Valor" currentSort={sortPagar} onSort={(f) => handleSort(f, sortPagar, setSortPagar)} className="text-right" />
+                              <SortableHeader field="status" label="Status" currentSort={sortPagar} onSort={(f) => handleSort(f, sortPagar, setSortPagar)} />
+                              <SortableHeader field="dataPagamento" label="Data Pagamento" currentSort={sortPagar} onSort={(f) => handleSort(f, sortPagar, setSortPagar)} className="text-right" />
+                              <TableHead className="text-right">Ações</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {contasPagarFiltered.map((conta) => (
+                              <TableRow key={conta.id}>
+                                <TableCell>
+                                  <div className="max-w-[200px] truncate">
+                                    <p className="font-medium truncate">{conta.descricao}</p>
+                                    {conta.fornecedor && <p className="text-sm text-muted-foreground truncate">{conta.fornecedor}</p>}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-sm">{conta.vendedor_nome || '-'}</TableCell>
+                                <TableCell>{conta.categoria || '-'}</TableCell>
+                                <TableCell className="whitespace-nowrap">{conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}</TableCell>
+                                <TableCell className="font-semibold text-right whitespace-nowrap">{formatCurrency(conta.valor)}</TableCell>
+                                <TableCell className="whitespace-nowrap">{getStatusBadge(conta)}</TableCell>
+                                <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">{conta.dataPagamento ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR') : '-'}</TableCell>
+                                <TableCell className="text-right whitespace-nowrap">
+                                  <div className="flex items-center justify-end gap-0.5">
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => abrirEdicao(conta)} title="Editar">
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    {conta.status === 'pendente' && (
+                                      <Button size="sm" variant="outline" className="h-7 text-xs text-green-600 border-green-300 hover:bg-green-50 px-2" onClick={() => { setContaSelecionada(conta); setDialogPagamentoOpen(true); }}>
+                                        <CheckCircle className="h-3.5 w-3.5 mr-1" />Pagar
+                                      </Button>
+                                    )}
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-500" onClick={() => abrirExclusao(conta)} title="Inativar">
+                                      <EyeOff className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -1281,119 +1259,98 @@ export default function FinanceiroPage() {
                       <p className="text-sm">Clique em &quot;Nova Conta&quot; para adicionar</p>
                     </div>
                   ) : (
-                      <Table className="w-full table-fixed [&_td]:px-2 [&_td]:py-2.5 [&_th]:px-2 [&_th]:h-10">
-                        <TableHeader>
-                          <TableRow>
-                            <SortableHeader 
-                              field="descricao" 
-                              label="Descrição" 
-                              currentSort={sortReceber}
-                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
-                            />
-                            <TableHead className="text-left text-[11px] py-2 hidden md:table-cell">Vendedor</TableHead>
-                            <SortableHeader 
-                              field="categoria" 
-                              label="Categoria" 
-                              currentSort={sortReceber}
-                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
-                              className="hidden md:table-cell"
-                            />
-                            <SortableHeader 
-                              field="vencimento" 
-                              label="Vencimento" 
-                              currentSort={sortReceber}
-                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
-                            />
-                            <SortableHeader 
-                              field="valor" 
-                              label="Valor" 
-                              currentSort={sortReceber}
-                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
-                              className="text-right"
-                            />
-                            <SortableHeader 
-                              field="status" 
-                              label="Status" 
-                              currentSort={sortReceber}
-                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
-                              className="hidden md:table-cell"
-                            />
-                            <SortableHeader 
-                              field="dataPagamento" 
-                              label="Data Recebimento" 
-                              currentSort={sortReceber}
-                              onSort={(f) => handleSort(f, sortReceber, setSortReceber)}
-                              className="hidden md:table-cell text-right"
-                            />
-                            <TableHead className="text-right">Ações</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {contasReceberFiltered.map((conta) => (
-                            <TableRow key={conta.id}>
-                              <TableCell>
-                                <div className="max-w-[200px] truncate">
-                                  <p className="font-medium truncate">{conta.descricao}</p>
-                                  {conta.fornecedor && (
-                                    <p className="text-sm text-muted-foreground truncate">{conta.fornecedor}</p>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell className="text-sm hidden md:table-cell">{conta.vendedor_nome || '-'}</TableCell>
-                              <TableCell className="hidden md:table-cell">{conta.categoria || '-'}</TableCell>
-                              <TableCell className="whitespace-nowrap">
+                    <>
+                      {/* Mobile: cards */}
+                      <div className="md:hidden space-y-2">
+                        {contasReceberFiltered.map((conta) => (
+                          <div key={conta.id} className="bg-card border rounded-lg p-3 space-y-2">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{conta.descricao}</p>
+                                {conta.fornecedor && (
+                                  <p className="text-xs text-muted-foreground truncate">{conta.fornecedor}</p>
+                                )}
+                              </div>
+                              {getStatusBadge(conta)}
+                            </div>
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-muted-foreground">
                                 {conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}
-                              </TableCell>
-                              <TableCell className="font-semibold text-right whitespace-nowrap">
-                                {formatCurrency(conta.valor)}
-                              </TableCell>
-                              <TableCell className="whitespace-nowrap hidden md:table-cell">{getStatusBadge(conta)}</TableCell>
-                              <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap hidden md:table-cell">
-                                {conta.dataPagamento 
-                                  ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR')
-                                  : '-'
-                                }
-                              </TableCell>
-                              <TableCell className="text-right whitespace-nowrap">
-                                <div className="flex items-center justify-end gap-0.5">
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7"
-                                    onClick={() => abrirEdicao(conta)}
-                                    title="Editar"
-                                  >
-                                    <Pencil className="h-3.5 w-3.5" />
-                                  </Button>
-                                  {conta.status === 'pendente' && (
-                                    <Button
-                                      size="sm"
-                                      variant="outline"
-                                      className="h-7 text-xs text-green-600 border-green-300 hover:bg-green-50 px-2"
-                                      onClick={() => {
-                                        setContaSelecionada(conta);
-                                        setDialogPagamentoOpen(true);
-                                      }}
-                                    >
-                                      <CheckCircle className="h-3.5 w-3.5" />
-                                      <span className="hidden md:inline ml-1">Receber</span>
-                                    </Button>
-                                  )}
-                                  <Button
-                                    size="icon"
-                                    variant="ghost"
-                                    className="h-7 w-7 text-orange-500"
-                                    onClick={() => abrirExclusao(conta)}
-                                    title="Inativar"
-                                  >
-                                    <EyeOff className="h-3.5 w-3.5" />
-                                  </Button>
-                                </div>
-                              </TableCell>
+                              </span>
+                              <span className="font-semibold">{formatCurrency(conta.valor)}</span>
+                            </div>
+                            {conta.dataPagamento && (
+                              <div className="text-xs text-muted-foreground">
+                                Recebido em: {new Date(conta.dataPagamento).toLocaleDateString('pt-BR')}
+                              </div>
+                            )}
+                            <div className="flex items-center justify-end gap-1 pt-1 border-t">
+                              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => abrirEdicao(conta)} title="Editar">
+                                <Pencil className="h-3.5 w-3.5" />
+                              </Button>
+                              {conta.status === 'pendente' && (
+                                <Button size="sm" variant="outline" className="h-7 px-2 text-xs text-green-600 border-green-300 hover:bg-green-50" onClick={() => { setContaSelecionada(conta); setDialogPagamentoOpen(true); }}>
+                                  <CheckCircle className="h-3.5 w-3.5 mr-1" />Receber
+                                </Button>
+                              )}
+                              <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-500" onClick={() => abrirExclusao(conta)} title="Inativar">
+                                <EyeOff className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {/* Desktop: table */}
+                      <div className="hidden md:block">
+                        <Table className="w-full table-fixed [&_td]:px-2 [&_td]:py-2.5 [&_th]:px-2 [&_th]:h-10">
+                          <TableHeader>
+                            <TableRow>
+                              <SortableHeader field="descricao" label="Descrição" currentSort={sortReceber} onSort={(f) => handleSort(f, sortReceber, setSortReceber)} />
+                              <TableHead className="text-left text-[11px] py-2">Vendedor</TableHead>
+                              <SortableHeader field="categoria" label="Categoria" currentSort={sortReceber} onSort={(f) => handleSort(f, sortReceber, setSortReceber)} />
+                              <SortableHeader field="vencimento" label="Vencimento" currentSort={sortReceber} onSort={(f) => handleSort(f, sortReceber, setSortReceber)} />
+                              <SortableHeader field="valor" label="Valor" currentSort={sortReceber} onSort={(f) => handleSort(f, sortReceber, setSortReceber)} className="text-right" />
+                              <SortableHeader field="status" label="Status" currentSort={sortReceber} onSort={(f) => handleSort(f, sortReceber, setSortReceber)} />
+                              <SortableHeader field="dataPagamento" label="Data Recebimento" currentSort={sortReceber} onSort={(f) => handleSort(f, sortReceber, setSortReceber)} className="text-right" />
+                              <TableHead className="text-right">Ações</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {contasReceberFiltered.map((conta) => (
+                              <TableRow key={conta.id}>
+                                <TableCell>
+                                  <div className="max-w-[200px] truncate">
+                                    <p className="font-medium truncate">{conta.descricao}</p>
+                                    {conta.fornecedor && <p className="text-sm text-muted-foreground truncate">{conta.fornecedor}</p>}
+                                  </div>
+                                </TableCell>
+                                <TableCell className="text-sm">{conta.vendedor_nome || '-'}</TableCell>
+                                <TableCell>{conta.categoria || '-'}</TableCell>
+                                <TableCell className="whitespace-nowrap">{conta.vencimento ? new Date(conta.vencimento).toLocaleDateString('pt-BR') : '-'}</TableCell>
+                                <TableCell className="font-semibold text-right whitespace-nowrap">{formatCurrency(conta.valor)}</TableCell>
+                                <TableCell className="whitespace-nowrap">{getStatusBadge(conta)}</TableCell>
+                                <TableCell className="text-right text-sm text-muted-foreground whitespace-nowrap">{conta.dataPagamento ? new Date(conta.dataPagamento).toLocaleDateString('pt-BR') : '-'}</TableCell>
+                                <TableCell className="text-right whitespace-nowrap">
+                                  <div className="flex items-center justify-end gap-0.5">
+                                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => abrirEdicao(conta)} title="Editar">
+                                      <Pencil className="h-3.5 w-3.5" />
+                                    </Button>
+                                    {conta.status === 'pendente' && (
+                                      <Button size="sm" variant="outline" className="h-7 text-xs text-green-600 border-green-300 hover:bg-green-50 px-2" onClick={() => { setContaSelecionada(conta); setDialogPagamentoOpen(true); }}>
+                                        <CheckCircle className="h-3.5 w-3.5 mr-1" />Receber
+                                      </Button>
+                                    )}
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-500" onClick={() => abrirExclusao(conta)} title="Inativar">
+                                      <EyeOff className="h-3.5 w-3.5" />
+                                    </Button>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
