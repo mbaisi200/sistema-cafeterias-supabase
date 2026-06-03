@@ -550,7 +550,7 @@ export default function FinanceiroPage() {
     onChange: (f: ContaFilter) => void;
     contasVencidasCount: number;
   }) => (
-    <div className="flex items-center gap-2 mb-4">
+    <div className="flex items-center gap-1 md:gap-2 mb-4 flex-wrap">
       {([
         { value: 'todas' as ContaFilter, label: 'Todas' },
         { value: 'pendentes' as ContaFilter, label: 'Pendentes' },
@@ -562,7 +562,7 @@ export default function FinanceiroPage() {
           size="sm"
           variant="outline"
           className={`
-            h-8 text-xs
+            h-7 md:h-8 text-[11px] md:text-xs px-2 md:px-3
             ${active === opt.value ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'hover:bg-muted'}
             ${active === opt.value && (opt as any).danger ? 'bg-red-500 hover:bg-red-600 text-white' : ''}
             ${active === opt.value && !(opt as any).danger && opt.value === 'pagas' ? 'bg-green-500 hover:bg-green-600 text-white' : ''}
