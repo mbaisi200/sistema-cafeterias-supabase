@@ -23,6 +23,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { ToastAction } from '@/components/ui/toast';
 import { getSupabaseClient, debitarEstoqueVenda, reporEstoqueVenda } from '@/lib/supabase';
+import { beep } from '@/lib/beep';
 import {
   Plus,
   Minus,
@@ -251,6 +252,8 @@ export default function PDVVarejoPage() {
       return;
     }
     const qtde = qtd || parseFloat(quantidadeInput) || 1;
+
+    beep();
 
     // Se for combo, adicionar o combo + itens componentes com rateio
     if (produto.isCombo) {
@@ -646,6 +649,7 @@ export default function PDVVarejoPage() {
           ufEmpresa: empresa?.estado || '',
           vendedor: user?.nome || 'OPERADOR',
           softwareName: nomeMarca || undefined,
+          logoUrl: dadosCupom.logoUrl,
         }, printWindow);
       }
 

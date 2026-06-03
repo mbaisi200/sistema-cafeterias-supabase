@@ -686,7 +686,7 @@ export function useVendas() {
         .eq('empresa_id', empresaId)
         .gte('criado_em', seisMesesAtras.toISOString())
         .order('criado_em', { ascending: false })
-        .limit(500)
+        .limit(2000)
       );
 
       if (vendasError) throw vendasError;

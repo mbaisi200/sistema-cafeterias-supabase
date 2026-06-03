@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -19,6 +19,8 @@ import { Separator } from '@/components/ui/separator';
 import { Printer, FileText, User, Settings, CreditCard, CheckCircle, UserPlus, ScrollText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useConfiguracoesCupom, ConfiguracoesCupom, configuracoesCupomPadrao } from '@/hooks/useSupabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { getSupabaseClient } from '@/lib/supabase';
 import { BuscaCliente, ClienteEncontrado } from './BuscaCliente';
 import { NovoClienteDialog } from './NovoClienteDialog';
 
@@ -40,6 +42,7 @@ export interface DadosCupomFiscal {
   unidade?: string;
   vendedor?: string;
   softwareName?: string;
+  logoUrl?: string;
 }
 
 interface CupomFiscalModalProps {
@@ -92,15 +95,35 @@ export function CupomFiscalModal({
 }: CupomFiscalModalProps) {
   const { toast } = useToast();
   const { configuracoes, carregarConfiguracoes } = useConfiguracoesCupom();
+  const { empresaId } = useAuth();
 
-  // Recarregar configurações sempre que o dialog abrir
-  // Isso garante que mudanças feitas na página de Configurações
-  // sejam refletidas imediatamente no cupom
+  // Busca permissão de reimpressão + logo direto do banco (sem cache)
+  const [podeReimprimir, setPodeReimprimir] = useState(true);
+  const [logoUrl, setLogoUrl] = useState<string | undefined>();
+  const fetchDadosEmpresa = useCallback(async () => {
+    if (!empresaId) return;
+    const supabase = getSupabaseClient();
+    const { data } = await supabase
+      .from('empresas')
+      .select('pode_reimprimir, logo_url')
+      .eq('id', empresaId)
+      .single();
+    if (data) {
+      setPodeReimprimir(data.pode_reimprimir ?? true);
+      setLogoUrl(data.logo_url || undefined);
+      if (!data.pode_reimprimir) {
+        setEmitirNFCe(true);
+      }
+    }
+  }, [empresaId]);
+
+  // Recarregar configurações + dados empresa sempre que o dialog abrir
   useEffect(() => {
     if (open) {
       carregarConfiguracoes();
+      fetchDadosEmpresa();
     }
-  }, [open, carregarConfiguracoes]);
+  }, [open, carregarConfiguracoes, fetchDadosEmpresa]);
 
   // Estados de cliente
   const [clienteSelecionado, setClienteSelecionado] = useState<ClienteEncontrado | null>(null);
@@ -243,6 +266,7 @@ export function CupomFiscalModal({
       ufEmpresa,
       vendedor,
       softwareName,
+      logoUrl,
     }, formaPagamento);
   };
 
@@ -416,6 +440,7 @@ export function CupomFiscalModal({
                   </p>
                 )}
               </div>
+              {podeReimprimir && (
               <div
                 role="button"
                 tabIndex={0}
@@ -449,6 +474,7 @@ export function CupomFiscalModal({
                   Imprimir cupom
                 </label>
               </div>
+              )}
             </div>
           </div>
 
@@ -544,6 +570,7 @@ export function imprimirCupomFiscal(
     cidadeEmpresa?: string;
     ufEmpresa?: string;
     vendedor?: string;
+    logoUrl?: string;
   },
   printWindow?: Window | null
 ) {
@@ -568,6 +595,7 @@ export function imprimirCupomFiscal(
     ufEmpresa: ufParam,
     vendedor: vendedorParam,
     softwareName: softwareNameParam,
+    logoUrl,
   } = dados;
 
   // Usar configurações salvas ou padrão
@@ -936,15 +964,26 @@ export function imprimirCupomFiscal(
         }
       </style>
     </head>
-    <body>${cupom}</body>
+    <body>
+      ${logoUrl ? `<img src="${logoUrl}" id="logo-cupom" style="display:block;margin:0 auto 4px;max-width:${Math.round(larguraMm * 0.7)}mm;max-height:30mm" />` : ''}
+      ${cupom}
+      <script>
+        var img = document.getElementById('logo-cupom');
+        var printFn = function() {
+          window.print();
+          window.close();
+        };
+        if (img && !img.complete) {
+          img.onload = printFn;
+          img.onerror = printFn;
+        } else {
+          setTimeout(printFn, 200);
+        }
+      <\/script>
+    </body>
     </html>
   `);
 
   win.document.close();
   win.focus();
-  
-  setTimeout(() => {
-    win.print();
-    win.close();
-  }, 250);
 }

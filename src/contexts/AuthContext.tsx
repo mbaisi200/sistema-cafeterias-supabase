@@ -15,7 +15,9 @@ interface AuthContextType {
   isConfigured: boolean;
   secoesPermitidas: string[];
   nomeMarca: string | null;
+  segmentoIcone: string | null;
   permitirFotoProduto: boolean;
+  podeReimprimir: boolean;
   login: (email: string, password: string) => Promise<void>;
   loginFuncionario: (codigoEmpresa: string, pin: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -33,7 +35,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [secoesPermitidas, setSecoesPermitidas] = useState<string[]>([]);
   const [nomeMarca, setNomeMarca] = useState<string | null>(null);
+  const [segmentoIcone, setSegmentoIcone] = useState<string | null>(null);
   const [permitirFotoProduto, setPermitirFotoProduto] = useState(true);
+  const [podeReimprimir, setPodeReimprimir] = useState(true);
   const [loading, setLoading] = useState(true);
   const mounted = useRef(true);
   const hasInitialized = useRef(false);
@@ -88,10 +92,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
 
-      // Armazenar seções permitidas, nome da marca e permissão de foto
+      // Armazenar seções permitidas, nome da marca, ícone do segmento e permissão de foto
       setSecoesPermitidas(result.user.secoesPermitidas || []);
       setNomeMarca(result.user.nomeMarca || null);
+      setSegmentoIcone(result.user.segmentoIcone || null);
       setPermitirFotoProduto(result.user.permitirFotoProduto ?? true);
+      setPodeReimprimir(result.user.podeReimprimir ?? true);
 
       const userData: User = {
         id: result.user.id,
@@ -470,7 +476,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isConfigured: isSupabaseConfigured(),
     secoesPermitidas,
     nomeMarca,
+    segmentoIcone,
     permitirFotoProduto,
+    podeReimprimir,
     login,
     loginFuncionario,
     logout,

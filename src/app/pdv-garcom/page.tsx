@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { ToastAction } from '@/components/ui/toast';
 import { getSupabaseClient, debitarEstoqueVenda } from '@/lib/supabase';
+import { beep } from '@/lib/beep';
 import {
   Search,
   Plus,
@@ -478,6 +479,8 @@ export default function PDVGarcomPage() {
 
     const supabase = getSupabaseClient();
     if (!supabase) return;
+
+    beep();
 
     // Generate temp ID for optimistic update
     const tempId = generateTempId();
@@ -1001,6 +1004,7 @@ export default function PDVGarcomPage() {
           ufEmpresa: empresa?.estado || '',
           vendedor: user?.nome || 'GARÇOM',
           pagamentosMultiplos: pagamentos.length > 0 ? pagamentos : undefined,
+          logoUrl: dadosCupom.logoUrl,
         }, printWindow);
       }
 

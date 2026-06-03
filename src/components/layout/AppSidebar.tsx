@@ -87,6 +87,12 @@ const iconMap: Record<string, any> = {
   Heart, Layers, Building2, Croissant, Shield, WashingMachine,
 };
 
+// Resolve o ícone do segmento a partir do nome armazenado
+const getSegmentoIconComponent = (iconName: string | null): any => {
+  if (!iconName) return Coffee;
+  return iconMap[iconName] || Coffee;
+};
+
 interface MenuItem {
   title: string;
   url: string;
@@ -187,7 +193,7 @@ const roleColors: Record<string, string> = {
 };
 
 export function AppSidebar() {
-  const { user, logout, empresaId, role, nomeMarca } = useAuth();
+  const { user, logout, empresaId, role, nomeMarca, segmentoIcone } = useAuth();
   const pathname = usePathname();
   const { resolvedTheme, setTheme } = useTheme();
   const darkMode = resolvedTheme === 'dark';
@@ -408,12 +414,14 @@ export function AppSidebar() {
     return item.url;
   };
 
+  const SegmentoIcon = getSegmentoIconComponent(segmentoIcone);
+
   return (
     <Sidebar variant="sidebar" collapsible="icon">
       <SidebarHeader className={`border-b ${darkMode ? 'border-white/10 bg-white/5' : 'border-teal-400/15 bg-white/5'}`}>
         <div className="flex items-center gap-2 px-2 py-2">
           <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${darkMode ? 'bg-gradient-to-br from-cyan-400/20 to-teal-400/20 border border-cyan-400/20' : 'bg-gradient-to-br from-teal-500 to-cyan-500'}`}>
-            <Coffee className={`h-5 w-5 ${darkMode ? 'text-cyan-300' : 'text-white'}`} />
+            <SegmentoIcon className={`h-5 w-5 ${darkMode ? 'text-cyan-300' : 'text-white'}`} />
           </div>
           <div className="flex flex-col group-data-[collapsible=icon]:hidden flex-1">
             <span className={`text-sm font-semibold ${darkMode ? 'text-slate-100' : 'text-white'}`}>MB Sistemas</span>

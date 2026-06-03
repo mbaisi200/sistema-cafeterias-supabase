@@ -200,7 +200,9 @@ export async function POST(request: NextRequest) {
             const precoCustoCaixa = item.valorUnitario || 0;
             const unidadesPorCaixa = item.unidadesPorCaixa || 0;
             const precoCusto = unidadesPorCaixa > 0 ? precoCustoCaixa / unidadesPorCaixa : precoCustoCaixa;
-            const precoVenda = item.precoVenda || (precoCusto * (1 + (opcoes.markupPercentual || 30) / 100));
+            const margemOpcoes = (opcoes as any).margemPercentual || 30;
+            const margemDecimal = margemOpcoes / 100;
+            const precoVenda = item.precoVenda || (margemDecimal >= 1 ? precoCusto * 10 : precoCusto / (1 - margemDecimal));
 
             // Verificar se deve atualizar estoque (opção global E item individual)
             const deveAtualizarEstoque = opcoes.atualizarEstoque && item.irParaEstoque;
@@ -312,7 +314,7 @@ export async function POST(request: NextRequest) {
               updateData.custo = unidadesPorCaixa > 0 ? item.valorUnitario / unidadesPorCaixa : item.valorUnitario;
             }
 
-            // Aplicar markup ao preço de venda se fornecido
+            // Aplicar margem de lucro ao preço de venda se fornecido
             if (item.precoVenda && item.precoVenda > 0) {
               updateData.preco = item.precoVenda;
             }

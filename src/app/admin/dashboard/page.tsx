@@ -1,16 +1,17 @@
 'use client';
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
+import { getCachedData, setCachedData } from '@/lib/data-cache';
 import { useVendas } from '@/hooks/useSupabase';
+import { useAppVersion } from '@/hooks/useAppVersion';
+import { useToast } from '@/hooks/use-toast';
 import {
   ShoppingCart,
   DollarSign,
@@ -30,6 +31,7 @@ import {
   DatabaseBackup,
   AlertTriangle,
   RefreshCw,
+  RotateCcw,
 } from 'lucide-react';
 import {
   Dialog,
@@ -176,11 +178,22 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 export default function AdminDashboardPage() {
   const { user, empresaId, secoesPermitidas } = useAuth();
   const { vendas, loading: loadingVendas, refresh: refreshVendas } = useVendas();
+  const { hasUpdate, currentVersion, dismissUpdate } = useAppVersion();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    if (hasUpdate) {
+      toast({
+        title: 'Nova versão disponível',
+        description: `Versão ${currentVersion} — clique em "Recarregar App" para atualizar.`,
+        duration: 10000,
+      });
+    }
+  }, [hasUpdate, currentVersion, toast]);
 
   // ── All state declarations ──
   const [osLavanderia, setOsLavanderia] = useState<any[]>([]);
   const [loadingOS, setLoadingOS] = useState(true);
-  const [excluirDelivery, setExcluirDelivery] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [backupLoading, setBackupLoading] = useState(false);
   const [backupDialogOpen, setBackupDialogOpen] = useState(false);
@@ -201,150 +214,121 @@ export default function AdminDashboardPage() {
   const [lowStockProdutos, setLowStockProdutos] = useState<any[]>([]);
   const [loadingLowStock, setLoadingLowStock] = useState(true);
 
+  const dashboardMountedRef = useRef(false);
+
+  // ═══════════════════════════════════════════
+  // Single parallelized + cached data fetch on mount
+  // ═══════════════════════════════════════════
   useEffect(() => {
+    if (!empresaId) return;
+
+    const cacheKey = `dashboard-v2-${empresaId}`;
+    const cached = getCachedData<{ osLavanderia: any[]; lowStock: any[]; pdvUrl: string }>(cacheKey);
+    if (cached && dashboardMountedRef.current) {
+      setOsLavanderia(cached.osLavanderia);
+      setLowStockProdutos(cached.lowStock);
+      setPdvUrl(cached.pdvUrl);
+      setLoadingOS(false);
+      setLoadingLowStock(false);
+      return;
+    }
+
+    const supabase = getSupabaseClient();
+
     const loadPdvUrl = async () => {
-      if (!empresaId) return;
       try {
-        const supabase = getSupabaseClient();
-        
-        // Buscar empresa para pegar segmento
         const { data: empresa } = await supabase
           .from('empresas')
           .select('segmento_id')
           .eq('id', empresaId)
           .single();
-        
+
         let secoesIds: string[] = [];
-        
         if (empresa?.segmento_id) {
-          // Se tem segmento, buscar seções do segmento
           const { data: segSecoes } = await supabase
             .from('segmento_secoes')
-            .select('secao_id, ativo')
+            .select('secao_id')
             .eq('segmento_id', empresa.segmento_id)
             .eq('ativo', true);
-          
           secoesIds = segSecoes?.map((s: any) => s.secao_id) || [];
         } else {
-          // Se não tem segmento, buscar seções da empresa
           const { data: empSecoes } = await supabase
             .from('empresa_secoes')
             .select('secao_id')
             .eq('empresa_id', empresaId)
             .eq('ativo', true);
-          
           secoesIds = empSecoes?.map((s: any) => s.secao_id) || [];
         }
-        
+
         if (secoesIds.length > 0) {
-          // Buscar URLs das seções
           const { data: secoes } = await supabase
             .from('secoes_menu')
             .select('chave, url')
             .in('id', secoesIds);
-          
-          // Prioridade: pdv-varejo > pdv-garcom > pdv
           const pdvChaves = ['pdv-varejo', 'pdv-garcom', 'pdv'];
           for (const chave of pdvChaves) {
             const secao = secoes?.find((s: any) => s.chave === chave);
-            if (secao) {
-              setPdvUrl(secao.url);
-              return;
-            }
+            if (secao) return secao.url;
           }
         }
-        
-        setPdvUrl('/pdv');
-      } catch (err) {
-        console.error('Erro ao buscar PDV:', err);
-        setPdvUrl('/pdv');
+        return '/pdv';
+      } catch {
+        return '/pdv';
       }
     };
-    
-    loadPdvUrl();
-  }, [empresaId]);
 
-  useEffect(() => {
-    if (!empresaId) return;
     const loadOSLavanderia = async () => {
       try {
-        const supabase = getSupabaseClient();
         const { data, error } = await supabase
           .from('ordens_servico')
           .select('*')
           .eq('empresa_id', empresaId)
           .eq('ativo', true)
           .order('criado_em', { ascending: false });
-
-        if (error) {
-          console.error('Erro ao carregar OS Lavanderia:', error.message);
-          return;
-        }
-
-        const parsed = (data || [])
+        if (error) return [];
+        return (data || [])
           .filter((o: any) => (o.observacoes || '').startsWith('[LAVANDERIA]'))
           .map((o: any) => {
             let parsedItens: any[] = [];
-            try {
-              const raw = o.servicos;
-              parsedItens = (typeof raw === 'string' ? JSON.parse(raw) : (raw || []));
-            } catch { /* ignore */ }
-
-            const totalPecas = parsedItens.reduce((acc: number, i: any) => acc + (i.quantidade || 0), 0);
-
+            try { parsedItens = (typeof o.servicos === 'string' ? JSON.parse(o.servicos) : (o.servicos || [])); } catch {}
             return {
               id: o.id,
-              status: (() => {
-                const map: Record<string, string> = {
-                  aberta: 'recebida',
-                  em_andamento: 'em_lavagem',
-                  concluida: 'pronta',
-                  aprovada: 'entregue',
-                  cancelada: 'cancelada',
-                };
-                return map[o.status] || o.status;
-              })(),
+              status: ({ aberta: 'recebida', em_andamento: 'em_lavagem', concluida: 'pronta', aprovada: 'entregue', cancelada: 'cancelada' } as Record<string, string>)[o.status] || o.status,
               valorTotal: parseFloat(o.valor_total) || 0,
-              totalPecas,
+              totalPecas: parsedItens.reduce((acc: number, i: any) => acc + (i.quantidade || 0), 0),
               criadoEm: o.criado_em || '',
             };
           });
-
-        setOsLavanderia(parsed);
-      } catch (err) {
-        console.error('Erro ao carregar OS Lavanderia:', err);
-        setOsLavanderia([]);
-      } finally {
-        setLoadingOS(false);
+      } catch {
+        return [];
       }
     };
-    loadOSLavanderia();
-  }, [empresaId]);
 
-  // ── Low stock alert ──
-  useEffect(() => {
-    if (!empresaId) return;
     const loadLowStock = async () => {
       try {
-        const supabase = getSupabaseClient();
         const { data, error } = await supabase
           .from('produtos')
           .select('id, nome, estoque_atual, estoque_minimo, unidade, controlar_estoque')
           .eq('empresa_id', empresaId)
           .eq('ativo', true);
-
-        if (error) throw error;
-        const baixo = (data || []).filter(
+        if (error) return [];
+        return (data || []).filter(
           (p: any) => p.controlar_estoque !== false && (p.estoque_atual || 0) <= (p.estoque_minimo || 0)
         );
-        setLowStockProdutos(baixo);
-      } catch (err) {
-        console.error('Erro ao carregar estoque baixo:', err);
-      } finally {
-        setLoadingLowStock(false);
+      } catch {
+        return [];
       }
     };
-    loadLowStock();
+
+    Promise.all([loadPdvUrl(), loadOSLavanderia(), loadLowStock()]).then(([pdvUrlResult, osData, lowStockData]) => {
+      setPdvUrl(pdvUrlResult);
+      setOsLavanderia(osData);
+      setLowStockProdutos(lowStockData);
+      setLoadingOS(false);
+      setLoadingLowStock(false);
+      dashboardMountedRef.current = true;
+      setCachedData(cacheKey, { osLavanderia: osData, lowStock: lowStockData, pdvUrl: pdvUrlResult });
+    });
   }, [empresaId]);
 
   // ── Auto-refresh: visibilidade + polling ──
@@ -549,28 +533,24 @@ export default function AdminDashboardPage() {
 
   // ── Filtered vendas for selected day ──
   const vendasDia = useMemo(() => {
-    const excDelivery = excluirDelivery;
     return vendas.filter(v => {
       if (!isConcluida(v)) return false;
-      if (excDelivery && (v.canal === 'delivery' || v.tipo === 'delivery')) return false;
       if (!v.criadoEm) return false;
       const d = new Date(v.criadoEm);
       if (d < selectedDayStart || d > selectedDayEnd) return false;
       return true;
     });
-  }, [vendas, selectedDayStart, selectedDayEnd, excluirDelivery]);
+  }, [vendas, selectedDayStart, selectedDayEnd]);
 
   // ── Filtered vendas for current month ──
   const vendasMesAtual = useMemo(() => {
-    const excDelivery = excluirDelivery;
     return vendas.filter(v => {
       if (!isConcluida(v)) return false;
-      if (excDelivery && (v.canal === 'delivery' || v.tipo === 'delivery')) return false;
       if (!v.criadoEm) return false;
       const d = new Date(v.criadoEm);
       return d >= currentMonthStart && d <= currentMonthEnd;
     });
-  }, [vendas, currentMonthStart, currentMonthEnd, excluirDelivery]);
+  }, [vendas, currentMonthStart, currentMonthEnd]);
 
   // ── Filtered vendas for previous month ──
   const vendasMesAnterior = useMemo(() => {
@@ -1151,6 +1131,17 @@ export default function AdminDashboardPage() {
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
                 {refreshing ? 'Atualizando...' : 'Atualizar'}
               </Button>
+              {hasUpdate && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={() => { window.location.reload(); dismissUpdate(); }}
+                  className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-lg animate-pulse"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Recarregar App
+                </Button>
+              )}
             </div>
           </div>
 
@@ -1217,23 +1208,20 @@ export default function AdminDashboardPage() {
           <section>
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <SectionTitle>Informações do dia</SectionTitle>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="excluir-delivery"
-                    checked={excluirDelivery}
-                    onCheckedChange={(checked) => setExcluirDelivery(checked === true)}
-                  />
-                  <Label htmlFor="excluir-delivery" className="text-xs text-muted-foreground cursor-pointer">
-                    Excluindo Delivery
-                  </Label>
-                </div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <CalendarDays className="h-3.5 w-3.5" />
-                  <span className="font-medium">
-                    {safeFormat(selectedDate, "dd/MM/yyyy")}
-                  </span>
-                </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <CalendarDays className="h-3.5 w-3.5" />
+                <input
+                  type="date"
+                  value={format(selectedDate, 'yyyy-MM-dd')}
+                  max={format(new Date(), 'yyyy-MM-dd')}
+                  onChange={e => {
+                    if (e.target.value) {
+                      const [year, month, day] = e.target.value.split('-').map(Number);
+                      setSelectedDate(new Date(year, month - 1, day));
+                    }
+                  }}
+                  className="h-8 rounded-md border border-input bg-background px-2 text-xs font-medium text-foreground cursor-pointer"
+                />
               </div>
             </div>
 

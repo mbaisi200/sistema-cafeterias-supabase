@@ -73,18 +73,30 @@ export async function POST(request: NextRequest) {
     // Fetch section permissions via SEGMENTO
     let secoesPermitidas: string[] = [];
     let nomeMarca: string | null = null;
+    let segmentoIcone: string | null = null;
     let permitirFotoProduto = true;
+    let podeReimprimir = true;
 
     if (userData.empresa_id && userData.role !== 'master') {
       const { data: empresaRes } = await supabase
         .from('empresas')
-        .select('id, nome_marca, segmento_id, permitir_foto_produto')
+        .select('id, nome_marca, segmento_id, permitir_foto_produto, pode_reimprimir')
         .eq('id', userData.empresa_id)
         .single();
 
       const segId = empresaRes?.segmento_id;
 
       if (segId) {
+        const { data: segData } = await supabase
+          .from('segmentos')
+          .select('icone')
+          .eq('id', segId)
+          .single();
+
+        if (segData) {
+          segmentoIcone = segData.icone || null;
+        }
+
         const { data: segSecoes } = await supabase
           .from('segmento_secoes')
           .select('secao_id, ativo')
@@ -124,6 +136,7 @@ export async function POST(request: NextRequest) {
 
       if (empresaRes) {
         permitirFotoProduto = empresaRes.permitir_foto_produto ?? true;
+        podeReimprimir = empresaRes.pode_reimprimir ?? true;
         if (empresaRes.nome_marca) {
           nomeMarca = empresaRes.nome_marca;
         } else if (segId) {
@@ -154,7 +167,7 @@ export async function POST(request: NextRequest) {
     } catch (claimsError) {
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       user: {
         id: userData.id,
         email: userData.email,
@@ -166,7 +179,9 @@ export async function POST(request: NextRequest) {
         atualizadoEm: userData.atualizado_em,
         secoesPermitidas,
         nomeMarca,
+        segmentoIcone,
         permitirFotoProduto,
+        podeReimprimir,
       }
     });
 

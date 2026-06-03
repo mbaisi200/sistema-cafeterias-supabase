@@ -145,7 +145,7 @@ export default function DeliveryAdminPage() {
   const [integrationsLoading, setIntegrationsLoading] = useState(true);
   const [ifoodConnected, setIfoodConnected] = useState(false);
   const [uberConnected, setUberConnected] = useState(false);
-  const [empresaPrint, setEmpresaPrint] = useState<{ nome: string; cnpj: string; endereco: string; telefone: string } | null>(null);
+  const [empresaPrint, setEmpresaPrint] = useState<{ nome: string; cnpj: string; endereco: string; telefone: string; logo_url?: string } | null>(null);
   const [cupomConfig, setCupomConfig] = useState<ConfiguracoesCupom>(configuracoesCupomPadrao);
 
   useEffect(() => {
@@ -157,9 +157,9 @@ export default function DeliveryAdminPage() {
   }, [empresaId]);
 
   const loadEmpresaData = async () => {
-    const { data: emp } = await supabase.from('empresas').select('nome, cnpj, endereco, telefone').eq('id', empresaId).single();
+    const { data: emp } = await supabase.from('empresas').select('nome, cnpj, endereco, telefone, logo_url').eq('id', empresaId).single();
     if (emp) {
-      setEmpresaPrint({ nome: emp.nome, cnpj: emp.cnpj || '', endereco: emp.endereco || '', telefone: emp.telefone || '' });
+      setEmpresaPrint({ nome: emp.nome, cnpj: emp.cnpj || '', endereco: emp.endereco || '', telefone: emp.telefone || '' , logo_url: emp.logo_url || undefined });
     }
     const { data: cfg } = await supabase.from('cupom_config').select('*').eq('empresa_id', empresaId).maybeSingle();
     if (cfg) {
@@ -429,6 +429,7 @@ export default function DeliveryAdminPage() {
       tamanhoCupom: (cfg.larguraPapel || 58) <= 58 ? '58mm' : '80mm',
       codigoVenda: vendaId.slice(0, 8),
       configuracoes: cfg,
+      logoUrl: emp?.logo_url,
     }, printWindow);
   };
 

@@ -25,6 +25,7 @@ import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { ToastAction } from '@/components/ui/toast';
 import { getSupabaseClient, debitarEstoqueVenda } from '@/lib/supabase';
+import { beep } from '@/lib/beep';
 import {
   Search,
   Plus,
@@ -447,6 +448,8 @@ export default function PDVPage() {
 
     const supabase = getSupabaseClient();
     if (!supabase) return;
+
+    beep();
 
     // Para combo (balcão): expandir nos itens componentes com rateio
     if (produto.isCombo && tipoVenda === 'balcao') {
@@ -1121,6 +1124,7 @@ export default function PDVPage() {
             cidadeEmpresa: empresa?.cidade || '',
             ufEmpresa: empresa?.estado || '',
             vendedor: user?.nome || 'ADMINISTRADOR',
+            logoUrl: dadosCupom.logoUrl,
           }, printWindow);
         }
 

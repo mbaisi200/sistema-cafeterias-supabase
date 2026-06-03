@@ -83,7 +83,7 @@ interface ProdutoImportacao {
   categoriaId?: string;
   selecionado: boolean;
   unidadesPorCaixa: number;  // conversion factor (units per box)
-  markupPercentual: number; // per-product markup percentage
+  margemPercentual: number; // per-product profit margin %
   irParaEstoque: boolean; // whether to update stock for this item
   precoVenda: number;  // per-item selling price (editable)
 }
@@ -115,7 +115,7 @@ export default function NFeImportarPage() {
   const [atualizarEstoque, setAtualizarEstoque] = useState(true);
   const [atualizarDadosFiscais, setAtualizarDadosFiscais] = useState(true);
   const [gerarContaPagar, setGerarContaPagar] = useState(true);
-  const [markupDefault, setMarkupDefault] = useState('40');
+  const [margemDefault, setMargemDefault] = useState('30');
 
   // Data de vencimento padrão: 30 dias a partir de hoje
   const defaultVencimento = useMemo(() => {
@@ -206,9 +206,10 @@ export default function NFeImportarPage() {
         }
         if (unidadesPorCaixa < 1) unidadesPorCaixa = 0;
 
-        const markup = parseFloat(markupDefault) || 40;
+        const margem = parseFloat(margemDefault) || 30;
         const factor = unidadesPorCaixa > 0 ? unidadesPorCaixa : 1;
         const custoUnitario = p.valorUnitario / factor;
+        const margemDecimal = margem / 100;
         return {
           nfeProduto: p,
           status: existente ? 'cadastrado' : 'novo',
@@ -217,8 +218,8 @@ export default function NFeImportarPage() {
           selecionado: true,
           irParaEstoque: true,
           unidadesPorCaixa,
-          markupPercentual: markup,
-          precoVenda: arredondarPreco(custoUnitario * (1 + markup / 100)),
+          margemPercentual: margem,
+          precoVenda: margemDecimal >= 1 ? custoUnitario * 10 : arredondarPreco(custoUnitario / (1 - margemDecimal)),
         };
       });
 
@@ -335,9 +336,10 @@ export default function NFeImportarPage() {
     return Math.ceil(v / 0.05) * 0.05;
   };
 
-  // Calcular preço de venda a partir do custo unitário e markup
-  const calcularPrecoVenda = (custoUnitario: number, markup: number): number => {
-    return arredondarPreco(custoUnitario * (1 + markup / 100));
+  // Calcular preço de venda a partir do custo unitário e margem de lucro
+  const calcularPrecoVenda = (custoUnitario: number, margem: number): number => {
+    const m = margem / 100;
+    return m >= 1 ? custoUnitario * 10 : arredondarPreco(custoUnitario / (1 - m));
   };
 
   const updateUnidadesPorCaixa = (index: number, value: string) => {
@@ -347,7 +349,7 @@ export default function NFeImportarPage() {
         if (i === index) {
           const factor = num > 0 ? num : 1;
           const custoUnitario = p.nfeProduto.valorUnitario / factor;
-          const novoPreco = calcularPrecoVenda(custoUnitario, p.markupPercentual);
+          const novoPreco = calcularPrecoVenda(custoUnitario, p.margemPercentual);
           return { ...p, unidadesPorCaixa: num, precoVenda: novoPreco };
         }
         return p;
@@ -361,24 +363,24 @@ export default function NFeImportarPage() {
       prev.map((p, i) => {
         if (i === index) {
           const custoUnitario = getCustoUnitario(p);
-          const markupCalc = custoUnitario > 0 ? ((num / custoUnitario) - 1) * 100 : 0;
-          return { ...p, precoVenda: num, markupPercentual: Math.round(markupCalc * 10) / 10 };
+          const margemCalc = custoUnitario > 0 && num > 0 ? (1 - custoUnitario / num) * 100 : 0;
+          return { ...p, precoVenda: num, margemPercentual: Math.round(margemCalc * 10) / 10 };
         }
         return p;
       })
     );
   };
 
-  const updateMarkupProduto = (index: number, value: string) => {
-    const markup = parseFloat(value) || 0;
+  const updateMargemProduto = (index: number, value: string) => {
+    const margem = parseFloat(value) || 0;
     setProdutosImportacao((prev) =>
       prev.map((p, i) => {
         if (i === index) {
           const custoUnitario = getCustoUnitario(p);
           return {
             ...p,
-            markupPercentual: markup,
-            precoVenda: calcularPrecoVenda(custoUnitario, markup),
+            margemPercentual: margem,
+            precoVenda: calcularPrecoVenda(custoUnitario, margem),
           };
         }
         return p;
@@ -402,16 +404,16 @@ export default function NFeImportarPage() {
     );
   };
 
-  // Apply default markup to all products
-  const applyMarkupAll = () => {
-    const markup = parseFloat(markupDefault) || 40;
+  // Apply default margin to all products
+  const applyMargemAll = () => {
+    const margem = parseFloat(margemDefault) || 30;
     setProdutosImportacao((prev) =>
       prev.map((p) => {
         const custoUnitario = getCustoUnitario(p);
         return {
           ...p,
-          markupPercentual: markup,
-          precoVenda: calcularPrecoVenda(custoUnitario, markup),
+          margemPercentual: margem,
+          precoVenda: calcularPrecoVenda(custoUnitario, margem),
         };
       })
     );
@@ -509,7 +511,7 @@ export default function NFeImportarPage() {
             atualizarDadosFiscais,
             gerarContaPagar,
             vencimentoConta,
-            markupPercentual: parseFloat(markupDefault) || 40,
+            margemPercentual: parseFloat(margemDefault) || 30,
           },
           produtosImportar: produtosSelecionados.map((p) => ({
             codigo: p.nfeProduto.codigo,
@@ -1101,8 +1103,8 @@ export default function NFeImportarPage() {
                                   type="number"
                                   min="0"
                                   step="0.1"
-                                  value={item.markupPercentual || ''}
-                                  onChange={(e) => updateMarkupProduto(index, e.target.value)}
+                                  value={item.margemPercentual || ''}
+                                  onChange={(e) => updateMargemProduto(index, e.target.value)}
                                   className="w-20 h-7 text-center text-xs font-semibold text-blue-600"
                                   placeholder="%"
                                   title="Margem de lucro (%)"
@@ -1326,23 +1328,23 @@ export default function NFeImportarPage() {
                         </div>
                       </div>
 
-                      {/* Markup padrão */}
+                      {/* Margem padrão */}
                       <div className="flex items-start gap-3 p-3 rounded-lg border bg-blue-50/50 dark:bg-blue-950/20 border-blue-200">
                         <div className="flex-1">
                           <Label className="font-semibold flex items-center gap-1.5">
                             <Percent className="h-3.5 w-3.5" />
-                            Markup Padrão
+                            Margem Padrão
                           </Label>
                           <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                            Margem padrão aplicada ao custo unitário de cada produto (dividido pela quantidade por caixa, quando aplicável). O preço é arredondado automaticamente para múltiplos de R$ 0,05.
+                            Margem de lucro padrão aplicada ao custo unitário de cada produto. O preço é calculado como custo / (1 - margem%). Dividido pela quantidade por caixa quando aplicável. Arredondado para múltiplos de R$ 0,05.
                           </p>
                           <div className="flex items-center gap-2">
                             <Input
                               type="number"
                               min="0"
                               max="999"
-                              value={markupDefault}
-                              onChange={(e) => setMarkupDefault(e.target.value)}
+                              value={margemDefault}
+                              onChange={(e) => setMargemDefault(e.target.value)}
                               className="h-9 w-28 text-base font-bold text-blue-600"
                             />
                             <span className="text-sm font-semibold text-muted-foreground">%</span>
@@ -1350,7 +1352,7 @@ export default function NFeImportarPage() {
                               type="button"
                               variant="outline"
                               size="sm"
-                              onClick={applyMarkupAll}
+                              onClick={applyMargemAll}
                               className="h-8 text-xs gap-1"
                             >
                               <RefreshCw className="h-3 w-3" />
@@ -1474,7 +1476,7 @@ export default function NFeImportarPage() {
               <div className="flex-1 overflow-y-auto">
                 <ProdutoFiscalDetail
                   item={produtosImportacao[dialogDetalhes]}
-                  markup={produtosImportacao[dialogDetalhes]?.markupPercentual || 30}
+                  margem={produtosImportacao[dialogDetalhes]?.margemPercentual || 30}
                 />
               </div>
             )}
@@ -1644,9 +1646,10 @@ export default function NFeImportarPage() {
 // Componente: Detalhes Fiscais do Produto
 // =====================================================
 
-function ProdutoFiscalDetail({ item, markup }: { item: ProdutoImportacao; markup: number }) {
+function ProdutoFiscalDetail({ item, margem }: { item: ProdutoImportacao; margem: number }) {
   const p = item.nfeProduto;
-  const precoVenda = p.valorUnitario * (1 + markup / 100);
+  const m = margem / 100;
+  const precoVenda = m >= 1 ? p.valorUnitario * 10 : (p.valorUnitario / (1 - m));
 
   return (
     <div className="space-y-4">
@@ -1656,7 +1659,7 @@ function ProdutoFiscalDetail({ item, markup }: { item: ProdutoImportacao; markup
           <Info className="h-4 w-4 text-blue-600" />
           <AlertTitle className="text-blue-700">Produto NOVO</AlertTitle>
           <AlertDescription className="text-blue-600">
-            Este produto será criado com os dados abaixo. O preço de venda será calculado com {markup}% de margem.
+            Este produto será criado com os dados abaixo. O preço de venda será calculado com {margem}% de margem de lucro.
           </AlertDescription>
         </Alert>
       )}
@@ -1717,7 +1720,7 @@ function ProdutoFiscalDetail({ item, markup }: { item: ProdutoImportacao; markup
           </div>
           {item.status === 'novo' && (
             <div className="flex justify-between col-span-2">
-              <span className="text-muted-foreground font-semibold">Preço de venda ({markup}% markup):</span>
+              <span className="text-muted-foreground font-semibold">Preço de venda ({margem}% margem):</span>
               <span className="font-mono font-bold text-green-600">R$ {precoVenda.toFixed(2)}</span>
             </div>
           )}

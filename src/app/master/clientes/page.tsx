@@ -128,6 +128,7 @@ export default function ClientesPage() {
   const [segmentoId, setSegmentoId] = useState<string>('');
   const [nomeMarca, setNomeMarca] = useState<string>('');
   const [permitirFotoProduto, setPermitirFotoProduto] = useState(true);
+  const [podeReimprimir, setPodeReimprimir] = useState(true);
 
   // Carregar dados dos admins das empresas
   useEffect(() => {
@@ -302,6 +303,7 @@ export default function ClientesPage() {
               segmento_id: segmentoId || null,
               nome_marca: nomeMarca || null,
               permitir_foto_produto: permitirFotoProduto,
+              pode_reimprimir: podeReimprimir,
             })
             .eq('id', empresaId);
 
@@ -393,6 +395,7 @@ export default function ClientesPage() {
             segmento_id: segmentoId || null,
             nome_marca: nomeMarca || null,
             permitir_foto_produto: permitirFotoProduto,
+            pode_reimprimir: podeReimprimir,
             atualizado_em: new Date().toISOString(),
           })
           .eq('id', selectedCliente.id);
@@ -431,13 +434,14 @@ export default function ClientesPage() {
     const supabase = getSupabaseClient();
     const { data: empresa } = await supabase
       .from('empresas')
-      .select('segmento_id, nome_marca, permitir_foto_produto')
+      .select('segmento_id, nome_marca, permitir_foto_produto, pode_reimprimir')
       .eq('id', cliente.id)
       .single();
     if (empresa) {
       setSegmentoId(empresa.segmento_id || '');
       setNomeMarca(empresa.nome_marca || '');
       setPermitirFotoProduto(empresa.permitir_foto_produto ?? true);
+      setPodeReimprimir(empresa.pode_reimprimir ?? true);
     }
 
     setEditDialogOpen(true);
@@ -933,6 +937,18 @@ export default function ClientesPage() {
                         <div>
                           <Label htmlFor="permitir_foto">Permitir fotos nos produtos</Label>
                           <p className="text-xs text-muted-foreground">Quando desativado, o campo de foto será ocultado no cadastro de produtos</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <Switch
+                          id="pode_reimprimir"
+                          checked={podeReimprimir}
+                          onCheckedChange={setPodeReimprimir}
+                        />
+                        <div>
+                          <Label htmlFor="pode_reimprimir">Permitir reimpressão de cupons</Label>
+                          <p className="text-xs text-muted-foreground">Quando desativado, a opção "Reimprimir" será ocultada no PDV</p>
                         </div>
                       </div>
                     </div>
@@ -1464,6 +1480,18 @@ export default function ClientesPage() {
                         <div>
                           <Label htmlFor="edit_permitir_foto">Permitir fotos nos produtos</Label>
                           <p className="text-xs text-muted-foreground">Quando desativado, o campo de foto será ocultado no cadastro de produtos</p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <Switch
+                          id="edit_pode_reimprimir"
+                          checked={podeReimprimir}
+                          onCheckedChange={setPodeReimprimir}
+                        />
+                        <div>
+                          <Label htmlFor="edit_pode_reimprimir">Permitir reimpressão de cupons</Label>
+                          <p className="text-xs text-muted-foreground">Quando desativado, a opção "Reimprimir" será ocultada no PDV</p>
                         </div>
                       </div>
                   </div>

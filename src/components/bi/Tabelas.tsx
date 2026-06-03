@@ -32,7 +32,7 @@ export function ProdutosMaisVendidos({ dados, categorias }: ProdutosMaisVendidos
                 <Trophy className="h-5 w-5 text-amber-500" />
                 Produtos Mais Vendidos
               </CardTitle>
-              <CardDescription>Top 10 por faturamento</CardDescription>
+              <CardDescription>Top 20 por faturamento</CardDescription>
             </div>
             <Badge variant="secondary">{dados.length} produtos</Badge>
           </div>

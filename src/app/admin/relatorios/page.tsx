@@ -199,7 +199,7 @@ export default function RelatoriosPage() {
     });
     return Object.values(itemMap)
       .sort((a, b) => b.quantidade - a.quantidade)
-      .slice(0, 10)
+      .slice(0, 20)
       .map(p => ({
         nome: p.nome.length > 25 ? p.nome.substring(0, 23) + '…' : p.nome,
         quantidade: p.quantidade,

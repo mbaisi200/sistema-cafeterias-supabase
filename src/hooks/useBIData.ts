@@ -329,7 +329,7 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
         percentualVendas: totalVendas > 0 ? (p.valorTotal / totalVendas) * 100 : 0 
       }))
       .sort((a, b) => b.valorTotal - a.valorTotal)
-      .slice(0, 10);
+      .slice(0, 20);
   }, [vendasConcluidas, produtosMap, totalVendas, filtros.produtos, filtros.categorias]);
 
   // Vendas por categoria - CORRIGIDO
