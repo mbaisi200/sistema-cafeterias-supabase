@@ -76,17 +76,12 @@ interface Servico {
   ativo: boolean;
 }
 
-const CATEGORIAS = [
-  'Cabelo',
-  'Estética',
-  'Manicure',
-  'Pedicure',
-  'Massagem',
-  'Consultoria',
-  'Manutenção',
-  'Limpeza',
-  'Outros',
-];
+interface ServicoCategoria {
+  id: string;
+  nome: string;
+  cor: string;
+  ativo: boolean;
+}
 
 const DURACOES = [15, 30, 45, 60, 90, 120, 150, 180];
 
@@ -105,6 +100,10 @@ export function ServicosTab() {
   const [editando, setEditando] = useState<Servico | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Servico | null>(null);
+  const [servicosCategorias, setServicosCategorias] = useState<ServicoCategoria[]>([]);
+  const [catDialogOpen, setCatDialogOpen] = useState(false);
+  const [novaCatNome, setNovaCatNome] = useState('');
+  const [novaCatCor, setNovaCatCor] = useState('#6B7280');
 
   const carregar = async () => {
     if (!empresaId) {
@@ -140,7 +139,53 @@ export function ServicosTab() {
     }
   };
 
-  useEffect(() => { carregar(); }, [empresaId]);
+  const categoriasOptions = useMemo(() => {
+    return servicosCategorias.filter(c => c.ativo).map(c => c.nome);
+  }, [servicosCategorias]);
+
+  const loadCategorias = async () => {
+    if (!empresaId) return;
+    try {
+      const supabase = getSupabaseClient();
+      const { data } = await supabase
+        .from('servicos_categorias')
+        .select('id, nome, cor, ativo')
+        .eq('empresa_id', empresaId)
+        .order('nome');
+      setServicosCategorias(data || []);
+    } catch {
+      setServicosCategorias([]);
+    }
+  };
+
+  const handleAddCategoria = async () => {
+    if (!novaCatNome.trim() || !empresaId) return;
+    try {
+      const supabase = getSupabaseClient();
+      const { error } = await supabase.from('servicos_categorias').insert({
+        empresa_id: empresaId,
+        nome: novaCatNome.trim(),
+        cor: novaCatCor,
+        ativo: true,
+      });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      setNovaCatNome('');
+      setNovaCatCor('#6B7280');
+      setCatDialogOpen(false);
+      await loadCategorias();
+      toast.success('Categoria adicionada!');
+    } catch {
+      toast.error('Erro ao adicionar categoria');
+    }
+  };
+
+  useEffect(() => {
+    carregar();
+    loadCategorias();
+  }, [empresaId]);
 
   const filtered = useMemo(() => {
     return servicos.filter((s) => {
@@ -354,7 +399,7 @@ export function ServicosTab() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todas">Todas</SelectItem>
-                  {CATEGORIAS.map((cat) => (
+                  {categoriasOptions.map((cat) => (
                     <SelectItem key={cat} value={cat}>{cat}</SelectItem>
                   ))}
                 </SelectContent>
@@ -495,15 +540,22 @@ export function ServicosTab() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Categoria</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Categoria</Label>
+                  <Button type="button" variant="ghost" size="sm" className="h-6 text-xs gap-1" onClick={() => setCatDialogOpen(true)}>
+                    <Plus className="h-3 w-3" /> Nova
+                  </Button>
+                </div>
                 <Select name="categoria" defaultValue={editando?.categoria || 'Outros'}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIAS.map((cat) => (
+                    {categoriasOptions.length > 0 ? categoriasOptions.map((cat) => (
                       <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                    ))}
+                    )) : (
+                      <SelectItem value="Outros">Outros</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>
@@ -588,6 +640,47 @@ export function ServicosTab() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Dialog Nova Categoria */}
+      <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Nova Categoria de Serviço</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="catNome">Nome da Categoria</Label>
+              <Input
+                id="catNome"
+                placeholder="Ex: Barbearia, Estética..."
+                value={novaCatNome}
+                onChange={(e) => setNovaCatNome(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddCategoria(); }}
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="catCor">Cor</Label>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  id="catCor"
+                  value={novaCatCor}
+                  onChange={(e) => setNovaCatCor(e.target.value)}
+                  className="h-10 w-16 rounded border cursor-pointer"
+                />
+                <span className="text-sm text-muted-foreground">{novaCatCor}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCatDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleAddCategoria} disabled={!novaCatNome.trim()} className="bg-blue-600 hover:bg-blue-700">
+              Adicionar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

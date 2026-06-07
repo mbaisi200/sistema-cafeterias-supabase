@@ -87,6 +87,7 @@ export function useProdutos() {
         uberEatsExternalCode: p.uber_eats_external_code,
         uberEatsSyncStatus: p.uber_eats_sync_status,
         uberEatsProductId: p.uber_eats_product_id,
+        disponivel99Food: p.disponivel_99food,
         isCombo: p.is_combo,
         comboPreco: p.combo_preco,
         unidadesPorCaixa: p.unidades_por_caixa,
@@ -157,6 +158,7 @@ export function useProdutos() {
       disponivel_uber_eats: dados.disponivelUberEats || false,
       uber_eats_external_code: dados.uberEatsExternalCode || null,
       uber_eats_sync_status: dados.uberEatsSyncStatus || 'not_synced',
+      disponivel_99food: dados.disponivel99Food || false,
       ativo: true,
       // Unidades por caixa e preço unidade
       unidades_por_caixa: dados.unidadesPorCaixa || 0,
@@ -217,6 +219,9 @@ export function useProdutos() {
     if (dados.disponivelUberEats !== undefined) updateData.disponivel_uber_eats = dados.disponivelUberEats;
     if (dados.uberEatsExternalCode !== undefined) updateData.uber_eats_external_code = dados.uberEatsExternalCode;
     if (dados.uberEatsSyncStatus !== undefined) updateData.uber_eats_sync_status = dados.uberEatsSyncStatus;
+
+    // Campos de 99Food
+    if (dados.disponivel99Food !== undefined) updateData.disponivel_99food = dados.disponivel99Food;
 
     // Campos de Combo
     if (dados.isCombo !== undefined) updateData.is_combo = dados.isCombo;
@@ -599,11 +604,19 @@ export function useFuncionarios() {
         perm_cancelar_venda: dados.perm_cancelar_venda ?? dados.permissoes?.cancelarVenda ?? false,
         perm_dar_desconto: dados.perm_dar_desconto ?? dados.permissoes?.darDesconto ?? false,
         ativo: dados.ativo ?? true,
+        cep: dados.cep || null,
+        logradouro: dados.logradouro || null,
+        numero: dados.numero || null,
+        bairro: dados.bairro || null,
+        cidade: dados.cidade || null,
+        estado: dados.estado || null,
       })
       .select()
       .single();
 
     if (error) throw error;
+    // Recarregar lista imediatamente (caso realtime não esteja ativo)
+    carregarDados();
     return data.id;
   };
 
@@ -631,6 +644,7 @@ export function useFuncionarios() {
       .eq('id', id);
 
     if (error) throw error;
+    carregarDados();
   };
 
   const excluirFuncionario = async (id: string) => {
@@ -640,6 +654,7 @@ export function useFuncionarios() {
       .eq('id', id);
 
     if (error) throw error;
+    carregarDados();
   };
 
   const hardDeleteFuncionario = async (id: string) => {
@@ -649,6 +664,7 @@ export function useFuncionarios() {
       .eq('id', id);
 
     if (error) throw error;
+    carregarDados();
   };
 
   return { funcionarios, loading, adicionarFuncionario, atualizarFuncionario, excluirFuncionario, hardDeleteFuncionario };

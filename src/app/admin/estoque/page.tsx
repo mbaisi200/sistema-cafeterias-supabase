@@ -150,6 +150,17 @@ export default function EstoquePage() {
   const [movFiltroTipo, setMovFiltroTipo] = useState<string>('todos');
   const [reservas, setReservas] = useState<Record<string, number>>({});
 
+  // Sugestão de compra baseada em consumo
+  const [sugerirPeriodo, setSugerirPeriodo] = useState('3');
+  const [sugerirDataInicio, setSugerirDataInicio] = useState('');
+  const [sugerirDataFim, setSugerirDataFim] = useState('');
+  const [sugestoes, setSugestoes] = useState<Record<string, { mediaMensal: number; sugestao: number }>>({});
+  const [loadingSugestoes, setLoadingSugestoes] = useState(false);
+  const [sugerirSearch, setSugerirSearch] = useState('');
+  const [sugerirCategoria, setSugerirCategoria] = useState('todos');
+  const [sugerirFornecedor, setSugerirFornecedor] = useState('todos');
+  const [sugerirApenasBaixo, setSugerirApenasBaixo] = useState(true);
+
   // Fornecedor resolvido (nome do registry ou texto livre)
   const fornecedorResolvido = useMemo(() => {
     if (fornecedorSelecionado === '__outro__') {
@@ -236,6 +247,58 @@ export default function EstoquePage() {
     };
     loadReservas();
   }, [empresaId, produtos]);
+
+  // Calcular sugestões de compra baseadas no consumo do período
+  useEffect(() => {
+    if (!empresaId || produtos.length === 0) return;
+
+    const periodo = parseInt(sugerirPeriodo);
+    const fim = sugerirDataFim || new Date().toISOString().split('T')[0];
+    let inicio: string;
+    if (sugerirPeriodo === 'custom' && sugerirDataInicio) {
+      inicio = sugerirDataInicio;
+    } else {
+      const d = new Date();
+      d.setMonth(d.getMonth() - periodo);
+      inicio = d.toISOString().split('T')[0];
+    }
+
+    setLoadingSugestoes(true);
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
+
+    supabase
+      .from('estoque_movimentos')
+      .select('produto_id, produto_nome, quantidade, tipo')
+      .eq('empresa_id', empresaId)
+      .in('tipo', ['saida', 'venda'])
+      .gte('criado_em', inicio + 'T00:00:00')
+      .lte('criado_em', fim + 'T23:59:59')
+      .then(({ data, error }) => {
+        if (error) {
+          console.error('Erro ao buscar movimentos para sugestão:', error);
+          setLoadingSugestoes(false);
+          return;
+        }
+
+        const dias = Math.max(1, (new Date(fim).getTime() - new Date(inicio).getTime()) / (1000 * 60 * 60 * 24));
+        const meses = dias / 30;
+
+        const consumo: Record<string, number> = {};
+        (data || []).forEach(m => {
+          consumo[m.produto_id] = (consumo[m.produto_id] || 0) + Math.abs(Number(m.quantidade));
+        });
+
+        const novasSugestoes: Record<string, { mediaMensal: number; sugestao: number }> = {};
+        Object.entries(consumo).forEach(([produtoId, total]) => {
+          const mediaMensal = total / meses;
+          const sugestao = Math.max(0, Math.ceil(mediaMensal * 1.2 - (produtos.find(p => p.id === produtoId)?.estoqueAtual || 0)));
+          novasSugestoes[produtoId] = { mediaMensal: Math.round(mediaMensal * 100) / 100, sugestao };
+        });
+        setSugestoes(novasSugestoes);
+        setLoadingSugestoes(false);
+      });
+  }, [empresaId, produtos, sugerirPeriodo, sugerirDataInicio, sugerirDataFim]);
 
   // Filtros
   const produtosFiltrados = useMemo(() => {
@@ -980,7 +1043,8 @@ export default function EstoquePage() {
 
           {showBaixoEstoque && (
             <Card className="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/50">
-              <CardContent className="p-4">
+              <CardContent className="p-4 space-y-4">
+                {/* Preview dos produtos com estoque baixo */}
                 {produtosBaixoEstoque.length > 0 ? (
                   <>
                     <div className="border border-amber-200 dark:border-amber-800/50 rounded-lg overflow-hidden">
@@ -1017,6 +1081,126 @@ export default function EstoquePage() {
                     Nenhum produto com estoque baixo
                   </div>
                 )}
+
+                {/* Sugestão de compra baseada em consumo */}
+                <div className="border border-amber-200 dark:border-amber-800/50 rounded-lg p-3 bg-white/60 dark:bg-amber-950/10">
+                  <div className="flex flex-col md:flex-row md:items-center gap-3 mb-3">
+                    <div className="flex items-center gap-2">
+                      <Package className="h-4 w-4 text-amber-600" />
+                      <span className="text-sm font-semibold text-amber-800 dark:text-amber-300">Sugestão de Compra</span>
+                    </div>
+                    <div className="flex items-center gap-2 flex-1 flex-wrap">
+                      <Select value={sugerirPeriodo} onValueChange={setSugerirPeriodo}>
+                        <SelectTrigger className="h-8 text-xs w-[130px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="3">Últimos 3 meses</SelectItem>
+                          <SelectItem value="6">Últimos 6 meses</SelectItem>
+                          <SelectItem value="12">Últimos 12 meses</SelectItem>
+                          <SelectItem value="custom">Personalizado</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {sugerirPeriodo === 'custom' && (
+                        <>
+                          <Input type="date" value={sugerirDataInicio} onChange={(e) => setSugerirDataInicio(e.target.value)} className="h-8 w-[130px] text-xs" />
+                          <Input type="date" value={sugerirDataFim} onChange={(e) => setSugerirDataFim(e.target.value)} className="h-8 w-[130px] text-xs" />
+                        </>
+                      )}
+                      {loadingSugestoes && <Loader2 className="h-4 w-4 animate-spin text-amber-600" />}
+                    </div>
+                  </div>
+
+                  {/* Filtros da sugestão */}
+                  <div className="flex flex-col md:flex-row gap-2 mb-3">
+                    <div className="relative flex-1 min-w-0">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                      <Input
+                        placeholder="Buscar produto..."
+                        value={sugerirSearch}
+                        onChange={(e) => setSugerirSearch(e.target.value)}
+                        className="h-8 text-xs pl-8"
+                      />
+                    </div>
+                    <Select value={sugerirCategoria} onValueChange={setSugerirCategoria}>
+                      <SelectTrigger className="h-8 text-xs w-full md:w-[150px]">
+                        <SelectValue placeholder="Categoria" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todas as Categorias</SelectItem>
+                        {categorias.map((cat: any) => (
+                          <SelectItem key={cat.id} value={cat.id}>{cat.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Select value={sugerirFornecedor} onValueChange={setSugerirFornecedor}>
+                      <SelectTrigger className="h-8 text-xs w-full md:w-[150px]">
+                        <SelectValue placeholder="Fornecedor" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todos">Todos os Fornecedores</SelectItem>
+                        {fornecedores.map((f: any) => (
+                          <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <label className="flex items-center gap-1.5 cursor-pointer h-8 px-2 rounded-md border border-border/50 hover:bg-amber-100/30 text-xs text-amber-700 dark:text-amber-400">
+                      <input
+                        type="checkbox"
+                        checked={sugerirApenasBaixo}
+                        onChange={(e) => setSugerirApenasBaixo(e.target.checked)}
+                        className="accent-amber-600"
+                      />
+                      Só baixo estoque
+                    </label>
+                  </div>
+
+                  {(() => {
+                    const produtosSugerir = produtos.filter((p: any) => {
+                      if (sugerirApenasBaixo && (p.estoqueAtual || 0) > (p.estoqueMinimo || 0)) return false;
+                      if (sugerirSearch && !p.nome.toLowerCase().includes(sugerirSearch.toLowerCase())) return false;
+                      if (sugerirCategoria !== 'todos' && p.categoriaId !== sugerirCategoria) return false;
+                      if (sugerirFornecedor !== 'todos' && p.fornecedorId !== sugerirFornecedor) return false;
+                      return sugestoes[p.id] !== undefined;
+                    });
+
+                    return produtosSugerir.length > 0 ? (
+                      <div className="max-h-[400px] overflow-y-auto border border-amber-200 dark:border-amber-800/50 rounded-lg">
+                        <table className="w-full text-sm">
+                          <thead className="sticky top-0 bg-amber-100/80 dark:bg-amber-900/50 backdrop-blur-sm">
+                            <tr>
+                              <th className="text-left text-amber-800 dark:text-amber-300 font-medium px-2 py-1.5">Produto</th>
+                              <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-2 py-1.5">Estoque</th>
+                              <th className="text-center text-amber-800 dark:text-amber-300 font-medium px-2 py-1.5">Méd./mês</th>
+                              <th className="text-right text-amber-800 dark:text-amber-300 font-medium px-2 py-1.5">Sugerido</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {produtosSugerir.map((p: any, idx: number) => {
+                              const sug = sugestoes[p.id];
+                              const sugestao = sug?.sugestao ?? 0;
+                              return (
+                                <tr key={p.id} className={`${idx % 2 === 0 ? 'bg-amber-50/50 dark:bg-amber-950/10' : ''} border-t border-amber-100 dark:border-amber-800/30`}>
+                                  <td className="text-amber-800 dark:text-amber-400 px-2 py-1.5 truncate max-w-[200px]" title={p.nome}>{p.nome}</td>
+                                  <td className={`text-center px-2 py-1.5 font-mono ${(p.estoqueAtual || 0) <= (p.estoqueMinimo || 0) ? 'text-red-600 font-semibold' : 'text-amber-800 dark:text-amber-400'}`}>{p.estoqueAtual ?? 0}</td>
+                                  <td className="text-center text-amber-800 dark:text-amber-400 px-2 py-1.5 font-mono">{sug?.mediaMensal ?? '-'}</td>
+                                  <td className="text-right text-amber-800 dark:text-amber-400 px-2 py-1.5 font-mono font-semibold">{sugestao > 0 ? sugestao : '—'}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <div className="border border-amber-200 dark:border-amber-800/50 rounded-lg p-4 text-center text-xs text-amber-600/70">
+                        {loadingSugestoes ? 'Carregando...' : 'Nenhum produto encontrado com os filtros atuais.'}
+                      </div>
+                    );
+                  })()}
+                  <p className="text-xs text-amber-600/60 dark:text-amber-500/60 mt-2">
+                    * Sugestão baseada no consumo médio do período com margem de segurança de 20%.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1874,10 +2058,10 @@ export default function EstoquePage() {
             </DialogHeader>
             
             <div className="flex-1 overflow-y-auto">
-              {(produtoSelecionado ? movimentacoesProduto : movimentacoes).length === 0 ? (
+              {(produtoSelecionado ? movimentacoesProduto : movimentacoesFiltradas).length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
                   <History className="h-12 w-12 mb-2 opacity-30" />
-                  <p>Nenhuma movimentação registrada</p>
+                  <p>Nenhuma movimentação encontrada para os filtros atuais</p>
                 </div>
               ) : (
                 <Table>
@@ -1893,7 +2077,7 @@ export default function EstoquePage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(produtoSelecionado ? movimentacoesProduto : movimentacoes).map((mov) => (
+                    {(produtoSelecionado ? movimentacoesProduto : movimentacoesFiltradas).map((mov) => (
                       <TableRow key={mov.id}>
                         <TableCell className="text-sm">
                           {mov.criadoEm?.toLocaleDateString('pt-BR')} {mov.criadoEm?.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}

@@ -747,4 +747,16 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 ---
 
+## 📱 Mobile First — Compromisso
+
+Toda nova tela ou funcionalidade **deve** ser criada com layout responsivo para dispositivos móveis desde o início, seguindo estas diretrizes:
+
+- **Tabelas**: em mobile, converter para **cards empilhados** (divs com borda/bg) em vez de `<Table>` com `hidden md:table-cell`. Manter `<Table>` intacta para desktop dentro de `<div className="hidden md:block">`.
+- **Cards de filtro/status**: usar `flex-wrap`, `gap-1 md:gap-2`, `h-7 md:h-8`, `text-[11px] md:text-xs`, `px-2 md:px-3` para caber sem estourar.
+- **Botões de ação**: em mobile, priorizar ícones com `title` em vez de texto; texto usar `hidden md:inline`.
+- **Overflow**: nunca depender de scroll horizontal do navegador — o layout deve caber em 375px de largura sem scroll horizontal na página. Se precisar de muito conteúdo, converter para cards.
+- **Exemplos já implementados**: Financeiro (A Pagar / A Receber) servem como referência de cards em mobile + tabela em desktop.
+
+---
+
 > ⚠️ **IMPORTANTE PARA AGENTES IA:** NUNCA fazer `git push`, `git commit`, ou `git add` sem ser **explicitamente solicitado** pelo usuário. Apenas altere arquivos locais. Commits e pushes só devem ser feitos quando o usuário pedir expressamente.

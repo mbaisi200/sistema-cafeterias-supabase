@@ -631,6 +631,22 @@ export function FornecedoresTab() {
               {activeTab === 'endereco' && (
                 <div className="grid gap-4">
                   <div className="space-y-2">
+                    <Label htmlFor="cep">CEP</Label>
+                    <div className="relative max-w-xs">
+                      <Input
+                        id="cep"
+                        name="cep"
+                        placeholder="00000-000"
+                        value={cepFornecedor}
+                        onChange={(e) => setCepFornecedor(mascaraCEP(e.target.value))}
+                        maxLength={9}
+                      />
+                      {buscandoCEP && (
+                        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="logradouro">Logradouro</Label>
                     <Input
                       id="logradouro"
@@ -640,7 +656,7 @@ export function FornecedoresTab() {
                       onChange={(e) => setLogradouroFornecedor(e.target.value)}
                     />
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="numero">Número</Label>
                       <Input
@@ -650,7 +666,7 @@ export function FornecedoresTab() {
                         defaultValue={editandoFornecedor?.numero || ''}
                       />
                     </div>
-                    <div className="col-span-2 space-y-2">
+                    <div className="space-y-2">
                       <Label htmlFor="complemento">Complemento</Label>
                       <Input
                         id="complemento"
@@ -658,22 +674,6 @@ export function FornecedoresTab() {
                         placeholder="Sala, Bloco, etc."
                         defaultValue={editandoFornecedor?.complemento || ''}
                       />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="cep">CEP</Label>
-                      <div className="relative">
-                        <Input
-                          id="cep"
-                          name="cep"
-                          placeholder="00000-000"
-                          value={cepFornecedor}
-                          onChange={(e) => setCepFornecedor(mascaraCEP(e.target.value))}
-                          maxLength={9}
-                        />
-                        {buscandoCEP && (
-                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
-                        )}
-                      </div>
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

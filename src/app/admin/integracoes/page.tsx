@@ -51,17 +51,31 @@ const integracoesDisponiveis = [
     ],
   },
   {
-    id: 'whatsapp',
-    nome: 'WhatsApp Business',
-    descricao: 'Receba pedidos via WhatsApp e integre diretamente ao seu sistema de gestão.',
-    icone: <MessageCircle className="h-10 w-10" />,
-    disponivel: false,
-    cor: 'text-emerald-500',
-    bgCor: 'bg-emerald-50',
+    id: 'noventa-e-nove',
+    nome: '99Food',
+    descricao: 'Conecte seu cardápio ao 99Food e receba pedidos automaticamente via Open Delivery.',
+    icone: (
+      <svg viewBox="0 0 512 512" className="h-10 w-10 fill-current">
+        <g transform="translate(0, 512) scale(0.1, -0.1)">
+          <path d="M1509 4648 c-91 -52 -105 -173 -27 -245 24 -22 77 -47 85 -39 2 2 -7 27 -21 55 -32 62 -33 103 -4 131 45 41 87 22 128 -60 17 -33 35 -60 40 -60 5 0 14 18 21 39 40 134 -103 249 -222 179z"/>
+          <path d="M3464 4651 c-42 -26 -72 -66 -80 -108 -7 -36 10 -113 25 -113 4 0 20 24 36 53 39 73 53 87 90 87 33 0 58 -20 69 -55 3 -12 -6 -45 -24 -84 -17 -35 -29 -66 -27 -68 8 -7 62 18 85 40 55 51 67 123 31 187 -41 72 -139 101 -205 61z"/>
+          <path d="M1185 3403 c-121 -44 -196 -110 -249 -222 -28 -61 -31 -74 -31 -166 1 -128 24 -191 102 -275 50 -55 154 -120 190 -120 7 0 13 -2 13 -4 0 -3 -50 -80 -110 -173 -61 -92 -109 -175 -108 -183 3 -12 27 -16 133 -18 72 -1 139 0 151 2 14 4 82 99 208 291 103 158 193 300 201 318 66 159 24 341 -105 460 -76 71 -146 99 -260 104 -64 3 -97 -1 -135 -14z m199 -252 c91 -60 88 -194 -6 -251 -105 -64 -245 43 -214 164 8 31 53 85 80 96 38 16 109 11 140 -9z"/>
+          <path d="M2075 3406 c-193 -61 -304 -219 -293 -420 9 -165 115 -305 275 -360 l34 -12 -115 -174 c-86 -130 -112 -178 -104 -187 15 -18 278 -18 300 0 26 20 379 568 395 611 40 112 34 236 -17 336 -28 55 -101 133 -154 164 -90 53 -230 71 -321 42z m189 -255 c94 -62 87 -203 -14 -253 -67 -34 -145 -13 -187 51 -42 62 -26 141 37 195 40 33 119 36 164 7z"/>
+          <path d="M4057 1963 c-4 -3 -7 -71 -7 -150 0 -78 -3 -143 -7 -143 -5 0 -28 7 -53 16 -56 20 -179 20 -242 1 -106 -33 -218 -130 -263 -230 -49 -106 -49 -248 0 -354 35 -77 125 -167 204 -205 57 -28 79 -33 161 -36 76 -3 106 1 152 16 47 17 57 18 62 6 4 -11 30 -14 121 -14 l115 0 0 550 0 550 -118 0 c-65 0 -122 -3 -125 -7z m-109 -553 c130 -79 74 -280 -78 -280 -152 0 -208 201 -78 280 43 26 113 26 156 0z"/>
+          <path d="M1110 1894 c-95 -26 -168 -86 -218 -179 l-27 -50 -3 -398 -3 -398 138 3 138 3 5 175 5 175 205 6 c113 3 206 6 208 7 1 1 1 53 0 115 l-3 112 -205 5 -205 5 -3 61 c-2 49 1 65 18 87 l21 27 222 0 c122 0 228 4 235 8 9 7 12 39 10 128 l-3 119 -240 2 c-186 1 -252 -2 -295 -13z"/>
+          <path d="M1980 1698 c-129 -20 -258 -115 -314 -229 -104 -213 -13 -471 201 -572 129 -60 302 -47 418 33 212 146 247 447 74 635 -97 105 -240 156 -379 133z m152 -293 c92 -62 83 -212 -15 -258 -119 -57 -251 47 -217 172 10 40 50 87 85 102 42 17 109 10 147 -16z"/>
+          <path d="M2896 1698 c-180 -24 -324 -168 -357 -356 -31 -174 69 -361 238 -443 57 -29 79 -34 158 -37 163 -7 283 52 375 184 92 132 92 335 0 468 -95 140 -247 207 -414 184z m144 -290 c124 -85 68 -278 -80 -278 -152 0 -208 201 -78 280 46 28 115 27 158 -2z"/>
+        </g>
+      </svg>
+    ),
+    disponivel: true,
+    cor: 'text-purple-600',
+    bgCor: 'bg-purple-50',
     recursos: [
-      'Recebimento de pedidos via chat',
-      'Respostas automáticas',
-      'Integração com catálogo',
+      'Recebimento automático de pedidos',
+      'Sincronização de cardápio (Open Delivery)',
+      'Atualização de estoque em tempo real',
+      'Gestão completa de pedidos',
     ],
   },
   {
@@ -90,6 +104,20 @@ const integracoesDisponiveis = [
       'Pagamentos online',
       'PIX automático',
       'Conciliação financeira',
+    ],
+  },
+  {
+    id: 'whatsapp',
+    nome: 'WhatsApp Business',
+    descricao: 'Receba pedidos via WhatsApp e integre diretamente ao seu sistema de gestão.',
+    icone: <MessageCircle className="h-10 w-10" />,
+    disponivel: false,
+    cor: 'text-emerald-500',
+    bgCor: 'bg-emerald-50',
+    recursos: [
+      'Recebimento de pedidos via chat',
+      'Respostas automáticas',
+      'Integração com catálogo',
     ],
   },
 ];
@@ -127,6 +155,13 @@ function IntegracoesContent() {
         .eq('empresa_id', empresaId)
         .maybeSingle();
 
+      // Carregar status do 99Food
+      const { data: noventaENoveConfig } = await supabase
+        .from('noventa_e_nove_config')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .maybeSingle();
+
       const status: Record<string, IntegracaoStatus> = {};
 
       if (ifoodConfig) {
@@ -150,6 +185,19 @@ function IntegracoesContent() {
         };
       } else {
         status['uber-eats'] = {
+          ativo: false,
+          status: 'disconnected'
+        };
+      }
+
+      if (noventaENoveConfig) {
+        status['noventa-e-nove'] = {
+          ativo: noventaENoveConfig.ativo || false,
+          status: noventaENoveConfig.status || 'disconnected',
+          totalPedidos: noventaENoveConfig.total_pedidos_recebidos || 0
+        };
+      } else {
+        status['noventa-e-nove'] = {
           ativo: false,
           status: 'disconnected'
         };

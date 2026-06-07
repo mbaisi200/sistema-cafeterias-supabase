@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useFuncionarios } from '@/hooks/useSupabase';
 import { getSupabaseClient } from '@/lib/supabase';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Plus,
   Search,
@@ -114,6 +114,51 @@ export default function FuncionariosPage() {
   const [devices, setDevices] = useState<Dispositivo[]>([]);
   const { toast } = useToast();
 
+  // CEP / Endereço states
+  const [cepFunc, setCepFunc] = useState('');
+  const [logradouroFunc, setLogradouroFunc] = useState('');
+  const [numeroFunc, setNumeroFunc] = useState('');
+  const [bairroFunc, setBairroFunc] = useState('');
+  const [cidadeFunc, setCidadeFunc] = useState('');
+  const [estadoFunc, setEstadoFunc] = useState('');
+  const [buscandoCEPFunc, setBuscandoCEPFunc] = useState(false);
+  const cepTimerFuncRef = useRef<NodeJS.Timeout | null>(null);
+
+  const mascaraCEP = (valor: string) => valor.replace(/\D/g, '').replace(/(\d{5})(\d{0,3})/, '$1-$2');
+
+  const buscarCEP = useCallback(async (cepLimpo: string) => {
+    if (cepLimpo.length !== 8) return;
+    setBuscandoCEPFunc(true);
+    try {
+      const res = await fetch(`/api/cep/${cepLimpo}`);
+      const data = await res.json();
+      if (!data.sucesso) {
+        toast({ variant: 'destructive', title: 'CEP não encontrado' });
+        return;
+      }
+      setLogradouroFunc(data.logradouro || '');
+      setBairroFunc(data.bairro || '');
+      setCidadeFunc(data.localidade || '');
+      setEstadoFunc(data.uf || '');
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro ao buscar CEP' });
+    } finally {
+      setBuscandoCEPFunc(false);
+    }
+  }, [toast]);
+
+  // Efeito para buscar CEP automaticamente
+  useEffect(() => {
+    if (cepTimerFuncRef.current) clearTimeout(cepTimerFuncRef.current);
+    const cepLimpo = cepFunc.replace(/\D/g, '');
+    if (cepLimpo.length === 8) {
+      cepTimerFuncRef.current = setTimeout(() => buscarCEP(cepLimpo), 500);
+    }
+    return () => {
+      if (cepTimerFuncRef.current) clearTimeout(cepTimerFuncRef.current);
+    };
+  }, [cepFunc, buscarCEP]);
+
   useEffect(() => {
     if (empresaId) {
       setCodigoEmpresa(empresaId.substring(0, 8).toUpperCase());
@@ -159,6 +204,12 @@ export default function FuncionariosPage() {
   useEffect(() => {
     if (!dialogOpen) {
       setTelefoneValue('');
+      setCepFunc('');
+      setLogradouroFunc('');
+      setNumeroFunc('');
+      setBairroFunc('');
+      setCidadeFunc('');
+      setEstadoFunc('');
       setEditandoFuncionario(null);
     }
   }, [dialogOpen]);
@@ -167,6 +218,12 @@ export default function FuncionariosPage() {
   useEffect(() => {
     if (editandoFuncionario) {
       setTelefoneValue(editandoFuncionario.telefone || '');
+      setCepFunc(editandoFuncionario.cep || '');
+      setLogradouroFunc(editandoFuncionario.logradouro || '');
+      setNumeroFunc(editandoFuncionario.numero || '');
+      setBairroFunc(editandoFuncionario.bairro || '');
+      setCidadeFunc(editandoFuncionario.cidade || '');
+      setEstadoFunc(editandoFuncionario.estado || '');
     }
   }, [editandoFuncionario]);
 
@@ -217,6 +274,12 @@ export default function FuncionariosPage() {
           perm_cancelar_venda: formData.get('perm_cancelar') === 'on',
           perm_dar_desconto: formData.get('perm_desconto') === 'on',
           ativo: formData.get('ativo') === 'on',
+          cep: cepFunc || null,
+          logradouro: logradouroFunc || null,
+          numero: (formData.get('numero') as string) || null,
+          bairro: bairroFunc || null,
+          cidade: cidadeFunc || null,
+          estado: estadoFunc || null,
         });
 
         toast({
@@ -249,6 +312,12 @@ export default function FuncionariosPage() {
           perm_cancelar_venda: formData.get('perm_cancelar') === 'on',
           perm_dar_desconto: formData.get('perm_desconto') === 'on',
           ativo: formData.get('ativo') === 'on',
+          cep: cepFunc || null,
+          logradouro: logradouroFunc || null,
+          numero: (formData.get('numero') as string) || null,
+          bairro: bairroFunc || null,
+          cidade: cidadeFunc || null,
+          estado: estadoFunc || null,
         });
 
         toast({
@@ -517,6 +586,80 @@ export default function FuncionariosPage() {
                         placeholder="Para contato apenas" 
                         defaultValue={editandoFuncionario?.email || ''}
                       />
+                    </div>
+                  </div>
+
+                  {/* Endereço (opcional) */}
+                  <div className="p-4 bg-gray-50 rounded-lg border">
+                    <Label className="flex items-center gap-2 text-sm font-medium mb-3">
+                      Endereço <span className="text-muted-foreground font-normal">(opcional)</span>
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="cep-func" className="text-xs">CEP</Label>
+                        <div className="relative">
+                          <Input
+                            id="cep-func"
+                            placeholder="00000-000"
+                            value={cepFunc}
+                            onChange={(e) => setCepFunc(mascaraCEP(e.target.value))}
+                            maxLength={9}
+                          />
+                          {buscandoCEPFunc && (
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="logradouro-func" className="text-xs">Logradouro</Label>
+                        <Input
+                          id="logradouro-func"
+                          placeholder="Rua, Avenida..."
+                          value={logradouroFunc}
+                          onChange={(e) => setLogradouroFunc(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="numero-func" className="text-xs">Número</Label>
+                        <Input
+                          id="numero-func"
+                          name="numero"
+                          placeholder="Nº"
+                          defaultValue={editandoFuncionario?.numero || ''}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-3">
+                      <div className="space-y-2">
+                        <Label htmlFor="bairro-func" className="text-xs">Bairro</Label>
+                        <Input
+                          id="bairro-func"
+                          placeholder="Bairro"
+                          value={bairroFunc}
+                          onChange={(e) => setBairroFunc(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="cidade-func" className="text-xs">Cidade</Label>
+                        <Input
+                          id="cidade-func"
+                          placeholder="Cidade"
+                          value={cidadeFunc}
+                          onChange={(e) => setCidadeFunc(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="estado-func" className="text-xs">Estado</Label>
+                        <Input
+                          id="estado-func"
+                          placeholder="UF"
+                          maxLength={2}
+                          value={estadoFunc}
+                          onChange={(e) => setEstadoFunc(e.target.value.toUpperCase())}
+                        />
+                      </div>
                     </div>
                   </div>
 

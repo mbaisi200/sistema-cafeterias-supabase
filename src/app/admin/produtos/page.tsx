@@ -74,6 +74,7 @@ import {
   ArrowDown,
   Truck,
   DollarSign,
+  Bike,
 } from 'lucide-react';
 import Link from 'next/link';
 import { exportToPDF, formatCurrencyPDF, fetchEmpresaPDFData } from '@/lib/export-pdf';
@@ -108,6 +109,7 @@ interface Produto {
   uberEatsExternalCode?: string;
   uberEatsSyncStatus?: 'synced' | 'pending' | 'error' | 'not_synced';
   uberEatsProductId?: string;
+  disponivel99Food?: boolean;
   // NFE/NFCe fiscal fields
   ncm?: string;
   cest?: string;
@@ -485,6 +487,8 @@ export default function ProdutosPage() {
         controlarEstoque: formData.get('controlarEstoque') === 'on',
         destaque: formData.get('destaque') === 'on',
         disponivelIfood: formData.get('disponivelIfood') === 'on',
+        disponivelUberEats: formData.get('disponivelUberEats') === 'on',
+        disponivel99Food: formData.get('disponivel99Food') === 'on',
         isCombo: formData.get('isCombo') === 'on',
         comboPreco: parseFloat(formData.get('comboPreco') as string) || 0,
         // NFE/NFCe fiscal fields
@@ -714,6 +718,29 @@ export default function ProdutosPage() {
     } catch (error) {
       toast({ variant: 'destructive', title: 'Erro ao atualizar produto' });
     }
+  };
+
+  // Toggle 99Food para produto
+  const handleToggle99Food = async (produto: Produto, checked: boolean) => {
+    try {
+      const updateData: any = {
+        disponivel99Food: checked,
+      };
+
+      await atualizarProduto(produto.id, updateData);
+      toast({
+        title: checked ? 'Produto marcado para 99Food' : 'Produto removido do 99Food',
+        description: checked ? 'Sincronize com o 99Food para atualizar o catálogo' : ''
+      });
+      refetchProdutos();
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Erro ao atualizar produto' });
+    }
+  };
+
+  const get99FoodStatusBadge = (produto: Produto) => {
+    if (!produto.disponivel99Food) return null;
+    return <Badge className="bg-purple-600"><CheckCircle className="h-3 w-3 mr-1" />Ativo</Badge>;
   };
 
   // Toggle Uber Eats para produto
@@ -1168,6 +1195,16 @@ export default function ProdutosPage() {
                                 Enviar para Uber Eats
                               </Label>
                               <p className="text-xs text-muted-foreground">Incluir no catálogo do Uber Eats</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Switch id="disponivel99Food" name="disponivel99Food" defaultChecked={editandoProduto?.disponivel99Food} />
+                            <div>
+                              <Label htmlFor="disponivel99Food" className="flex items-center gap-1">
+                                <Bike className="h-4 w-4 text-purple-600" />
+                                Enviar para 99Food
+                              </Label>
+                              <p className="text-xs text-muted-foreground">Incluir no catálogo do 99Food</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -1659,6 +1696,7 @@ export default function ProdutosPage() {
                       </TableHead>
                       <TableHead className="w-12 text-center whitespace-nowrap">iFood</TableHead>
                       <TableHead className="w-12 text-center whitespace-nowrap">Uber</TableHead>
+                      <TableHead className="w-12 text-center whitespace-nowrap">99</TableHead>
                       <TableHead className="w-20 text-center whitespace-nowrap">
                         <div className="flex items-center gap-1 group justify-center">
                           <button
@@ -1761,6 +1799,15 @@ export default function ProdutosPage() {
                               onCheckedChange={(checked) => handleToggleUberEats(produto, checked as boolean)}
                             />
                             {getUberEatsStatusBadge(produto)}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex flex-col items-center gap-1">
+                            <Checkbox 
+                              checked={produto.disponivel99Food}
+                              onCheckedChange={(checked) => handleToggle99Food(produto, checked as boolean)}
+                            />
+                            {get99FoodStatusBadge(produto)}
                           </div>
                         </TableCell>
                         <TableCell className="text-center whitespace-nowrap">

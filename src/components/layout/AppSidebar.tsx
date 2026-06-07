@@ -70,6 +70,7 @@ import {
   Moon,
   Ruler,
   ArrowUpDown,
+  KeyRound,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -150,6 +151,16 @@ const adminMenuItems: MenuItem[] = [
       { title: 'Pedidos', url: '/admin/integracoes/uber-eats/pedidos', icon: ShoppingBag },
     ],
   },
+  {
+    title: '99Food',
+    url: '#',
+    icon: Bike,
+    submenu: [
+      { title: 'Configuração', url: '/admin/integracoes/noventa-e-nove', icon: Settings },
+      { title: 'Produtos', url: '/admin/integracoes/noventa-e-nove/produtos', icon: Package },
+      { title: 'Pedidos', url: '/admin/integracoes/noventa-e-nove/pedidos', icon: ShoppingBag },
+    ],
+  },
   { title: 'Cupons e Notas Fiscais', url: '/admin/cupons-nfes', icon: FileText },
   { title: 'Notas Fiscais de Entrada', url: '/admin/nfe', icon: FileText },
   {
@@ -162,6 +173,7 @@ const adminMenuItems: MenuItem[] = [
       { title: 'Fidelidade', url: '/admin/configuracoes/fidelidade', icon: Heart },
     ],
   },
+  { title: 'Alterar Senha', url: '/admin/alterar-senha', icon: KeyRound },
 ];
 
 // Fallback hardcoded para atalho rápido
@@ -170,6 +182,8 @@ const atalhoRapidoMenuItems: MenuItem[] = [
   { title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings },
   { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
   { title: 'Uber Eats', url: '/admin/integracoes/uber-eats', icon: Bike },
+  { title: '99Food', url: '/admin/integracoes/noventa-e-nove', icon: Bike },
+  { title: 'Alterar Senha', url: '/admin/alterar-senha', icon: KeyRound },
 ];
 
 // Fallback hardcoded para funcionário
@@ -374,13 +388,17 @@ export function AppSidebar() {
   };
 
   const getMenuItems = (): MenuItem[] => {
+    const addAlterarSenha = (items: MenuItem[]): MenuItem[] => {
+      if (items.some(i => i.url === '/admin/alterar-senha')) return items;
+      return [...items, { title: 'Alterar Senha', url: '/admin/alterar-senha', icon: KeyRound }];
+    };
     switch (role) {
       case 'master':
         return masterMenuItems;
       case 'admin': {
         const filtered = filterRemovedSections(dynamicMenuItems);
-        if (hasSegment) return groupDynamicMenus(filtered);
-        return filtered.length > 0 ? groupDynamicMenus(filtered) : adminMenuItems;
+        const items = hasSegment ? groupDynamicMenus(filtered) : (filtered.length > 0 ? groupDynamicMenus(filtered) : adminMenuItems);
+        return addAlterarSenha(items);
       }
       case 'funcionario': {
         const filtered = filterRemovedSections(dynamicMenuItems);

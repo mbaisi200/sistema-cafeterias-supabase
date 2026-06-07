@@ -34,15 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
 import {
   Collapsible,
   CollapsibleContent,
@@ -165,7 +156,7 @@ export default function PedidosPage() {
   // Form state
   const [clienteId, setClienteId] = useState('');
   const [clienteNome, setClienteNome] = useState('');
-  const [openClienteSearch, setOpenClienteSearch] = useState(false);
+  const [clienteSearchOpen, setClienteSearchOpen] = useState(false);
   const [clienteSearch, setClienteSearch] = useState('');
   const [prazoEntrega, setPrazoEntrega] = useState('');
   const [condicaoPagamento, setCondicaoPagamento] = useState('');
@@ -257,7 +248,7 @@ export default function PedidosPage() {
       const supabase = getSupabase();
       const { data } = await supabase
         .from('produtos')
-        .select('id, nome, preco, custo, unidade, codigo_barras')
+        .select('id, nome, codigo, preco, custo, unidade, codigo_barras, estoque_atual, estoque_minimo, controlar_estoque')
         .eq('empresa_id', empresaId)
         .eq('ativo', true)
         .order('nome');
@@ -274,7 +265,6 @@ export default function PedidosPage() {
         .from('condicoes_pagamento')
         .select('id, nome, descricao, ativo')
         .eq('empresa_id', empresaId)
-        .eq('ativo', true)
         .order('nome');
       if (error) {
         console.error('Erro loadCondicoes:', error);
@@ -353,16 +343,6 @@ export default function PedidosPage() {
   // Filters
   // ============================================================
   const normalize = (s: string) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-
-  const clientesFiltrados = useMemo(() => {
-    if (!clienteSearch.trim()) return clientes;
-    const term = normalize(clienteSearch);
-    return clientes.filter(c =>
-      normalize(c.nome_razao_social || '').includes(term) ||
-      normalize(c.nome_fantasia || '').includes(term) ||
-      (c.cnpj_cpf || '').includes(term)
-    );
-  }, [clientes, clienteSearch]);
 
   const getDateRange = () => {
     const now = new Date();
@@ -506,12 +486,10 @@ export default function PedidosPage() {
       const descontoTotal = totalDesconto;
 
       if (editingPedido) {
-        // Liberar reserva antiga antes de atualizar
-        await liberarReservaPedido(supabase, editingPedido.id);
-
-        const { error } = await supabase
-          .from('pedidos')
-          .update({
+        // Liberar reserva antiga e atualizar pedido em paralelo
+        await Promise.all([
+          liberarReservaPedido(supabase, editingPedido.id),
+          supabase.from('pedidos').update({
             cliente_id: clienteId,
             cliente_nome: clienteNome,
             prazo_entrega: prazoEntrega || null,
@@ -522,9 +500,8 @@ export default function PedidosPage() {
             desconto: descontoTotal,
             total,
             itens: JSON.stringify(itens),
-          })
-          .eq('id', editingPedido.id);
-        if (error) throw error;
+          }).eq('id', editingPedido.id).then(r => { if (r.error) throw r.error; }),
+        ]);
 
         // Recriar reserva com os novos itens
         await reservarEstoquePedido(supabase, empresaId!, editingPedido.id, itens, user?.id, user?.nome);
@@ -537,7 +514,7 @@ export default function PedidosPage() {
           .eq('empresa_id', empresaId)
           .order('numero', { ascending: false })
           .limit(1)
-          .single();
+          .maybeSingle();
         const nextNum = (last?.numero || 0) + 1;
 
         const { data: novoPedido, error } = await supabase
@@ -758,7 +735,7 @@ export default function PedidosPage() {
     setEditingPedido(null);
     setClienteId('');
     setClienteNome('');
-    setOpenClienteSearch(false);
+    setClienteSearchOpen(false);
     setClienteSearch('');
     setPrazoEntrega('');
     setCondicaoPagamento('');
@@ -1186,55 +1163,21 @@ export default function PedidosPage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Cliente <span className="text-red-500">*</span></Label>
-                  <Popover open={openClienteSearch} onOpenChange={setOpenClienteSearch}>
-                    <PopoverTrigger asChild>
-                      <Button variant="outline" className="h-9 w-full justify-start font-normal text-sm">
-                        {clienteNome ? (
-                          <span className="flex items-center gap-2">
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            {clienteNome}
-                          </span>
-                        ) : (
-                          <span className="text-muted-foreground">Selecionar cliente...</span>
-                        )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-80 p-0">
-                      <Command shouldFilter={false}>
-                        <CommandInput
-                          placeholder="Buscar por nome ou CNPJ/CPF..."
-                          value={clienteSearch}
-                          onValueChange={setClienteSearch}
-                        />
-                        <CommandList>
-                          <CommandEmpty>Nenhum cliente encontrado</CommandEmpty>
-                          <CommandGroup className="max-h-64 overflow-y-auto">
-                            {clientesFiltrados.map(c => (
-                              <CommandItem
-                                key={c.id}
-                                value={c.nome_razao_social}
-                                onSelect={() => {
-                                  setClienteId(c.id);
-                                  setClienteNome(c.nome_razao_social);
-                                  setOpenClienteSearch(false);
-                                  setClienteSearch('');
-                                }}
-                              >
-                                <User className="mr-2 h-4 w-4" />
-                                <div className="flex flex-col">
-                                  <span>{c.nome_razao_social}</span>
-                                  {c.nome_fantasia && (
-                                    <span className="text-xs text-muted-foreground">{c.nome_fantasia}</span>
-                                  )}
-                                </div>
-                                <span className="ml-auto text-xs text-muted-foreground">{c.cnpj_cpf}</span>
-                              </CommandItem>
-                            ))}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  <Button
+                    variant="outline"
+                    className="h-9 w-full justify-start font-normal text-sm"
+                    onClick={() => { setClienteSearch(''); setClienteSearchOpen(true); }}
+                    type="button"
+                  >
+                    {clienteNome ? (
+                      <span className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-muted-foreground" />
+                        {clienteNome}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground">Selecionar cliente...</span>
+                    )}
+                  </Button>
                 </div>
                 <div className="space-y-2">
                   <Label>Prazo de Entrega</Label>
@@ -1382,7 +1325,7 @@ export default function PedidosPage() {
                 </DialogHeader>
                 <div className="space-y-2">
                   <Input
-                    placeholder="Buscar produto por nome..."
+                    placeholder="Buscar por nome, código ou EAN..."
                     value={produtoSearchText}
                     onChange={(e) => setProdutoSearchText(e.target.value)}
                     className="h-10 text-sm"
@@ -1394,6 +1337,7 @@ export default function PedidosPage() {
                         if (!produtoSearchText.trim()) return true;
                         const term = normalize(produtoSearchText);
                         return normalize(p.nome || '').includes(term) ||
+                               (p.codigo || '').toLowerCase().includes(term) ||
                                (p.codigo_barras || '').includes(term);
                       })
                       .map(p => (
@@ -1408,12 +1352,80 @@ export default function PedidosPage() {
                           }}
                         >
                           <Package className="h-5 w-5 text-muted-foreground flex-shrink-0" />
-                          <span className="flex-1 min-w-0 truncate">{p.nome}</span>
-                          <span className="text-muted-foreground flex-shrink-0">R$ {(p.preco || 0).toFixed(2)}</span>
+                          <div className="flex-1 min-w-0">
+                            <span className="block truncate">{p.nome}</span>
+                            {p.codigo && (
+                              <span className="block text-xs text-muted-foreground truncate">{p.codigo}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0">
+                            {p.controlar_estoque !== false && (
+                              <span className={`text-xs font-medium ${
+                                (p.estoque_atual || 0) <= (p.estoque_minimo || 0)
+                                  ? 'text-red-500' : 'text-green-600'
+                              }`}>
+                                {p.estoque_atual || 0} {p.unidade || 'un'}
+                              </span>
+                            )}
+                            <span className="text-muted-foreground">R$ {(p.preco || 0).toFixed(2)}</span>
+                          </div>
                         </button>
                       ))}
                     {produtos.length === 0 && (
                       <p className="text-sm text-muted-foreground text-center py-8">Nenhum produto encontrado</p>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Client search dialog */}
+            <Dialog open={clienteSearchOpen} onOpenChange={setClienteSearchOpen}>
+              <DialogContent className="max-w-lg">
+                <DialogHeader>
+                  <DialogTitle>Selecionar Cliente</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="Buscar por nome, CNPJ ou CPF..."
+                    value={clienteSearch}
+                    onChange={(e) => setClienteSearch(e.target.value)}
+                    className="h-10 text-sm"
+                    autoFocus
+                  />
+                  <div className="max-h-80 overflow-y-auto space-y-0.5">
+                    {clientes
+                      .filter(c => {
+                        if (!clienteSearch.trim()) return true;
+                        const term = normalize(clienteSearch);
+                        return normalize(c.nome_razao_social || '').includes(term) ||
+                               normalize(c.nome_fantasia || '').includes(term) ||
+                               (c.cnpj_cpf || '').includes(term);
+                      })
+                      .map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className="w-full text-left px-4 py-3 text-sm rounded-md hover:bg-accent flex items-center gap-3"
+                          onClick={() => {
+                            setClienteId(c.id);
+                            setClienteNome(c.nome_razao_social);
+                            setClienteSearchOpen(false);
+                            setClienteSearch('');
+                          }}
+                        >
+                          <User className="h-5 w-5 text-muted-foreground flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <span className="block truncate">{c.nome_razao_social}</span>
+                            {c.nome_fantasia && (
+                              <span className="text-xs text-muted-foreground block truncate">{c.nome_fantasia}</span>
+                            )}
+                          </div>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">{c.cnpj_cpf}</span>
+                        </button>
+                      ))}
+                    {clientes.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-8">Nenhum cliente encontrado. Cadastre clientes em Admin &gt; Clientes.</p>
                     )}
                   </div>
                 </div>

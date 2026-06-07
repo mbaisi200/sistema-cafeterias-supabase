@@ -44,7 +44,7 @@ import {
   Settings,
 } from 'lucide-react';
 
-type Origem = 'cardapio' | 'ifood' | 'uber_eats';
+type Origem = 'cardapio' | 'ifood' | 'uber_eats' | 'noventa_e_nove';
 
 interface PedidoItem {
   nome: string;
@@ -79,6 +79,7 @@ const ORIGEM_CONFIG: Record<Origem, { label: string; color: string; icon: React.
   cardapio: { label: 'Cardápio', color: 'bg-blue-500', icon: <Store className="h-3 w-3" /> },
   ifood: { label: 'iFood', color: 'bg-red-500', icon: <Globe className="h-3 w-3" /> },
   uber_eats: { label: 'Uber Eats', color: 'bg-green-600', icon: <Globe className="h-3 w-3" /> },
+  noventa_e_nove: { label: '99Food', color: 'bg-purple-600', icon: <Globe className="h-3 w-3" /> },
 };
 
 function formatCurrency(value: number | undefined | null): string {
@@ -145,6 +146,7 @@ export default function DeliveryAdminPage() {
   const [integrationsLoading, setIntegrationsLoading] = useState(true);
   const [ifoodConnected, setIfoodConnected] = useState(false);
   const [uberConnected, setUberConnected] = useState(false);
+  const [noventaENoveConnected, setNoventaENoveConnected] = useState(false);
   const [empresaPrint, setEmpresaPrint] = useState<{ nome: string; cnpj: string; endereco: string; telefone: string; logo_url?: string } | null>(null);
   const [cupomConfig, setCupomConfig] = useState<ConfiguracoesCupom>(configuracoesCupomPadrao);
 
@@ -216,8 +218,14 @@ export default function DeliveryAdminPage() {
         .select('status')
         .eq('empresa_id', empresaId)
         .maybeSingle();
+      const { data: noventaENoveCfg } = await supabase
+        .from('noventa_e_nove_config')
+        .select('status')
+        .eq('empresa_id', empresaId)
+        .maybeSingle();
       setIfoodConnected(ifoodCfg?.status === 'connected');
       setUberConnected(uberCfg?.status === 'connected');
+      setNoventaENoveConnected(noventaENoveCfg?.status === 'connected');
     } catch (e) {
       console.error('Erro ao carregar status integrações:', e);
     } finally {
@@ -242,7 +250,7 @@ export default function DeliveryAdminPage() {
         .from('vendas')
         .select('id, tipo, canal, status, subtotal, taxa_entrega, total, forma_pagamento, pedido_externo_id, nome_cliente, telefone_cliente, entrega_logradouro, entrega_numero, entrega_complemento, entrega_bairro, entrega_cidade, entrega_estado, entrega_cep, observacao, criado_em')
         .eq('empresa_id', empresaId)
-        .in('canal', ['ifood', 'uber_eats'])
+        .in('canal', ['ifood', 'uber_eats', 'noventa_e_nove'])
         .not('status', 'in', '("fechada","cancelada","finalizada")')
         .order('criado_em', { ascending: false });
 
@@ -360,7 +368,7 @@ export default function DeliveryAdminPage() {
       .from('vendas')
       .select('id')
       .eq('empresa_id', empresaId)
-      .in('canal', ['ifood', 'uber_eats'])
+      .in('canal', ['ifood', 'uber_eats', 'noventa_e_nove'])
       .in('status', ['pronta', 'saiu_para_entrega'])
       .lt('atualizado_em', limite);
     if (prontasVendas?.length) {
@@ -767,12 +775,15 @@ ${linha('<div class="t-center t-small">--- Cozinha ---</div>')}
 
   const ifoodPendentes = pedidosPendentes.filter(p => p.origem === 'ifood');
   const uberPendentes = pedidosPendentes.filter(p => p.origem === 'uber_eats');
+  const noventaENovePendentes = pedidosPendentes.filter(p => p.origem === 'noventa_e_nove');
   const cardapioPendentes = pedidosPendentes.filter(p => p.origem === 'cardapio');
   const ifoodPreparacao = pedidosEmPreparacao.filter(p => p.origem === 'ifood');
   const uberPreparacao = pedidosEmPreparacao.filter(p => p.origem === 'uber_eats');
+  const noventaENovePreparacao = pedidosEmPreparacao.filter(p => p.origem === 'noventa_e_nove');
   const cardapioPreparacao = pedidosEmPreparacao.filter(p => p.origem === 'cardapio');
   const ifoodProntos = pedidosProntos.filter(p => p.origem === 'ifood');
   const uberProntos = pedidosProntos.filter(p => p.origem === 'uber_eats');
+  const noventaENoveProntos = pedidosProntos.filter(p => p.origem === 'noventa_e_nove');
   const cardapioProntos = pedidosProntos.filter(p => p.origem === 'cardapio');
   const integracoesPendentes = pedidosPendentes.filter(p => p.origem !== 'cardapio');
 
@@ -828,6 +839,12 @@ ${linha('<div class="t-center t-small">--- Cozinha ---</div>')}
                   <Badge className={`cursor-pointer whitespace-nowrap ${uberConnected ? 'bg-green-600 hover:bg-green-700' : 'bg-gray-300 dark:bg-gray-700'}`}>
                     <Globe className="h-2.5 w-2.5 mr-0.5" />
                     Uber Eats {uberConnected ? '✅' : '❌'}
+                  </Badge>
+                </Link>
+                <Link href="/admin/integracoes/noventa-e-nove">
+                  <Badge className={`cursor-pointer whitespace-nowrap ${noventaENoveConnected ? 'bg-purple-600 hover:bg-purple-700' : 'bg-gray-300 dark:bg-gray-700'}`}>
+                    <Globe className="h-2.5 w-2.5 mr-0.5" />
+                    99Food {noventaENoveConnected ? '✅' : '❌'}
                   </Badge>
                 </Link>
                 {integracoesPendentes.length > 0 && (
@@ -888,6 +905,7 @@ ${linha('<div class="t-center t-small">--- Cozinha ---</div>')}
                 <div className="space-y-4">
                   <SecaoPedidos titulo="iFood" icon={<Globe className="h-3.5 w-3.5 text-red-500" />} pedidos={ifoodPendentes} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
                   <SecaoPedidos titulo="Uber Eats" icon={<Globe className="h-3.5 w-3.5 text-green-600" />} pedidos={uberPendentes} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
+                  <SecaoPedidos titulo="99Food" icon={<Globe className="h-3.5 w-3.5 text-purple-600" />} pedidos={noventaENovePendentes} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
                   <SecaoPedidos titulo="Cardápio Online" icon={<Store className="h-3.5 w-3.5 text-blue-500" />} pedidos={cardapioPendentes} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
                 </div>
               )}
@@ -900,6 +918,7 @@ ${linha('<div class="t-center t-small">--- Cozinha ---</div>')}
                 <div className="space-y-4">
                   <SecaoPedidos titulo="iFood" icon={<Globe className="h-3.5 w-3.5 text-red-500" />} pedidos={ifoodPreparacao} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
                   <SecaoPedidos titulo="Uber Eats" icon={<Globe className="h-3.5 w-3.5 text-green-600" />} pedidos={uberPreparacao} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
+                  <SecaoPedidos titulo="99Food" icon={<Globe className="h-3.5 w-3.5 text-purple-600" />} pedidos={noventaENovePreparacao} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
                   <SecaoPedidos titulo="Cardápio Online" icon={<Store className="h-3.5 w-3.5 text-blue-500" />} pedidos={cardapioPreparacao} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
                 </div>
               )}
@@ -912,6 +931,7 @@ ${linha('<div class="t-center t-small">--- Cozinha ---</div>')}
                 <div className="space-y-4">
                   <SecaoPedidos titulo="iFood" icon={<Globe className="h-3.5 w-3.5 text-red-500" />} pedidos={ifoodProntos} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
                   <SecaoPedidos titulo="Uber Eats" icon={<Globe className="h-3.5 w-3.5 text-green-600" />} pedidos={uberProntos} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
+                  <SecaoPedidos titulo="99Food" icon={<Globe className="h-3.5 w-3.5 text-purple-600" />} pedidos={noventaENoveProntos} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
                   <SecaoPedidos titulo="Cardápio Online" icon={<Store className="h-3.5 w-3.5 text-blue-500" />} pedidos={cardapioProntos} onVer={handleVerPedido} onStatusChange={atualizarStatus} formatCurrency={formatCurrency} getTimeAgo={getTimeAgo} />
                 </div>
               )}

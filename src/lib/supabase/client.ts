@@ -443,34 +443,20 @@ export async function reservarEstoquePedido(
 ): Promise<void> {
   if (!itens.length) return;
 
-  const produtoIds = itens.map(i => i.produtoId);
-  const { data: produtos } = await supabase
-    .from('produtos')
-    .select('id, controlar_estoque')
-    .in('id', produtoIds);
+  const movimentos = itens.map(item => ({
+    empresa_id: empresaId,
+    produto_id: item.produtoId,
+    produto_nome: item.produtoNome,
+    tipo: 'reserva',
+    quantidade: item.quantidade,
+    observacao: `Reserva Pedido`,
+    pedido_id: pedidoId,
+    usuario_id: usuarioId,
+    usuario_nome: usuarioNome,
+    criado_em: new Date().toISOString(),
+  }));
 
-  const controlaEstoque = new Set(
-    (produtos || []).filter(p => p.controlar_estoque !== false).map(p => p.id)
-  );
-
-  const movimentos = itens
-    .filter(i => controlaEstoque.has(i.produtoId))
-    .map(item => ({
-      empresa_id: empresaId,
-      produto_id: item.produtoId,
-      produto_nome: item.produtoNome,
-      tipo: 'reserva',
-      quantidade: item.quantidade,
-      observacao: `Reserva Pedido`,
-      pedido_id: pedidoId,
-      usuario_id: usuarioId,
-      usuario_nome: usuarioNome,
-      criado_em: new Date().toISOString(),
-    }));
-
-  if (movimentos.length) {
-    await supabase.from('estoque_movimentos').insert(movimentos);
-  }
+  await supabase.from('estoque_movimentos').insert(movimentos);
 }
 
 export async function liberarReservaPedido(
