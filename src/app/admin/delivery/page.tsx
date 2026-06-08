@@ -17,7 +17,7 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { getSupabaseClient, debitarEstoqueVenda, reporEstoqueVenda } from '@/lib/supabase';
+import { getSupabaseClient, debitarEstoqueVenda } from '@/lib/supabase';
 import { imprimirCupomFiscal } from '@/components/pdv/CupomFiscal';
 import type { ConfiguracoesCupom } from '@/hooks/useSupabase';
 import { configuracoesCupomPadrao } from '@/hooks/useSupabase';
@@ -693,19 +693,6 @@ ${linha('<div class="t-center t-small">--- Cozinha ---</div>')}
     }
   };
 
-  const reporEstoqueCancelamento = async (vendaId: string) => {
-    const { data: itens } = await supabase
-      .from('itens_venda')
-      .select('produto_id, quantidade')
-      .eq('venda_id', vendaId);
-    if (!itens?.length) return;
-    for (const item of itens) {
-      if (item.produto_id) {
-        await reporEstoqueVenda(supabase, empresaId, item.produto_id, item.quantidade, user?.id, user?.nome, vendaId, `Cancelamento Delivery - ${pedidoSelecionado?.codigo}`);
-      }
-    }
-  };
-
   const handleCancelar = async () => {
     if (!pedidoSelecionado || !motivoCancelamento.trim()) return;
     setProcessando(true);
@@ -727,20 +714,22 @@ ${linha('<div class="t-center t-small">--- Cozinha ---</div>')}
           criado_em: now,
         });
 
-        // Se já tinha venda gerada, cancelar venda + repor estoque
+        // Se já tinha venda gerada, cancelar venda via API unificada (estoque + caixa)
         if (pedidoSelecionado.venda_id) {
-          await reporEstoqueCancelamento(pedidoSelecionado.venda_id);
-          await supabase.from('vendas').update({ status: 'cancelada', motivo_cancelamento: motivoCancelamento, cancelado_em: now, atualizado_em: now }).eq('id', pedidoSelecionado.venda_id);
+          await fetch('/api/vendas/cancelar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ venda_id: pedidoSelecionado.venda_id, justificativa: motivoCancelamento }),
+          });
         }
       } else {
-        // iFood / Uber Eats — atualizar vendas
+        // iFood / Uber Eats — cancelar venda via API unificada
         const vendaId = pedidoSelecionado.venda_id || pedidoSelecionado.id;
-        await supabase
-          .from('vendas')
-          .update({ status: 'cancelada', motivo_cancelamento: motivoCancelamento, cancelado_em: now, atualizado_em: now })
-          .eq('id', vendaId);
-
-        await reporEstoqueCancelamento(vendaId);
+        await fetch('/api/vendas/cancelar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ venda_id: vendaId, justificativa: motivoCancelamento }),
+        });
 
         // Notificar integração
         fetch('/api/delivery/notify-integration', {

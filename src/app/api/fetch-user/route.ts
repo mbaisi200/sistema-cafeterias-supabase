@@ -38,11 +38,15 @@ export async function POST(request: NextRequest) {
 
     const userData = data;
 
-    // Verificar se a empresa está ativa e não vencida
+    // Verificar se a empresa está bloqueada manualmente
+      let needsSubscription = false;
+    let subscriptionStatus: string | null = null;
+    let subscriptionCurrentPeriodEnd: string | null = null;
+    let empresaValidade: string | null = null;
     if (userData.empresa_id && userData.role !== 'master') {
       const { data: empresa } = await supabase
         .from('empresas')
-        .select('id, status, validade')
+        .select('id, status, validade, subscription_status, stripe_subscription_id, subscription_current_period_end')
         .eq('id', userData.empresa_id)
         .single();
 
@@ -54,19 +58,15 @@ export async function POST(request: NextRequest) {
           }, { status: 403 });
         }
 
-        if (empresa.validade) {
-          const hoje = new Date();
-          hoje.setHours(0, 0, 0);
-          const validadeDate = new Date(empresa.validade);
-          validadeDate.setHours(23, 59, 59);
+        subscriptionStatus = empresa.subscription_status;
+        subscriptionCurrentPeriodEnd = empresa.subscription_current_period_end;
+        empresaValidade = empresa.validade;
 
-          if (validadeDate < hoje) {
-            return NextResponse.json({ 
-              error: 'Sua assinatura expirou! Entre em contato com o administrador.',
-              expired: true 
-            }, { status: 403 });
-          }
-        }
+        const hasActiveSubscription = empresa.subscription_status === 'active';
+        const hasLegacyValidade = empresa.validade && new Date(empresa.validade) > new Date();
+        needsSubscription = !hasActiveSubscription && !hasLegacyValidade;
+      } else {
+        needsSubscription = true;
       }
     }
 
@@ -182,6 +182,10 @@ export async function POST(request: NextRequest) {
         segmentoIcone,
         permitirFotoProduto,
         podeReimprimir,
+        needsSubscription,
+        subscriptionStatus,
+        subscriptionCurrentPeriodEnd,
+        empresaValidade,
       }
     });
 

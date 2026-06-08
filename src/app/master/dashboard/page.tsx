@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   Loader2,
   Database,
+  CreditCard,
 } from 'lucide-react';
 
 export default function MasterDashboardPage() {
@@ -30,6 +31,9 @@ export default function MasterDashboardPage() {
     clientesAtivos: empresas.filter(e => e.status === 'ativo').length,
     clientesInativos: empresas.filter(e => e.status === 'inativo').length,
     clientesBloqueados: empresas.filter(e => e.status === 'bloqueado').length,
+    assinaturasAtivas: empresas.filter((e: any) => e.subscription_status === 'active').length,
+    assinaturasVencidas: empresas.filter((e: any) => e.subscription_status === 'past_due').length,
+    semStripe: empresas.filter((e: any) => !e.stripe_customer_id).length,
   };
 
   const planoCores: Record<string, string> = {
@@ -78,6 +82,12 @@ export default function MasterDashboardPage() {
                 <a href="/master/clientes">
                   <Users className="mr-2 h-4 w-4" />
                   Gerenciar Clientes
+                </a>
+              </Button>
+              <Button asChild variant="outline">
+                <a href="/master/assinatura">
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Assinaturas
                 </a>
               </Button>
               <Button asChild variant="outline">
@@ -175,6 +185,28 @@ export default function MasterDashboardPage() {
                 </p>
               </CardContent>
             </Card>
+          </div>
+
+          {/* Subscription Stats */}
+          <div className="grid gap-4 md:grid-cols-3">
+            <DashboardCard
+              title="Assinaturas Ativas (Stripe)"
+              value={stats.assinaturasAtivas}
+              description={`${stats.totalClientes} total de empresas`}
+              icon={CreditCard}
+            />
+            <DashboardCard
+              title="Assinaturas Vencidas"
+              value={stats.assinaturasVencidas}
+              description="Com pagamento atrasado"
+              icon={AlertTriangle}
+            />
+            <DashboardCard
+              title="Sem Stripe"
+              value={stats.semStripe}
+              description="Sem integração de pagamento"
+              icon={XCircle}
+            />
           </div>
 
           {/* Recent Clients */}

@@ -18,6 +18,10 @@ interface AuthContextType {
   segmentoIcone: string | null;
   permitirFotoProduto: boolean;
   podeReimprimir: boolean;
+  needsSubscription: boolean;
+  subscriptionStatus: string | null;
+  subscriptionCurrentPeriodEnd: string | null;
+  empresaValidade: string | null;
   login: (email: string, password: string) => Promise<void>;
   loginFuncionario: (codigoEmpresa: string, pin: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -38,6 +42,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [segmentoIcone, setSegmentoIcone] = useState<string | null>(null);
   const [permitirFotoProduto, setPermitirFotoProduto] = useState(true);
   const [podeReimprimir, setPodeReimprimir] = useState(true);
+  const [needsSubscription, setNeedsSubscription] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string | null>(null);
+  const [subscriptionCurrentPeriodEnd, setSubscriptionCurrentPeriodEnd] = useState<string | null>(null);
+  const [empresaValidade, setEmpresaValidade] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const mounted = useRef(true);
   const hasInitialized = useRef(false);
@@ -98,6 +106,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSegmentoIcone(result.user.segmentoIcone || null);
       setPermitirFotoProduto(result.user.permitirFotoProduto ?? true);
       setPodeReimprimir(result.user.podeReimprimir ?? true);
+      setNeedsSubscription(result.user.needsSubscription ?? false);
+      setSubscriptionStatus(result.user.subscriptionStatus ?? null);
+      setSubscriptionCurrentPeriodEnd(result.user.subscriptionCurrentPeriodEnd ?? null);
+      setEmpresaValidade(result.user.empresaValidade ?? null);
 
       const userData: User = {
         id: result.user.id,
@@ -450,6 +462,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSecoesPermitidas([]);
     setNomeMarca(null);
     setPermitirFotoProduto(true);
+    setNeedsSubscription(false);
+    setSubscriptionStatus(null);
+    setSubscriptionCurrentPeriodEnd(null);
+    setEmpresaValidade(null);
     clearFuncionarioSession();
     hasInitialized.current = false;
 
@@ -479,6 +495,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     segmentoIcone,
     permitirFotoProduto,
     podeReimprimir,
+    needsSubscription,
+    subscriptionStatus,
+    subscriptionCurrentPeriodEnd,
+    empresaValidade,
     login,
     loginFuncionario,
     logout,

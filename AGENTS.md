@@ -745,6 +745,37 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - **Entrada**: colunas Documento Ref e Produtos ocultas em mobile (mantidas: Data, Fornecedor, Valor Total, Ações)
 - **Saída**: colunas Pagamento e Status NF-e ocultas em mobile (mantidas: Número, Data, Cliente, Total, Ações)
 
+### Stripe — Planos e Assinaturas ✅
+- Nova tabela `planos` com CRUD via Master (`/master/assinatura`)
+- Colunas Stripe em `empresas`: `stripe_customer_id`, `stripe_subscription_id`, `plano_id`, `subscription_status`, `subscription_current_period_end`
+- Tabela `subscription_invoices` para histórico de faturas
+- APIs: `/api/master/planos` (CRUD), `/api/master/subscriptions` (lista assinantes)
+- APIs Stripe: `create-checkout`, `create-portal`, `webhook`, `config`
+- Página do admin: `/admin/assinatura` — gerencia própria assinatura
+- Página do master: `/master/assinatura/assinantes` — lista empresas com planos
+- Dashboard Master: cards de estatísticas de assinatura (Ativas, Vencidas, Sem Stripe)
+- `ProtectedRoute` redireciona para `/admin/assinatura` se assinatura vencida
+- `SubscriptionBanner` exibe alertas de vencimento no topo das páginas admin
+- Bloqueio de acesso: `needsSubscription` no AuthContext
+- Modal de assinatura na página inicial (`/`) com card de plano e botão de pagamento
+
+### Stripe — Cancelamento de Vendas Unificado ✅
+- Função `cancelarVendaCompleta()` em `src/lib/vendas-cancelar.ts` — estorna estoque + caixa
+- API `/api/api/vendas/cancelar` — endpoint unificado de cancelamento
+- Cancelamento de NFC-e e NF-e agora usam a lib centralizada
+- Cancelamento de Delivery (iFood/Uber Eats) também usa a API unificada
+
+### Master — Restaurar Backup por Empresa ✅
+- Botão "Restaurar Backup" em `/master/configuracoes` com diálogo de upload
+- Seleção da empresa de destino via dropdown com busca
+- API `/api/master/restaurar-backup` que:
+  - Parseia JSON de backup (formato do Backup do Sistema)
+  - Remapeia `empresa_id` (antigo → novo UUID)
+  - Mapeia usuários por email para atualizar UUIDs de referência
+  - Limpa dados existentes da empresa alvo
+  - Insere em lotes com fallback individual para evitar FK failure total
+- Aviso sobre UUIDs no diálogo para orientar o usuário
+
 ---
 
 ## 📱 Mobile First — Compromisso

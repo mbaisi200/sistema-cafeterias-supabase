@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { cancelarVendaCompleta } from '@/lib/vendas-cancelar';
 
 /**
  * API para cancelar NFC-e com estorno de estoque
@@ -64,6 +65,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Buscar dados do usuário
+    const { data: usuario } = await supabase
+      .from('usuarios')
+      .select('id, nome')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    const canceladoPor = usuario?.id || user.id;
+    const canceladoPorNome = usuario?.nome || user.email || '';
+
     // Registrar evento de cancelamento no histórico
     await supabase
       .from('nfce_eventos')
@@ -96,48 +107,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Estornar itens do estoque
+    // Cancelar venda vinculada (estoque + caixa)
     if (nfce.venda_id) {
-      const { data: itensVenda } = await supabase
-        .from('itens_venda')
-        .select('produto_id, quantidade, nome')
-        .eq('venda_id', nfce.venda_id);
-
-      if (itensVenda && itensVenda.length > 0) {
-        for (const item of itensVenda) {
-          try {
-            const { data: prod } = await supabase
-              .from('produtos')
-              .select('estoque_atual, controlar_estoque, nome')
-              .eq('id', item.produto_id)
-              .single();
-
-            if (!prod || prod.controlar_estoque === false) continue;
-
-            const novoEstoque = (parseFloat(prod.estoque_atual) || 0) + item.quantidade;
-            await supabase.from('produtos').update({ estoque_atual: novoEstoque }).eq('id', item.produto_id);
-
-            await supabase.from('estoque_movimentos').insert({
-              empresa_id: nfce.empresa_id,
-              produto_id: item.produto_id,
-              produto_nome: item.nome || prod.nome,
-              tipo: 'ajuste',
-              quantidade: item.quantidade,
-              estoque_anterior: parseFloat(prod.estoque_atual) || 0,
-              estoque_novo: novoEstoque,
-              observacao: `Cancelamento NFC-e #${nfce.numero} - ${justificativa}`,
-              criado_em: new Date().toISOString(),
-            });
-          } catch {
-            // Continua com o próximo item
-          }
-        }
-      }
+      await cancelarVendaCompleta(
+        supabase,
+        nfce.venda_id,
+        justificativa,
+        canceladoPor,
+        canceladoPorNome,
+      );
     }
 
     return NextResponse.json({
       sucesso: true,
-      mensagem: 'NFC-e cancelada com sucesso. Estoque estornado conforme legislação vigente.',
+      mensagem: 'NFC-e cancelada com sucesso. Estoque e caixa estornados.',
     });
 
   } catch (error: any) {

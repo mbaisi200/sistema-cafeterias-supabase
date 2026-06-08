@@ -13,7 +13,7 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const { user, loading, secoesPermitidas } = useAuth();
+  const { user, loading, secoesPermitidas, needsSubscription } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -48,6 +48,11 @@ export function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) 
     if (!loading) {
       if (!user) {
         router.push('/');
+        return;
+      }
+
+      if (needsSubscription && user.role !== 'master' && pathname !== '/admin/assinatura') {
+        router.push('/admin/assinatura');
         return;
       }
 

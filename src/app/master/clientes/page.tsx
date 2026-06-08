@@ -1618,7 +1618,8 @@ export default function ClientesPage() {
                   <li>Dados da empresa</li>
                   <li>Usuários administradores</li>
                   <li>Produtos e categorias</li>
-                  <li>Vendas e histórico</li>
+                  <li>Vendas, NF-es, certificados e histórico</li>
+                  <li>Imagens de produtos e logotipos</li>
                 </ul>
               </div>
             </div>

@@ -71,6 +71,7 @@ import {
   Ruler,
   ArrowUpDown,
   KeyRound,
+  CreditCard,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -109,6 +110,15 @@ const masterMenuItems: MenuItem[] = [
   { title: 'Popular Dados', url: '/master/seed', icon: Database },
   { title: 'Consumo de Dados', url: '/master/consumo-dados', icon: BarChart3 },
   { title: 'Integrações', url: '/master/integracoes', icon: Plug },
+  {
+    title: 'Assinatura',
+    url: '/master/assinatura',
+    icon: CreditCard,
+    submenu: [
+      { title: 'Planos', url: '/master/assinatura', icon: CreditCard },
+      { title: 'Assinantes', url: '/master/assinatura/assinantes', icon: Users },
+    ],
+  },
   { title: 'Configurações', url: '/master/configuracoes', icon: Coffee },
 ];
 

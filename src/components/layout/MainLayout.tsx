@@ -14,6 +14,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { useTheme } from 'next-themes';
+import { SubscriptionBanner } from '@/components/layout/SubscriptionBanner';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -64,6 +65,7 @@ export function MainLayout({ children, breadcrumbs = [] }: MainLayoutProps) {
         </header>
         <main className="flex-1 overflow-auto p-4 md:px-6 lg:px-8 md:py-6">
           <div className="w-full max-w-[1200px]">
+          <SubscriptionBanner />
           {children}
           </div>
         </main>

@@ -10,7 +10,7 @@ function checkSupabaseConfig(url: string | undefined, key: string | undefined): 
   if (url === 'https://your-project.supabase.co') return false
   if (url.includes('your-project')) return false
   if (key === 'your-anon-key-here') return false
-  if (key.length < 50) return false
+  if (!key.startsWith('sb_') && key.length < 50) return false
   // Verificar se a URL é válida
   try {
     new URL(url)

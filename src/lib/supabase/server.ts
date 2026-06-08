@@ -11,7 +11,7 @@ const isValidSupabaseConfig = supabaseUrl &&
   supabaseUrl !== 'https://your-project.supabase.co' &&
   !supabaseUrl.includes('your-project') &&
   supabaseAnonKey !== 'your-anon-key-here' &&
-  supabaseAnonKey.length > 50
+  (supabaseAnonKey.startsWith('sb_') || supabaseAnonKey.length > 50)
 
 export function isSupabaseConfigured(): boolean {
   return isValidSupabaseConfig

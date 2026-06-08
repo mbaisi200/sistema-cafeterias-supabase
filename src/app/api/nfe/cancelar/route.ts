@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { NFeService } from '@/services/nfe/nfe-service';
+import { cancelarVendaCompleta } from '@/lib/vendas-cancelar';
 
 /**
  * API para cancelar NF-e
@@ -77,6 +78,16 @@ export async function POST(request: NextRequest) {
     const cnpj = config?.cnpj || nfe.emitente?.cnpj || '';
     const uf = config?.uf || nfe.emitente?.endereco?.uf || 'SP';
     const ambiente = nfe.ambiente;
+
+    // Buscar dados do usuário
+    const { data: usuario } = await supabase
+      .from('usuarios')
+      .select('id, nome')
+      .eq('auth_user_id', user.id)
+      .single();
+
+    const canceladoPor = usuario?.id || user.id;
+    const canceladoPorNome = usuario?.nome || user.email || '';
 
     // Gerar XML de cancelamento
     const xmlCancelamento = NFeService.gerarXMLCancelamento({
@@ -171,57 +182,21 @@ export async function POST(request: NextRequest) {
       mensagem: statusEvento === 'autorizado' ? 'NF-e cancelada com sucesso' : mensagemRejeicao,
     });
 
-    // Estornar itens do estoque (se o cancelamento foi aceito pela SEFAZ)
-    if (statusEvento === 'autorizado') {
-      // Extrair produtos do JSON da NF-e
-      const produtosNFe = typeof nfe.produtos === 'string' ? JSON.parse(nfe.produtos) : (nfe.produtos || []);
-      for (const item of produtosNFe) {
-        try {
-          // Buscar produto pelo código (GTIN) ou descrição
-          const { data: prod } = await supabase
-            .from('produtos')
-            .select('id, estoque_atual, controlar_estoque, nome')
-            .or(`codigo_barras.eq.${item.codigo},codigo.eq.${item.codigo}`)
-            .maybeSingle();
-
-          if (!prod || prod.controlar_estoque === false) continue;
-
-          const novaQtd = item.unidade_comercial === item.unidade_tributavel
-            ? item.quantidade_comercial
-            : item.quantidade_tributavel;
-
-          const novoEstoque = (parseFloat(prod.estoque_atual) || 0) + novaQtd;
-          await supabase.from('produtos').update({ estoque_atual: novoEstoque }).eq('id', prod.id);
-
-          await supabase.from('estoque_movimentos').insert({
-            empresa_id: nfe.empresa_id,
-            produto_id: prod.id,
-            produto_nome: item.descricao || prod.nome,
-            tipo: 'ajuste',
-            quantidade: novaQtd,
-            estoque_anterior: parseFloat(prod.estoque_atual) || 0,
-            estoque_novo: novoEstoque,
-            observacao: `Cancelamento NF-e #${nfe.numero} - ${justificativa}`,
-            criado_em: new Date().toISOString(),
-          });
-        } catch {
-          // Continua com próximo item
-        }
-      }
-
-      // Atualizar venda vinculada, se existir
-      if (nfe.venda_id) {
-        await supabase
-          .from('vendas')
-          .update({ status: 'cancelada' })
-          .eq('id', nfe.venda_id);
-      }
+    // Estornar itens do estoque + caixa (se o cancelamento foi aceito pela SEFAZ)
+    if (statusEvento === 'autorizado' && nfe.venda_id) {
+      await cancelarVendaCompleta(
+        supabase,
+        nfe.venda_id,
+        justificativa,
+        canceladoPor,
+        canceladoPorNome,
+      );
     }
 
     return NextResponse.json({
       sucesso: statusEvento === 'autorizado',
       protocolo: protocoloCancelamento,
-      mensagem: statusEvento === 'autorizado' ? 'NF-e cancelada com sucesso. Estoque estornado conforme legislação vigente.' : `Falha no cancelamento: ${mensagemRejeicao}`,
+      mensagem: statusEvento === 'autorizado' ? 'NF-e cancelada com sucesso. Estoque e caixa estornados.' : `Falha no cancelamento: ${mensagemRejeicao}`,
       erro: statusEvento === 'autorizado' ? undefined : { codigo: codigoRejeicao || 'UNKNOWN', mensagem: mensagemRejeicao || 'Erro ao cancelar' },
     });
 
