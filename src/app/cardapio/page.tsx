@@ -30,6 +30,7 @@ import {
   Coffee,
   AlertCircle
 } from 'lucide-react';
+import { ChatWidget } from '@/components/cardapio/ChatWidget';
 import type { CarrinhoItem, ItemVariacao, ItemAdicional } from '@/types/delivery';
 
 // Types
@@ -79,6 +80,7 @@ interface EmpresaInfo {
   aceita_dinheiro: boolean;
   aceita_cartao: boolean;
   aceita_pix: boolean;
+  chat_ativo: boolean;
 }
 
 function formatCurrency(value: number): string {
@@ -504,6 +506,7 @@ function CardapioContent() {
           aceita_dinheiro: configData?.aceita_dinheiro ?? true,
           aceita_cartao: configData?.aceita_cartao ?? true,
           aceita_pix: configData?.aceita_pix ?? true,
+          chat_ativo: configData?.chat_ativo ?? false,
         });
       }
 
@@ -726,6 +729,9 @@ function CardapioContent() {
           onCheckout={handleCheckout}
         />
       )}
+
+      {/* Atendente Virtual */}
+      {empresa && <ChatWidget empresaId={empresaId} chatAtivo={empresa.chat_ativo} />}
     </div>
   );
 }

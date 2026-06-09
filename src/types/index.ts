@@ -134,6 +134,9 @@ export type TipoVenda = 'mesa' | 'balcao' | 'delivery';
 export type CanalVenda = 'balcao' | 'mesa' | 'delivery' | 'ifood' | 'rappi' | 'uber_eats' | 'whatsapp';
 export type FormaPagamento = 'dinheiro' | 'cartao_credito' | 'cartao_debito' | 'pix' | 'voucher' | 'ifood_online';
 
+// KDS (Kitchen Display System) - Status de preparação dos itens
+export type KdsStatus = 'pendente' | 'em_preparacao' | 'pronto' | 'entregue';
+
 export interface ItemVenda {
   id: string;
   vendaId: string;
@@ -142,6 +145,7 @@ export interface ItemVenda {
   precoUnitario: number;
   desconto: number;
   observacao?: string;
+  kdsStatus?: KdsStatus;
   criadoEm: Date;
 }
 

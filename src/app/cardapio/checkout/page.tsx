@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -118,6 +118,66 @@ function CheckoutContent() {
   const [formaPagamento, setFormaPagamento] = useState('dinheiro');
   const [trocoPara, setTrocoPara] = useState<number>(0);
   const [observacoes, setObservacoes] = useState('');
+
+  // Carrinho abandonado - sessão única por navegador
+  const sessaoId = useRef('');
+  const salvandoCarrinho = useRef(false);
+
+  useEffect(() => {
+    let sid = localStorage.getItem('recuperacao_sessao');
+    if (!sid) {
+      sid = crypto.randomUUID();
+      localStorage.setItem('recuperacao_sessao', sid);
+    }
+    sessaoId.current = sid;
+  }, []);
+
+  // Salvar carrinho no servidor para recuperação
+  useEffect(() => {
+    if (!empresaId || carrinho.length === 0 || !sessaoId.current) return;
+
+    const timer = setTimeout(async () => {
+      if (salvandoCarrinho.current) return;
+      salvandoCarrinho.current = true;
+      try {
+        const res = await fetch('/api/recuperacao/salvar-carrinho', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            empresa_id: empresaId,
+            cliente_identificador: sessaoId.current,
+            cliente_nome: clienteNome || 'Visitante',
+            cliente_telefone: clienteTelefone || null,
+            cliente_email: clienteEmail || null,
+            itens: carrinho.map(item => ({
+              produtoId: item.produtoId,
+              produtoNome: item.produtoNome,
+              quantidade: item.quantidade,
+              precoBase: item.precoBase,
+              total: item.total,
+              variacoes: item.variacoes,
+              adicionais: item.adicionais,
+              observacoes: item.observacoes,
+            })),
+            subtotal,
+            taxa_entrega: taxaEntrega,
+            total,
+            tipo_pedido: tipoPedido,
+          }),
+        });
+        const json = await res.json();
+        if (json.sucesso && json.data?.id) {
+          localStorage.setItem('recuperacao_carrinho_id', json.data.id);
+        }
+      } catch {
+        // silent - não crítico
+      } finally {
+        salvandoCarrinho.current = false;
+      }
+    }, 2000);
+
+    return () => clearTimeout(timer);
+  }, [empresaId, carrinho, clienteNome, clienteTelefone, clienteEmail, subtotal, taxaEntrega, total, tipoPedido]);
 
   // Carregar dados
   useEffect(() => {
@@ -329,7 +389,19 @@ function CheckoutContent() {
           criado_em: new Date().toISOString(),
         });
 
-      // 6. Limpar carrinho e redirecionar
+      // 6. Marcar carrinho como recuperado
+      const cartId = localStorage.getItem('recuperacao_carrinho_id');
+      if (cartId) {
+        try {
+          await fetch('/api/recuperacao/marcar-recuperado', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ carrinho_id: cartId, pedido_id: pedido.id }),
+          }).catch(() => {});
+        } catch { /* silent */ }
+      }
+
+      // 7. Limpar carrinho e redirecionar
       localStorage.removeItem('carrinho_delivery');
       localStorage.removeItem('empresa_delivery');
 

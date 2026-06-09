@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { getSupabaseClient } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
-import { AlertCircle, AlertTriangle, Settings, CreditCard, CheckCircle2, Loader2, ExternalLink, LogOut, ArrowRight } from 'lucide-react';
+import { AlertCircle, AlertTriangle, Settings, CreditCard, CheckCircle2, Loader2, ExternalLink, LogOut, ArrowRight, CalendarDays } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 
 function SessionExpiredAlert() {
@@ -278,6 +278,24 @@ function SubscriptionCard({ empresaId, email, onSkip }: { empresaId: string; ema
             </div>
           )}
         </div>
+        {(subscriptionCurrentPeriodEnd || empresaValidade) && (
+          <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+            <CalendarDays className="h-4 w-4" />
+            <span>
+              Vencimento:{' '}
+              <span className="font-medium text-foreground">
+                {new Intl.DateTimeFormat('pt-BR').format(
+                  new Date(subscriptionCurrentPeriodEnd || empresaValidade!)
+                )}
+              </span>
+            </span>
+            {diasRestantes !== null && (
+              <span className={`font-medium ${diasRestantes <= 0 ? 'text-red-500' : diasRestantes <= 7 ? 'text-amber-500' : 'text-foreground'}`}>
+                {diasRestantes <= 0 ? `${Math.abs(diasRestantes)} dias atrasado` : `${diasRestantes} dia${diasRestantes !== 1 ? 's' : ''} restante${diasRestantes !== 1 ? 's' : ''}`}
+              </span>
+            )}
+          </div>
+        )}
         <ul className="space-y-2 text-sm">
           <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-green-500" /> Acesso completo ao sistema</li>
           <li className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-green-500" /> Suporte técnico</li>

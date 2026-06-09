@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useEmpresas } from '@/hooks/useSupabase';
 import { getSupabaseClient } from '@/lib/supabase';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Plus,
   Search,
@@ -122,6 +122,27 @@ export default function ClientesPage() {
   const [editValorMensalValue, setEditValorMensalValue] = useState('');
   const [editAdminNome, setEditAdminNome] = useState('');
   const [editAdminEmail, setEditAdminEmail] = useState('');
+
+  // Estados para endereço (criação)
+  const [logradouro, setLogradouro] = useState('');
+  const [numero, setNumero] = useState('');
+  const [complemento, setComplemento] = useState('');
+  const [bairro, setBairro] = useState('');
+  const [cidade, setCidade] = useState('');
+  const [estado, setEstado] = useState('');
+
+  // Estados para endereço (edição)
+  const [editLogradouro, setEditLogradouro] = useState('');
+  const [editNumero, setEditNumero] = useState('');
+  const [editComplemento, setEditComplemento] = useState('');
+  const [editBairro, setEditBairro] = useState('');
+  const [editCidade, setEditCidade] = useState('');
+  const [editEstado, setEditEstado] = useState('');
+
+  const [buscandoCEP, setBuscandoCEP] = useState(false);
+  const [editBuscandoCEP, setEditBuscandoCEP] = useState(false);
+  const cepTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const editCepTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Estados para segmentos
   const [segmentos, setSegmentos] = useState<any[]>([]);
@@ -232,6 +253,56 @@ export default function ClientesPage() {
     return dataValidade < hoje;
   };
 
+  const buscarCEP = useCallback(async (cepLimpo: string, isEdit = false) => {
+    if (cepLimpo.length !== 8) return;
+    if (isEdit) setEditBuscandoCEP(true); else setBuscandoCEP(true);
+    try {
+      const res = await fetch(`/api/cep/${cepLimpo}`);
+      const data = await res.json();
+      if (!data.sucesso) {
+        toast({ variant: 'destructive', title: 'CEP não encontrado', description: data.erro?.mensagem || 'CEP inválido' });
+        return;
+      }
+      if (isEdit) {
+        setEditLogradouro(data.logradouro || '');
+        setEditComplemento(data.complemento || '');
+        setEditBairro(data.bairro || '');
+        setEditCidade(data.localidade || '');
+        setEditEstado(data.uf || '');
+      } else {
+        setLogradouro(data.logradouro || '');
+        setComplemento(data.complemento || '');
+        setBairro(data.bairro || '');
+        setCidade(data.localidade || '');
+        setEstado(data.uf || '');
+      }
+    } catch {
+      toast({ variant: 'destructive', title: 'Erro ao buscar CEP', description: 'Verifique sua conexão.' });
+    } finally {
+      if (isEdit) setEditBuscandoCEP(false); else setBuscandoCEP(false);
+    }
+  }, [toast]);
+
+  // Debounce para busca de CEP no formulário de criação
+  useEffect(() => {
+    if (cepTimerRef.current) clearTimeout(cepTimerRef.current);
+    const cepLimpo = cepValue.replace(/\D/g, '');
+    if (cepLimpo.length === 8) {
+      cepTimerRef.current = setTimeout(() => buscarCEP(cepLimpo, false), 500);
+    }
+    return () => { if (cepTimerRef.current) clearTimeout(cepTimerRef.current); };
+  }, [cepValue, buscarCEP]);
+
+  // Debounce para busca de CEP no formulário de edição
+  useEffect(() => {
+    if (editCepTimerRef.current) clearTimeout(editCepTimerRef.current);
+    const cepLimpo = editCepValue.replace(/\D/g, '');
+    if (cepLimpo.length === 8) {
+      editCepTimerRef.current = setTimeout(() => buscarCEP(cepLimpo, true), 500);
+    }
+    return () => { if (editCepTimerRef.current) clearTimeout(editCepTimerRef.current); };
+  }, [editCepValue, buscarCEP]);
+
   const handleSalvar = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setSaving(true);
@@ -257,12 +328,12 @@ export default function ClientesPage() {
         cnpj: unmask(cnpjValue),
         email: formData.get('email') as string,
         telefone: unmask(telefoneValue),
-        logradouro: formData.get('logradouro') as string,
-        numero: formData.get('numero') as string,
-        complemento: formData.get('complemento') as string,
-        bairro: formData.get('bairro') as string,
-        cidade: formData.get('cidade') as string,
-        estado: formData.get('estado') as string,
+        logradouro,
+        numero,
+        complemento,
+        bairro,
+        cidade,
+        estado,
         cep: unmask(cepValue),
         valorMensal: parseFloat(valorMensalValue) || 0,
         dataInicio: dataInicioValue || null,
@@ -319,6 +390,12 @@ export default function ClientesPage() {
       setCnpjValue('');
       setTelefoneValue('');
       setCepValue('');
+      setLogradouro('');
+      setNumero('');
+      setComplemento('');
+      setBairro('');
+      setCidade('');
+      setEstado('');
       setDataInicioValue('');
       setValidadeValue('');
       setValorMensalValue('');
@@ -359,12 +436,12 @@ export default function ClientesPage() {
         cnpj: unmask(editCnpjValue),
         email: formData.get('email') as string,
         telefone: unmask(editTelefoneValue),
-        logradouro: formData.get('logradouro') as string,
-        numero: formData.get('numero') as string,
-        complemento: formData.get('complemento') as string,
-        bairro: formData.get('bairro') as string,
-        cidade: formData.get('cidade') as string,
-        estado: formData.get('estado') as string,
+        logradouro: editLogradouro,
+        numero: editNumero,
+        complemento: editComplemento,
+        bairro: editBairro,
+        cidade: editCidade,
+        estado: editEstado,
         cep: unmask(editCepValue),
         valor_mensal: parseFloat(editValorMensalValue) || 0,
         dataInicio: editDataInicioValue || null,
@@ -424,6 +501,12 @@ export default function ClientesPage() {
     setEditCnpjValue(formatCNPJ(cliente.cnpj || ''));
     setEditTelefoneValue(formatPhone(cliente.telefone || ''));
     setEditCepValue(formatCEP(cliente.cep || ''));
+    setEditLogradouro(cliente.logradouro || '');
+    setEditNumero(cliente.numero || '');
+    setEditComplemento(cliente.complemento || '');
+    setEditBairro(cliente.bairro || '');
+    setEditCidade(cliente.cidade || '');
+    setEditEstado(cliente.estado || '');
     setEditDataInicioValue(cliente.dataInicio ? formatDateForInput(new Date(cliente.dataInicio)) : '');
     setEditValidadeValue(cliente.validade ? formatDateForInput(new Date(cliente.validade)) : '');
     setEditValorMensalValue(cliente.valorMensal ? cliente.valorMensal.toString() : '');
@@ -784,28 +867,10 @@ export default function ClientesPage() {
                         </div>
                       </div>
                       
-                      {/* Endereço */}
+                      {/* CEP — primeiro para preencher endereço automaticamente */}
                       <div className="space-y-2">
-                        <Label htmlFor="logradouro">Logradouro</Label>
-                        <Input id="logradouro" name="logradouro" placeholder="Rua, Avenida, etc." />
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="numero">Número</Label>
-                          <Input id="numero" name="numero" placeholder="123" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="complemento">Complemento</Label>
-                          <Input id="complemento" name="complemento" placeholder="Sala 1" />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="bairro">Bairro</Label>
-                          <Input id="bairro" name="bairro" placeholder="Centro" />
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="cep">CEP</Label>
+                        <Label htmlFor="cep">CEP</Label>
+                        <div className="relative">
                           <Input 
                             id="cep" 
                             name="cep" 
@@ -814,14 +879,38 @@ export default function ClientesPage() {
                             onChange={(e) => setCepValue(maskCEP(e.target.value))}
                             maxLength={9}
                           />
+                          {buscandoCEP && (
+                            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                          )}
+                        </div>
+                      </div>
+                      {/* Endereço */}
+                      <div className="space-y-2">
+                        <Label htmlFor="logradouro">Logradouro</Label>
+                        <Input id="logradouro" name="logradouro" placeholder="Rua, Avenida, etc." value={logradouro} onChange={(e) => setLogradouro(e.target.value)} />
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="numero">Número</Label>
+                          <Input id="numero" name="numero" placeholder="123" value={numero} onChange={(e) => setNumero(e.target.value)} />
                         </div>
                         <div className="space-y-2">
+                          <Label htmlFor="complemento">Complemento</Label>
+                          <Input id="complemento" name="complemento" placeholder="Sala 1" value={complemento} onChange={(e) => setComplemento(e.target.value)} />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="bairro">Bairro</Label>
+                          <Input id="bairro" name="bairro" placeholder="Centro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-2">
                           <Label htmlFor="cidade">Cidade</Label>
-                          <Input id="cidade" name="cidade" placeholder="São Paulo" />
+                          <Input id="cidade" name="cidade" placeholder="São Paulo" value={cidade} onChange={(e) => setCidade(e.target.value)} />
                         </div>
                         <div className="space-y-2">
                           <Label htmlFor="estado">Estado</Label>
-                          <Select name="estado">
+                          <Select name="estado" value={estado} onValueChange={setEstado}>
                             <SelectTrigger>
                               <SelectValue placeholder="UF" />
                             </SelectTrigger>
@@ -1350,28 +1439,10 @@ export default function ClientesPage() {
                       </div>
                     </div>
                     
-                    {/* Endereço */}
+                    {/* CEP — primeiro para preencher endereço automaticamente */}
                     <div className="space-y-2">
-                      <Label htmlFor="edit_logradouro">Logradouro</Label>
-                      <Input id="edit_logradouro" name="logradouro" defaultValue={selectedCliente.logradouro} />
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="edit_numero">Número</Label>
-                        <Input id="edit_numero" name="numero" defaultValue={selectedCliente.numero} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="edit_complemento">Complemento</Label>
-                        <Input id="edit_complemento" name="complemento" defaultValue={selectedCliente.complemento} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="edit_bairro">Bairro</Label>
-                        <Input id="edit_bairro" name="bairro" defaultValue={selectedCliente.bairro} />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="edit_cep">CEP</Label>
+                      <Label htmlFor="edit_cep">CEP</Label>
+                      <div className="relative">
                         <Input 
                           id="edit_cep" 
                           name="cep" 
@@ -1379,14 +1450,38 @@ export default function ClientesPage() {
                           onChange={(e) => setEditCepValue(maskCEP(e.target.value))}
                           maxLength={9}
                         />
+                        {editBuscandoCEP && (
+                          <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+                        )}
+                      </div>
+                    </div>
+                    {/* Endereço */}
+                    <div className="space-y-2">
+                      <Label htmlFor="edit_logradouro">Logradouro</Label>
+                      <Input id="edit_logradouro" name="logradouro" value={editLogradouro} onChange={(e) => setEditLogradouro(e.target.value)} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_numero">Número</Label>
+                        <Input id="edit_numero" name="numero" value={editNumero} onChange={(e) => setEditNumero(e.target.value)} />
                       </div>
                       <div className="space-y-2">
+                        <Label htmlFor="edit_complemento">Complemento</Label>
+                        <Input id="edit_complemento" name="complemento" value={editComplemento} onChange={(e) => setEditComplemento(e.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit_bairro">Bairro</Label>
+                        <Input id="edit_bairro" name="bairro" value={editBairro} onChange={(e) => setEditBairro(e.target.value)} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div className="space-y-2">
                         <Label htmlFor="edit_cidade">Cidade</Label>
-                        <Input id="edit_cidade" name="cidade" defaultValue={selectedCliente.cidade} />
+                        <Input id="edit_cidade" name="cidade" value={editCidade} onChange={(e) => setEditCidade(e.target.value)} />
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="edit_estado">Estado</Label>
-                        <Select name="estado" defaultValue={selectedCliente.estado}>
+                        <Select name="estado" value={editEstado} onValueChange={setEditEstado}>
                           <SelectTrigger>
                             <SelectValue placeholder="UF" />
                           </SelectTrigger>

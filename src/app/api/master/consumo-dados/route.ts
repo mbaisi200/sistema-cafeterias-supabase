@@ -41,6 +41,22 @@ const TABELAS_COM_EMPRESA = [
   { nome: 'lavanderia_servicos_catalogo', colunaEmpresa: 'empresa_id', descricao: 'Catálogo Serv. Lav.' },
   { nome: 'lavanderia_precos', colunaEmpresa: 'empresa_id', descricao: 'Preços Lavanderia' },
   { nome: 'lavanderia_categorias', colunaEmpresa: 'empresa_id', descricao: 'Categorias Lavanderia' },
+  { nome: 'carrinhos_abandonados', colunaEmpresa: 'empresa_id', descricao: 'Carrinhos Abandonados' },
+  { nome: 'entregadores', colunaEmpresa: 'empresa_id', descricao: 'Entregadores' },
+  { nome: 'atendimento_conversas', colunaEmpresa: 'empresa_id', descricao: 'Conversas Atendimento' },
+  { nome: 'atendimento_mensagens', colunaEmpresa: 'empresa_id', descricao: 'Mensagens Atendimento' },
+  { nome: 'atendimento_auto_respostas', colunaEmpresa: 'empresa_id', descricao: 'Auto-Respostas Atendimento' },
+  { nome: 'pedido_delivery', colunaEmpresa: 'empresa_id', descricao: 'Pedidos Delivery' },
+  { nome: 'pedido_delivery_itens', colunaEmpresa: 'empresa_id', descricao: 'Itens Delivery' },
+  { nome: 'pedido_delivery_historico', colunaEmpresa: 'empresa_id', descricao: 'Histórico Delivery' },
+  { nome: 'pedido_delivery_avaliacoes', colunaEmpresa: 'empresa_id', descricao: 'Avaliações Delivery' },
+  { nome: 'cupons_desconto', colunaEmpresa: 'empresa_id', descricao: 'Cupons de Desconto' },
+  { nome: 'cliente_enderecos', colunaEmpresa: 'empresa_id', descricao: 'Endereços Clientes' },
+  { nome: 'programas_fidelidade', colunaEmpresa: 'empresa_id', descricao: 'Programas Fidelidade' },
+  { nome: 'fidelidade_clientes', colunaEmpresa: 'empresa_id', descricao: 'Clientes Fidelidade' },
+  { nome: 'fidelidade_transacoes', colunaEmpresa: 'empresa_id', descricao: 'Transações Fidelidade' },
+  { nome: 'fidelidade_recompensas', colunaEmpresa: 'empresa_id', descricao: 'Recompensas Fidelidade' },
+  { nome: 'subscription_invoices', colunaEmpresa: 'empresa_id', descricao: 'Faturas Assinatura' },
 ];
 
 // Tamanho médio estimado por registro em bytes (valores aproximados)
@@ -83,6 +99,22 @@ const TAMANHO_MEDIO_REGISTRO: Record<string, number> = {
   lavanderia_servicos_catalogo: 200,
   lavanderia_precos: 150,
   lavanderia_categorias: 200,
+  carrinhos_abandonados: 1000,
+  entregadores: 300,
+  pedido_delivery: 1000,
+  pedido_delivery_itens: 400,
+  pedido_delivery_historico: 200,
+  pedido_delivery_avaliacoes: 300,
+  cupons_desconto: 400,
+  cliente_enderecos: 300,
+  programas_fidelidade: 500,
+  fidelidade_clientes: 300,
+  fidelidade_transacoes: 200,
+  fidelidade_recompensas: 300,
+  subscription_invoices: 400,
+  atendimento_conversas: 300,
+  atendimento_mensagens: 400,
+  atendimento_auto_respostas: 200,
 };
 
 const formatarTamanho = (bytes: number): string => {
@@ -91,6 +123,76 @@ const formatarTamanho = (bytes: number): string => {
   if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
   return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
 };
+
+// Buscar estatísticas do Storage (imagens, logos)
+async function fetchStorageStats(supabaseUrl: string, serviceKey: string) {
+  try {
+    const { createClient } = await import('@supabase/supabase-js');
+    const storageClient = createClient(supabaseUrl, serviceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const bucketsLista = ['produto-imagens', 'empresa-logos'];
+    const nomesBuckets: Record<string, string> = {
+      'produto-imagens': 'Imagens de Produtos',
+      'empresa-logos': 'Logos das Empresas',
+    };
+
+    const bucketsMap: Record<string, { nome: string; arquivos: number; bytes: number }> = {};
+
+    for (const bucketId of bucketsLista) {
+      const storageApi = storageClient.storage.from(bucketId);
+      const todosArquivos: { name: string; metadata: any }[] = [];
+
+      // Lista recursiva: busca itens da raiz e depois dentro de cada pasta
+      const listarRecursivo = async (prefix: string) => {
+        const { data: items } = await storageApi.list(prefix, {
+          limit: 10000,
+          offset: 0,
+        });
+        if (!items) return;
+
+        for (const item of items) {
+          if (item.id === null) {
+            // É uma pasta — lista recursivamente
+            await listarRecursivo(item.name);
+          } else {
+            // É um arquivo
+            const size = (item.metadata as any)?.size || 0;
+            todosArquivos.push({ name: item.name, metadata: item.metadata });
+          }
+        }
+      };
+
+      await listarRecursivo('');
+
+      const totalBytes = todosArquivos.reduce((acc, f) => acc + Number((f.metadata as any)?.size || 0), 0);
+
+      bucketsMap[bucketId] = {
+        nome: nomesBuckets[bucketId] || bucketId,
+        arquivos: todosArquivos.length,
+        bytes: totalBytes,
+      };
+    }
+
+    const buckets = Object.values(bucketsMap).map(b => ({
+      ...b,
+      tamanhoFormatado: formatarTamanho(b.bytes),
+    }));
+
+    const totalBytes = buckets.reduce((acc, b) => acc + b.bytes, 0);
+    const totalArquivos = buckets.reduce((acc, b) => acc + b.arquivos, 0);
+
+    return {
+      buckets,
+      totalArquivos,
+      totalBytes,
+      totalFormatado: formatarTamanho(totalBytes),
+    };
+  } catch {
+    return { buckets: [], totalArquivos: 0, totalBytes: 0, totalFormatado: '0 B' };
+  }
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -188,6 +290,11 @@ export async function GET(request: NextRequest) {
 
       const totalVendas30Dias = (vendasRecentes || []).reduce((acc, v) => acc + (Number(v.total) || 0), 0);
 
+      const storageStats = await fetchStorageStats(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+
       return NextResponse.json({
         modo: 'todos',
         empresas: empresas || [],
@@ -200,6 +307,7 @@ export async function GET(request: NextRequest) {
             tamanhoFormatado: formatarTamanho(totalTamanhoEstimado),
           },
         },
+        storage: storageStats,
         estatisticas: {
           totalEmpresas: (empresas || []).length,
           empresasAtivas: (empresas || []).filter(e => e.status === 'ativo').length,
@@ -306,6 +414,11 @@ export async function GET(request: NextRequest) {
       ? totalVendas30Dias / Object.keys(vendasPorDia).length
       : 0;
 
+    const storageStats = await fetchStorageStats(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     const resultado = {
       empresa: {
         id: empresa.id,
@@ -325,6 +438,7 @@ export async function GET(request: NextRequest) {
           tamanhoFormatado: formatarTamanho(totalTamanhoEstimado),
         },
       },
+      storage: storageStats,
       estatisticas: {
         vendas30Dias: {
           total: totalVendas30Dias,

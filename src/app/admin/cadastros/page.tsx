@@ -6,12 +6,13 @@ import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Users, Truck, UserCheck, Wrench, ChevronLeft, UserCog, ClipboardList } from 'lucide-react';
+import { Users, Truck, UserCheck, Wrench, ChevronLeft, UserCog, ClipboardList, Bike } from 'lucide-react';
 import { ClientesTab } from './ClientesTab';
 import { FornecedoresTab } from './FornecedoresTab';
 import { VendedoresTab } from './VendedoresTab';
 import { ServicosTab } from './ServicosTab';
 import { FuncionariosTab } from './FuncionariosTab';
+import { EntregadoresTab } from './EntregadoresTab';
 import { ListagemTab } from './ListagemTab';
 
 export default function CadastrosPage() {
@@ -55,6 +56,10 @@ export default function CadastrosPage() {
               <UserCog className="h-4 w-4" />
               <span className="text-xs md:text-sm">Funcionários</span>
             </TabsTrigger>
+            <TabsTrigger value="entregadores" className="gap-1 md:gap-2">
+              <Bike className="h-4 w-4" />
+              <span className="text-xs md:text-sm">Entregadores</span>
+            </TabsTrigger>
             <TabsTrigger value="listagem" className="gap-1 md:gap-2">
               <ClipboardList className="h-4 w-4" />
               <span className="text-xs md:text-sm">Listagem</span>
@@ -79,6 +84,9 @@ export default function CadastrosPage() {
 
             <TabsContent value="funcionarios">
               <FuncionariosTab />
+            </TabsContent>
+            <TabsContent value="entregadores">
+              <EntregadoresTab />
             </TabsContent>
             <TabsContent value="listagem">
               <ListagemTab />

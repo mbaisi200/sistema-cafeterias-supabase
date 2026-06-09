@@ -344,6 +344,8 @@ Toda `<Table>` (shadcn/ui) deve usar `table-fixed w-full` para distribuir o espa
     ```
     Colar **sempre** no final de qualquer migration que crie tabela.
 
+11. **🔴 Toda tabela nova com `empresa_id` deve ser registrada no `/master/consumo-dados`**: editar `src/app/api/master/consumo-dados/route.ts` e adicionar entrada em `TABELAS_COM_EMPRESA` e `TAMANHO_MEDIO_REGISTRO`. Sem isso, a tabela fica invisível na página de Consumo de Dados.
+
 ---
 
 ## 📌 CNPJ Alfanumérico (Lei RFB nº 2.229/2024)

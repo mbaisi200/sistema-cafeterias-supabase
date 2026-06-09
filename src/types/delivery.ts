@@ -297,6 +297,10 @@ export interface EmpresaDeliveryConfig {
   aceitaCartaoOnline: boolean;
   mensagemPedidoRecebido: string;
   mensagemPedidoPronto: string;
+  recuperacaoAtiva: boolean;
+  recuperacaoTempoMinutos: number;
+  recuperacaoDescontoPercentual?: number;
+  recuperacaoMensagem?: string;
   criadoEm: Date;
   atualizadoEm: Date;
 }
@@ -330,6 +334,34 @@ export interface Carrinho {
   taxaEntrega: number;
   desconto: number;
   total: number;
+}
+
+// ============================================
+// Carrinho Abandonado (Recuperador de Vendas)
+// ============================================
+
+export interface CarrinhoAbandonado {
+  id: string;
+  empresaId: string;
+  clienteIdentificador: string;
+  clienteNome: string;
+  clienteTelefone?: string;
+  clienteEmail?: string;
+  itens: CarrinhoItem[];
+  subtotal: number;
+  taxaEntrega: number;
+  total: number;
+  tipoPedido: string;
+  cupomCodigo?: string;
+  ultimaEtapa: string;
+  origem: string;
+  lembretesEnviados: number;
+  ultimoLembreteEnviado?: string;
+  recuperado: boolean;
+  pedidoId?: string;
+  expiraEm?: string;
+  criadoEm: string;
+  atualizadoEm: string;
 }
 
 // ============================================

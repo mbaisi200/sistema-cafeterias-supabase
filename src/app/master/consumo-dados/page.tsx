@@ -28,6 +28,7 @@ import {
   DollarSign,
   PieChart,
   BarChart3,
+  Image,
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import {
@@ -70,6 +71,20 @@ interface ConsumoEmpresa {
   percentual: number;
 }
 
+interface StorageBucket {
+  nome: string;
+  arquivos: number;
+  bytes: number;
+  tamanhoFormatado: string;
+}
+
+interface StorageStats {
+  buckets: StorageBucket[];
+  totalArquivos: number;
+  totalBytes: number;
+  totalFormatado: string;
+}
+
 interface ConsumoTabela {
   tabela: string;
   descricao: string;
@@ -96,6 +111,7 @@ interface DadosConsumo {
       tamanhoFormatado: string;
     };
   };
+  storage: StorageStats;
   estatisticas: {
     vendas30Dias: {
       total: number;
@@ -118,6 +134,7 @@ interface DadosTodos {
       tamanhoFormatado: string;
     };
   };
+  storage: StorageStats;
   estatisticas: {
     totalEmpresas: number;
     empresasAtivas: number;
@@ -368,6 +385,37 @@ export default function ConsumoDadosPage() {
                     </p>
                   </CardContent>
                 </Card>
+              </div>
+
+              {/* Cards de Storage */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Image className="h-4 w-4 text-pink-500" />
+                      Storage (Imagens)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-pink-600">
+                      {dadosTodos.storage.totalFormatado}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {dadosTodos.storage.totalArquivos.toLocaleString('pt-BR')} arquivos em {dadosTodos.storage.buckets.length} bucket(s)
+                    </p>
+                  </CardContent>
+                </Card>
+                {dadosTodos.storage.buckets.map((bucket) => (
+                  <Card key={bucket.nome}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium truncate">{bucket.nome}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-lg font-bold text-pink-600">{bucket.tamanhoFormatado}</div>
+                      <p className="text-xs text-muted-foreground">{bucket.arquivos} arquivo(s)</p>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
               {/* Tabs para visualização */}
@@ -736,6 +784,37 @@ export default function ConsumoDadosPage() {
                     </p>
                   </CardContent>
                 </Card>
+              </div>
+
+              {/* Cards de Storage */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium flex items-center gap-2">
+                      <Image className="h-4 w-4 text-pink-500" />
+                      Storage (Imagens)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-pink-600">
+                      {dadosConsumo.storage.totalFormatado}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {dadosConsumo.storage.totalArquivos.toLocaleString('pt-BR')} arquivos em {dadosConsumo.storage.buckets.length} bucket(s)
+                    </p>
+                  </CardContent>
+                </Card>
+                {dadosConsumo.storage.buckets.map((bucket) => (
+                  <Card key={bucket.nome}>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm font-medium truncate">{bucket.nome}</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-lg font-bold text-pink-600">{bucket.tamanhoFormatado}</div>
+                      <p className="text-xs text-muted-foreground">{bucket.arquivos} arquivo(s)</p>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
 
               {/* Gráficos */}

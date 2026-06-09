@@ -72,6 +72,7 @@ import {
   ArrowUpDown,
   KeyRound,
   CreditCard,
+  MessageCircle,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -125,40 +126,63 @@ const masterMenuItems: MenuItem[] = [
 // Fallback hardcoded para admin (usado quando o banco não retorna dados)
 const adminMenuItems: MenuItem[] = [
   { title: 'Dashboard', url: '/admin/dashboard', icon: LayoutDashboard },
-  { title: 'PDV', url: '/pdv', icon: ShoppingCart },
-  { title: 'PDV Varejo', url: '/pdv-varejo', icon: Store },
-  { title: 'PDV Garçom', url: '/pdv-garcom', icon: UtensilsCrossed },
+  { title: 'Alterar Senha', url: '/admin/alterar-senha', icon: KeyRound },
+  {
+    title: 'Atendimento',
+    url: '#',
+    icon: MessageCircle,
+    submenu: [
+      { title: 'Conversas', url: '/admin/atendimento', icon: MessageCircle },
+      { title: 'Recuperação de Carrinhos', url: '/admin/configuracoes/recuperacao-carrinho', icon: ShoppingCart },
+    ],
+  },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
   { title: 'Cadastros', url: '/admin/cadastros', icon: Users },
-  { title: 'Produtos', url: '/admin/produtos', icon: Package },
+  {
+    title: 'Configurações',
+    url: '#',
+    icon: Settings,
+    submenu: [
+      { title: 'Fidelidade', url: '/admin/configuracoes/fidelidade', icon: Heart },
+      { title: 'Geral', url: '/admin/configuracoes', icon: Settings },
+      { title: 'Unidades', url: '/admin/configuracoes/unidades', icon: Ruler },
+    ],
+  },
+  { title: 'Cozinha', url: '/admin/kds', icon: Croissant },
+  { title: 'Cupons e Notas Fiscais', url: '/admin/cupons-nfes', icon: FileText },
+  { title: 'Delivery', url: '/admin/delivery', icon: Bike },
+  { title: 'Dispositivos', url: '/admin/dispositivos', icon: Shield },
+  { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
+  { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
+  { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
+  { title: 'Importar Dados', url: '/admin/integracoes/importar', icon: Database },
+  { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
+  { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
+  { title: 'Notas Fiscais de Entrada', url: '/admin/nfe', icon: FileText },
+  { title: 'PDV', url: '/pdv', icon: ShoppingCart },
+  { title: 'PDV Garçom', url: '/pdv-garcom', icon: UtensilsCrossed },
+  { title: 'PDV Varejo', url: '/pdv-varejo', icon: Store },
   {
     title: 'Pedidos e OS',
     url: '#',
     icon: FileSpreadsheet,
     submenu: [
-      { title: 'Pedidos', url: '/admin/pedidos', icon: ClipboardList },
       { title: 'Ordens de Serviço', url: '/admin/ordens-servico', icon: Wrench },
       { title: 'OS Lavanderia', url: '/admin/os-lavanderia', icon: WashingMachine },
+      { title: 'Pedidos', url: '/admin/pedidos', icon: ClipboardList },
     ],
   },
-  { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
+  { title: 'Produtos', url: '/admin/produtos', icon: Package },
   { title: 'Relatório Estoque', url: '/admin/estoque/relatorio', icon: ArrowUpDown },
-  { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
-  { title: 'Delivery', url: '/admin/delivery', icon: Bike },
-  { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
-  { title: 'Dispositivos', url: '/admin/dispositivos', icon: Shield },
-  { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
-  { title: 'Importar Dados', url: '/admin/integracoes/importar', icon: Database },
-  { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
   {
     title: 'Uber Eats',
     url: '#',
     icon: Bike,
     submenu: [
       { title: 'Configuração', url: '/admin/integracoes/uber-eats', icon: Settings },
-      { title: 'Produtos', url: '/admin/integracoes/uber-eats/produtos', icon: Package },
       { title: 'Pedidos', url: '/admin/integracoes/uber-eats/pedidos', icon: ShoppingBag },
+      { title: 'Produtos', url: '/admin/integracoes/uber-eats/produtos', icon: Package },
     ],
   },
   {
@@ -167,23 +191,10 @@ const adminMenuItems: MenuItem[] = [
     icon: Bike,
     submenu: [
       { title: 'Configuração', url: '/admin/integracoes/noventa-e-nove', icon: Settings },
-      { title: 'Produtos', url: '/admin/integracoes/noventa-e-nove/produtos', icon: Package },
       { title: 'Pedidos', url: '/admin/integracoes/noventa-e-nove/pedidos', icon: ShoppingBag },
+      { title: 'Produtos', url: '/admin/integracoes/noventa-e-nove/produtos', icon: Package },
     ],
   },
-  { title: 'Cupons e Notas Fiscais', url: '/admin/cupons-nfes', icon: FileText },
-  { title: 'Notas Fiscais de Entrada', url: '/admin/nfe', icon: FileText },
-  {
-    title: 'Configurações',
-    url: '#',
-    icon: Settings,
-    submenu: [
-      { title: 'Geral', url: '/admin/configuracoes', icon: Settings },
-      { title: 'Unidades', url: '/admin/configuracoes/unidades', icon: Ruler },
-      { title: 'Fidelidade', url: '/admin/configuracoes/fidelidade', icon: Heart },
-    ],
-  },
-  { title: 'Alterar Senha', url: '/admin/alterar-senha', icon: KeyRound },
 ];
 
 // Fallback hardcoded para atalho rápido
@@ -201,6 +212,7 @@ const funcionarioMenuItems: MenuItem[] = [
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
   { title: 'PDV Varejo', url: '/pdv-varejo', icon: Store },
   { title: 'PDV Garçom', url: '/pdv-garcom', icon: UtensilsCrossed },
+  { title: 'Cozinha', url: '/admin/kds', icon: Croissant },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
 ];
 
@@ -372,47 +384,74 @@ export function AppSidebar() {
     return items.filter(i => i.url !== '/admin/categorias');
   };
 
-  // Agrupa pedidos e ordens-servico em submenu "Pedidos e OS" quando vem do banco
-  const groupDynamicMenus = (items: MenuItem[]): MenuItem[] => {
-    const pedidosItem = items.find(i => i.url === '/admin/pedidos');
-    const osItem = items.find(i => i.url === '/admin/ordens-servico');
-    const osLavanderiaItem = items.find(i => i.url === '/admin/os-lavanderia');
+  // Processa menus dinâmicos do banco: agrupa em submenus, ordena A-Z (Dashboard primeiro)
+  const processDynamicMenus = (items: MenuItem[]): MenuItem[] => {
+    // 1. Adicionar itens que só existem no fallback hardcoded (não estão no secoes_menu)
+    const missingItems: MenuItem[] = [];
+    if (!items.find(i => i.url === '/pdv-varejo'))
+      missingItems.push({ title: 'PDV Varejo', url: '/pdv-varejo', icon: Store });
+    if (!items.find(i => i.url === '/admin/kds'))
+      missingItems.push({ title: 'Cozinha', url: '/admin/kds', icon: Croissant });
+    if (!items.find(i => i.url === '/admin/estoque/relatorio'))
+      missingItems.push({ title: 'Relatório Estoque', url: '/admin/estoque/relatorio', icon: ArrowUpDown });
+    if (!items.find(i => i.url === '/admin/atendimento'))
+      missingItems.push({ title: 'Conversas', url: '/admin/atendimento', icon: MessageCircle });
+    if (!items.find(i => i.url === '/admin/configuracoes/recuperacao-carrinho'))
+      missingItems.push({ title: 'Recuperação de Carrinhos', url: '/admin/configuracoes/recuperacao-carrinho', icon: ShoppingCart });
+    if (!items.find(i => i.url === '/admin/integracoes/importar'))
+      missingItems.push({ title: 'Importar Dados', url: '/admin/integracoes/importar', icon: Database });
+    if (!items.find(i => i.url === '/admin/integracoes/ifood'))
+      missingItems.push({ title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike });
+    if (!items.find(i => i.url === '/admin/alterar-senha'))
+      missingItems.push({ title: 'Alterar Senha', url: '/admin/alterar-senha', icon: KeyRound });
 
-    // Group Pedidos + OS + OS Lavanderia into a submenu
-    const osItems = [osItem, osLavanderiaItem].filter(Boolean) as MenuItem[];
+    // Remover duplicatas de 'cardapio' (atalho_rapido) - não deve aparecer no principal
+    let all = [...items.filter(i => i.url !== '/cardapio'), ...missingItems];
 
-    if (pedidosItem && osItems.length > 0) {
-      const urlsToRemove = ['/admin/pedidos', '/admin/ordens-servico', '/admin/os-lavanderia'];
-      const filtered = items.filter(i => !urlsToRemove.includes(i.url));
-      const insertIdx = items.findIndex(i => i.url === '/admin/pedidos');
-      const parent: MenuItem = {
-        title: 'Pedidos e OS',
-        url: '#',
-        icon: FileSpreadsheet,
-        submenu: [pedidosItem, ...osItems],
-      };
-      filtered.splice(insertIdx, 0, parent);
-      return filtered;
+    // 2. Agrupar em submenus
+    const submenuGroups: { title: string; url: string; icon: any; urls: string[] }[] = [
+      { title: 'Pedidos e OS', url: '#', icon: FileSpreadsheet, urls: ['/admin/pedidos', '/admin/ordens-servico', '/admin/os-lavanderia'] },
+      { title: 'Atendimento', url: '#', icon: MessageCircle, urls: ['/admin/atendimento', '/admin/configuracoes/recuperacao-carrinho'] },
+      { title: 'Configurações', url: '#', icon: Settings, urls: ['/admin/configuracoes', '/admin/configuracoes/fidelidade', '/admin/configuracoes/unidades'] },
+      { title: 'Uber Eats', url: '#', icon: Bike, urls: ['/admin/integracoes/uber-eats', '/admin/integracoes/uber-eats/produtos', '/admin/integracoes/uber-eats/pedidos'] },
+      { title: '99Food', url: '#', icon: Bike, urls: ['/admin/integracoes/noventa-e-nove', '/admin/integracoes/noventa-e-nove/produtos', '/admin/integracoes/noventa-e-nove/pedidos'] },
+    ];
+
+    for (const group of submenuGroups) {
+      const subItems = group.urls.map(url => all.find(i => i.url === url)).filter(Boolean) as MenuItem[];
+      if (subItems.length > 0) {
+        all = all.filter(i => !group.urls.includes(i.url));
+        all.push({ title: group.title, url: group.url, icon: group.icon, submenu: subItems });
+      }
     }
-    return items;
+
+    // 3. Ordenar A-Z (Dashboard sempre primeiro)
+    const dashboard = all.find(i => i.url === '/admin/dashboard');
+    const rest = all.filter(i => i.url !== '/admin/dashboard');
+    rest.sort((a, b) => a.title.localeCompare(b.title, 'pt-BR'));
+    const sorted = dashboard ? [dashboard, ...rest] : rest;
+
+    // 4. Ordenar submenus internamente A-Z
+    for (const item of sorted) {
+      if (item.submenu) {
+        item.submenu.sort((a, b) => a.title.localeCompare(b.title, 'pt-BR'));
+      }
+    }
+
+    return sorted;
   };
 
   const getMenuItems = (): MenuItem[] => {
-    const addAlterarSenha = (items: MenuItem[]): MenuItem[] => {
-      if (items.some(i => i.url === '/admin/alterar-senha')) return items;
-      return [...items, { title: 'Alterar Senha', url: '/admin/alterar-senha', icon: KeyRound }];
-    };
     switch (role) {
       case 'master':
         return masterMenuItems;
       case 'admin': {
         const filtered = filterRemovedSections(dynamicMenuItems);
-        const items = hasSegment ? groupDynamicMenus(filtered) : (filtered.length > 0 ? groupDynamicMenus(filtered) : adminMenuItems);
-        return addAlterarSenha(items);
+        return filtered.length > 0 ? processDynamicMenus(filtered) : adminMenuItems;
       }
       case 'funcionario': {
         const filtered = filterRemovedSections(dynamicMenuItems);
-        return filtered.length > 0 ? groupDynamicMenus(filtered) : funcionarioMenuItems;
+        return filtered.length > 0 ? filtered : funcionarioMenuItems;
       }
       default:
         return [];

@@ -52,7 +52,7 @@ interface Assinante {
   subscription_current_period_end: string | null;
   validade: string | null;
   plano_id: string | null;
-  planos: { id: string; nome: string; preco: number } | null;
+  planos: { id: string; nome: string; preco: number; stripe_price_id: string | null } | null;
 }
 
 function AssinantesPage() {
@@ -78,7 +78,7 @@ function AssinantesPage() {
           id, nome, cnpj, email, telefone, plano, status,
           stripe_customer_id, stripe_subscription_id, subscription_status,
           subscription_current_period_end, validade, plano_id,
-          planos!left(id, nome, preco)
+          planos!left(id, nome, preco, stripe_price_id)
         `)
         .order('nome', { ascending: true });
 
@@ -152,7 +152,7 @@ function AssinantesPage() {
         body: JSON.stringify({
           empresaId,
           email: empresa?.email,
-          priceId,
+          priceId: planoInfo?.stripe_price_id || undefined,
           planoNome: planoInfo?.nome || 'Assinatura',
           preco: planoInfo?.preco,
         }),
