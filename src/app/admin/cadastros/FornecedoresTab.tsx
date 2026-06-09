@@ -937,7 +937,82 @@ export function FornecedoresTab() {
             <CardTitle>Fornecedores ({filteredFornecedores.length})</CardTitle>
           </CardHeader>
           <CardContent>
-            <Table className="w-full table-fixed">
+              {/* Mobile: cards */}
+              <div className="md:hidden space-y-2">
+                {filteredFornecedores.map((fornecedor) => (
+                  <div key={fornecedor.id} className="bg-card border rounded-lg p-3 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-blue-50 to-blue-100 flex items-center justify-center flex-shrink-0">
+                          <Building2 className="h-4 w-4 text-blue-400" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-sm truncate" title={fornecedor.nome}>{fornecedor.nome}</p>
+                          {fornecedor.razaoSocial && (
+                            <p className="text-xs text-muted-foreground truncate" title={fornecedor.razaoSocial}>
+                              {fornecedor.razaoSocial}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                      <Badge variant="outline" className={'shrink-0 text-xs ' + (fornecedor.ativo ? 'bg-green-50 text-green-700 border-green-200' : 'bg-gray-50 text-gray-500 border-gray-200')}>
+                        {fornecedor.ativo ? 'Ativo' : 'Inativo'}
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 gap-1 text-xs">
+                      <div>
+                        <span className="text-muted-foreground">CNPJ: </span>
+                        <span className="font-mono">{formatarCNPJ(fornecedor.cnpj)}</span>
+                      </div>
+                      {fornecedor.telefone && (
+                        <div>
+                          <span className="text-muted-foreground">Tel: </span>
+                          <span>{formatarTelefone(fornecedor.telefone)}</span>
+                        </div>
+                      )}
+                      {fornecedor.email && (
+                        <div className="col-span-2 truncate">
+                          <span className="text-muted-foreground">Email: </span>
+                          <span>{fornecedor.email}</span>
+                        </div>
+                      )}
+                      {[fornecedor.cidade, fornecedor.estado].filter(Boolean).length > 0 && (
+                        <div className="col-span-2">
+                          <span className="text-muted-foreground">Cidade: </span>
+                          <span>{[fornecedor.cidade, fornecedor.estado].filter(Boolean).join('/')}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-end gap-1 pt-1 border-t">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreHorizontal className="h-3.5 w-3.5" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEditar(fornecedor)}>
+                            <Edit className="mr-2 h-4 w-4" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleInativarClick(fornecedor)}>
+                            {fornecedor.ativo ? (
+                              <><EyeOff className="mr-2 h-4 w-4 text-orange-500" /> Inativar</>
+                            ) : (
+                              <><ToggleRight className="mr-2 h-4 w-4 text-green-500" /> Ativar</>
+                            )}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="text-red-600" onClick={() => handleDeleteClick(fornecedor)}>
+                            <Trash2 className="mr-2 h-4 w-4" /> Excluir
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Desktop: table */}
+              <div className="hidden md:block">
+              <Table className="w-full table-fixed">
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[35%] min-w-[180px]">Nome/Razão Social</TableHead>
@@ -1026,6 +1101,7 @@ export function FornecedoresTab() {
                   ))}
                 </TableBody>
               </Table>
+              </div>
           </CardContent>
         </Card>
       )}

@@ -1045,14 +1045,14 @@ export default function FinanceiroPage() {
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Contas a Pagar</CardTitle>
+                <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <CardTitle className="truncate">Contas a Pagar</CardTitle>
                     <CardDescription>Gerencie suas despesas e pagamentos</CardDescription>
                   </div>
                   <Button
                     size="sm"
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-blue-600 hover:bg-blue-700 self-start md:self-auto"
                     onClick={() => { setTipoConta('pagar'); setContaEditando(null); setDialogOpen(true); }}
                   >
                     <Plus className="h-4 w-4 mr-1" />
@@ -1232,14 +1232,14 @@ export default function FinanceiroPage() {
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between">
-                  <div>
-                    <CardTitle>Contas a Receber</CardTitle>
+                <CardHeader className="flex flex-col md:flex-row md:items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <CardTitle className="truncate">Contas a Receber</CardTitle>
                     <CardDescription>Gerencie seus recebíveis</CardDescription>
                   </div>
                   <Button
                     size="sm"
-                    className="bg-blue-600 hover:bg-blue-700"
+                    className="bg-blue-600 hover:bg-blue-700 self-start md:self-auto"
                     onClick={() => { setTipoConta('receber'); setContaEditando(null); setDialogOpen(true); }}
                   >
                     <Plus className="h-4 w-4 mr-1" />

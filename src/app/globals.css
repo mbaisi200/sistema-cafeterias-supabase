@@ -544,5 +544,11 @@ select:focus {
 .dark textarea:focus,
 .dark select:focus {
   border-color: #a78bfa !important;
+}
+
+/* Piscar (blink) para alerta de nova versão */
+@keyframes piscar {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
   box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.2) !important;
 }

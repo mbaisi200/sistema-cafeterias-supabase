@@ -57,6 +57,9 @@ const TABELAS_COM_EMPRESA = [
   { nome: 'fidelidade_transacoes', colunaEmpresa: 'empresa_id', descricao: 'Transações Fidelidade' },
   { nome: 'fidelidade_recompensas', colunaEmpresa: 'empresa_id', descricao: 'Recompensas Fidelidade' },
   { nome: 'subscription_invoices', colunaEmpresa: 'empresa_id', descricao: 'Faturas Assinatura' },
+  { nome: 'whatsapp_config', colunaEmpresa: 'empresa_id', descricao: 'Config WhatsApp' },
+  { nome: 'whatsapp_logs', colunaEmpresa: 'empresa_id', descricao: 'Logs WhatsApp' },
+  { nome: 'whatsapp_sessoes', colunaEmpresa: 'empresa_id', descricao: 'Sessões WhatsApp' },
 ];
 
 // Tamanho médio estimado por registro em bytes (valores aproximados)
@@ -115,6 +118,9 @@ const TAMANHO_MEDIO_REGISTRO: Record<string, number> = {
   atendimento_conversas: 300,
   atendimento_mensagens: 400,
   atendimento_auto_respostas: 200,
+  whatsapp_config: 600,
+  whatsapp_logs: 500,
+  whatsapp_sessoes: 300,
 };
 
 const formatarTamanho = (bytes: number): string => {

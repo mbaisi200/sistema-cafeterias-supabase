@@ -109,15 +109,16 @@ const integracoesDisponiveis = [
   {
     id: 'whatsapp',
     nome: 'WhatsApp Business',
-    descricao: 'Receba pedidos via WhatsApp e integre diretamente ao seu sistema de gestão.',
+    descricao: 'Conecte o WhatsApp Business ao atendimento. Receba e responda mensagens diretamente do painel de atendimento.',
     icone: <MessageCircle className="h-10 w-10" />,
-    disponivel: false,
+    disponivel: true,
     cor: 'text-emerald-500',
     bgCor: 'bg-emerald-50',
     recursos: [
-      'Recebimento de pedidos via chat',
-      'Respostas automáticas',
-      'Integração com catálogo',
+      'Atendimento via WhatsApp no painel',
+      'Respostas automáticas (FAQ)',
+      'Histórico completo de conversas',
+      'Notificações em tempo real',
     ],
   },
 ];
@@ -158,6 +159,13 @@ function IntegracoesContent() {
       // Carregar status do 99Food
       const { data: noventaENoveConfig } = await supabase
         .from('noventa_e_nove_config')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .maybeSingle();
+
+      // Carregar status do WhatsApp
+      const { data: whatsappConfig } = await supabase
+        .from('whatsapp_config')
         .select('*')
         .eq('empresa_id', empresaId)
         .maybeSingle();
@@ -203,8 +211,14 @@ function IntegracoesContent() {
         };
       }
 
-      // Outras integrações (por enquanto desconectadas)
-      status['whatsapp'] = { ativo: false, status: 'disconnected' };
+      if (whatsappConfig) {
+        status['whatsapp'] = {
+          ativo: whatsappConfig.ativo || false,
+          status: whatsappConfig.status || 'disconnected',
+        };
+      } else {
+        status['whatsapp'] = { ativo: false, status: 'disconnected' };
+      }
       status['mercado_pago'] = { ativo: false, status: 'disconnected' };
 
       setIntegracoesStatus(status);
@@ -316,7 +330,7 @@ function IntegracoesContent() {
                 </div>
                 
                 {integracao.disponivel ? (
-                  <Link href={`/admin/integracoes/${integracao.id}`}>
+                  <Link href={integracao.id === 'whatsapp' ? '/admin/atendimento' : `/admin/integracoes/${integracao.id}`}>
                     <Button className="w-full bg-blue-600 hover:bg-blue-700">
                       <Settings className="h-4 w-4 mr-2" />
                       {status?.status === 'connected' ? 'Gerenciar' : 'Configurar'}

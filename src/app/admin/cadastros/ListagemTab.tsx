@@ -280,8 +280,45 @@ export function ListagemTab() {
         </Card>
       ) : (
         <Card>
-          <div className="overflow-x-auto">
-            <Table className="table-fixed w-full min-w-[700px]">
+          {/* Mobile: cards */}
+          <div className="md:hidden space-y-2 p-4">
+            {entidades.map((e) => (
+              <div key={`${e.tipo}-${e.id}`} className="bg-card border rounded-lg p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium text-sm truncate">{e.nome}</p>
+                    <div className="mt-1">{tipoBadge(e.tipo)}</div>
+                  </div>
+                  <Badge className={'shrink-0 ' + (e.ativo ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-gray-100 text-gray-500 hover:bg-gray-200')}>
+                    {e.ativo ? 'Ativo' : 'Inativo'}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-1 text-xs">
+                  {e.documento && (
+                    <div>
+                      <span className="text-muted-foreground">Doc: </span>
+                      <span className="font-mono">{e.documento}</span>
+                    </div>
+                  )}
+                  {(e.telefone || e.email) && (
+                    <div>
+                      <span className="text-muted-foreground">Contato: </span>
+                      <span>{e.telefone || e.email}</span>
+                    </div>
+                  )}
+                  {[e.cidade, e.uf].filter(Boolean).length > 0 && (
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Cidade: </span>
+                      <span>{[e.cidade, e.uf].filter(Boolean).join('/')}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Desktop: table */}
+          <div className="hidden md:block">
+            <Table className="table-fixed w-full">
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[140px]">Tipo</TableHead>

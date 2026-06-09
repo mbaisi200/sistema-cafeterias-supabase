@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, Upload, AlertTriangle, CheckCircle2, XCircle } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
+
+const cacheVersao = { versao: '', timestamp: 0 };
 import { toast } from '@/hooks/use-toast';
 import { getSupabaseClient } from '@/lib/supabase/client';
 import {
@@ -40,6 +42,7 @@ export default function ConfiguracoesPage() {
   const { user } = useAuth();
   const [exportando, setExportando] = useState(false);
   const [backupando, setBackupando] = useState(false);
+  const [versaoSistema, setVersaoSistema] = useState('');
 
   // Restore state
   const [restoreOpen, setRestoreOpen] = useState(false);
@@ -65,6 +68,21 @@ export default function ConfiguracoesPage() {
       fetchEmpresas();
     }
   }, [restoreOpen, fetchEmpresas]);
+
+  useEffect(() => {
+    if (cacheVersao.versao) {
+      setVersaoSistema(cacheVersao.versao);
+      return;
+    }
+    fetch(`/version.json?t=${Date.now()}`)
+      .then(r => r.json())
+      .then(d => {
+        cacheVersao.versao = d.version;
+        cacheVersao.timestamp = d.timestamp;
+        setVersaoSistema(d.version);
+      })
+      .catch(() => setVersaoSistema('1.0.0'));
+  }, []);
 
   const baixarArquivo = async (url: string, filename: string) => {
     const response = await fetch(url);
@@ -215,7 +233,7 @@ export default function ConfiguracoesPage() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label>Versão do Sistema</Label>
-                  <Input value="1.0.0" disabled />
+                  <Input value={versaoSistema || 'carregando...'} disabled />
                 </div>
                 <div className="space-y-2">
                   <Label>Ambiente</Label>

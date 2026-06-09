@@ -285,7 +285,7 @@ export default function RelatorioEstoquePage() {
           </Card>
 
           {/* Summary Cards */}
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <Card className={darkMode ? 'bg-[#1e1e32] border-white/10' : ''}>
               <CardContent className="p-3 flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-green-100 dark:bg-green-900/40">
@@ -348,7 +348,43 @@ export default function RelatorioEstoquePage() {
                   <p className="text-sm">Tente ajustar os filtros</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
+                <>
+                  {/* Mobile: cards */}
+                  <div className="md:hidden space-y-2 p-3">
+                    {movimentosFiltrados.map(m => (
+                      <div key={m.id} className={`border rounded-lg p-3 space-y-2 ${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-card'}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm truncate" title={m.produto_nome || ''}>{m.produto_nome || '-'}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{formatData(m.criado_em)}</p>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium ${corTipo(m.tipo)}`}>
+                              {m.tipo === 'entrada' ? <ArrowUp className="h-2.5 w-2.5" /> : <ArrowDown className="h-2.5 w-2.5" />}
+                              {labelTipo(m.tipo)}
+                            </span>
+                            <span className={`text-xs font-bold ${m.tipo === 'entrada' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                              {m.tipo === 'entrada' ? '+' : '-'}{Math.abs(Number(m.quantidade))}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-1 text-xs text-muted-foreground">
+                          {nomeFornecedorOuCliente(m) && (
+                            <div><span className="text-foreground">Cliente/Fornec.: </span>{nomeFornecedorOuCliente(m)}</div>
+                          )}
+                          {documentoRef(m) && (
+                            <div><span className="text-foreground">Documento: </span>{documentoRef(m)}</div>
+                          )}
+                          {m.observacao && (
+                            <div className="col-span-2"><span className="text-foreground">Obs: </span>{m.observacao}</div>
+                          )}
+                          <div><span className="text-foreground">Usuário: </span>{m.usuario_nome || m.criado_por_nome || '-'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Desktop: table */}
+                  <div className="hidden md:block">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -398,7 +434,8 @@ export default function RelatorioEstoquePage() {
                       ))}
                     </TableBody>
                   </Table>
-                </div>
+                  </div>
+                </>
               )}
             </CardContent>
           </Card>

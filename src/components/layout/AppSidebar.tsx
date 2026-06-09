@@ -73,6 +73,7 @@ import {
   KeyRound,
   CreditCard,
   MessageCircle,
+  RefreshCw,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -134,6 +135,8 @@ const adminMenuItems: MenuItem[] = [
     submenu: [
       { title: 'Conversas', url: '/admin/atendimento', icon: MessageCircle },
       { title: 'Recuperação de Carrinhos', url: '/admin/configuracoes/recuperacao-carrinho', icon: ShoppingCart },
+      { title: 'Cardápio', url: '/cardapio', icon: Menu, external: true },
+      { title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings },
     ],
   },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
@@ -154,9 +157,8 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Dispositivos', url: '/admin/dispositivos', icon: Shield },
   { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
   { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
-  { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
-  { title: 'Importar Dados', url: '/admin/integracoes/importar', icon: Database },
   { title: 'Integrações', url: '/admin/integracoes', icon: Plug },
+  { title: 'Importar Dados', url: '/admin/integracoes/importar', icon: Database },
   { title: 'Mesas', url: '/admin/mesas', icon: UtensilsCrossed },
   { title: 'Notas Fiscais de Entrada', url: '/admin/nfe', icon: FileText },
   { title: 'PDV', url: '/pdv', icon: ShoppingCart },
@@ -175,35 +177,10 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
   { title: 'Relatório Estoque', url: '/admin/estoque/relatorio', icon: ArrowUpDown },
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
-  {
-    title: 'Uber Eats',
-    url: '#',
-    icon: Bike,
-    submenu: [
-      { title: 'Configuração', url: '/admin/integracoes/uber-eats', icon: Settings },
-      { title: 'Pedidos', url: '/admin/integracoes/uber-eats/pedidos', icon: ShoppingBag },
-      { title: 'Produtos', url: '/admin/integracoes/uber-eats/produtos', icon: Package },
-    ],
-  },
-  {
-    title: '99Food',
-    url: '#',
-    icon: Bike,
-    submenu: [
-      { title: 'Configuração', url: '/admin/integracoes/noventa-e-nove', icon: Settings },
-      { title: 'Pedidos', url: '/admin/integracoes/noventa-e-nove/pedidos', icon: ShoppingBag },
-      { title: 'Produtos', url: '/admin/integracoes/noventa-e-nove/produtos', icon: Package },
-    ],
-  },
 ];
 
 // Fallback hardcoded para atalho rápido
 const atalhoRapidoMenuItems: MenuItem[] = [
-  { title: 'Cardápio', url: '/cardapio', icon: Menu, external: true },
-  { title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings },
-  { title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike },
-  { title: 'Uber Eats', url: '/admin/integracoes/uber-eats', icon: Bike },
-  { title: '99Food', url: '/admin/integracoes/noventa-e-nove', icon: Bike },
   { title: 'Alterar Senha', url: '/admin/alterar-senha', icon: KeyRound },
 ];
 
@@ -398,23 +375,25 @@ export function AppSidebar() {
       missingItems.push({ title: 'Conversas', url: '/admin/atendimento', icon: MessageCircle });
     if (!items.find(i => i.url === '/admin/configuracoes/recuperacao-carrinho'))
       missingItems.push({ title: 'Recuperação de Carrinhos', url: '/admin/configuracoes/recuperacao-carrinho', icon: ShoppingCart });
+    if (!items.find(i => i.url === '/admin/integracoes'))
+      missingItems.push({ title: 'Integrações', url: '/admin/integracoes', icon: Plug });
     if (!items.find(i => i.url === '/admin/integracoes/importar'))
       missingItems.push({ title: 'Importar Dados', url: '/admin/integracoes/importar', icon: Database });
-    if (!items.find(i => i.url === '/admin/integracoes/ifood'))
-      missingItems.push({ title: 'iFood', url: '/admin/integracoes/ifood', icon: Bike });
     if (!items.find(i => i.url === '/admin/alterar-senha'))
       missingItems.push({ title: 'Alterar Senha', url: '/admin/alterar-senha', icon: KeyRound });
+    if (!items.find(i => i.url === '/cardapio'))
+      missingItems.push({ title: 'Cardápio', url: '/cardapio', icon: Menu, external: true });
+    if (!items.find(i => i.url === '/admin/delivery/config'))
+      missingItems.push({ title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings });
 
-    // Remover duplicatas de 'cardapio' (atalho_rapido) - não deve aparecer no principal
-    let all = [...items.filter(i => i.url !== '/cardapio'), ...missingItems];
+    let all = [...items, ...missingItems];
 
     // 2. Agrupar em submenus
     const submenuGroups: { title: string; url: string; icon: any; urls: string[] }[] = [
       { title: 'Pedidos e OS', url: '#', icon: FileSpreadsheet, urls: ['/admin/pedidos', '/admin/ordens-servico', '/admin/os-lavanderia'] },
-      { title: 'Atendimento', url: '#', icon: MessageCircle, urls: ['/admin/atendimento', '/admin/configuracoes/recuperacao-carrinho'] },
+      { title: 'Atendimento', url: '#', icon: MessageCircle, urls: ['/admin/atendimento', '/admin/configuracoes/recuperacao-carrinho', '/cardapio', '/admin/delivery/config'] },
       { title: 'Configurações', url: '#', icon: Settings, urls: ['/admin/configuracoes', '/admin/configuracoes/fidelidade', '/admin/configuracoes/unidades'] },
-      { title: 'Uber Eats', url: '#', icon: Bike, urls: ['/admin/integracoes/uber-eats', '/admin/integracoes/uber-eats/produtos', '/admin/integracoes/uber-eats/pedidos'] },
-      { title: '99Food', url: '#', icon: Bike, urls: ['/admin/integracoes/noventa-e-nove', '/admin/integracoes/noventa-e-nove/produtos', '/admin/integracoes/noventa-e-nove/pedidos'] },
+
     ];
 
     for (const group of submenuGroups) {
@@ -460,10 +439,9 @@ export function AppSidebar() {
 
   const getAtalhoItems = (): MenuItem[] => {
     if (role !== 'admin') return [];
-    // Se tem segmento, respeitar os atalhos dinâmicos (mesmo vazio = nenhum atalho)
-    if (hasSegment) return dynamicAtalhoItems;
-    // Sem segmento: usar dinâmico se disponível, senão fallback hardcoded
-    return dynamicAtalhoItems.length > 0 ? dynamicAtalhoItems : atalhoRapidoMenuItems;
+    const excluirUrls = ['/cardapio', '/admin/delivery/config'];
+    const items = dynamicAtalhoItems.length > 0 ? dynamicAtalhoItems : atalhoRapidoMenuItems;
+    return items.filter(i => !excluirUrls.includes(i.url));
   };
 
   const menuItems = getMenuItems();

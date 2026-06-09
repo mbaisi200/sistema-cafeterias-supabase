@@ -8,14 +8,13 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useEffect, useRef } from 'react';
-import { MessageCircle, Send, Bot, Plus, Trash2, Loader2, Settings, Clock, User, CheckCheck } from 'lucide-react';
+import { MessageCircle, Send, Bot, Plus, Trash2, Loader2, Settings, Clock, Smartphone, Copy, CheckCheck, Globe, UtensilsCrossed, List, Store } from 'lucide-react';
 
 interface Conversa {
   id: string;
@@ -23,6 +22,8 @@ interface Conversa {
   cliente_nome: string | null;
   cliente_telefone: string | null;
   status: string;
+  canal: string;
+  wa_phone: string | null;
   ultima_mensagem: string | null;
   ultimo_remetente: string | null;
   criado_em: string;
@@ -44,6 +45,17 @@ interface AutoResposta {
   resposta: string;
   ativo: boolean;
   ordem: number;
+}
+
+interface WhatsAppConfig {
+  ativo: boolean;
+  status: string;
+  phone_number_id: string;
+  business_account_id: string;
+  access_token: string;
+  webhook_verify_token: string;
+  whatsapp_business_phone: string;
+  mensagem_saudacao: string;
 }
 
 function formatTime(dateStr: string): string {
@@ -69,6 +81,25 @@ export default function AtendimentoPage() {
   const [autoRespostas, setAutoRespostas] = useState<AutoResposta[]>([]);
   const [novaChave, setNovaChave] = useState('');
   const [novaResposta, setNovaResposta] = useState('');
+  const [waConfig, setWaConfig] = useState<WhatsAppConfig>({
+    ativo: false,
+    status: 'disconnected',
+    phone_number_id: '',
+    business_account_id: '',
+    access_token: '',
+    webhook_verify_token: '',
+    whatsapp_business_phone: '',
+    mensagem_saudacao: 'Olá! Como podemos ajudar?',
+  });
+  const [salvandoWA, setSalvandoWA] = useState(false);
+  const [copiado, setCopiado] = useState(false);
+  const [menuAtivo, setMenuAtivo] = useState(false);
+  const [mensagemBoasVindas, setMensagemBoasVindas] = useState('');
+  const [mensagemCategorias, setMensagemCategorias] = useState('');
+  const [categorias, setCategorias] = useState<Array<{ id: string; nome: string }>>([]);
+  const [categoriasAtivas, setCategoriasAtivas] = useState<string[]>([]);
+  const [criarPedidoAuto, setCriarPedidoAuto] = useState(true);
+  const [salvandoCardapio, setSalvandoCardapio] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const carregarConversas = async () => {
@@ -95,6 +126,33 @@ export default function AtendimentoPage() {
     }
   };
 
+  const carregarWAConfig = async () => {
+    if (!empresaId) return;
+    try {
+      const res = await fetch('/api/atendimento/whatsapp-config');
+      const json = await res.json();
+      if (json.sucesso && json.data) {
+        setWaConfig(prev => ({ ...prev, ...json.data }));
+        setMenuAtivo(json.data.menu_ativo ?? false);
+        setMensagemBoasVindas(json.data.mensagem_boas_vindas || '');
+        setMensagemCategorias(json.data.mensagem_categorias || '');
+        setCategoriasAtivas(json.data.categorias_ativas || []);
+        setCriarPedidoAuto(json.data.criar_pedido_auto ?? true);
+      }
+    } catch {}
+  };
+
+  const carregarCategorias = async () => {
+    if (!empresaId) return;
+    const { data } = await supabase
+      .from('categorias')
+      .select('id, nome')
+      .eq('empresa_id', empresaId)
+      .eq('ativo', true)
+      .order('nome');
+    if (data) setCategorias(data);
+  };
+
   const carregarAutoRespostas = async () => {
     if (!empresaId) return;
     const { data } = await supabase
@@ -109,6 +167,8 @@ export default function AtendimentoPage() {
     if (!empresaId) return;
     carregarConversas();
     carregarConfig();
+    carregarWAConfig();
+    carregarCategorias();
     carregarAutoRespostas();
   }, [empresaId]);
 
@@ -188,6 +248,55 @@ export default function AtendimentoPage() {
     }
   };
 
+  const salvarWAConfig = async () => {
+    setSalvandoWA(true);
+    try {
+      const res = await fetch('/api/atendimento/whatsapp-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(waConfig),
+      });
+      const json = await res.json();
+      if (json.sucesso) toast({ title: 'Configuração WhatsApp salva!' });
+      else throw new Error(json.erro?.mensagem);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erro', description: err.message });
+    } finally {
+      setSalvandoWA(false);
+    }
+  };
+
+  const salvarCardapioConfig = async () => {
+    setSalvandoCardapio(true);
+    try {
+      const res = await fetch('/api/atendimento/whatsapp-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...waConfig,
+          menu_ativo: menuAtivo,
+          mensagem_boas_vindas: mensagemBoasVindas,
+          mensagem_categorias: mensagemCategorias,
+          categorias_ativas: categoriasAtivas,
+          criar_pedido_auto: criarPedidoAuto,
+        }),
+      });
+      const json = await res.json();
+      if (json.sucesso) toast({ title: 'Configuração do cardápio salva!' });
+      else throw new Error(json.erro?.mensagem);
+    } catch (err: any) {
+      toast({ variant: 'destructive', title: 'Erro', description: err.message });
+    } finally {
+      setSalvandoCardapio(false);
+    }
+  };
+
+  const toggleCategoria = (id: string) => {
+    setCategoriasAtivas(prev =>
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id],
+    );
+  };
+
   const adicionarAutoResposta = async () => {
     if (!novaChave.trim() || !novaResposta.trim()) return;
     try {
@@ -213,10 +322,33 @@ export default function AtendimentoPage() {
     } catch {}
   };
 
+  const copiarWebhook = () => {
+    const url = `${window.location.origin}/api/webhooks/whatsapp`;
+    navigator.clipboard.writeText(url);
+    setCopiado(true);
+    setTimeout(() => setCopiado(false), 2000);
+    toast({ title: 'URL do webhook copiada!' });
+  };
+
   const totalNaoLidas = conversas.filter(c => {
     if (conversaAtiva === c.id) return false;
     return c.ultimo_remetente === 'cliente';
   }).length;
+
+  const canalIcon = (canal: string) => {
+    if (canal === 'whatsapp') return <Smartphone className="h-3 w-3" />;
+    return <Globe className="h-3 w-3" />;
+  };
+
+  const canalLabel = (canal: string) => {
+    if (canal === 'whatsapp') return 'WhatsApp';
+    return 'Web';
+  };
+
+  const canalColor = (canal: string) => {
+    if (canal === 'whatsapp') return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+    return 'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400';
+  };
 
   return (
     <ProtectedRoute allowedRoles={['admin']}>
@@ -245,6 +377,12 @@ export default function AtendimentoPage() {
             <TabsTrigger value="config" className="gap-2">
               <Settings className="h-4 w-4" /> Configuração
             </TabsTrigger>
+            <TabsTrigger value="whatsapp" className="gap-2">
+              <Smartphone className="h-4 w-4" /> WhatsApp
+            </TabsTrigger>
+            <TabsTrigger value="cardapio-whatsapp" className="gap-2">
+              <MessageCircle className="h-4 w-4" /> Cardápio WhatsApp
+            </TabsTrigger>
             <TabsTrigger value="auto-respostas" className="gap-2">
               <Bot className="h-4 w-4" /> Auto-Respostas
             </TabsTrigger>
@@ -272,11 +410,12 @@ export default function AtendimentoPage() {
                           } ${conv.ultimo_remetente === 'cliente' && conversaAtiva !== conv.id ? 'font-semibold' : ''}`}
                           onClick={() => selecionarConversa(conv.id)}
                         >
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between gap-1">
                             <span className="truncate">{conv.cliente_nome || 'Visitante'}</span>
-                            {conv.ultimo_remetente === 'cliente' && conversaAtiva !== conv.id && (
-                              <div className="h-2 w-2 rounded-full bg-red-500" />
-                            )}
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium shrink-0 ${canalColor(conv.canal || 'web')}`}>
+                              {canalIcon(conv.canal || 'web')}
+                              {canalLabel(conv.canal || 'web')}
+                            </span>
                           </div>
                           {conv.ultima_mensagem && (
                             <p className="text-xs text-muted-foreground truncate mt-0.5">{conv.ultima_mensagem}</p>
@@ -293,10 +432,28 @@ export default function AtendimentoPage() {
                 <CardHeader className="pb-2">
                   {conversaAtiva ? (
                     <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm">
-                        {conversas.find(c => c.id === conversaAtiva)?.cliente_nome || 'Visitante'}
-                      </CardTitle>
-                      <span className="text-xs text-muted-foreground">Online</span>
+                      <div className="flex items-center gap-2">
+                        <CardTitle className="text-sm">
+                          {conversas.find(c => c.id === conversaAtiva)?.cliente_nome || 'Visitante'}
+                        </CardTitle>
+                        {(() => {
+                          const c = conversas.find(c => c.id === conversaAtiva);
+                          return c?.canal === 'whatsapp' ? (
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${canalColor('whatsapp')}`}>
+                              <Smartphone className="h-3 w-3" /> WhatsApp
+                            </span>
+                          ) : (
+                            <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium ${canalColor('web')}`}>
+                              <Globe className="h-3 w-3" /> Web
+                            </span>
+                          );
+                        })()}
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {conversas.find(c => c.id === conversaAtiva)?.wa_phone
+                          ? `+${conversas.find(c => c.id === conversaAtiva)!.wa_phone}`
+                          : 'Online'}
+                      </span>
                     </div>
                   ) : (
                     <CardTitle className="text-sm">Selecione uma conversa</CardTitle>
@@ -374,6 +531,198 @@ export default function AtendimentoPage() {
                 <Button onClick={salvarConfig}>Salvar Configuração</Button>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="whatsapp">
+            <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg">WhatsApp Business</CardTitle>
+                      <p className="text-sm text-muted-foreground">Integração com WhatsApp Cloud API</p>
+                    </div>
+                    <Badge variant={waConfig.ativo && waConfig.status === 'connected' ? 'default' : 'outline'}>
+                      {waConfig.ativo && waConfig.status === 'connected' ? 'Conectado' : 'Desconectado'}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label>Ativar WhatsApp</Label>
+                      <p className="text-sm text-muted-foreground">Receba e responda mensagens do WhatsApp no painel</p>
+                    </div>
+                    <Switch
+                      checked={waConfig.ativo}
+                      onCheckedChange={(v) => setWaConfig(prev => ({ ...prev, ativo: v }))}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Número de telefone do WhatsApp Business</Label>
+                    <Input
+                      value={waConfig.whatsapp_business_phone}
+                      onChange={(e) => setWaConfig(prev => ({ ...prev, whatsapp_business_phone: e.target.value }))}
+                      placeholder="5511999999999"
+                    />
+                    <p className="text-xs text-muted-foreground">Número registrado no WhatsApp Business API (com código do país, sem +)</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Phone Number ID</Label>
+                    <Input
+                      value={waConfig.phone_number_id}
+                      onChange={(e) => setWaConfig(prev => ({ ...prev, phone_number_id: e.target.value }))}
+                      placeholder="123456789012345"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Business Account ID</Label>
+                    <Input
+                      value={waConfig.business_account_id}
+                      onChange={(e) => setWaConfig(prev => ({ ...prev, business_account_id: e.target.value }))}
+                      placeholder="123456789012345"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Access Token (Permanent)</Label>
+                    <Input
+                      type="password"
+                      value={waConfig.access_token}
+                      onChange={(e) => setWaConfig(prev => ({ ...prev, access_token: e.target.value }))}
+                      placeholder="EAATodo..."
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Webhook Verify Token</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={waConfig.webhook_verify_token}
+                        onChange={(e) => setWaConfig(prev => ({ ...prev, webhook_verify_token: e.target.value }))}
+                        placeholder="my_custom_verify_token"
+                        className="font-mono text-xs"
+                      />
+                      <Button variant="outline" size="icon" className="shrink-0 h-9 w-9" onClick={() => setWaConfig(prev => ({ ...prev, webhook_verify_token: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15) }))}>
+                        <Loader2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>URL do Webhook (adicione no Meta Developers)</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        value={typeof window !== 'undefined' ? `${window.location.origin}/api/webhooks/whatsapp` : ''}
+                        readOnly
+                        className="font-mono text-xs bg-muted"
+                      />
+                      <Button variant="outline" size="icon" className="shrink-0 h-9 w-9" onClick={copiarWebhook}>
+                        {copiado ? <CheckCheck className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Adicione esta URL no campo "Callback URL" do seu aplicativo no Meta for Developers. Use o Webhook Verify Token acima.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Mensagem de saudação automática</Label>
+                    <Input
+                      value={waConfig.mensagem_saudacao}
+                      onChange={(e) => setWaConfig(prev => ({ ...prev, mensagem_saudacao: e.target.value }))}
+                      placeholder="Olá! Como podemos ajudar?"
+                    />
+                    <p className="text-xs text-muted-foreground">Mensagem enviada automaticamente quando uma nova conversa é iniciada pelo WhatsApp</p>
+                  </div>
+
+                  <Button onClick={salvarWAConfig} disabled={salvandoWA}>
+                    {salvandoWA && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                    Salvar Configuração WhatsApp
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="cardapio-whatsapp">
+            <div className="grid gap-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-lg">Cardápio no WhatsApp</CardTitle>
+                      <p className="text-sm text-muted-foreground">Permite que clientes façam pedidos diretamente pelo WhatsApp</p>
+                    </div>
+                    <Switch checked={menuAtivo} onCheckedChange={setMenuAtivo} />
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-2">
+                    <Label>Mensagem de boas-vindas</Label>
+                    <Input
+                      value={mensagemBoasVindas}
+                      onChange={(e) => setMensagemBoasVindas(e.target.value)}
+                      placeholder="Olá! Bem-vindo ao {empresa}. Envie 'cardápio' para ver nossas opções."
+                    />
+                    <p className="text-xs text-muted-foreground">Use {'{empresa}'} para o nome da empresa. Enviada quando o cliente inicia a conversa.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Mensagem das categorias</Label>
+                    <Input
+                      value={mensagemCategorias}
+                      onChange={(e) => setMensagemCategorias(e.target.value)}
+                      placeholder="Escolha uma categoria abaixo:"
+                    />
+                    <p className="text-xs text-muted-foreground">Texto exibido antes da lista de categorias. Use {'{empresa}'} para o nome.</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Ativar criação automática de pedidos</Label>
+                    <div className="flex items-center gap-2">
+                      <Switch checked={criarPedidoAuto} onCheckedChange={setCriarPedidoAuto} />
+                      <span className="text-sm text-muted-foreground">
+                        {criarPedidoAuto ? 'Pedidos serão criados automaticamente no sistema' : 'Apenas registra no chat, sem criar pedido'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {categorias.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Categorias disponíveis no cardápio</Label>
+                      <p className="text-sm text-muted-foreground">Selecione quais categorias aparecem no cardápio do WhatsApp. Se nenhuma for selecionada, todas aparecem.</p>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {categorias.map(cat => (
+                          <button
+                            key={cat.id}
+                            onClick={() => toggleCategoria(cat.id)}
+                            className={`px-3 py-1.5 rounded-full text-sm border transition-colors ${
+                              categoriasAtivas.includes(cat.id)
+                                ? 'bg-emerald-500 text-white border-emerald-500'
+                                : 'border-gray-300 dark:border-white/20 hover:bg-accent'
+                            }`}
+                          >
+                            {cat.nome}
+                          </button>
+                        ))}
+                      </div>
+                      {categoriasAtivas.length === 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">Nenhuma selecionada = todas as categorias ativas aparecerão</p>
+                      )}
+                    </div>
+                  )}
+
+                  <Button onClick={salvarCardapioConfig} disabled={salvandoCardapio}>
+                    {salvandoCardapio && <Loader2 className="h-4 w-4 mr-1 animate-spin" />}
+                    Salvar Configuração do Cardápio
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="auto-respostas">

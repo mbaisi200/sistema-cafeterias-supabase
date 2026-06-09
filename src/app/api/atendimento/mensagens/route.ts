@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { sendWhatsAppMessage } from '@/lib/whatsapp';
 
 export async function GET(request: Request) {
   try {
@@ -90,6 +91,58 @@ export async function POST(request: Request) {
         atualizado_em: new Date().toISOString(),
       })
       .eq('id', convId);
+
+    if (tipo === 'admin') {
+      const { data: conv } = await supabase
+        .from('atendimento_conversas')
+        .select('canal, wa_phone')
+        .eq('id', convId)
+        .single();
+
+      if (conv?.canal === 'whatsapp' && conv.wa_phone) {
+        const { data: waConfig } = await supabase
+          .from('whatsapp_config')
+          .select('phone_number_id, access_token')
+          .eq('empresa_id', empresa_id)
+          .eq('ativo', true)
+          .maybeSingle();
+
+        if (waConfig) {
+          const result = await sendWhatsAppMessage(
+            { phone_number_id: waConfig.phone_number_id, access_token: waConfig.access_token },
+            conv.wa_phone,
+            conteudo,
+          );
+
+          if (result) {
+            await supabase
+              .from('atendimento_mensagens')
+              .update({ wa_message_id: result.waMessageId })
+              .eq('id', data.id);
+
+            await supabase.from('whatsapp_logs').insert({
+              empresa_id,
+              tipo: 'mensagem_enviada',
+              conversa_id: convId,
+              wa_message_id: result.waMessageId,
+              telefone_destino: conv.wa_phone,
+              conteudo,
+              sucesso: true,
+            });
+          } else {
+            await supabase.from('whatsapp_logs').insert({
+              empresa_id,
+              tipo: 'erro_envio',
+              conversa_id: convId,
+              telefone_destino: conv.wa_phone,
+              conteudo,
+              sucesso: false,
+              erro: 'Falha ao enviar via WhatsApp API',
+            });
+          }
+        }
+      }
+    }
 
     return NextResponse.json({ sucesso: true, data });
   } catch (error) {
