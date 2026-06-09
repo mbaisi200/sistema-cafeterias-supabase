@@ -50,12 +50,6 @@ export default function ConfiguracoesPage() {
   const [restoreResult, setRestoreResult] = useState<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (restoreOpen) {
-      fetchEmpresas();
-    }
-  }, [restoreOpen, fetchEmpresas]);
-
   const fetchEmpresas = useCallback(async () => {
     try {
       const supabase = getSupabaseClient();
@@ -65,6 +59,12 @@ export default function ConfiguracoesPage() {
       // fallback
     }
   }, []);
+
+  useEffect(() => {
+    if (restoreOpen) {
+      fetchEmpresas();
+    }
+  }, [restoreOpen, fetchEmpresas]);
 
   const baixarArquivo = async (url: string, filename: string) => {
     const response = await fetch(url);

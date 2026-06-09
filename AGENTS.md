@@ -776,6 +776,12 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
   - Insere em lotes com fallback individual para evitar FK failure total
 - Aviso sobre UUIDs no diálogo para orientar o usuário
 
+### Build — Fix TDZ em `/master/configuracoes` ✅
+- `fetchEmpresas` (useCallback) movido para **antes** do `useEffect` que o referencia
+- `const` declarations ficam em Temporal Dead Zone até sua linha de declaração — no SSR do Next.js o componente é executado sequencialmente e o engine acessa a variável antes da inicialização
+- Causava `ReferenceError: Cannot access 'M' before initialization` no build de produção
+- Build verificado localmente: `npm run build` concluído sem erros
+
 ---
 
 ## 📱 Mobile First — Compromisso
