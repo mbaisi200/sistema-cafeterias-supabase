@@ -4,461 +4,527 @@
     "titulo": "Sobre o Sistema",
     "conteudo": "Este sistema ajuda você a gerenciar seu restaurante ou cafeteria. Com ele você controla vendas, estoque, clientes, finanças e muito mais. Tudo pela internet, direto do navegador do seu computador ou celular.",
     "ordem": 1,
-    "icone": "Info"
+    "icone": "Info",
+    "secao_chave": null
   },
   {
     "categoria": "Visão Geral",
     "titulo": "Estrutura do Sistema",
     "conteudo": "O sistema tem três áreas principais: Admin (gestão do negócio), PDV (vendas no balcão/mesa) e Cardápio Online (cliente faz pedido pelo celular). Cada área tem funções específicas que você vai aprender aqui.",
     "ordem": 2,
-    "icone": "FolderTree"
+    "icone": "FolderTree",
+    "secao_chave": null
   },
   {
     "categoria": "Visão Geral",
     "titulo": "Papéis e Permissões",
     "conteudo": "Existem três tipos de usuário: Master (dono do sistema, vê todas as empresas), Admin (gerente do seu estabelecimento, vê e faz tudo) e Funcionário (operador do PDV, só faz vendas). Cada um tem acesso apenas ao que precisa.",
     "ordem": 3,
-    "icone": "Shield"
+    "icone": "Shield",
+    "secao_chave": null
   },
   {
     "categoria": "Visão Geral",
     "titulo": "Empresas no Sistema",
     "conteudo": "Cada empresa tem seus próprios dados. Se você é Admin, vê apenas os dados do seu estabelecimento. Se for Master (dono do sistema), pode ver todas as empresas cadastradas.",
     "ordem": 4,
-    "icone": "Building2"
+    "icone": "Building2",
+    "secao_chave": null
   },
   {
     "categoria": "Autenticação e Acesso",
     "titulo": "Como Fazer Login",
     "conteudo": "1. Abra o sistema pelo navegador\n2. Digite seu email e senha\n3. Clique em Entrar\n\nPronto! Para sair, clique no seu nome e depois em Sair.\n\n**Funcionário:** use o código da empresa + PIN numérico.",
     "ordem": 1,
-    "icone": "LogIn"
+    "icone": "LogIn",
+    "secao_chave": null
   },
   {
     "categoria": "Autenticação e Acesso",
     "titulo": "Login do Funcionário (PIN)",
     "conteudo": "O funcionário não precisa de email. Ele usa um código da empresa (fornecido pelo Admin) e um PIN numérico (cadastrado pelo Admin). Basta selecionar \"Acesso Funcionário\" na tela de login e digitar os dados.",
     "ordem": 2,
-    "icone": "KeyRound"
+    "icone": "KeyRound",
+    "secao_chave": null
   },
   {
     "categoria": "Autenticação e Acesso",
     "titulo": "Recuperar Senha",
     "conteudo": "Esqueceu a senha? Na tela de login, clique em \"Esqueceu sua senha?\", digite seu email e siga as instruções enviadas no seu email.",
     "ordem": 3,
-    "icone": "Shield"
+    "icone": "Shield",
+    "secao_chave": null
   },
   {
     "categoria": "Dashboard",
     "titulo": "Visão Geral",
     "conteudo": "O Dashboard é a primeira tela que aparece após o login. Aqui você vê números importantes do seu negócio: quanto faturou hoje, no mês, quantas vendas fez, ticket médio. Também tem gráficos mostrando a evolução.",
     "ordem": 1,
-    "icone": "LayoutDashboard"
+    "icone": "LayoutDashboard",
+    "secao_chave": "dashboard"
   },
   {
     "categoria": "Dashboard",
     "titulo": "Filtrar por Período",
     "conteudo": "Você pode escolher o período que quer ver: Hoje, Este Mês, Últimos 30 Dias ou escolher datas específicas. Basta clicar no seletor de período no topo da página.",
     "ordem": 2,
-    "icone": "Calendar"
+    "icone": "Calendar",
+    "secao_chave": "dashboard"
   },
   {
     "categoria": "Dashboard",
     "titulo": "Indicadores do Topo",
     "conteudo": "Os cards no topo mostram: **Faturamento Hoje** (vendas de hoje), **Faturamento Mês** (vendas do mês), **Qtd. Vendas** (quantas vendas foram feitas), **Ticket Médio** (valor médio por venda).",
     "ordem": 3,
-    "icone": "BarChart3"
+    "icone": "BarChart3",
+    "secao_chave": "dashboard"
   },
   {
     "categoria": "Dashboard",
     "titulo": "Gráficos",
     "conteudo": "Os gráficos mostram: Evolução Mensal (barras mês a mês), Produtos Mais Vendidos (ranking), Dias da Semana (quais dias vendem mais). Clique em qualquer barra ou fatia para ver detalhes.",
     "ordem": 4,
-    "icone": "BarChart4"
+    "icone": "BarChart4",
+    "secao_chave": "dashboard"
   },
   {
     "categoria": "Dashboard",
     "titulo": "Atualizar e Backup",
     "conteudo": "Clique em **Atualizar** para recarregar os dados. Use o botão **Backup** para baixar uma cópia dos dados do seu sistema.",
     "ordem": 5,
-    "icone": "RefreshCw"
+    "icone": "RefreshCw",
+    "secao_chave": "dashboard"
   },
   {
     "categoria": "PDV (Ponto de Venda)",
     "titulo": "PDV Restaurante - Visão Geral",
     "conteudo": "O PDV é onde você faz as vendas. Tem 4 modos: **Balcão** (venda direta), **Mesa** (cliente sentado), **Comanda** (conta aberta), **Delivery** (entrega). Escolha o modo no topo da tela.",
     "ordem": 1,
-    "icone": "ShoppingCart"
+    "icone": "ShoppingCart",
+    "secao_chave": "pdv"
   },
   {
     "categoria": "PDV (Ponto de Venda)",
     "titulo": "Como Fazer uma Venda",
     "conteudo": "1. Escolha o modo (Balcão, Mesa, etc.)\n2. Selecione a categoria do produto\n3. Clique nos produtos para adicionar ao carrinho\n4. Ajuste as quantidades se precisar\n5. Escolha o cliente (opcional)\n6. Selecione a forma de pagamento\n7. Clique em Finalizar\n\nPronto, venda concluída!",
     "ordem": 2,
-    "icone": "ShoppingCart"
+    "icone": "ShoppingCart",
+    "secao_chave": "pdv"
   },
   {
     "categoria": "PDV (Ponto de Venda)",
     "titulo": "Atalhos do Teclado",
     "conteudo": "| Tecla | Função |\n|---|---|\n| **F2** | Buscar cliente |\n| **F3** | Buscar produto |\n| **F4** | Finalizar venda |\n| **F8** | Forma de pagamento |\n| **F10** | Abrir caixa |\n| **Ctrl+F12** | Fechar caixa |",
     "ordem": 3,
-    "icone": "Keyboard"
+    "icone": "Keyboard",
+    "secao_chave": "pdv"
   },
   {
     "categoria": "PDV (Ponto de Venda)",
     "titulo": "PDV Varejo (Sem Mesas)",
     "conteudo": "Para lojas, padarias e mercados que não têm mesas. É mais simples: escolhe o produto, coloca no carrinho, finaliza. Sem opção de mesa ou comanda.",
     "ordem": 4,
-    "icone": "Store"
+    "icone": "Store",
+    "secao_chave": "pdv"
   },
   {
     "categoria": "PDV (Ponto de Venda)",
     "titulo": "PDV Garçom (Celular)",
     "conteudo": "O garçom usa o celular para anotar pedidos. Ele vê as mesas na tela, clica em uma mesa livre, adiciona os produtos e envia para a cozinha.",
     "ordem": 5,
-    "icone": "UtensilsCrossed"
+    "icone": "UtensilsCrossed",
+    "secao_chave": "pdv"
   },
   {
     "categoria": "PDV (Ponto de Venda)",
     "titulo": "Buscar Cliente na Venda",
     "conteudo": "Na hora da venda, você pode buscar o cliente digitando nome ou telefone. Não é obrigatório - pode vender sem identificar o cliente. Se o cliente não existir, cadastre rápido ali mesmo.",
     "ordem": 6,
-    "icone": "Users"
+    "icone": "Users",
+    "secao_chave": "pdv"
   },
   {
     "categoria": "Caixa",
     "titulo": "Abrir e Fechar Caixa",
     "conteudo": "**ABRIR:**\n1. Vá em Caixa\n2. Clique em Abrir Caixa\n3. Informe quanto dinheiro tem no caixa para começar\n4. Confirme\n\n**FECHAR:**\n1. Clique em Fechar Caixa\n2. Confira o valor que o sistema calculou\n3. Informe o valor real que está no caixa\n4. Confirme\n\n**Sangria:** retirar dinheiro do caixa.\n**Suprimento:** colocar dinheiro no caixa.",
     "ordem": 1,
-    "icone": "Wallet"
+    "icone": "Wallet",
+    "secao_chave": "caixa"
   },
   {
     "categoria": "Caixa",
     "titulo": "Cupom Fiscal (NFC-e)",
     "conteudo": "O sistema pode emitir cupom fiscal (NFC-e) integrado com o governo. Para usar, configure em **Configurações > NFC-e**: coloque o certificado digital, escolha a série e o ambiente (homologação para testes, produção para funcionar de verdade).",
     "ordem": 2,
-    "icone": "Receipt"
+    "icone": "Receipt",
+    "secao_chave": "caixa"
   },
   {
     "categoria": "Cadastros",
     "titulo": "Cadastrar Clientes",
     "conteudo": "1. Vá em Cadastros ou Clientes\n2. Clique em Novo Cliente\n3. Preencha o nome (obrigatório)\n4. Telefone, email, endereço (opcionais)\n5. CPF/CNPJ é opcional\n6. Clique em Salvar\n\nPara editar, clique no ícone de lápis. Para inativar, clique nos três pontos e escolha Inativar.",
     "ordem": 1,
-    "icone": "UserPlus"
+    "icone": "UserPlus",
+    "secao_chave": "cadastros"
   },
   {
     "categoria": "Cadastros",
     "titulo": "Cadastrar Funcionários",
     "conteudo": "1. Vá em Funcionários\n2. Clique em Novo\n3. Preencha nome, email, PIN numérico (4 a 6 dígitos)\n4. Escolha quais PDVs ele pode acessar\n5. Salve\n\nPronto! O funcionário pode fazer login usando o código da empresa + o PIN que você cadastrou.",
     "ordem": 2,
-    "icone": "UserCog"
+    "icone": "UserCog",
+    "secao_chave": "cadastros"
   },
   {
     "categoria": "Cadastros",
     "titulo": "Cadastrar Fornecedores",
     "conteudo": "1. Vá em Cadastros > Fornecedores\n2. Clique em Novo\n3. Preencha nome/razão social, telefone, email\n4. Endereço e contato são opcionais\n5. Salve\n\nDepois você pode vincular produtos a este fornecedor.",
     "ordem": 3,
-    "icone": "Truck"
+    "icone": "Truck",
+    "secao_chave": "cadastros"
   },
   {
     "categoria": "Produtos",
     "titulo": "Cadastrar Produtos",
     "conteudo": "1. Vá em Produtos\n2. Clique em Novo Produto\n3. Preencha: Nome (obrigatório), Preço de Venda (obrigatório), Categoria\n4. Preço de Custo, Unidade, Descrição (opcionais)\n5. Se controlar estoque, ative o toggle e informe a quantidade atual\n6. Dados fiscais (NCM, CFOP) - preencha se for emitir nota fiscal\n7. Clique em Salvar",
     "ordem": 1,
-    "icone": "Package"
+    "icone": "Package",
+    "secao_chave": "produtos"
   },
   {
     "categoria": "Produtos",
     "titulo": "Criar Combos",
     "conteudo": "1. Cadastre o produto combo normalmente (ex: Combo Café da Manhã)\n2. Na aba Combos, clique em Adicionar Item\n3. Escolha os produtos que fazem parte do combo e a quantidade\n4. Defina o preço do combo (pode ser diferente da soma dos itens)\n5. Salve\n\nNo PDV, o combo aparece como um produto só.",
     "ordem": 2,
-    "icone": "Layers"
+    "icone": "Layers",
+    "secao_chave": "produtos"
   },
   {
     "categoria": "Produtos",
     "titulo": "Categorias de Produtos",
     "conteudo": "Categorias organizam seus produtos. Ex: Bebidas, Salgados, Doces, Lanches. Cada categoria pode ter uma cor para facilitar a visualização no PDV. Vá em **Categorias** para criar, editar ou inativar.",
     "ordem": 3,
-    "icone": "FolderTree"
+    "icone": "FolderTree",
+    "secao_chave": "produtos"
   },
   {
     "categoria": "Produtos",
     "titulo": "Unidades de Medida",
     "conteudo": "Unidades definem a medida do produto: UN (unidade), KG (quilo), L (litro), PC (peça). Vá em **Configurações > Unidades** para cadastrar.",
     "ordem": 4,
-    "icone": "Ruler"
+    "icone": "Ruler",
+    "secao_chave": "produtos"
   },
   {
     "categoria": "Produtos",
     "titulo": "Serviços",
     "conteudo": "Além de produtos, você pode cadastrar serviços como Taxa de Entrega, serviço de Lavanderia, etc. Vá em **Produtos > aba Serviços**.",
     "ordem": 5,
-    "icone": "Wrench"
+    "icone": "Wrench",
+    "secao_chave": "produtos"
   },
   {
     "categoria": "Estoque",
     "titulo": "Consultar Estoque",
     "conteudo": "Vá em **Estoque** para ver todos os produtos e suas quantidades. A tabela mostra: produto, categoria, estoque atual, estoque mínimo e status (Normal ou Baixo). Produtos em vermelho estão com estoque baixo - hora de comprar mais!",
     "ordem": 1,
-    "icone": "Warehouse"
+    "icone": "Warehouse",
+    "secao_chave": "estoque"
   },
   {
     "categoria": "Estoque",
     "titulo": "Movimentar Estoque",
     "conteudo": "**DAR ENTRADA:**\n1. Vá em Estoque\n2. Clique em Entrada\n3. Escolha o produto e a quantidade\n4. Informe o fornecedor (opcional)\n5. Salve\n\n**DAR SAÍDA:**\n1. Clique em Saída\n2. Escolha o produto\n3. Informe o motivo (perda, quebra, ajuste)\n\nAs vendas no PDV já dão saída automática.",
     "ordem": 2,
-    "icone": "ArrowUpDown"
+    "icone": "ArrowUpDown",
+    "secao_chave": "estoque"
   },
   {
     "categoria": "Estoque",
     "titulo": "Reserva de Estoque",
     "conteudo": "Quando você cria um Pedido de Compra com status Pendente, o sistema reserva os produtos no estoque. Se cancelar o pedido, a reserva é liberada. Se faturar, a reserva vira saída. Assim você não vende o que já está comprometido.",
     "ordem": 3,
-    "icone": "Lock"
+    "icone": "Lock",
+    "secao_chave": "estoque"
   },
   {
     "categoria": "Estoque",
     "titulo": "Relatório de Estoque",
     "conteudo": "Vá em **Estoque > Relatório** para ver o histórico completo de movimentações. Filtre por período, tipo (entrada, saída, venda) ou produto. Exporte em PDF se precisar.",
     "ordem": 4,
-    "icone": "FileSpreadsheet"
+    "icone": "FileSpreadsheet",
+    "secao_chave": "estoque"
   },
   {
     "categoria": "Financeiro",
     "titulo": "Contas a Pagar e Receber",
     "conteudo": "**A PAGAR:** cadastre contas como aluguel, água, luz, fornecedores. Informe valor, vencimento, fornecedor. O sistema avisa quando vencer.\n\n**A RECEBER:** cadastre vendas a prazo ou serviços. Acompanhe o que seus clientes devem.\n\n**Status:** Pendente, Pago, Vencido.",
     "ordem": 1,
-    "icone": "DollarSign"
+    "icone": "DollarSign",
+    "secao_chave": "financeiro"
   },
   {
     "categoria": "Financeiro",
     "titulo": "Extração de Dados",
     "conteudo": "Você pode exportar relatórios financeiros em PDF. Use os filtros para escolher o período e clique em Exportar. O PDF sai com a logo da sua empresa.",
     "ordem": 2,
-    "icone": "Download"
+    "icone": "Download",
+    "secao_chave": "financeiro"
   },
   {
     "categoria": "Pedidos",
     "titulo": "Pedidos de Compra",
     "conteudo": "1. Vá em Pedidos\n2. Clique em Novo Pedido\n3. Escolha o fornecedor\n4. Adicione os produtos que quer comprar\n5. Informe quantidades e condição de pagamento\n6. Defina a data de entrega prevista\n7. Salve como Pendente\n\n**Status:** Pendente > Aprovado > Entregue > Faturado. Se cancelar, a reserva de estoque é liberada.",
     "ordem": 1,
-    "icone": "ClipboardList"
+    "icone": "ClipboardList",
+    "secao_chave": "pedidos"
   },
   {
     "categoria": "Pedidos",
     "titulo": "Tabela de Pedidos",
     "conteudo": "A listagem de pedidos mostra número, fornecedor, itens, total, data e status. Clique nas colunas para ordenar. Use filtros para buscar por período ou status. Botões de ação: visualizar, editar, aprovar, cancelar, faturar.",
     "ordem": 2,
-    "icone": "Table"
+    "icone": "Table",
+    "secao_chave": "pedidos"
   },
   {
     "categoria": "Ordens de Serviço",
     "titulo": "OS Lavanderia",
     "conteudo": "1. Vá em OS Lavanderia\n2. Clique em Nova OS\n3. Selecione o cliente\n4. Informe data de entrada e previsão de retirada\n5. Adicione as peças (camisa, calça, toalha)\n6. Selecione os serviços (lavar, passar)\n7. O preço calcula automático\n8. Selecione o vendedor\n9. Salve\n\nDepois pode faturar para gerar a venda.",
     "ordem": 1,
-    "icone": "WashingMachine"
+    "icone": "WashingMachine",
+    "secao_chave": "ordens-servico"
   },
   {
     "categoria": "Ordens de Serviço",
     "titulo": "OS Geral",
     "conteudo": "Ordem de Serviço genérica para outros tipos de serviço. Cadastre cliente, descrição, valor e acompanhe o status.",
     "ordem": 2,
-    "icone": "Wrench"
+    "icone": "Wrench",
+    "secao_chave": "ordens-servico"
   },
   {
     "categoria": "NF-e (Notas Fiscais)",
     "titulo": "Importar NF-e de Entrada",
     "conteudo": "1. Vá em Notas Fiscais de Entrada\n2. Clique em Importar NF-e\n3. Selecione o arquivo XML da nota do fornecedor\n4. O sistema lê os dados automaticamente\n5. Confira e confirme\n\nOs produtos são criados ou vinculados automaticamente.",
     "ordem": 1,
-    "icone": "FileInput"
+    "icone": "FileInput",
+    "secao_chave": "nfe"
   },
   {
     "categoria": "NF-e (Notas Fiscais)",
     "titulo": "Emitir NF-e de Saída",
     "conteudo": "1. Vá em Vendas escolha uma venda\n2. Clique em Emitir NF-e\n3. Confira os dados do cliente\n4. Verifique os produtos e impostos\n5. Adicione informações complementares se quiser\n6. Clique em Emitir\n\nPronto, nota fiscal enviada para a SEFAZ!",
     "ordem": 2,
-    "icone": "FileOutput"
+    "icone": "FileOutput",
+    "secao_chave": "nfe"
   },
   {
     "categoria": "NF-e (Notas Fiscais)",
     "titulo": "Configurar NF-e",
     "conteudo": "Para emitir NF-e, configure em **Configurações**: Certificado Digital (arquivo .pfx ou .p12), Série da nota, Ambiente (homologação para testar, produção para funcionar). Se precisar de ajuda, consulte um contador.",
     "ordem": 3,
-    "icone": "Settings"
+    "icone": "Settings",
+    "secao_chave": "nfe"
   },
   {
     "categoria": "Cupons Fiscais / NFC-e",
     "titulo": "Cupons Fiscais",
     "conteudo": "Vá em **Cupons Fiscais** para ver todos os cupons emitidos. Você pode visualizar, reimprimir ou cancelar (dentro do prazo legal de 30 minutos).",
     "ordem": 1,
-    "icone": "FileText"
+    "icone": "FileText",
+    "secao_chave": "cupons-nfes"
   },
   {
     "categoria": "Delivery",
     "titulo": "Gerenciar Delivery",
     "conteudo": "Acompanhe os pedidos de delivery em tempo real. **Status:** Pendente, Confirmado, Em Preparação, Pronto, Saiu para Entrega, Entregue, Cancelado. Configure taxas, horários e áreas de entrega em Config. Cardápio.",
     "ordem": 1,
-    "icone": "Bike"
+    "icone": "Bike",
+    "secao_chave": "delivery"
   },
   {
     "categoria": "Delivery",
     "titulo": "Entregadores",
     "conteudo": "Cadastre seus entregadores: nome, telefone, veículo (moto, carro, bike). Depois vincule cada entrega a um entregador.",
     "ordem": 2,
-    "icone": "Truck"
+    "icone": "Truck",
+    "secao_chave": "delivery"
   },
   {
     "categoria": "Integrações",
     "titulo": "iFood",
     "conteudo": "Integre seu sistema com o iFood. Configure Client ID, Client Secret e Merchant ID (fornecido pelo iFood). Ative a sincronização para seus produtos aparecerem no iFood. Os pedidos chegam automaticamente.",
     "ordem": 1,
-    "icone": "Plug"
+    "icone": "Plug",
+    "secao_chave": "integracoes"
   },
   {
     "categoria": "Integrações",
     "titulo": "Uber Eats",
     "conteudo": "Integração similar ao iFood. Configure as credenciais fornecidas pelo Uber Eats e ative a sincronização dos produtos.",
     "ordem": 2,
-    "icone": "Plug"
+    "icone": "Plug",
+    "secao_chave": "integracoes"
   },
   {
     "categoria": "Integrações",
     "titulo": "WhatsApp Business",
     "conteudo": "Conecte o WhatsApp do seu negócio para enviar notificações de pedidos, confirmações e atendimento automático aos clientes.",
     "ordem": 3,
-    "icone": "MessageCircle"
+    "icone": "MessageCircle",
+    "secao_chave": "integracoes"
   },
   {
     "categoria": "Integrações",
     "titulo": "Stripe (Assinaturas)",
     "conteudo": "Se o sistema for pago, o Master configura os planos no Stripe. O Admin vê o plano atual em Assinatura e pode fazer upgrade/downgrade. Se a assinatura vencer, o acesso é bloqueado até regularizar.",
     "ordem": 4,
-    "icone": "CreditCard"
+    "icone": "CreditCard",
+    "secao_chave": "integracoes"
   },
   {
     "categoria": "Atendimento",
     "titulo": "Atendimento Virtual",
     "conteudo": "Atenda clientes pelo chat do sistema. Veja o histórico de conversas, receba notificações de novas mensagens. Configure auto-respostas para perguntas frequentes (horário, endereço).",
     "ordem": 1,
-    "icone": "MessageCircle"
+    "icone": "MessageCircle",
+    "secao_chave": "atendimento"
   },
   {
     "categoria": "Atendimento",
     "titulo": "Cardápio Online",
     "conteudo": "Seu cardápio fica disponível na internet em /cardapio. O cliente acessa pelo celular, escolhe os produtos e faz o pedido. Configure em **Config. Cardápio**: logo, taxas, horários.",
     "ordem": 2,
-    "icone": "Menu"
+    "icone": "Menu",
+    "secao_chave": "atendimento"
   },
   {
     "categoria": "Fidelidade",
     "titulo": "Programa de Fidelidade",
     "conteudo": "Crie um programa de fidelidade para seus clientes. **Modelos:** Pontos (acumula pontos), Selos (ganha selos a cada compra), Visitas (a cada X visitas ganha prêmio), Cashback (recebe % de volta).\n\nConfigure em **Configurações > Fidelidade**. Ative e defina as regras.",
     "ordem": 1,
-    "icone": "Heart"
+    "icone": "Heart",
+    "secao_chave": "fidelidade"
   },
   {
     "categoria": "Mesas e Comandas",
     "titulo": "Gerenciar Mesas",
     "conteudo": "Vá em **Mesas** para cadastrar as mesas do seu salão. Informe número e capacidade. **Status:** Livre (pode usar), Ocupada (cliente sentado), Reservada. Clique na mesa para ver detalhes.",
     "ordem": 1,
-    "icone": "UtensilsCrossed"
+    "icone": "UtensilsCrossed",
+    "secao_chave": "mesas"
   },
   {
     "categoria": "Mesas e Comandas",
     "titulo": "Comandas",
     "conteudo": "Comanda é uma conta aberta para uma mesa. No PDV, escolha modo Comanda para ir adicionando produtos durante o consumo. No final, fecha a comanda e gera a venda.",
     "ordem": 2,
-    "icone": "ClipboardList"
+    "icone": "ClipboardList",
+    "secao_chave": "mesas"
   },
   {
     "categoria": "Dispositivos",
     "titulo": "Dispositivos Autorizados",
     "conteudo": "Controle quais computadores/celulares podem acessar o sistema. Quando alguém faz login de um dispositivo novo, ele fica Pendente. O Admin precisa aprovar. Assim você evita acessos não autorizados.",
     "ordem": 1,
-    "icone": "Shield"
+    "icone": "Shield",
+    "secao_chave": "dispositivos"
   },
   {
     "categoria": "Logs",
     "titulo": "Registro de Atividades",
     "conteudo": "Vá em **Logs** para ver tudo que aconteceu no sistema: quem fez login, quem vendeu, quem alterou cadastros. Útil para auditoria e resolver problemas.",
     "ordem": 1,
-    "icone": "FileText"
+    "icone": "FileText",
+    "secao_chave": null
   },
   {
     "categoria": "Configurações",
     "titulo": "Configurações Gerais",
     "conteudo": "Vá em **Configurações** para: alterar nome da empresa, CNPJ, endereço, telefone, logo. Também configura NFC-e (cupom fiscal), NF-e (nota fiscal) e Stripe (assinatura).",
     "ordem": 1,
-    "icone": "Settings"
+    "icone": "Settings",
+    "secao_chave": "configuracoes"
   },
   {
     "categoria": "Configurações",
     "titulo": "Unidades",
     "conteudo": "Cadastre unidades de medida: UN (unidade), KG (quilo), L (litro), PC (peça). Usado nos produtos e notas fiscais.",
     "ordem": 2,
-    "icone": "Ruler"
+    "icone": "Ruler",
+    "secao_chave": "configuracoes"
   },
   {
     "categoria": "Configurações",
     "titulo": "Fidelidade",
     "conteudo": "Configure o programa de fidelidade: ative, escolha o modelo (pontos, selos, visitas, cashback), defina as regras e as recompensas.",
     "ordem": 3,
-    "icone": "Heart"
+    "icone": "Heart",
+    "secao_chave": "configuracoes"
   },
   {
     "categoria": "Relatórios",
     "titulo": "Relatórios e BI",
     "conteudo": "Vá em **Relatórios** para ver: Produtos Mais Vendidos (ranking), Lucro por Produto, Vendas do Dia. Filtre por período, cliente, categoria. Exporte em PDF.",
     "ordem": 1,
-    "icone": "BarChart3"
+    "icone": "BarChart3",
+    "secao_chave": "relatorios"
   },
   {
     "categoria": "Relatórios",
     "titulo": "Relatório de Estoque",
     "conteudo": "Vá em **Estoque > Relatório** para ver todas as movimentações de estoque em um só lugar. Filtre por período e tipo.",
     "ordem": 2,
-    "icone": "Warehouse"
+    "icone": "Warehouse",
+    "secao_chave": "relatorios"
   },
   {
     "categoria": "Tema Visual",
     "titulo": "Tema Claro e Escuro",
     "conteudo": "Você pode alternar entre tema claro (fundo branco) e escuro (fundo escuro). Clique no ícone Sol/Lua no topo da página. O sistema lembra sua escolha.",
     "ordem": 1,
-    "icone": "Palette"
+    "icone": "Palette",
+    "secao_chave": null
   },
   {
     "categoria": "Tema Visual",
     "titulo": "Interface do Sistema",
     "conteudo": "O sistema usa botões, cards, tabelas e menus padronizados. Tudo foi feito para ser fácil de usar. Os botões principais são coloridos, os secundários são mais discretos.",
     "ordem": 2,
-    "icone": "Component"
+    "icone": "Component",
+    "secao_chave": null
   },
   {
     "categoria": "Painel Master",
     "titulo": "Painel do Master",
     "conteudo": "O Master é o super admin. Ele vê todas as empresas, cria planos de assinatura, gerencia segmentos, acompanha consumo de dados e pode restaurar backups. Acesso em /master.",
     "ordem": 1,
-    "icone": "Shield"
+    "icone": "Shield",
+    "secao_chave": null
   },
   {
     "categoria": "Painel Master",
     "titulo": "Popular Dados de Exemplo",
     "conteudo": "O Master pode usar a função Seed para popular o banco com dados de exemplo (categorias, produtos, clientes). Útil para testar o sistema antes de usar de verdade.",
     "ordem": 2,
-    "icone": "Database"
+    "icone": "Database",
+    "secao_chave": null
   },
   {
     "categoria": "Atalhos de Teclado",
     "titulo": "Atalhos do PDV",
     "conteudo": "| Tecla | Função |\n|---|---|\n| **F2** | Buscar cliente |\n| **F3** | Buscar produto |\n| **F4** | Finalizar venda |\n| **F8** | Pagamento |\n| **F10** | Abrir caixa |",
     "ordem": 1,
-    "icone": "Keyboard"
+    "icone": "Keyboard",
+    "secao_chave": null
   },
   {
     "categoria": "Atalhos de Teclado",
     "titulo": "Atalhos Gerais",
     "conteudo": "**Enter** para confirmar, **Esc** para fechar janelas. Use o menu lateral para navegar entre as páginas.",
     "ordem": 2,
-    "icone": "Keyboard"
+    "icone": "Keyboard",
+    "secao_chave": null
   }
 ]

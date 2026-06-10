@@ -1137,17 +1137,6 @@ export default function AdminDashboardPage() {
                 <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
                 {refreshing ? 'Atualizando...' : 'Atualizar'}
               </Button>
-              {hasUpdate && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => { window.location.reload(); dismissUpdate(); }}
-                  className="gap-1.5 bg-amber-500 hover:bg-amber-600 text-white shadow-lg animate-pulse"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Recarregar App
-                </Button>
-              )}
             </div>
           </div>
 

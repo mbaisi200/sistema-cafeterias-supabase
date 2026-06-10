@@ -15,6 +15,7 @@ interface AuthContextType {
   isConfigured: boolean;
   secoesPermitidas: string[];
   nomeMarca: string | null;
+  segmentoId: string | null;
   segmentoIcone: string | null;
   permitirFotoProduto: boolean;
   podeReimprimir: boolean;
@@ -39,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [secoesPermitidas, setSecoesPermitidas] = useState<string[]>([]);
   const [nomeMarca, setNomeMarca] = useState<string | null>(null);
+  const [segmentoId, setSegmentoId] = useState<string | null>(null);
   const [segmentoIcone, setSegmentoIcone] = useState<string | null>(null);
   const [permitirFotoProduto, setPermitirFotoProduto] = useState(true);
   const [podeReimprimir, setPodeReimprimir] = useState(true);
@@ -103,6 +105,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Armazenar seções permitidas, nome da marca, ícone do segmento e permissão de foto
       setSecoesPermitidas(result.user.secoesPermitidas || []);
       setNomeMarca(result.user.nomeMarca || null);
+      setSegmentoId(result.user.segmentoId || null);
       setSegmentoIcone(result.user.segmentoIcone || null);
       setPermitirFotoProduto(result.user.permitirFotoProduto ?? true);
       setPodeReimprimir(result.user.podeReimprimir ?? true);
@@ -492,6 +495,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isConfigured: isSupabaseConfigured(),
     secoesPermitidas,
     nomeMarca,
+    segmentoId,
     segmentoIcone,
     permitirFotoProduto,
     podeReimprimir,

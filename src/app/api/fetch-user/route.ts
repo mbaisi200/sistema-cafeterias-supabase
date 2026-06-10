@@ -74,6 +74,7 @@ export async function POST(request: NextRequest) {
     let secoesPermitidas: string[] = [];
     let nomeMarca: string | null = null;
     let segmentoIcone: string | null = null;
+    let segmentoId: string | null = null;
     let permitirFotoProduto = true;
     let podeReimprimir = true;
 
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       const segId = empresaRes?.segmento_id;
+      segmentoId = segId || null;
 
       if (segId) {
         const { data: segData } = await supabase
@@ -179,6 +181,7 @@ export async function POST(request: NextRequest) {
         atualizadoEm: userData.atualizado_em,
         secoesPermitidas,
         nomeMarca,
+        segmentoId,
         segmentoIcone,
         permitirFotoProduto,
         podeReimprimir,

@@ -346,9 +346,52 @@ Toda `<Table>` (shadcn/ui) deve usar `table-fixed w-full` para distribuir o espa
 
 11. **🔴 Toda tabela nova com `empresa_id` deve ser registrada no `/master/consumo-dados`**: editar `src/app/api/master/consumo-dados/route.ts` e adicionar entrada em `TABELAS_COM_EMPRESA` e `TAMANHO_MEDIO_REGISTRO`. Sem isso, a tabela fica invisível na página de Consumo de Dados.
 
-12. **📖 Manual do Sistema — OBRIGATÓRIO manter sincronizado**: Toda vez que criar, alterar ou remover uma funcionalidade no sistema, o arquivo `supabase/migrations/add_manual_sistema.sql` (seed SQL) e `src/data/manual-sistema.json` (fallback) devem ser atualizados. O Manual do Sistema em `/admin/manual` é a principal fonte de documentação para o admin — não deixar desatualizado evita retrabalho e inconsistências. Siga o padrão de linguagem simples e passo a passo já estabelecido. **Importante:** sempre que precisar executar comandos SQL (migrations, seeds, inserts, updates), liste a query completa no output para o usuário copiar e colar no SQL Editor do Supabase — nunca omitir ou resumir o SQL.
+12. **📖 Manual do Sistema — OBRIGATÓRIO manter sincronizado**: Toda vez que criar, alterar ou remover uma funcionalidade no sistema, os arquivos `supabase/migrations/add_manual_sistema.sql` (seed SQL) e `src/data/manual-sistema.json` (fallback) devem ser atualizados. O Manual do Sistema em `/admin/manual` é a principal fonte de documentação para o admin — não deixar desatualizado evita retrabalho e inconsistências. Siga o padrão de linguagem simples e passo a passo já estabelecido. **Importante:** sempre que precisar executar comandos SQL (migrations, seeds, inserts, updates), liste a query completa no output para o usuário copiar e colar no SQL Editor do Supabase — nunca omitir ou resumir o SQL.
 
-13. **🔢 Versionamento**: A versão do sistema está em `package.json` (`"version": "1.0.x"`). A cada novo commit/PR, incremente **+0.01** na versão (ex: `1.0.2` → `1.0.3`). Isso vale para qualquer alteração no código, seja feature, fix ou docs.
+    ### Filtro por Segmento no Manual
+    Cada entrada do manual é vinculada a uma seção do menu via `secao_chave` (VARCHAR, referencia `secoes_menu.chave`, nullable). Quando um admin acessa `/admin/manual`, o sistema filtra automaticamente: mostra apenas as entradas cujo `secao_chave` corresponde a uma seção ativa no segmento da empresa (`segmento_secoes.ativo = true`), mais as entradas globais (`secao_chave IS NULL`). Usuários sem segmento atribuído ou Master veem tudo.
+
+    **Ao adicionar entrada no manual:**
+    - Defina `secao_chave` com o valor da chave da seção em `secoes_menu` (ex: `'pdv'`, `'os_lavanderia'`, `'atendimento'`).
+    - Se a funcionalidade for **global** (ex: "Como Fazer Login"), deixe `secao_chave = NULL`.
+    - Se a funcionalidade não tiver uma seção correspondente em `secoes_menu`, crie uma nova entrada em `secoes_menu` (com `ativo = true`) para que o Master possa configurar quais segmentos a enxergam via `segmento_secoes`.
+    - Para o JSON fallback (`src/data/manual-sistema.json`), use o campo `"secao_chave"` com a string da chave (ex: `"pdv"`) ou `null` para global.
+
+    **Seções mapeadas atualmente:**
+
+    | Categoria no Manual | `secao_chave` |
+    |---|---|
+    | Visão Geral | `null` |
+    | Autenticação e Acesso | `null` |
+    | Dashboard | `dashboard` |
+    | PDV (Ponto de Venda) | `pdv` |
+    | Caixa | `caixa` |
+    | Cadastros | `cadastros` |
+    | Produtos | `produtos` |
+    | Estoque | `estoque` |
+    | Financeiro | `financeiro` |
+    | Pedidos | `pedidos` |
+    | Ordens de Serviço | `ordens-servico` |
+    | NF-e (Notas Fiscais) | `nfe` |
+    | Cupons Fiscais / NFC-e | `cupons-nfes` |
+    | Delivery | `delivery` |
+    | Integrações | `integracoes` |
+    | Atendimento | `atendimento` |
+    | Fidelidade | `fidelidade` |
+    | Mesas e Comandas | `mesas` |
+    | Dispositivos | `dispositivos` |
+    | Logs | `null` |
+    | Configurações | `configuracoes` |
+    | Relatórios | `relatorios` |
+    | Tema Visual | `null` |
+    | Painel Master | `null` (filtrado por role — só `master` vê) |
+    | Atalhos de Teclado | `null` |
+
+    **Notas importantes:**
+    - **Painel Master**: embora `secao_chave = null` (global), o frontend filtra client-side: apenas usuários com `role === 'master'` enxergam esta categoria. Não depende de `segmento_secoes`.
+    - **Fidelidade**: a migration `add_fidelidade_secoes.sql` insere `fidelidade` em `segmento_secoes` para **todos** os segmentos existentes (`CROSS JOIN`). Se um segmento não deve ter Fidelidade, o Master precisa desabilitar manualmente em `/master/segmentos`.
+
+13. **🔢 Versionamento automático**: A versão do sistema é gerada automaticamente no build pelo script `scripts/generate-version.js`. O patch number é derivado da **contagem de commits do git** (`git rev-list --count HEAD`). O `package.json` mantém apenas o `major.minor` (ex: `"1.0"`). **Não** edite o patch manualmente — ele será incrementado sozinho a cada novo commit/build.
 
 ---
 

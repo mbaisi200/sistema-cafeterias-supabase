@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { MainLayout } from '@/components/layout/MainLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/collapsible';
 import ReactMarkdown from 'react-markdown';
 import { useTheme } from 'next-themes';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Secao {
   id: string;
@@ -40,22 +41,27 @@ interface Categoria {
 }
 
 export default function ManualPage() {
+  const { segmentoId, role } = useAuth();
   const [categorias, setCategorias] = useState<Categoria[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   const [categoriasAbertas, setCategoriasAbertas] = useState<string[]>([]);
   const { resolvedTheme } = useTheme();
   const darkMode = resolvedTheme === 'dark';
+  const reqRef = useRef(0);
 
   useEffect(() => {
     carregarManual();
-  }, []);
+  }, [segmentoId]);
 
   const carregarManual = async () => {
+    const reqId = ++reqRef.current;
     setLoading(true);
     try {
-      const res = await fetch('/api/manual');
+      const params = segmentoId ? `?segmentoId=${encodeURIComponent(segmentoId)}` : '';
+      const res = await fetch(`/api/manual${params}`);
       const json = await res.json();
+      if (reqId !== reqRef.current) return; // requisição obsoleta
       if (json.sucesso && json.data?.categorias) {
         setCategorias(json.data.categorias);
         setCategoriasAbertas(json.data.categorias.map((c: Categoria) => c.nome));
@@ -63,11 +69,12 @@ export default function ManualPage() {
     } catch (err) {
       console.error('Erro ao carregar manual:', err);
     } finally {
-      setLoading(false);
+      if (reqId === reqRef.current) setLoading(false);
     }
   };
 
   const categoriasFiltradas = categorias
+    .filter(cat => role === 'master' || cat.nome !== 'Painel Master')
     .map(cat => ({
       ...cat,
       itens: cat.itens.filter(item =>
