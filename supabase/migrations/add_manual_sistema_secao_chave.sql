@@ -9,7 +9,11 @@ UPDATE manual_sistema SET secao_chave = 'dashboard'      WHERE categoria = 'Dash
 UPDATE manual_sistema SET secao_chave = 'pdv'            WHERE categoria = 'PDV (Ponto de Venda)';
 UPDATE manual_sistema SET secao_chave = 'caixa'          WHERE categoria = 'Caixa';
 UPDATE manual_sistema SET secao_chave = 'cadastros'      WHERE categoria = 'Cadastros';
-UPDATE manual_sistema SET secao_chave = 'produtos'       WHERE categoria = 'Produtos';
+-- Produtos: granular por sub-seção (secoes_menu.produtos_*)
+UPDATE manual_sistema SET secao_chave = 'produtos'             WHERE categoria = 'Produtos' AND titulo IN ('Cadastrar Produtos', 'Serviços');
+UPDATE manual_sistema SET secao_chave = 'produtos_categorias'  WHERE categoria = 'Produtos' AND titulo = 'Categorias de Produtos';
+UPDATE manual_sistema SET secao_chave = 'produtos_unidades'    WHERE categoria = 'Produtos' AND titulo = 'Unidades de Medida';
+UPDATE manual_sistema SET secao_chave = 'produtos_combos'      WHERE categoria = 'Produtos' AND titulo = 'Criar Combos';
 UPDATE manual_sistema SET secao_chave = 'estoque'        WHERE categoria = 'Estoque';
 UPDATE manual_sistema SET secao_chave = 'financeiro'     WHERE categoria = 'Financeiro';
 UPDATE manual_sistema SET secao_chave = 'pedidos'        WHERE categoria = 'Pedidos';

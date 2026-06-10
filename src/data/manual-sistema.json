@@ -197,7 +197,7 @@
     "conteudo": "1. Cadastre o produto combo normalmente (ex: Combo Café da Manhã)\n2. Na aba Combos, clique em Adicionar Item\n3. Escolha os produtos que fazem parte do combo e a quantidade\n4. Defina o preço do combo (pode ser diferente da soma dos itens)\n5. Salve\n\nNo PDV, o combo aparece como um produto só.",
     "ordem": 2,
     "icone": "Layers",
-    "secao_chave": "produtos"
+    "secao_chave": "produtos_combos"
   },
   {
     "categoria": "Produtos",
@@ -205,7 +205,7 @@
     "conteudo": "Categorias organizam seus produtos. Ex: Bebidas, Salgados, Doces, Lanches. Cada categoria pode ter uma cor para facilitar a visualização no PDV. Vá em **Categorias** para criar, editar ou inativar.",
     "ordem": 3,
     "icone": "FolderTree",
-    "secao_chave": "produtos"
+    "secao_chave": "produtos_categorias"
   },
   {
     "categoria": "Produtos",
@@ -213,7 +213,7 @@
     "conteudo": "Unidades definem a medida do produto: UN (unidade), KG (quilo), L (litro), PC (peça). Vá em **Configurações > Unidades** para cadastrar.",
     "ordem": 4,
     "icone": "Ruler",
-    "secao_chave": "produtos"
+    "secao_chave": "produtos_unidades"
   },
   {
     "categoria": "Produtos",
