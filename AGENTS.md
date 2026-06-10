@@ -348,6 +348,8 @@ Toda `<Table>` (shadcn/ui) deve usar `table-fixed w-full` para distribuir o espa
 
 12. **📖 Manual do Sistema — OBRIGATÓRIO manter sincronizado**: Toda vez que criar, alterar ou remover uma funcionalidade no sistema, o arquivo `supabase/migrations/add_manual_sistema.sql` (seed SQL) e `src/data/manual-sistema.json` (fallback) devem ser atualizados. O Manual do Sistema em `/admin/manual` é a principal fonte de documentação para o admin — não deixar desatualizado evita retrabalho e inconsistências. Siga o padrão de linguagem simples e passo a passo já estabelecido. **Importante:** sempre que precisar executar comandos SQL (migrations, seeds, inserts, updates), liste a query completa no output para o usuário copiar e colar no SQL Editor do Supabase — nunca omitir ou resumir o SQL.
 
+13. **🔢 Versionamento**: A versão do sistema está em `package.json` (`"version": "1.0.x"`). A cada novo commit/PR, incremente **+0.01** na versão (ex: `1.0.2` → `1.0.3`). Isso vale para qualquer alteração no código, seja feature, fix ou docs.
+
 ---
 
 ## 📌 CNPJ Alfanumérico (Lei RFB nº 2.229/2024)
