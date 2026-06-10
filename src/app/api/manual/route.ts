@@ -33,45 +33,26 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Se não tem segmento ou não achou seções ativas, mostra tudo
-    if (!chavesAtivas) {
-      const { data: secoes, error } = await supabase
-        .from('manual_sistema')
-        .select('*')
-        .eq('ativo', true)
-        .order('categoria')
-        .order('ordem');
-
-      if (error || !secoes || secoes.length === 0) {
-        return agruparERetornar(secoesFallback);
-      }
-      return agruparERetornar(secoes);
-    }
-
-    // Filtra: entradas globais (NULL) + entradas com secao_chave ativa no segmento
-    const orConditions = ['secao_chave.is.null'];
-    for (const chave of chavesAtivas) {
-      orConditions.push(`secao_chave.eq.${chave}`);
-    }
+    // Busca TODAS as entradas ativas (poucas ~70), filtra no servidor
     const { data: secoes, error } = await supabase
       .from('manual_sistema')
       .select('*')
       .eq('ativo', true)
-      .or(orConditions.join(','))
       .order('categoria')
       .order('ordem');
 
-    if (error || !secoes || secoes.length === 0) {
-      return agruparERetornar(
-        secoesFallback.filter(
-          (s: any) => !s.secao_chave || chavesAtivas!.includes(s.secao_chave)
-        )
-      );
-    }
+    const entradas = (error || !secoes || secoes.length === 0)
+      ? secoesFallback
+      : secoes;
 
-    return agruparERetornar(secoes);
+    // Filtra: globais (secao_chave NULL) + específicas ativas no segmento
+    const filtradas = (!chavesAtivas)
+      ? entradas
+      : entradas.filter((s: any) => !s.secao_chave || chavesAtivas!.includes(s.secao_chave));
+
+    return agruparERetornar(filtradas);
   } catch {
-    return agruparERetornar(secoesFallback.filter((s: any) => !s.secao_chave));
+    return agruparERetornar(secoesFallback);
   }
 }
 
