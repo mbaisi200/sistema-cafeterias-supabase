@@ -74,6 +74,8 @@ import {
   CreditCard,
   MessageCircle,
   RefreshCw,
+  BookOpen,
+  BookMarked,
 } from 'lucide-react';
 import {
   Collapsible,
@@ -87,7 +89,7 @@ const iconMap: Record<string, any> = {
   DollarSign, ShoppingCart, Coffee, BarChart3, Wallet,
   Plug, FileText, Bike, ExternalLink, Users, Menu, Settings,
   ClipboardList, Database, Zap, Receipt, Truck, Scissors,
-  ShoppingBag, Stethoscope, Wrench, Dumbbell, PawPrint, Store,
+  ShoppingBag, Stethoscope, Wrench, Dumbbell, PawPrint, Store, BookOpen,
   Heart, Layers, Building2, Croissant, Shield, WashingMachine,
 };
 
@@ -177,6 +179,7 @@ const adminMenuItems: MenuItem[] = [
   { title: 'Produtos', url: '/admin/produtos', icon: Package },
   { title: 'Relatório Estoque', url: '/admin/estoque/relatorio', icon: ArrowUpDown },
   { title: 'Relatórios', url: '/admin/relatorios', icon: BarChart3 },
+  { title: 'Manual do Sistema', url: '/admin/manual', icon: BookOpen },
 ];
 
 // Fallback hardcoded para atalho rápido
@@ -385,6 +388,8 @@ export function AppSidebar() {
       missingItems.push({ title: 'Cardápio', url: '/cardapio', icon: Menu, external: true });
     if (!items.find(i => i.url === '/admin/delivery/config'))
       missingItems.push({ title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings });
+    if (!items.find(i => i.url === '/admin/manual'))
+      missingItems.push({ title: 'Manual do Sistema', url: '/admin/manual', icon: BookOpen });
 
     let all = [...items, ...missingItems];
 
@@ -404,11 +409,14 @@ export function AppSidebar() {
       }
     }
 
-    // 3. Ordenar A-Z (Dashboard sempre primeiro)
+    // 3. Ordenar A-Z (Dashboard sempre primeiro, Manual do Sistema sempre último)
     const dashboard = all.find(i => i.url === '/admin/dashboard');
-    const rest = all.filter(i => i.url !== '/admin/dashboard');
+    const manual = all.find(i => i.url === '/admin/manual');
+    let rest = all.filter(i => i.url !== '/admin/dashboard' && i.url !== '/admin/manual');
     rest.sort((a, b) => a.title.localeCompare(b.title, 'pt-BR'));
-    const sorted = dashboard ? [dashboard, ...rest] : rest;
+    const sorted = dashboard
+      ? [dashboard, ...rest, ...(manual ? [manual] : [])]
+      : [...rest, ...(manual ? [manual] : [])];
 
     // 4. Ordenar submenus internamente A-Z
     for (const item of sorted) {

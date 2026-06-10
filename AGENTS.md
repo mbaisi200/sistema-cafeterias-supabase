@@ -346,6 +346,8 @@ Toda `<Table>` (shadcn/ui) deve usar `table-fixed w-full` para distribuir o espa
 
 11. **🔴 Toda tabela nova com `empresa_id` deve ser registrada no `/master/consumo-dados`**: editar `src/app/api/master/consumo-dados/route.ts` e adicionar entrada em `TABELAS_COM_EMPRESA` e `TAMANHO_MEDIO_REGISTRO`. Sem isso, a tabela fica invisível na página de Consumo de Dados.
 
+12. **📖 Manual do Sistema — OBRIGATÓRIO manter sincronizado**: Toda vez que criar, alterar ou remover uma funcionalidade no sistema, o arquivo `supabase/migrations/add_manual_sistema.sql` (seed SQL) e `src/data/manual-sistema.json` (fallback) devem ser atualizados. O Manual do Sistema em `/admin/manual` é a principal fonte de documentação para o admin — não deixar desatualizado evita retrabalho e inconsistências. Siga o padrão de linguagem simples e passo a passo já estabelecido. **Importante:** sempre que precisar executar comandos SQL (migrations, seeds, inserts, updates), liste a query completa no output para o usuário copiar e colar no SQL Editor do Supabase — nunca omitir ou resumir o SQL.
+
 ---
 
 ## 📌 CNPJ Alfanumérico (Lei RFB nº 2.229/2024)
