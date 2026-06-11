@@ -54,6 +54,60 @@ const NOMES_FUNCIONARIOS = [
 
 const CARGOS = ['Atendente', 'Caixa', 'Gerente', 'Barista', 'Cozinheiro', 'Garçom'];
 
+// NCM por categoria — usados no seed para preencher produtos com dados fiscais realistas
+// Apenas campos intrínsecos do produto (NCM, CFOP) são preenchidos.
+// CST, CSOSN e alíquotas (ICMS, IPI, PIS, COFINS) NÃO são definidos aqui porque
+// dependem exclusivamente do regime tributário da empresa (Simples Nacional ou Regime Normal)
+// e da operação, não do produto em si. Os defaults do banco ('00'/'102'/0) serão aplicados.
+const NCM_POR_NOME_CATEGORIA: Record<string, string> = {
+  // Alimentação e Bebidas
+  'Bebidas Quentes': '22021000',
+  'Bebidas Geladas': '22021000',
+  'Bebidas': '22021000',
+  'Café': '09012100',
+  'Lanches': '19059000',
+  'Doces': '17049090',
+  'Sobremesas': '17049090',
+  'Entradas': '21069000',
+  'Pratos Principais': '21069000',
+  'Massas': '21069000',
+  'Porções': '21069000',
+  'Combos': '21069000',
+  'Pães': '19059000',
+  'Salgados': '19059000',
+  'Cafeteria': '09012100',
+  // Carnes e Frios
+  'Carnes': '02010000',
+  'Laticínios': '04011000',
+  'Hortifruti': '07099900',
+  'Mercearia': '19059000',
+  'Limpeza': '34011900',
+  // Pet Shop
+  'Raçőes e Alimentos': '23091000',
+  'Acessórios': '42010000',       // Pet shop / Vestuário / Academia (fallback para pet)
+  // Vestuário
+  'Camisetas': '61091000',
+  'Calças e Bermudas': '61034200',
+  'Calçados': '64039900',
+  // Farmácia / Suplementos
+  'Suplementos': '21069000',
+  // Serviços (sem mercadoria — NCM genérico)
+  'Cortes': '00000000',
+  'Tratamentos': '00000000',
+  'Sobrancelha e Pele': '00000000',
+  'Produtos': '00000000',
+  'Banho e Tosa': '00000000',
+  'Consultas': '00000000',
+  'Exames': '00000000',
+  'Procedimentos': '00000000',
+  'Serviços Básicos': '00000000',
+  'Freios e Suspensão': '00000000',
+  'Elétrica': '00000000',
+  'Pneus': '00000000',
+  'Planos': '00000000',
+  'Personal': '00000000',
+};
+
 // Produtos por segmento — cada segmento tem seu catálogo específico
 const PRODUTOS_POR_SEGMENTO: Record<string, Record<string, {nome: string, preco: number, custo: number}[]>> = {
   'Cafeteria': {
@@ -1019,11 +1073,22 @@ function SeedContent() {
       addLog('Criando produtos...');
 
       const produtosIds: string[] = [];
-      const produtosDataInsert: {empresa_id: string, categoria_id: string, nome: string, descricao: string, codigo: string, preco: number, custo: number, unidade: string, estoque_atual: number, estoque_minimo: number, controlar_estoque: boolean, destaque: boolean, ativo: boolean, criado_em: string, atualizado_em: string}[] = [];
+      // ⚠️ CST/CSOSN e alíquotas (ICMS, IPI, PIS, COFINS) não são preenchidos no seed
+      // porque dependem exclusivamente do regime tributário da empresa, NÃO do fornecedor.
+      // Os defaults do banco ('00'/'102'/0) serão aplicados — o admin pode ajustar depois
+      // no cadastro do produto ou na Configuração NF-e (cst_padrao/csosn_padrao).
+      const produtosDataInsert: {
+        empresa_id: string, categoria_id: string, nome: string, descricao: string,
+        codigo: string, preco: number, custo: number, unidade: string,
+        ncm: string,
+        estoque_atual: number, estoque_minimo: number, controlar_estoque: boolean,
+        destaque: boolean, ativo: boolean, criado_em: string, atualizado_em: string
+      }[] = [];
       const produtosDataInfo: {id: string, nome: string, preco: number, custo: number}[] = [];
 
       for (const [nomeCategoria, produtos] of Object.entries(catalogoProdutos)) {
         const categoriaId = categoriasMap[nomeCategoria];
+        const ncm = NCM_POR_NOME_CATEGORIA[nomeCategoria] || '00000000';
         
         for (const produto of produtos) {
           produtosDataInsert.push({
@@ -1035,6 +1100,7 @@ function SeedContent() {
             preco: produto.preco,
             custo: produto.custo,
             unidade: 'un',
+            ncm,
             estoque_atual: produtosIds.length % 5 === 0
               ? Math.floor(Math.random() * 5)
               : Math.floor(50 + Math.random() * 150),

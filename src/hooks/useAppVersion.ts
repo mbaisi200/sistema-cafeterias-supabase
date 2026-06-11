@@ -17,7 +17,7 @@ export function useAppVersion() {
 
   const checkVersion = useCallback(async () => {
     try {
-      const res = await fetch(`/version.json?t=${Date.now()}`);
+      const res = await fetch(`/api/version`);
       const data: VersionInfo = await res.json();
       if (!currentVersion) {
         setCurrentVersion(data.version);

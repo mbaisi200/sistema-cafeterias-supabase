@@ -49,3 +49,6 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# version (generated at build time, never commit stale value)
+/public/version.json

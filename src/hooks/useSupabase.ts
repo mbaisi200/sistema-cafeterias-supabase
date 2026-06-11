@@ -1793,56 +1793,41 @@ export function useComandas() {
 
     if (vendaError) throw vendaError;
 
-    // Criar itens de venda
-    for (const item of comanda.itens || []) {
-      await supabase
-        .from('itens_venda')
-        .insert({
-          empresa_id: empresaId,
-          venda_id: venda.id,
-          produto_id: item.produtoId,
-          nome: item.nome,
-          quantidade: item.quantidade,
-          preco_unitario: item.preco,
-          total: item.preco * item.quantidade,
-        });
-    }
+    // Executar operações independentes em paralelo (após obter venda.id)
+    const itensInsert = (comanda.itens || []).map((item: any) => ({
+      empresa_id: empresaId,
+      venda_id: venda.id,
+      produto_id: item.produtoId,
+      nome: item.nome,
+      quantidade: item.quantidade,
+      preco_unitario: item.preco,
+      total: item.preco * item.quantidade,
+    }));
 
-    // Criar pagamento
-    await supabase
-      .from('pagamentos')
-      .insert({
+    const [caixaResult] = await Promise.all([
+      supabase.from('caixas').select('id, valor_atual, total_vendas').eq('empresa_id', empresaId).eq('status', 'aberto').limit(1),
+      itensInsert.length > 0 ? supabase.from('itens_venda').insert(itensInsert) : Promise.resolve(),
+      supabase.from('pagamentos').insert({
         empresa_id: empresaId,
         venda_id: venda.id,
         forma_pagamento: formaPagamento,
         valor: comanda.total,
-      });
-
-    // Atualizar comanda
-    await supabase
-      .from('comandas')
-      .update({
+      }),
+      supabase.from('comandas').update({
         status: 'fechada',
         venda_id: venda.id,
         forma_pagamento: formaPagamento,
         fechado_por: user.id,
         fechado_por_nome: user.nome,
         fechado_em: new Date().toISOString(),
-      })
-      .eq('id', comandaId);
+      }).eq('id', comandaId),
+    ]);
 
-    // Registrar no caixa se houver caixa aberto
-    const { data: caixas } = await supabase
-      .from('caixas')
-      .select('id')
-      .eq('empresa_id', empresaId)
-      .eq('status', 'aberto')
-      .limit(1);
-
+    // Caixa (se houver)
+    const caixas = caixaResult.data;
     if (caixas && caixas.length > 0) {
-      await supabase
-        .from('movimentacoes_caixa')
-        .insert({
+      await Promise.all([
+        supabase.from('movimentacoes_caixa').insert({
           caixa_id: caixas[0].id,
           empresa_id: empresaId,
           tipo: 'venda',
@@ -1852,10 +1837,16 @@ export function useComandas() {
           descricao: `Comanda #${comanda.numero} - ${comanda.nomeCliente}`,
           usuario_id: user.id,
           usuario_nome: user.nome,
-        });
+        }),
+        supabase.from('caixas').update({
+          valor_atual: (caixas[0].valor_atual || 0) + comanda.total,
+          total_vendas: (caixas[0].total_vendas || 0) + comanda.total,
+        }).eq('id', caixas[0].id),
+      ]);
     }
 
-    await carregarDados();
+    // Remover comanda fechada do array local (evita carregarDados lento)
+    setComandas(prev => prev.filter(c => c.id !== comandaId));
     return venda.id;
   };
 

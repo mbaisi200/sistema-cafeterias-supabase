@@ -1260,7 +1260,9 @@ export default function NFeImportarPage() {
                               Atualizar Dados Fiscais
                             </Label>
                             <p className="text-xs text-muted-foreground mt-0.5">
-                              Para produtos já cadastrados, atualiza NCM, CEST, CFOP, CST, CSOSN, ICMS, IPI, PIS, COFINS
+                              Atualiza apenas <strong>NCM, CEST, CFOP e Origem</strong> (campos intrínsecos do produto).
+                              CST, CSOSN e alíquotas (ICMS, IPI, PIS, COFINS) <strong>não</strong> são copiados do fornecedor
+                              — dependem do regime tributário da sua empresa.
                             </p>
                           </div>
                         </div>
@@ -1670,7 +1672,7 @@ function ProdutoFiscalDetail({ item, margem }: { item: ProdutoImportacao; margem
           <AlertTitle className="text-green-700">Produto JÁ CADASTRADO</AlertTitle>
           <AlertDescription className="text-green-600">
             {item.produtoNome ? `Encontrado como: ${item.produtoNome}` : 'Encontrado no sistema por código ou EAN.'}
-            {' '}O estoque será atualizado e os dados fiscais podem ser atualizados conforme a opção marcada.
+            {' '}Estoque pode ser atualizado. Dados fiscais do fornecedor (CST, CSOSN, alíquotas) <strong>não</strong> sobrescrevem os do produto.
           </AlertDescription>
         </Alert>
       )}
@@ -1727,46 +1729,60 @@ function ProdutoFiscalDetail({ item, margem }: { item: ProdutoImportacao; margem
         </div>
       </div>
 
-      {/* Dados Fiscais */}
+      {/* Dados Fiscais (Fornecedor — apenas referência) */}
       <div>
         <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
           <ShieldCheck className="h-3.5 w-3.5 text-blue-600" />
-          Dados Fiscais (NFe)
+          Dados Fiscais (Fornecedor)
         </h4>
-        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm bg-blue-50/50 border border-blue-100 rounded-lg p-3">
+        <Alert className="border-amber-300 bg-amber-50 mb-2">
+          <Info className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-700 text-xs font-semibold">Apenas referência</AlertTitle>
+          <AlertDescription className="text-amber-600 text-[11px]">
+            Estes dados refletem a tributação do <strong>FORNECEDOR</strong> nesta operação.
+            CST, CSOSN e alíquotas (ICMS, IPI, PIS, COFINS) <strong>não são copiados</strong>
+            {' '}para o produto, pois dependem do regime tributário da <strong>sua empresa</strong>.
+            Apenas NCM, CEST e Origem (intrínsecos do produto) são aproveitados.
+          </AlertDescription>
+        </Alert>
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm bg-amber-50/50 border border-amber-100 rounded-lg p-3">
           <div className="flex justify-between">
             <span className="text-muted-foreground">NCM:</span>
-            <span className="font-mono font-semibold">{p.ncm || '-'}</span>
+            <span className="font-mono font-semibold text-green-700">{p.ncm || '-'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">CEST:</span>
-            <span className="font-mono font-semibold">{p.cest || '-'}</span>
+            <span className="font-mono font-semibold text-green-700">{p.cest || '-'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">CFOP:</span>
-            <span className="font-mono font-semibold">{p.cfop || '-'}</span>
+            <span className="font-mono">{p.cfop || '-'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Origem:</span>
-            <span className="font-mono">{p.origem || '-'}</span>
+            <span className="font-mono text-green-700">{p.origem || '-'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">CST:</span>
-            <span className="font-mono font-semibold">{p.cst || '-'}</span>
+            <span className="font-mono text-amber-700">{p.cst || '-'}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">CSOSN:</span>
-            <span className="font-mono font-semibold">{p.csosn || '-'}</span>
+            <span className="font-mono text-amber-700">{p.csosn || '-'}</span>
           </div>
         </div>
       </div>
 
-      {/* Impostos */}
+      {/* Impostos (Fornecedor — apenas referência) */}
       <div>
         <h4 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
-          <DollarSign className="h-3.5 w-3.5 text-green-600" />
-          Impostos
+          <DollarSign className="h-3.5 w-3.5 text-amber-600" />
+          Impostos (Fornecedor)
         </h4>
+        <p className="text-[11px] text-muted-foreground mb-2">
+          Alíquotas do fornecedor — <strong>não são salvas no produto</strong>.
+          Configure as alíquotas da sua empresa no cadastro do produto.
+        </p>
         <div className="grid grid-cols-3 gap-3">
           {/* ICMS */}
           <div className="bg-muted/50 rounded-lg p-3 text-center">

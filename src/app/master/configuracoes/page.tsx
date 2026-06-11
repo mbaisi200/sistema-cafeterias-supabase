@@ -74,7 +74,7 @@ export default function ConfiguracoesPage() {
       setVersaoSistema(cacheVersao.versao);
       return;
     }
-    fetch(`/version.json?t=${Date.now()}`)
+    fetch(`/api/version`)
       .then(r => r.json())
       .then(d => {
         cacheVersao.versao = d.version;

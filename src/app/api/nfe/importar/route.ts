@@ -81,6 +81,26 @@ export async function POST(request: NextRequest) {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // ========================================
+    // 0. CARREGAR CONFIG NF-E (regime tributário do comprador)
+    // ========================================
+    let configNFe: any = null;
+    try {
+      const { data: config } = await supabase
+        .from('nfe_config')
+        .select('*')
+        .eq('empresa_id', empresaId)
+        .single();
+      configNFe = config;
+    } catch {
+      // Config não encontrada — usar defaults
+    }
+
+    // Determinar qual campo usar baseado no regime tributário do comprador
+    const isSimples = configNFe?.regime_tributario === '1' || configNFe?.regime_tributario === '2';
+    const cstPadrao = configNFe?.cst_padrao || '00';
+    const csosnPadrao = configNFe?.csosn_padrao || '102';
+
+    // ========================================
     // 0. VERIFICAR DUPLICIDADE DA NFE
     // ========================================
     if (nfeData.chaveAcesso) {
@@ -226,17 +246,21 @@ export async function POST(request: NextRequest) {
                 estoque_minimo: 0,
                 ativo: true,
                 // === Campos Fiscais ===
+                // Apenas campos intrínsecos do produto são copiados da NF-e do fornecedor:
+                // NCM, CEST, CFOP, Origem. Os demais (CST, CSOSN, alíquotas) dependem
+                // do regime tributário do COMPRADOR (admin) e não do fornecedor.
                 ncm: item.ncm || '00000000',
                 cest: item.cest || null,
                 cfop: item.cfop || '5102',
-                cst: item.cst || item.csosn || '00',
-                csosn: item.csosn || null,
+                // Usar defaults do regime do comprador, NÃO copiar do fornecedor
+                cst: isSimples ? null : cstPadrao,
+                csosn: isSimples ? csosnPadrao : null,
                 origem: item.origem || '0',
-                icms: item.icmsAliquota || 0,
+                icms: 0,
                 unidade_tributavel: normalizarUnidade(item.unidadeTributavel || item.unidade),
-                ipi_aliquota: item.ipiAliquota || 0,
-                pis_aliquota: item.pisAliquota || 0,
-                cofins_aliquota: item.cofinsAliquota || 0,
+                ipi_aliquota: 0,
+                pis_aliquota: 0,
+                cofins_aliquota: 0,
                 unidades_por_caixa: item.unidadesPorCaixa || 0,
               })
               .select('id')
@@ -320,18 +344,16 @@ export async function POST(request: NextRequest) {
             }
 
             // Atualizar campos fiscais se opção ativada
+            // ⚠️ Apenas campos INTRÍNSECOS do produto são atualizados (NCM, CEST, Origem).
+            // CST/CSOSN e alíquotas (ICMS, IPI, PIS, COFINS) NÃO são copiados do fornecedor
+            // porque dependem exclusivamente do regime tributário do COMPRADOR (admin),
+            // e não do regime do fornecedor que emitiu a NF-e.
             if (opcoes.atualizarDadosFiscais) {
               if (item.ncm) updateData.ncm = item.ncm;
               if (item.cest) updateData.cest = item.cest;
               if (item.cfop) updateData.cfop = item.cfop;
-              if (item.cst) updateData.cst = item.cst;
-              if (item.csosn) updateData.csosn = item.csosn;
               if (item.origem) updateData.origem = item.origem;
-              if (item.icmsAliquota) updateData.icms = item.icmsAliquota;
               if (item.unidadeTributavel) updateData.unidade_tributavel = normalizarUnidade(item.unidadeTributavel);
-              if (item.ipiAliquota) updateData.ipi_aliquota = item.ipiAliquota;
-              if (item.pisAliquota) updateData.pis_aliquota = item.pisAliquota;
-              if (item.cofinsAliquota) updateData.cofins_aliquota = item.cofinsAliquota;
             }
 
             // Atualizar EAN se o produto não tem e a NFe tem

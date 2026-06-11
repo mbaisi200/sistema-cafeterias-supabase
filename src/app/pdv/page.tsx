@@ -20,7 +20,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { ToastAction } from '@/components/ui/toast';
@@ -126,6 +126,7 @@ export default function PDVPage() {
   const [dialogDelivery, setDialogDelivery] = useState(false);
   const [dialogComanda, setDialogComanda] = useState(false);
   const [processando, setProcessando] = useState(false);
+  const produtosAdicionando = useRef(new Set<string>());
   const [novoClienteComanda, setNovoClienteComanda] = useState('');
   const [observacaoComanda, setObservacaoComanda] = useState('');
   
@@ -274,7 +275,7 @@ export default function PDVPage() {
       atendenteNome: item.adicionado_por_nome || item.adicionadoPorNome || '',
       tipoVenda: 'comanda' as const,
       cliente: comandaSelecionada.nome_cliente || comandaSelecionada.nomeCliente,
-      criadoEm: item.adicionado_em ? new Date(item.adicionado_em) : (item.adicionadoEm?.toDate() || new Date()),
+      criadoEm: item.adicionado_em ? new Date(item.adicionado_em) : (item.adicionadoEm ? new Date(item.adicionadoEm) : new Date()),
     }));
 
     setItensPedido(itens);
@@ -549,8 +550,38 @@ export default function PDVPage() {
 
     // Para mesa e delivery, salva no Supabase
     if (tipoVenda === 'mesa' || tipoVenda === 'delivery') {
-      try {
-        const { error } = await supabase
+      if (produtosAdicionando.current.has(produto.id)) return;
+      produtosAdicionando.current.add(produto.id);
+
+      const existente = itensPedido.find(item => item.produtoId === produto.id);
+
+      if (existente) {
+        // Já existe no carrinho → incrementa quantidade (local + DB)
+        const novaQtd = existente.quantidade + 1;
+        setItensPedido(itensPedido.map(item =>
+          item.id === existente.id
+            ? { ...item, quantidade: novaQtd }
+            : item
+        ));
+        try {
+          await supabase
+            .from('pedidos_temp')
+            .update({ quantidade: novaQtd })
+            .eq('id', existente.id);
+        } catch (error) {
+          setItensPedido(itensPedido.map(item =>
+            item.id === existente.id
+              ? { ...item, quantidade: existente.quantidade }
+              : item
+          ));
+          console.error('Erro ao atualizar quantidade:', error);
+          toast({ variant: 'destructive', title: 'Erro ao adicionar produto' });
+          produtosAdicionando.current.delete(produto.id);
+          return;
+        }
+      } else {
+        // Novo item → INSERT no DB primeiro (evita race condition com id temporário)
+        const { data: inserted, error: insertError } = await supabase
           .from('pedidos_temp')
           .insert({
             empresa_id: empresaId,
@@ -568,56 +599,110 @@ export default function PDVPage() {
             atendente_nome: user?.nome,
             tipo_venda: tipoVenda,
             criado_em: new Date().toISOString(),
-          });
-        
-        if (error) throw error;
-        
-        // OPTIMISTIC: mark mesa as occupied immediately (no DB wait)
-        if (tipoVenda === 'mesa' && mesaSelecionada) {
-          marcarMesaOcupada(mesaSelecionada);
+          })
+          .select('id')
+          .single();
+        if (insertError) {
+          console.error('Erro ao salvar produto:', insertError);
+          toast({ variant: 'destructive', title: 'Erro ao adicionar produto' });
+          produtosAdicionando.current.delete(produto.id);
+          return;
         }
-        
-        // Also update mesa.status in DB for any other consumers
-        if (tipoVenda === 'mesa' && mesaSelecionada) {
-          const mesaAtual = mesas.find(m => m.id === mesaSelecionada);
-          if (mesaAtual && mesaAtual.status === 'livre') {
-            atualizarMesa(mesaSelecionada, { status: 'ocupada' })
-              .catch(() => {}); // fire-and-forget, optimistic already done
-          }
-        }
-      } catch (error) {
-        console.error('Erro ao salvar produto:', error);
-        toast({ variant: 'destructive', title: 'Erro ao adicionar produto' });
-        return;
-      }
-    } else if (tipoVenda === 'comanda') {
-      // Para comanda, adiciona ao documento da comanda
-      try {
-        await adicionarItemComanda(comandaSelecionada.id, {
+        setItensPedido(prev => [...prev, {
+          id: inserted!.id,
           produtoId: produto.id,
           nome: produto.nome,
           preco: produto.preco,
           quantidade: 1,
-        });
-
-        // Atualizar a comanda selecionada localmente
-        const { data: comandaAtualizada } = await supabase
-          .from('comandas')
-          .select('*')
-          .eq('id', comandaSelecionada.id)
-          .single();
-        
-        if (comandaAtualizada) {
-          setComandaSelecionada({
-            id: comandaAtualizada.id,
-            ...comandaAtualizada,
-          });
-        }
-      } catch (error) {
-        console.error('Erro ao adicionar item na comanda:', error);
-        toast({ variant: 'destructive', title: 'Erro ao adicionar item' });
-        return;
+          codigo: produto.codigo || '',
+          unidade: produto.unidade || 'UN',
+          isCombo: produto.isCombo || false,
+          atendenteId: user?.id || '',
+          atendenteNome: user?.nome || '',
+          tipoVenda,
+          mesaNumero: tipoVenda === 'mesa' ? numeroMesaSelecionada : undefined,
+          criadoEm: new Date(),
+        }]);
       }
+      
+      // Mark mesa as occupied
+      if (tipoVenda === 'mesa' && mesaSelecionada) {
+        marcarMesaOcupada(mesaSelecionada);
+        const mesaAtual = mesas.find(m => m.id === mesaSelecionada);
+        if (mesaAtual && mesaAtual.status === 'livre') {
+          atualizarMesa(mesaSelecionada, { status: 'ocupada' })
+            .catch(() => {});
+        }
+      }
+      produtosAdicionando.current.delete(produto.id);
+    } else if (tipoVenda === 'comanda') {
+      const comanda = comandaSelecionada;
+      if (!comanda) return;
+      if (produtosAdicionando.current.has(produto.id)) return;
+      produtosAdicionando.current.add(produto.id);
+      const existente = itensPedido.find(item => item.produtoId === produto.id);
+
+      if (existente) {
+        // Já existe no carrinho → incrementa quantidade
+        const novaQtd = existente.quantidade + 1;
+        setItensPedido(itensPedido.map(item =>
+          item.id === existente.id
+            ? { ...item, quantidade: novaQtd }
+            : item
+        ));
+        try {
+          const itensAtuais = (comanda as any).itens || [];
+          const novosItens = itensAtuais.map((i: any) =>
+            (i.produtoId === produto.id || i.produto_id === produto.id)
+              ? { ...i, quantidade: (i.quantidade || 0) + 1 }
+              : i
+          );
+          const novoTotal = novosItens.reduce((acc: number, i: any) => acc + (i.preco * i.quantidade), 0);
+          await supabase
+            .from('comandas')
+            .update({ itens: novosItens, total: novoTotal })
+            .eq('id', comanda.id);
+          setComandaSelecionada(prev => ({ ...prev, itens: novosItens, total: novoTotal }));
+        } catch (error) {
+          setItensPedido(itensPedido.map(item =>
+            item.id === existente.id
+              ? { ...item, quantidade: existente.quantidade }
+              : item
+          ));
+          console.error('Erro ao adicionar item na comanda:', error);
+          toast({ variant: 'destructive', title: 'Erro ao adicionar item' });
+          produtosAdicionando.current.delete(produto.id);
+          return;
+        }
+      } else {
+        // Novo item na comanda (direct UPDATE, sem carregarDados)
+        const novoItem = {
+          id: Date.now().toString(),
+          produtoId: produto.id,
+          nome: produto.nome,
+          preco: produto.preco,
+          quantidade: 1,
+          adicionadoPor: user?.id,
+          adicionadoPorNome: user?.nome,
+          adicionadoEm: new Date().toISOString(),
+        };
+        const itensAtuais = (comanda as any).itens || [];
+        const novosItens = [...itensAtuais, novoItem];
+        const novoTotal = novosItens.reduce((acc: number, i: any) => acc + (i.preco * i.quantidade), 0);
+        try {
+          await supabase
+            .from('comandas')
+            .update({ itens: novosItens, total: novoTotal })
+            .eq('id', comanda.id);
+          setComandaSelecionada(prev => ({ ...prev, itens: novosItens, total: novoTotal }));
+        } catch (error) {
+          console.error('Erro ao adicionar item na comanda:', error);
+          toast({ variant: 'destructive', title: 'Erro ao adicionar item' });
+          produtosAdicionando.current.delete(produto.id);
+          return;
+        }
+      }
+      produtosAdicionando.current.delete(produto.id);
     } else {
       // Para balcão, mantém local
       const existente = itensPedido.find(item => item.produtoId === produto.id);
@@ -927,6 +1012,9 @@ export default function PDVPage() {
 
         toast({ title: '✓ Comanda fechada com sucesso!' });
         setComandaSelecionada(null);
+        setDialogCupomFiscal(false);
+        setDialogPagamento(false);
+        setItensPedido([]);
       } else {
         // Criar venda no Supabase
         const supabase = getSupabaseClient();
@@ -983,11 +1071,23 @@ export default function PDVPage() {
         
         if (itensError) console.error('Erro ao criar itens:', itensError);
 
-        // Baixar estoque de TODOS os itens + movimentação
+        // Baixar estoque de TODOS os itens + movimentação (paralelo)
         const itensNormais = itensPedido.filter(item => !item.isCombo);
+        const estoqueMap = new Map<string, { produtoId: string; quantidade: number }>();
         for (const item of itensNormais) {
-          await debitarEstoqueVenda(supabase, empresaId, item.produtoId, item.quantidade, user?.id, user?.nome, vendaData.id);
+          const existing = estoqueMap.get(item.produtoId);
+          if (existing) {
+            existing.quantidade += item.quantidade;
+          } else {
+            estoqueMap.set(item.produtoId, { produtoId: item.produtoId, quantidade: item.quantidade });
+          }
         }
+
+        await Promise.all(
+          [...estoqueMap.values()].map(({ produtoId, quantidade }) =>
+            debitarEstoqueVenda(supabase, empresaId, produtoId, quantidade, user?.id, user?.nome, vendaData.id)
+          )
+        );
 
         // Baixar estoque dos itens componentes dos combos (apenas se não expandidos)
         const combosVendidos = itensPedido.filter(item => item.isCombo);
@@ -1009,9 +1109,11 @@ export default function PDVPage() {
                 reducoes.set(ci.item_produto_id, (reducoes.get(ci.item_produto_id) || 0) + ci.quantidade * comboVendido.quantidade);
               }
             }
-            for (const [prodId, qtdTotal] of reducoes) {
-              await debitarEstoqueVenda(supabase, empresaId, prodId, qtdTotal, user?.id, user?.nome, vendaData.id, `Combo venda ${vendaData.id.slice(-8)}`);
-            }
+            await Promise.all(
+              [...reducoes.entries()].map(([prodId, qtdTotal]) =>
+                debitarEstoqueVenda(supabase, empresaId, prodId, qtdTotal, user?.id, user?.nome, vendaData.id, `Combo venda ${vendaData.id.slice(-8)}`)
+              )
+            );
           }
         }
 
@@ -1030,18 +1132,32 @@ export default function PDVPage() {
         
         if (pagamentosError) console.error('Erro ao criar pagamentos:', pagamentosError);
 
-        // Limpar pedidos temporários
-        if (tipoVenda === 'mesa' || tipoVenda === 'delivery') {
-          const deletePromises = itensPedido.map(item => 
-            supabase.from('pedidos_temp').delete().eq('id', item.id)
-          );
-          await Promise.all(deletePromises);
+        // Limpar pedidos temporários (batch - 1 chamada)
+        if ((tipoVenda === 'mesa' || tipoVenda === 'delivery') && itensPedido.length > 0) {
+          const ids = itensPedido.map(item => item.id);
+          await supabase.from('pedidos_temp').delete().in('id', ids);
         }
 
         // Liberar mesa
         if (tipoVenda === 'mesa' && mesaSelecionada) {
           await atualizarMesa(mesaSelecionada, { status: 'livre' });
         }
+
+        // Remover mesa do set de ocupadas (senão badge fica "Ocupada" até o próximo polling)
+        if (tipoVenda === 'mesa' && mesaSelecionada) {
+          setMesasOcupadas(prev => {
+            const next = new Set(prev);
+            next.delete(mesaSelecionada);
+            return next;
+          });
+        }
+
+        // Resetar estado local AGORA (antes de operações lentas como NFC-e)
+        setItensPedido([]);
+        setMesaSelecionada('');
+        setNumeroMesaSelecionada(0);
+        setDialogCupomFiscal(false);
+        setDialogPagamento(false);
 
         // Registrar no caixa (se houver)
         if (caixaAberto) {
@@ -1231,12 +1347,6 @@ export default function PDVPage() {
 
         toast({ title: '✓ Venda finalizada com sucesso!' });
       }
-
-      setDialogCupomFiscal(false);
-      setDialogPagamento(false);
-      setItensPedido([]);
-      setMesaSelecionada('');
-      setNumeroMesaSelecionada(0);
       
     } catch (error) {
       console.error('Erro ao finalizar venda:', error);
@@ -1620,7 +1730,7 @@ export default function PDVPage() {
 
           {/* COLUNA DIREITA - CARRINHO - DESKTOP ONLY */}
           {!isMobile && (
-          <div className={`w-96 ${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-blue-100'} rounded-lg shadow-sm flex flex-col overflow-hidden h-full`}>
+          <div className={`w-80 ${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-white border-blue-100'} rounded-lg shadow-sm flex flex-col overflow-hidden h-full`}>
             
             {/* HEADER CARRINHO */}
             <div className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} px-2 py-2 shrink-0 border-b`}>
@@ -1669,7 +1779,7 @@ export default function PDVPage() {
             </div>
 
             {/* ITENS DO CARRINHO */}
-            <ScrollArea className="flex-1 p-3 min-h-0 h-0">
+            <ScrollArea className="flex-1 p-2 min-h-0 h-0">
               {itensPedido.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400">
                   <ShoppingCart className="h-12 w-12 mb-2 opacity-20" />
@@ -1677,40 +1787,40 @@ export default function PDVPage() {
                   <p className="text-xs text-gray-500 mt-1">Clique nos produtos</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {(itensPedido || []).map((item, index) => (
-                    <div key={item.id} className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} rounded-lg p-2 hover:border-blue-300 transition-all shadow-sm`}>
-                      <div className="flex justify-between items-start mb-1">
+                    <div key={item.id} className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} rounded-lg p-1.5 hover:border-blue-300 transition-all shadow-sm`}>
+                      <div className="flex justify-between items-start mb-0.5">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="text-xs font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded-full shrink-0">#{index + 1}</span>
-                            <p className="font-bold text-gray-800 text-sm truncate">{item.nome}</p>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="text-[11px] font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded-full shrink-0">#{index + 1}</span>
+                            <p className="font-bold text-gray-800 text-xs truncate leading-tight">{item.nome}</p>
                           </div>
                         </div>
                         <button
-                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-1 rounded transition-all shrink-0"
+                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-0.5 rounded transition-all shrink-0 -mt-0.5 -mr-0.5"
                           onClick={() => removerItem(item.id)}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           <button
-                            className="w-7 h-7 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
+                            className="w-6 h-6 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
                             onClick={() => alterarQtd(item.id, -1, item.quantidade)}
                           >
-                            <Minus className="h-3.5 w-3.5" />
+                            <Minus className="h-3 w-3" />
                           </button>
-                          <span className="w-7 text-center font-bold text-base text-gray-800">{item.quantidade}</span>
+                          <span className="w-6 text-center font-bold text-sm text-gray-800">{item.quantidade}</span>
                           <button
-                            className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
+                            className="w-6 h-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
                             onClick={() => alterarQtd(item.id, 1, item.quantidade)}
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className="h-3 w-3" />
                           </button>
                         </div>
-                        <p className="font-bold text-base text-green-600">
+                        <p className="font-bold text-sm text-green-600">
                           R$ {(item.preco * item.quantidade).toFixed(2)}
                         </p>
                       </div>
@@ -1786,7 +1896,7 @@ export default function PDVPage() {
 
         {/* MOBILE CART SHEET */}
         <Sheet open={showCartMobile && isMobile} onOpenChange={setShowCartMobile}>
-          <SheetContent side="right" className="w-full sm:w-96 p-0 flex flex-col">
+          <SheetContent side="right" className="w-full sm:w-80 p-0 flex flex-col">
             <SheetHeader className={`${darkMode ? 'bg-[#1e1e32] border-white/10' : 'bg-blue-50 border-blue-100'} px-4 py-3 shrink-0`}>
               <SheetTitle className={`flex items-center gap-2 text-sm font-bold ${darkMode ? 'text-slate-200' : 'text-gray-800'}`}>
                 <ShoppingCart className="h-4 w-4 text-blue-600" />
@@ -1831,7 +1941,7 @@ export default function PDVPage() {
               )}
             </div>
 
-            <ScrollArea className="flex-1 p-3">
+            <ScrollArea className="flex-1 p-2">
               {itensPedido.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-gray-400">
                   <ShoppingCart className="h-12 w-12 mb-2 opacity-20" />
@@ -1839,40 +1949,40 @@ export default function PDVPage() {
                   <p className="text-xs text-gray-500 mt-1">Clique nos produtos</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {(itensPedido || []).map((item, index) => (
-                    <div key={item.id} className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} rounded-lg p-2 hover:border-blue-300 transition-all shadow-sm`}>
-                      <div className="flex justify-between items-start mb-1">
+                    <div key={item.id} className={`${darkMode ? 'bg-[#1a1a2e] border-white/10' : 'bg-blue-50 border-blue-100'} rounded-lg p-1.5 hover:border-blue-300 transition-all shadow-sm`}>
+                      <div className="flex justify-between items-start mb-0.5">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <span className="text-xs font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded-full shrink-0">#{index + 1}</span>
-                            <p className="font-bold text-gray-800 text-sm truncate">{item.nome}</p>
+                          <div className="flex items-center gap-1 min-w-0">
+                            <span className="text-[11px] font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded-full shrink-0">#{index + 1}</span>
+                            <p className="font-bold text-gray-800 text-xs truncate leading-tight">{item.nome}</p>
                           </div>
                         </div>
                         <button
-                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-1 rounded transition-all shrink-0"
+                          className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-0.5 rounded transition-all shrink-0 -mt-0.5 -mr-0.5"
                           onClick={() => removerItem(item.id)}
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3 w-3" />
                         </button>
                       </div>
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           <button
-                            className="w-7 h-7 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
+                            className="w-6 h-6 rounded-lg bg-red-600 hover:bg-red-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
                             onClick={() => alterarQtd(item.id, -1, item.quantidade)}
                           >
-                            <Minus className="h-3.5 w-3.5" />
+                            <Minus className="h-3 w-3" />
                           </button>
-                          <span className="w-7 text-center font-bold text-base text-gray-800">{item.quantidade}</span>
+                          <span className="w-6 text-center font-bold text-sm text-gray-800">{item.quantidade}</span>
                           <button
-                            className="w-7 h-7 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
+                            className="w-6 h-6 rounded-lg bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center font-bold transition-all shadow-sm"
                             onClick={() => alterarQtd(item.id, 1, item.quantidade)}
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className="h-3 w-3" />
                           </button>
                         </div>
-                        <p className="font-bold text-base text-green-600">
+                        <p className="font-bold text-sm text-green-600">
                           R$ {(item.preco * item.quantidade).toFixed(2)}
                         </p>
                       </div>
