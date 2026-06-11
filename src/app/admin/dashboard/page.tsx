@@ -30,7 +30,6 @@ import {
   DatabaseBackup,
   AlertTriangle,
   RefreshCw,
-  RotateCcw,
 } from 'lucide-react';
 import {
   Dialog,
@@ -177,7 +176,7 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 export default function AdminDashboardPage() {
   const { user, empresaId, secoesPermitidas } = useAuth();
   const { vendas, loading: loadingVendas, refresh: refreshVendas } = useVendas();
-  const { hasUpdate, currentVersion, dismissUpdate } = useAppVersion();
+  const { currentVersion } = useAppVersion();
 
   // ── All state declarations ──
   const [osLavanderia, setOsLavanderia] = useState<any[]>([]);
@@ -1105,24 +1104,6 @@ export default function AdminDashboardPage() {
         ]}
       >
         <div className="space-y-6 max-w-[1600px] mx-auto">
-          {hasUpdate && (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-lg border-2 border-red-500 bg-red-600 text-white shadow-lg" style={{ animation: 'piscar 1s ease-in-out infinite' }}>
-              <AlertTriangle className="h-5 w-5 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm">Nova versão disponível</p>
-                <p className="text-xs text-red-100">Versão {currentVersion} — recarregue para atualizar.</p>
-              </div>
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => { window.location.reload(); dismissUpdate(); }}
-                className="shrink-0 bg-white text-red-700 hover:bg-red-50 font-semibold"
-              >
-                <RotateCcw className="h-4 w-4 mr-1" />
-                Recarregar
-              </Button>
-            </div>
-          )}
           {/* ── Header ── */}
           <div>
             <div className="flex items-center justify-between">

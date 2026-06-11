@@ -32,7 +32,7 @@ export function ProdutosMaisVendidos({ dados, categorias }: ProdutosMaisVendidos
                 <Trophy className="h-5 w-5 text-amber-500" />
                 Produtos Mais Vendidos
               </CardTitle>
-              <CardDescription>Top 20 por faturamento</CardDescription>
+              <CardDescription>Top 30 por faturamento</CardDescription>
             </div>
             <Badge variant="secondary">{dados.length} produtos</Badge>
           </div>
@@ -97,6 +97,7 @@ interface VendasPorOperadorProps {
 
 export function VendasPorOperador({ dados }: VendasPorOperadorProps) {
   const maxValor = Math.max(...dados.map(o => o.valor), 1);
+  const totalFaturamento = dados.reduce((acc, o) => acc + o.valor, 0);
 
   return (
     <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}>
@@ -115,7 +116,9 @@ export function VendasPorOperador({ dados }: VendasPorOperadorProps) {
             </div>
           ) : (
             <div className="space-y-4">
-              {dados.map((operador, index) => (
+              {dados.map((operador, index) => {
+                const percentual = totalFaturamento > 0 ? (operador.valor / totalFaturamento) * 100 : 0;
+                return (
                 <div key={operador.operador} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
@@ -129,13 +132,19 @@ export function VendasPorOperador({ dados }: VendasPorOperadorProps) {
                         </p>
                       </div>
                     </div>
-                    <p className="font-bold text-emerald-600">
-                      {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(operador.valor)}
-                    </p>
+                    <div className="text-right">
+                      <p className="font-bold text-emerald-600">
+                        {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(operador.valor)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {percentual.toFixed(1)}% do faturamento
+                      </p>
+                    </div>
                   </div>
                   <Progress value={(operador.valor / maxValor) * 100} className="h-2" />
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </CardContent>

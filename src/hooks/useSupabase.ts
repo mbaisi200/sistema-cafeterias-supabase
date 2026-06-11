@@ -680,12 +680,31 @@ export function useVendas() {
   const { empresaId, user } = useAuth();
   const supabase = getSupabaseClient();
 
-  const carregarDados = useCallback(async () => {
+  const carregarDados = useCallback(async (forceRefresh = false) => {
     if (!user || !empresaId) {
       setVendas([]);
       setLoading(false);
       setError(user && !empresaId ? 'empresaId não disponível' : null);
       return;
+    }
+
+    const cacheKey = `vendas_cache_${empresaId}`;
+    const CACHE_TTL = 120 * 1000; // 2 minutos
+
+    // Tentar carregar do sessionStorage (exceto quando forceRefresh)
+    if (!forceRefresh) {
+      try {
+        const cached = sessionStorage.getItem(cacheKey);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Date.now() - parsed.timestamp < CACHE_TTL && Array.isArray(parsed.data)) {
+            setVendas(parsed.data);
+            setLoading(false);
+            setError(null);
+            return;
+          }
+        }
+      } catch { /* cache inválido, seguir com fetch */ }
     }
 
     try {
@@ -766,6 +785,11 @@ export function useVendas() {
           })),
       }));
 
+      // Salvar no sessionStorage
+      try {
+        sessionStorage.setItem(cacheKey, JSON.stringify({ data: vendasCompletas, timestamp: Date.now() }));
+      } catch { /* cache cheio, ignorar */ }
+
       setVendas(vendasCompletas);
     } catch (error: any) {
       const msg = error?.message || JSON.stringify(error);
@@ -785,7 +809,7 @@ export function useVendas() {
         .channel('vendas-changes')
         .on('postgres_changes', 
           { event: '*', schema: 'public', table: 'vendas', filter: `empresa_id=eq.${empresaId}` },
-          () => carregarDados()
+          () => carregarDados(true)
         )
         .subscribe();
     }
@@ -795,7 +819,7 @@ export function useVendas() {
     };
   }, [carregarDados]);
 
-  return { vendas, loading, error, refresh: carregarDados };
+  return { vendas, loading, error, refresh: () => carregarDados(true) };
 }
 
 // =====================================================

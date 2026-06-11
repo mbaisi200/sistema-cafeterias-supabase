@@ -346,7 +346,9 @@ Toda `<Table>` (shadcn/ui) deve usar `table-fixed w-full` para distribuir o espa
 
 11. **🔴 Toda tabela nova com `empresa_id` deve ser registrada no `/master/consumo-dados`**: editar `src/app/api/master/consumo-dados/route.ts` e adicionar entrada em `TABELAS_COM_EMPRESA` e `TAMANHO_MEDIO_REGISTRO`. Sem isso, a tabela fica invisível na página de Consumo de Dados.
 
-12. **📖 Manual do Sistema — OBRIGATÓRIO manter sincronizado**: Toda vez que criar, alterar ou remover uma funcionalidade no sistema, os arquivos `supabase/migrations/add_manual_sistema.sql` (seed SQL) e `src/data/manual-sistema.json` (fallback) devem ser atualizados. O Manual do Sistema em `/admin/manual` é a principal fonte de documentação para o admin — não deixar desatualizado evita retrabalho e inconsistências. Siga o padrão de linguagem simples e passo a passo já estabelecido. **Importante:** sempre que precisar executar comandos SQL (migrations, seeds, inserts, updates), liste a query completa no output para o usuário copiar e colar no SQL Editor do Supabase — nunca omitir ou resumir o SQL.
+12. **📖 Manual do Sistema — OBRIGATÓRIO manter sincronizado**: Toda vez que criar, alterar ou remover uma funcionalidade no sistema, os arquivos `supabase/migrations/add_manual_sistema.sql` (seed SQL) e `src/data/manual-sistema.json` (fallback) devem ser atualizados. O Manual do Sistema em `/admin/manual` é a principal fonte de documentação para o admin — não deixar desatualizado evita retrabalho e inconsistências. Siga o padrão de linguagem simples e passo a passo já estabelecido.
+
+    **⚠️ REGRA ABSOLUTA — SQL sempre separado e completo:** sempre que precisar executar comandos SQL (migrations, seeds, inserts, updates, deletes, qualquer query), **liste a query completa em um bloco destacado no final da resposta**, já pronta para copiar e colar no SQL Editor do Supabase. **Nunca** misturar SQL no meio do texto explicativo nem resumir/omitir partes da query. A primeira resposta já deve conter o SQL — o usuário não pode precisar pedir para listar de novo.
 
     ### Filtro por Segmento no Manual
     Cada entrada do manual é vinculada a uma seção do menu via `secao_chave` (VARCHAR, referencia `secoes_menu.chave`, nullable). Quando um admin acessa `/admin/manual`, o sistema filtra automaticamente: mostra apenas as entradas cujo `secao_chave` corresponde a uma seção ativa no segmento da empresa (`segmento_secoes.ativo = true`), mais as entradas globais (`secao_chave IS NULL`). Usuários sem segmento atribuído ou Master veem tudo.
@@ -391,7 +393,7 @@ Toda `<Table>` (shadcn/ui) deve usar `table-fixed w-full` para distribuir o espa
     - **Painel Master**: embora `secao_chave = null` (global), o frontend filtra client-side: apenas usuários com `role === 'master'` enxergam esta categoria. Não depende de `segmento_secoes`.
     - **Fidelidade**: a migration `add_fidelidade_secoes.sql` insere `fidelidade` em `segmento_secoes` para **todos** os segmentos existentes (`CROSS JOIN`). Se um segmento não deve ter Fidelidade, o Master precisa desabilitar manualmente em `/master/segmentos`.
 
-13. **🔢 Versionamento automático**: A versão do sistema é gerada automaticamente no build pelo script `scripts/generate-version.js`. O patch number é derivado da **contagem de commits do git** (`git rev-list --count HEAD`). O `package.json` mantém apenas o `major.minor` (ex: `"1.0"`). **Não** edite o patch manualmente — ele será incrementado sozinho a cada novo commit/build.
+13. **🔢 Versionamento automático**: A versão do sistema é gerada automaticamente no build pelo script `scripts/generate-version.js`. O patch number é lido e incrementado do arquivo `BUILD_NUMBER` (versionado no git). O `package.json` mantém apenas o `major.minor` (ex: `"1.0"`). **Não** edite o patch manualmente — o `BUILD_NUMBER` é incrementado automaticamente a cada build.
 
 ---
 
@@ -830,6 +832,41 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 - `const` declarations ficam em Temporal Dead Zone até sua linha de declaração — no SSR do Next.js o componente é executado sequencialmente e o engine acessa a variável antes da inicialização
 - Causava `ReferenceError: Cannot access 'M' before initialization` no build de produção
 - Build verificado localmente: `npm run build` concluído sem erros
+
+### Build — Versionamento com `BUILD_NUMBER` (Vercel compatível) ✅
+- Script `generate-version.js` migrado de `git rev-list --count HEAD` (falha em shallow clone da Vercel) para arquivo `BUILD_NUMBER` versionado no git
+- API `/api/version` simplificada (lê apenas `version.json`, sem `execSync`)
+- `BUILD_NUMBER` é incrementado a cada build e funciona em ambos ambientes
+
+### Notificação Global de Atualização ✅
+- Novo componente `VersionChecker.tsx` adicionado no root `layout.tsx` — exibe banner fixo no topo quando nova versão é detectada
+- Funciona em TODAS as páginas (admin, master, pdv, login)
+- Hook `useAppVersion` removido do dashboard admin (agora global)
+
+### Estoque — Colunas Ordenáveis no Relatório ✅
+- 8 colunas do relatório de movimentações agora clicáveis para ordenação (Data/Hora, Produto, Tipo, Qtd, Fornec./Cliente, Documento, Observação, Usuário)
+- Fix TDZ: helpers reordenados para evitar `ReferenceError`
+
+### BI — Análise de Lucro e Performance ✅
+- "% do faturamento" adicionado a cada operador na Performance por Operador
+- "Top 20 por faturamento" alterado para "Top 30"
+- "Análise por Horário" e "Análise por Dia da Semana": fix `v.criadoEm.getHours` com `new Date(v.criadoEm)`
+
+### Sidebar — Cozinha movido para Atendimento ✅
+- "Cozinha" (KDS) removido do root e movido para dentro do submenu "Atendimento" (admin)
+- Mantido como root no menu de Funcionário (não tem submenu Atendimento)
+- Atualizado: fallback hardcoded, menu dinâmico, e migration SQL
+
+### Login — Abas sem ícones ✅
+- Ícones removidos das abas Admin/Funcionário para centralizar o texto perfeitamente nos botões
+
+### Observação Estoque — Fallback removido ✅
+- `debitarEstoqueVenda` não gera mais `"Venda <id>"` automático na observação — salva `null`
+- `documentoRef` no relatório também não gera fallback com venda_id
+
+### Caixa — Movimentos do Caixa Aberto clicáveis ✅
+- Cada movimento do caixa aberto agora abre o mesmo diálogo de relatório detalhado que os caixas fechados
+- Adicionado cursor pointer, hover, e chevron indicativo
 
 ---
 

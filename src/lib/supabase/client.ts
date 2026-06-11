@@ -304,7 +304,7 @@ export async function debitarEstoqueVenda(
     estoque_novo: Math.max(0, (parseFloat(prod.estoque_atual) || 0) - quantidade),
     usuario_id: usuarioId,
     usuario_nome: usuarioNome,
-    observacao: observacao || `Venda ${vendaId ? vendaId.slice(-8) : ''}`,
+    observacao: observacao || null,
     venda_id: vendaId,
     criado_em: new Date().toISOString(),
   });

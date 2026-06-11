@@ -139,6 +139,8 @@ const adminMenuItems: MenuItem[] = [
       { title: 'Recuperação de Carrinhos', url: '/admin/configuracoes/recuperacao-carrinho', icon: ShoppingCart },
       { title: 'Cardápio', url: '/cardapio', icon: Menu, external: true },
       { title: 'Config. Cardápio', url: '/admin/delivery/config', icon: Settings },
+      { title: 'Delivery', url: '/admin/delivery', icon: Bike },
+      { title: 'Cozinha', url: '/admin/kds', icon: Croissant },
     ],
   },
   { title: 'Caixa', url: '/admin/caixa', icon: Wallet },
@@ -153,9 +155,7 @@ const adminMenuItems: MenuItem[] = [
       { title: 'Unidades', url: '/admin/configuracoes/unidades', icon: Ruler },
     ],
   },
-  { title: 'Cozinha', url: '/admin/kds', icon: Croissant },
   { title: 'Cupons e Notas Fiscais', url: '/admin/cupons-nfes', icon: FileText },
-  { title: 'Delivery', url: '/admin/delivery', icon: Bike },
   { title: 'Dispositivos', url: '/admin/dispositivos', icon: Shield },
   { title: 'Estoque', url: '/admin/estoque', icon: Warehouse },
   { title: 'Financeiro', url: '/admin/financeiro', icon: DollarSign },
@@ -396,7 +396,7 @@ export function AppSidebar() {
     // 2. Agrupar em submenus
     const submenuGroups: { title: string; url: string; icon: any; urls: string[] }[] = [
       { title: 'Pedidos e OS', url: '#', icon: FileSpreadsheet, urls: ['/admin/pedidos', '/admin/ordens-servico', '/admin/os-lavanderia'] },
-      { title: 'Atendimento', url: '#', icon: MessageCircle, urls: ['/admin/atendimento', '/admin/configuracoes/recuperacao-carrinho', '/cardapio', '/admin/delivery/config'] },
+      { title: 'Atendimento', url: '#', icon: MessageCircle, urls: ['/admin/atendimento', '/admin/configuracoes/recuperacao-carrinho', '/cardapio', '/admin/delivery/config', '/admin/delivery', '/admin/kds'] },
       { title: 'Configurações', url: '#', icon: Settings, urls: ['/admin/configuracoes', '/admin/configuracoes/fidelidade', '/admin/configuracoes/unidades'] },
 
     ];
@@ -529,11 +529,18 @@ export function AppSidebar() {
                             <SidebarMenuSubItem key={sub.url}>
                               <SidebarMenuSubButton
                                 asChild
-                                isActive={pathname === sub.url}
+                                isActive={!sub.external && pathname === sub.url}
                               >
-                                <Link href={sub.url}>
-                                  <span>{sub.title}</span>
-                                </Link>
+                                {sub.external ? (
+                                  <a href={getCardapioUrl(sub)} target="_blank" rel="noopener noreferrer">
+                                    <span>{sub.title}</span>
+                                    <ExternalLink className="h-3 w-3 ml-auto text-muted-foreground" />
+                                  </a>
+                                ) : (
+                                  <Link href={sub.url}>
+                                    <span>{sub.title}</span>
+                                  </Link>
+                                )}
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                           ))}

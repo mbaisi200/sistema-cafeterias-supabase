@@ -58,6 +58,8 @@ export default function RelatorioEstoquePage() {
   const [filtroProduto, setFiltroProduto] = useState('');
   const [filtroCategoria, setFiltroCategoria] = useState('todos');
   const [filtroTexto, setFiltroTexto] = useState('');
+  const [sortBy, setSortBy] = useState<string>('criado_em');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   const carregar = useCallback(async () => {
     if (!empresaId) return;
@@ -109,8 +111,41 @@ export default function RelatorioEstoquePage() {
 
   useEffect(() => { carregar(); }, [carregar]);
 
+  const nomeFornecedorOuCliente = (m: MovItem) => {
+    if (m.tipo === 'entrada' && m.fornecedor) return m.fornecedor;
+    if ((m.tipo === 'venda' || m.tipo === 'saida') && m.venda_id && clientesMap[m.venda_id]) return clientesMap[m.venda_id];
+    return null;
+  };
+
+  const documentoRef = (m: MovItem) => {
+    return m.documento_ref || null;
+  };
+
+  const handleSort = (column: string) => {
+    if (sortBy === column) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(column);
+      setSortDir('asc');
+    }
+  };
+
+  const movimentoSortValue = (m: MovItem, col: string): string | number => {
+    switch (col) {
+      case 'criado_em': return m.criado_em;
+      case 'produto_nome': return m.produto_nome || '';
+      case 'tipo': return m.tipo;
+      case 'quantidade': return Math.abs(Number(m.quantidade));
+      case 'fornecedor_cliente': return nomeFornecedorOuCliente(m) || '';
+      case 'documento_ref': return documentoRef(m) || '';
+      case 'observacao': return m.observacao || '';
+      case 'usuario': return m.usuario_nome || m.criado_por_nome || '';
+      default: return '';
+    }
+  };
+
   const movimentosFiltrados = useMemo(() => {
-    return movimentos.filter(m => {
+    let filtered = movimentos.filter(m => {
       if (filtroTexto) {
         const t = filtroTexto.toLowerCase();
         const matchNome = m.produto_nome?.toLowerCase().includes(t);
@@ -126,7 +161,17 @@ export default function RelatorioEstoquePage() {
       }
       return true;
     });
-  }, [movimentos, filtroTexto, filtroCategoria, produtos, clientesMap]);
+
+    filtered.sort((a, b) => {
+      const aVal = movimentoSortValue(a, sortBy);
+      const bVal = movimentoSortValue(b, sortBy);
+      if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+      if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+
+    return filtered;
+  }, [movimentos, filtroTexto, filtroCategoria, produtos, clientesMap, sortBy, sortDir]);
 
   const totalEntradas = useMemo(
     () => movimentosFiltrados.filter(m => m.tipo === 'entrada').reduce((s, m) => s + Number(m.quantidade), 0),
@@ -136,18 +181,6 @@ export default function RelatorioEstoquePage() {
     () => movimentosFiltrados.filter(m => m.tipo === 'saida' || m.tipo === 'venda').reduce((s, m) => s + Number(m.quantidade), 0),
     [movimentosFiltrados],
   );
-
-  const nomeFornecedorOuCliente = (m: MovItem) => {
-    if (m.tipo === 'entrada' && m.fornecedor) return m.fornecedor;
-    if ((m.tipo === 'venda' || m.tipo === 'saida') && m.venda_id && clientesMap[m.venda_id]) return clientesMap[m.venda_id];
-    return null;
-  };
-
-  const documentoRef = (m: MovItem) => {
-    if (m.documento_ref) return m.documento_ref;
-    if ((m.tipo === 'venda' || m.tipo === 'saida') && m.venda_id) return `Venda ${m.venda_id.slice(-8)}`;
-    return null;
-  };
 
   const labelTipo = (tipo: string) => {
     const map: Record<string, string> = { entrada: 'Entrada', saida: 'Saída', ajuste: 'Ajuste', venda: 'Venda' };
@@ -168,7 +201,7 @@ export default function RelatorioEstoquePage() {
 
   return (
     <ProtectedRoute allowedRoles={['admin']}>
-      <MainLayout breadcrumbs={[{ label: 'Estoque', href: '/admin/estoque' }, { label: 'Relatório de Movimentações' }]}>
+      <MainLayout breadcrumbs={[{ title: 'Estoque', href: '/admin/estoque' }, { title: 'Relatório de Movimentações' }]}>
         <div className="space-y-6">
           {/* Header */}
           <div className="flex items-center justify-between">
@@ -386,18 +419,34 @@ export default function RelatorioEstoquePage() {
                   {/* Desktop: table */}
                   <div className="hidden md:block">
                   <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="text-[11px] py-2 whitespace-nowrap">Data/Hora</TableHead>
-                        <TableHead className="text-[11px] py-2">Produto</TableHead>
-                        <TableHead className="text-[11px] py-2 text-center">Tipo</TableHead>
-                        <TableHead className="text-[11px] py-2 text-center">Qtd</TableHead>
-                        <TableHead className="text-[11px] py-2">Fornec./Cliente</TableHead>
-                        <TableHead className="text-[11px] py-2">Documento</TableHead>
-                        <TableHead className="text-[11px] py-2">Observação</TableHead>
-                        <TableHead className="text-[11px] py-2">Usuário</TableHead>
-                      </TableRow>
-                    </TableHeader>
+                      <TableHeader>
+                        <TableRow>
+                          {[
+                            { key: 'criado_em', label: 'Data/Hora', className: 'text-[11px] py-2 whitespace-nowrap' },
+                            { key: 'produto_nome', label: 'Produto', className: 'text-[11px] py-2' },
+                            { key: 'tipo', label: 'Tipo', className: 'text-[11px] py-2 text-center' },
+                            { key: 'quantidade', label: 'Qtd', className: 'text-[11px] py-2 text-center' },
+                            { key: 'fornecedor_cliente', label: 'Fornec./Cliente', className: 'text-[11px] py-2' },
+                            { key: 'documento_ref', label: 'Documento', className: 'text-[11px] py-2' },
+                            { key: 'observacao', label: 'Observação', className: 'text-[11px] py-2' },
+                            { key: 'usuario', label: 'Usuário', className: 'text-[11px] py-2' },
+                          ].map(col => (
+                            <TableHead key={col.key} className={col.className}>
+                              <button
+                                className="flex items-center gap-1 hover:text-foreground transition-colors"
+                                onClick={() => handleSort(col.key)}
+                              >
+                                {col.label}
+                                {sortBy === col.key ? (
+                                  sortDir === 'asc' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />
+                                ) : (
+                                  <ArrowUpDown className="h-3 w-3 text-muted-foreground/50" />
+                                )}
+                              </button>
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
                     <TableBody>
                       {movimentosFiltrados.map(m => (
                         <TableRow key={m.id} className={darkMode ? 'border-white/5' : ''}>

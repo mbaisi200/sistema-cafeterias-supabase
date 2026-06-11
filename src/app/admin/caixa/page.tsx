@@ -485,11 +485,12 @@ export default function CaixaPage() {
                         {movimentacoes.map((mov: any) => (
                           <div
                             key={mov.id}
-                            className={`flex items-start md:items-center justify-between p-3 rounded-lg border gap-2 ${
-                              mov.tipo === 'sangria' ? 'bg-red-50 border-red-200' :
-                              mov.tipo === 'reforco' ? 'bg-green-50 border-green-200' :
-                              'bg-gray-50'
+                            className={`flex items-start md:items-center justify-between p-3 rounded-lg border gap-2 cursor-pointer transition-all ${
+                              mov.tipo === 'sangria' ? 'bg-red-50 border-red-200 hover:bg-red-100 hover:border-red-300' :
+                              mov.tipo === 'reforco' ? 'bg-green-50 border-green-200 hover:bg-green-100 hover:border-green-300' :
+                              'bg-gray-50 hover:bg-gray-100 hover:border-gray-300'
                             }`}
+                            onClick={() => handleVerRelatorio(caixaAberto.id)}
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
                               {getTipoIcon(mov.tipo)}
@@ -509,13 +510,16 @@ export default function CaixaPage() {
                                 </div>
                               </div>
                             </div>
-                            <div className="text-right shrink-0">
-                              <p className={`text-base md:text-lg font-bold ${
-                                mov.tipo === 'sangria' ? 'text-red-600' : 'text-green-600'
-                              }`}>
-                                {mov.tipo === 'sangria' ? '-' : '+'} R$ {(mov.valor || 0).toFixed(2)}
-                              </p>
-                              <p className="text-xs text-muted-foreground">{mov.usuarioNome}</p>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <div className="text-right">
+                                <p className={`text-base md:text-lg font-bold ${
+                                  mov.tipo === 'sangria' ? 'text-red-600' : 'text-green-600'
+                                }`}>
+                                  {mov.tipo === 'sangria' ? '-' : '+'} R$ {(mov.valor || 0).toFixed(2)}
+                                </p>
+                                <p className="text-xs text-muted-foreground">{mov.usuarioNome}</p>
+                              </div>
+                              <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
                             </div>
                           </div>
                         ))}

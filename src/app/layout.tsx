@@ -4,6 +4,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
+import { VersionChecker } from "@/components/layout/VersionChecker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -57,6 +58,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <AuthProvider>
+            <VersionChecker />
             {children}
             <Toaster />
           </AuthProvider>

@@ -329,7 +329,7 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
         percentualVendas: totalVendas > 0 ? (p.valorTotal / totalVendas) * 100 : 0 
       }))
       .sort((a, b) => b.valorTotal - a.valorTotal)
-      .slice(0, 20);
+      .slice(0, 30);
   }, [vendasConcluidas, produtosMap, totalVendas, filtros.produtos, filtros.categorias]);
 
   // Vendas por categoria - CORRIGIDO
@@ -371,7 +371,8 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
   const analisePorHorario = useMemo(() => {
     const porHora = vendasConcluidas.reduce((acc, v) => {
       if (!v.criadoEm) return acc;
-      const hora = v.criadoEm.getHours();
+      const data = new Date(v.criadoEm);
+      const hora = data.getHours();
       if (!acc[hora]) acc[hora] = { hora, quantidadeVendas: 0, valorTotal: 0 };
       acc[hora].quantidadeVendas += 1;
       acc[hora].valorTotal += v.total || 0;
@@ -385,7 +386,8 @@ export function useBIData(vendas: Venda[], produtos: Produto[], categorias: Cate
     const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const porDia = vendasConcluidas.reduce((acc, v) => {
       if (!v.criadoEm) return acc;
-      const diaNumero = v.criadoEm.getDay();
+      const data = new Date(v.criadoEm);
+      const diaNumero = data.getDay();
       if (!acc[diaNumero]) acc[diaNumero] = { dia: diasSemana[diaNumero], diaNumero, quantidadeVendas: 0, valorTotal: 0 };
       acc[diaNumero].quantidadeVendas += 1;
       acc[diaNumero].valorTotal += v.total || 0;

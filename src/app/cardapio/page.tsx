@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 import { getSupabaseClient } from '@/lib/supabase';
 import { 
   ShoppingCart, 
@@ -465,8 +466,9 @@ function CardapioContent() {
   const searchParams = useSearchParams();
   const { toast } = useToast();
   const supabase = getSupabaseClient();
+  const { user, empresaId: userEmpresaId } = useAuth();
 
-  const empresaId = searchParams.get('empresa') || '';
+  const empresaId = searchParams.get('empresa') || userEmpresaId || '';
 
   const [loading, setLoading] = useState(true);
   const [empresa, setEmpresa] = useState<EmpresaInfo | null>(null);

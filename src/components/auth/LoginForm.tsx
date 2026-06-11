@@ -84,8 +84,7 @@ export function LoginForm() {
             className={`flex-1 ${tab === 'admin' ? 'bg-gradient-to-r from-violet-500 to-amber-500 hover:from-violet-600 hover:to-amber-600' : 'border-violet-300 text-violet-600'}`}
             onClick={() => { setTab('admin'); setError(''); }}
           >
-            <Shield className="h-4 w-4 mr-2" />
-            Admin/Master
+            Admin
           </Button>
           <Button
             type="button"
@@ -93,7 +92,6 @@ export function LoginForm() {
             className={`flex-1 ${tab === 'funcionario' ? 'bg-gradient-to-r from-violet-500 to-amber-500 hover:from-violet-600 hover:to-amber-600' : 'border-violet-300 text-violet-600'}`}
             onClick={() => { setTab('funcionario'); setError(''); }}
           >
-            <User className="h-4 w-4 mr-2" />
             Funcionário
           </Button>
         </div>
@@ -104,7 +102,7 @@ export function LoginForm() {
           </Alert>
         )}
 
-        {/* Form Admin/Master */}
+        {/* Form Admin */}
         {tab === 'admin' && (
           <form onSubmit={handleAdminLogin} className="space-y-4">
             <div className="space-y-2">

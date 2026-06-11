@@ -1,19 +1,22 @@
 const fs = require('fs');
 const path = require('path');
-const { execSync } = require('child_process');
 const pkg = require('../package.json');
 const versionFile = path.join(__dirname, '..', 'public', 'version.json');
+const buildNumberFile = path.join(__dirname, '..', 'BUILD_NUMBER');
 
-// Deriva o patch da contagem de commits do git (auto-incrementa a cada commit)
-let commitCount = '0';
+// Lê ou inicia o BUILD_NUMBER (armazenado em arquivo versionado no git)
+let buildNumber = 0;
 try {
-  commitCount = execSync('git rev-list --count HEAD', { encoding: 'utf-8' }).trim();
+  const raw = fs.readFileSync(buildNumberFile, 'utf-8').trim();
+  buildNumber = parseInt(raw, 10) || 0;
 } catch {
-  commitCount = pkg.version.split('.')[2] || '0';
+  buildNumber = 0;
 }
+buildNumber += 1;
+fs.writeFileSync(buildNumberFile, String(buildNumber));
 
 const base = pkg.version.split('.').slice(0, 2).join('.');
-const version = `${base}.${commitCount}`;
+const version = `${base}.${buildNumber}`;
 
 fs.writeFileSync(versionFile, JSON.stringify({
   timestamp: Date.now(),
